@@ -88,7 +88,6 @@
          
         </div>
       </nav>
-      </nav>
     </div>
     <div v-if="auth.error" class="fixed top-24 left-1/2 -translate-x-1/2 z-50 bg-red-600 text-white px-6 py-3 rounded-full shadow-xl flex items-center gap-4 animate-bounce">
       <span>{{ auth.error }}</span>
