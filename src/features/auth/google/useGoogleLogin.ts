@@ -13,13 +13,20 @@ export const googleLogin = async () => {
     
     // Check if running in Tauri
     const isTauri = !!(window as any).__TAURI__
+    console.log("Is Tauri environment:", isTauri)
 
     if (isTauri) {
-      // Use redirect for desktop app
-      await signInWithRedirect(firebaseAuth, provider)
-      // The result is handled in useAuthInit or a getRedirectResult call, 
-      // but for now let's just trigger the redirect.
-      return 
+      try {
+        console.log("Starting Google Redirect Login...")
+        // Use redirect for desktop app
+        await signInWithRedirect(firebaseAuth, provider)
+        console.log("Redirect initiated.")
+        return 
+      } catch (e: any) {
+        console.error("Google Redirect Error:", e)
+        auth.setError("Redirect failed: " + e.message)
+        throw e
+      }
     } else {
        // Use popup for web
        const result = await signInWithPopup(firebaseAuth, provider)
