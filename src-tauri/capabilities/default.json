@@ -15,6 +15,6 @@
         }
       ]
     },
-    "oauth:default"
+    "deep-link:default"
   ]
 }

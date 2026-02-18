@@ -10,7 +10,7 @@ pub fn run() {
         )?;
       }
       app.handle().plugin(tauri_plugin_shell::init())?;
-      app.handle().plugin(tauri_plugin_oauth::init())?;
+      app.handle().plugin(tauri_plugin_deep_link::init())?;
 
       Ok(())
     })
