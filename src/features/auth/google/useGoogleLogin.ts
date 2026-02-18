@@ -22,7 +22,16 @@ export const googleLogin = async () => {
         // 1. Configuration
         // IMPORTANT: You must add this redirect URI to Google Console: com.voe.app://google-auth
         const clientId = "YOUR_GOOGLE_CLIENT_ID_HERE"; 
+        
+        if (clientId === "YOUR_GOOGLE_CLIENT_ID_HERE") {
+            const msg = "CONFIGURATION ERROR: You must replace 'YOUR_GOOGLE_CLIENT_ID_HERE' in src/features/auth/google/useGoogleLogin.ts with your actual Google Client ID.";
+            console.error(msg);
+            auth.setError(msg);
+            throw new Error(msg);
+        }
+
         const redirectUri = "com.voe.app://google-auth"; 
+        console.log("Using Redirect URI:", redirectUri); // Debug Log 
         const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid";
         const responseType = "code"; 
         
