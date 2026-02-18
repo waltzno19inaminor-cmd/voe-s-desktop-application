@@ -22,49 +22,89 @@ export const googleLogin = async () => {
         // 1. Configuration
         // IMPORTANT: You must add this redirect URI to Google Console: com.voe.app://google-auth
         const clientId = "79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com"; 
-        
-        if (clientId === "79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com") {
-            const msg = "CONFIGURATION ERROR: You must replace '79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com' in src/features/auth/google/useGoogleLogin.ts with your actual Google Client ID.";
-            console.error(msg);
-            auth.setError(msg);
-            throw new Error(msg);
-        }
-
         const redirectUri = "com.voe.app://google-auth"; 
-        console.log("Using Redirect URI:", redirectUri); // Debug Log 
+        
+        console.log("Using Redirect URI:", redirectUri);
+
         const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid";
         const responseType = "code"; 
         
+        // --- PKCE Implementation ---
+        const generateRandomString = (length: number) => {
+            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+            let text = '';
+            for (let i = 0; i < length; i++) {
+                text += possible.charAt(Math.floor(Math.random() * possible.length));
+            }
+            return text;
+        };
+
+        const sha256 = async (plain: string) => {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(plain);
+            const hash = await window.crypto.subtle.digest('SHA-256', data);
+            return hash;
+        };
+
+        const base64urlencode = (a: ArrayBuffer) => {
+             const bytes = new Uint8Array(a);
+             let str = '';
+             for (const byte of bytes) {
+                 str += String.fromCharCode(byte);
+             }
+            return btoa(str)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+        };
+
+        const generateCodeChallenge = async (v: string) => {
+            const hashed = await sha256(v);
+            return base64urlencode(hashed);
+        };
+
+        const codeVerifier = generateRandomString(128);
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+        // ---------------------------
+
         // 2. Setup Listener BEFORE opening browser
         auth.setError("Debug: Setting up Deep Link listener...")
         
         const codePromise = new Promise<string>((resolve, reject) => {
+            // @ts-ignore
             const unlistenPromise = onOpenUrl((urls) => {
                 console.log("Deep Link received:", urls);
                 auth.setError("Debug: Deep link received! Processing...");
                 
                 for (const url of urls) {
-                    if (url.startsWith("com.voe.app://")) {
+                    if (url.startsWith("com.voe.app")) {
                         const urlObj = new URL(url);
                         const code = urlObj.searchParams.get("code");
+                        const error = urlObj.searchParams.get("error");
                         if (code) {
                             resolve(code);
-                            return; // Stop processing
+                            return; 
+                        } else if (error) {
+                             reject(new Error("Google Error: " + error));
+                             return;
                         }
                     }
                 }
-                // If loop finishes without code, we might keep waiting or reject? 
-                // For now, keep waiting.
             });
             
-            // Timeout after 60 seconds
+            // Timeout after 3 minutes
             setTimeout(() => {
-                reject(new Error("Login timed out. Did you approve the app?"));
-            }, 60000);
+                // Check if promise already resolved? 
+                // The Promise constructor doesn't provide state checking, 
+                // but checking connection is fine.
+                // Just reject, if already resolved it's ignored.
+                reject(new Error("Login timed out."));
+            }, 180000);
         });
 
-        // 3. Open Browser
-        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${encodeURIComponent(scope)}`;
+        // 3. Open Browser & Add PKCE params
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+        
         console.log("Opening URL:", authUrl);
         auth.setError("Debug: Opening Browser...")
         await open(authUrl);
@@ -84,6 +124,7 @@ export const googleLogin = async () => {
                 client_id: clientId,
                 redirect_uri: redirectUri,
                 grant_type: "authorization_code",
+                code_verifier: codeVerifier // PKCE Verifier
             })
         });
 
@@ -105,11 +146,11 @@ export const googleLogin = async () => {
             email: user.email,
             displayName: user.displayName,
             photoURL: user.photoURL,
-            joinedAt: user.metadata.creationTime
+            joinedAt: user.metadata.creationTime || null
         })
 
         await ensureUserDocument(user)
-        auth.setError(null); // Clear debug messages on success at the very end (or let redirect handle it)
+        auth.setError(null); 
 
       } catch (e: any) {
         console.error("Google Deep Link Login Error:", e)
