@@ -19,7 +19,8 @@ export const googleLogin = async () => {
       uid: user.uid,
       email: user.email,
       displayName: user.displayName,
-      photoURL: user.photoURL
+      photoURL: user.photoURL,
+      joinedAt: user.metadata.creationTime
     })
 
     

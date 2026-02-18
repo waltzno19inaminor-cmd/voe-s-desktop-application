@@ -1,5 +1,5 @@
 <template>
-  <header v-if="auth.user"
+  <header
   >
     <div class=" max-w-6xl w-full mx-auto px-8 py-5">
       <nav class="flex justify-between items-center ">
@@ -17,7 +17,11 @@
              <NuxtLink :to="{
                           path: '/forum/diary',
                           query: { uid: auth.user.uid }
-                        }">Diary</NuxtLink>
+                        }" v-if="auth.user">Diary</NuxtLink>
+              <NuxtLink :to="{
+                          path: '/login',
+                          query: { redirect: '/forum/main' }
+                        }" v-else>Diary</NuxtLink>
               <NuxtLink to="/forum/chronicles">Chronicles</NuxtLink>
            
           </ul>
