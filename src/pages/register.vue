@@ -131,16 +131,18 @@ const register = async () => {
 
   if (auth.error) {
     error.value = auth.error;
+  } else if (auth.user) {
+    navigateTo('/')
   }
-  navigateTo('/')
 };
 
 const doGoogleLogin = async () => {
   await googleLogin();
   if (auth.error) {
     error.value = auth.error;
+  } else if (auth.user) {
+    navigateTo('/')
   }
-  navigateTo('/')
 };
 
 definePageMeta({
