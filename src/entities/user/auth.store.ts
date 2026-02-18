@@ -35,7 +35,7 @@ export const useAuthStore = defineStore('auth', {
         setLoading(value: boolean) {
             this.loading = value;
         },
-        setError(value: string) {
+        setError(value: string | null) {
             this.error = value;
         },
         setAuthReady(value: boolean) {
