@@ -13,10 +13,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # Apple Silicon (runs on newer macOS but target compatible)
-            args: "--target aarch64-apple-darwin"
-          - platform: "macos-12" # Intel (Monterey - matches user's OS version)
-            args: "--target x86_64-apple-darwin"
+          - platform: "macos-latest"
+            args: "--target universal-apple-darwin"
           - platform: "windows-latest"
             args: ""
 
@@ -32,8 +30,8 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are usually installed on macos runners by default, but we can be explicit
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || matrix.platform == 'macos-13' && 'x86_64-apple-darwin' || '' }}
+          # Install both targets for Universal build
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
