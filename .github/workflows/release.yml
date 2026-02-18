@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # High Sierra and later (Apple Silicon)
+          - platform: "macos-latest" # Apple Silicon (runs on newer macOS but target compatible)
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-13" # High Sierra and later (Intel)
+          - platform: "macos-12" # Intel (Monterey - matches user's OS version)
             args: "--target x86_64-apple-darwin"
           - platform: "windows-latest"
             args: ""
