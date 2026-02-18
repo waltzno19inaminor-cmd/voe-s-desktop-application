@@ -30,17 +30,7 @@
     "targets": "all",
     "icon": [
       "icons/icon.ico"
-    ],
-    "deepLinks": {
-      "protocols": [
-        {
-          "name": "VoeApp",
-          "schemes": [
-            "com.voe.app"
-          ]
-        }
-      ]
-    }
+    ]
   },
   "plugins": {
       "updater": {
