@@ -9,6 +9,9 @@ pub fn run() {
             .build(),
         )?;
       }
+      app.handle().plugin(tauri_plugin_shell::init())?;
+      app.handle().plugin(tauri_plugin_oauth::init())?;
+
       Ok(())
     })
     .run(tauri::generate_context!())
