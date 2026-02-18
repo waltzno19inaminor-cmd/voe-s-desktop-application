@@ -18,23 +18,31 @@ export const googleLogin = async () => {
 
     if (isTauri) {
       try {
+        auth.setError("Debug: Initializing Native Login...") // Visible Log
         console.log("Starting Google Native Login...")
         
         // 1. Start local server
+        auth.setError("Debug: Starting OAuth server...")
+        console.log("Attempting to start OAuth server...");
         const port = await start();
         console.log(`OAuth server started on port ${port}`);
+        auth.setError(`Debug: Server started on ${port}. Opening browser...`)
         
         // 2. Configuration
-        const clientId = "YOUR_GOOGLE_CLIENT_ID_HERE"; // User must provide this
+        const clientId = "YOUR_GOOGLE_CLIENT_ID_HERE"; 
         const redirectUri = `http://localhost:${port}`;
         const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid";
         const responseType = "code"; 
         
         // 3. Open Browser
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=${responseType}&scope=${encodeURIComponent(scope)}`;
+        console.log("Attempting to open URL:", authUrl);
         await open(authUrl);
+        console.log("Browser opened successfully (command sent).");
+        auth.setError("Debug: Browser command sent. Waiting for redirect...")
 
         // 4. Listen for valid redirect
+        console.log("Waiting for redirect callback...");
         const code = await new Promise<string>((resolve, reject) => {
             // @ts-ignore
             import('@fabianlars/tauri-plugin-oauth').then(module => {
