@@ -21,10 +21,10 @@ export const googleLogin = async () => {
         
         // 1. Configuration
         // IMPORTANT: You must add this redirect URI to Google Console: com.voe.app://google-auth
-        const clientId = "YOUR_GOOGLE_CLIENT_ID_HERE"; 
+        const clientId = "79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com"; 
         
-        if (clientId === "YOUR_GOOGLE_CLIENT_ID_HERE") {
-            const msg = "CONFIGURATION ERROR: You must replace 'YOUR_GOOGLE_CLIENT_ID_HERE' in src/features/auth/google/useGoogleLogin.ts with your actual Google Client ID.";
+        if (clientId === "79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com") {
+            const msg = "CONFIGURATION ERROR: You must replace '79915571390-njdkeumrb2p4hsmuu805cjqkm3b67akr.apps.googleusercontent.com' in src/features/auth/google/useGoogleLogin.ts with your actual Google Client ID.";
             console.error(msg);
             auth.setError(msg);
             throw new Error(msg);
