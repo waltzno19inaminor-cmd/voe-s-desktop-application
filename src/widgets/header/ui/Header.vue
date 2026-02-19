@@ -97,6 +97,7 @@
         </svg>
       </button>
     </div>
+    <Updater />
   </header>
 </template>
 
@@ -108,6 +109,7 @@ import Notifications from "~/widgets/notifications/ui/Notifications.vue";
 import { useNotificationStore } from '~/features/store/useNotifications';
 import { methods, showMethods, reloadPage, handleScroll, scrollY } from '~/widgets/header/model/useHeader';
 import DropdownMenu from "./DropdownMenu.vue";
+import Updater from "~/widgets/updater/Updater.vue";
 
 const auth = useAuthStore();
 const { user, authReady } = storeToRefs(auth);
