@@ -22,7 +22,9 @@ export const googleLogin = async () => {
         // 1. Configuration
         // IMPORTANT: You must add this redirect URI to Google Console: com.voe.app://google-auth
         const clientId = "79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22.apps.googleusercontent.com"; 
-        const redirectUri = "com.voe.app://google-auth"; 
+        // Use Reversed Client ID Scheme for iOS/macOS (Standard Google practice)
+        const reversedClientId = "com.googleusercontent.apps.79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22";
+        const redirectUri = `${reversedClientId}:/oauth2callback`; 
         
         console.log("Using Redirect URI:", redirectUri);
 
@@ -77,7 +79,7 @@ export const googleLogin = async () => {
                 auth.setError("Debug: Deep link received! Processing...");
                 
                 for (const url of urls) {
-                    if (url.startsWith("com.voe.app")) {
+                    if (url.startsWith(reversedClientId)) {
                         const urlObj = new URL(url);
                         const code = urlObj.searchParams.get("code");
                         const error = urlObj.searchParams.get("error");
