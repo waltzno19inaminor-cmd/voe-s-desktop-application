@@ -46,11 +46,27 @@
     </div>
 
     <div class="border-t border-black/10 dark:border-white/10">
-      <div class="max-w-6xl mx-auto px-8 py-4 flex justify-end text-[11px] text-[#666] dark:text-[#999]">
-      
+      <div class="max-w-6xl mx-auto px-8 py-4 flex justify-between items-center text-[11px] text-[#666] dark:text-[#999]">
+        <span>v{{ appVersion }}</span>
         <span>© 2026. All rights reserved.</span>
       </div>
     </div>
   </footer>
 
 </template>
+
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { getVersion } from '@tauri-apps/api/app';
+
+const appVersion = ref('');
+
+onMounted(async () => {
+  try {
+    appVersion.value = await getVersion();
+  } catch (e) {
+    console.debug('Failed to get version', e);
+    appVersion.value = 'dev';
+  }
+});
+</script>
