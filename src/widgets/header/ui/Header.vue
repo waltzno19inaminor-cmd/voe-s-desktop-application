@@ -64,6 +64,11 @@
                   referrerpolicy="no-referrer"
 
                 />
+                <div v-else class="w-8 h-8 rounded-full bg-[#444] flex justify-center items-center">
+                  <span class="text-white text-sm">
+                    {{ auth.user.email?.charAt(0).toUpperCase() }}
+                  </span>
+                </div>
               
                
               </button>

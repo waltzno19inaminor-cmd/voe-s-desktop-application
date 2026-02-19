@@ -6,14 +6,18 @@
 
                 <div class="flex-shrink-0">
                 <div class="w-28 h-28 rounded-full flex justify-center items-center bg-black/10 dark:bg-white/10">
-                    <img v-if="avatar" :src="avatar" :key="avatar" alt="user's photo"  :class="[
+                    <img v-if="avatar !== '/base-ava.svg'" :src="avatar" :key="avatar" alt="user's photo"  :class="[
                     'rounded-full',
                     avatar === '/base-ava.svg' ? 'w-16 h-16' : 'w-full h-full'
                   ]"
                     loading="lazy"
                     decoding="async"
                     @error="onImgError" />
-                
+                    <div v-else class="w-full h-full rounded-full bg-[#444] flex justify-center items-center">
+                      <span class="text-white text-[4rem]">
+                        {{ user?.email?.charAt(0).toUpperCase() }}
+                      </span>
+                    </div>
                 </div>
                 </div>
 
