@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Voe's",
+  "productName": "Voes",
   "version": "0.3.3",
   "identifier": "com.voe.app",
   "build": {

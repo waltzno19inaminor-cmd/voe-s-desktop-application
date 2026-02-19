@@ -3,11 +3,13 @@
     class="min-h-screen bg-[#f7f5fa] bg-center bg-cover dark:bg-none dark:bg-[#121212]"
   >
     <NuxtPage />
+    <Updater />
   </div>
 </template>
 
 
 <script setup>
+import Updater from '~/widgets/updater/Updater.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useAuthInit } from '~/features/auth/useAuthInit'
 import { watchEffect } from 'vue'
