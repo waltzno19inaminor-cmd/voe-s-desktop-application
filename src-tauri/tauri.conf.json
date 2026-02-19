@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Voes",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "identifier": "com.voe.app",
   "build": {
     "frontendDist": "../.output/public",
@@ -35,7 +35,7 @@
   "plugins": {
       "updater": {
           "endpoints": [
-              "https://github.com/garder-les-ciseaux-droits/voe-s/releases/latest/download/latest.json"
+              "https://github.com/waltzno19inaminor-cmd/voe-s-desktop-application/releases/latest/download/latest.json"
           ],
           "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEVDQzVDRUEwNzY3ODI3OTcKUldTWEozaDJvTTdGN0tMWjVTanZqem9nS0dMbXhRaHVUZ0hUMDVFMk9WZkhvMHFmVVpkVEpnTVEK"
       }
