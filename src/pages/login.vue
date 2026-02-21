@@ -7,6 +7,18 @@
       {{ error }}
     </div>
 
+    <div class="fixed top-6 left-6 z-50">
+      <NuxtLink
+        to="/"
+        class="flex items-center gap-2 text-sm text-[#666] transition-colors hover:text-black dark:text-[#aaa] dark:hover:text-white"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back
+      </NuxtLink>
+    </div>
+
     <div class="w-full max-w-md mx-auto my-auto rounded-xl px-8 py-12">
       <h1
         class="mb-2 text-2xl font-serif tracking-wide text-[#121212] dark:text-white"

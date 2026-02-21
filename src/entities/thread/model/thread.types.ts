@@ -5,7 +5,7 @@ export interface Thread {
     description: string,
     category: ThreadCategory,
     subcategory: ThreadSubcategory,
-    author: string,
+    author?: string,
     authorId: string,
     createdAt: string,
     lastActivityAt: string,

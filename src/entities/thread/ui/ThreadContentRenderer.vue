@@ -56,6 +56,7 @@
         </figcaption>
       </figure>
 
+      
     </div>
   </div>
 </template>

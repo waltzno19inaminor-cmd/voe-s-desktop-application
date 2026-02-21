@@ -459,7 +459,7 @@ import {
 } 
 from "~/widgets/creation/model/useCreation";
 import { useRoute } from "vue-router";
-import { watch , ref } from  'vue';
+import { watch , ref, onBeforeUnmount } from  'vue';
 import { useForumStore } from "~/features/store/useForum";
 import TradesMenu from "./TradesMenu.vue";
 
@@ -484,7 +484,7 @@ const isConfirmedDeletion = ref(false);
 const publish = async () => {
     if(isConfirmedCreation.value){
         if(!isEditing.value){
-            await createThread(auth.user?.displayName || 'Anonymous', auth.user?.uid || '00000011111')
+            await createThread(auth.user?.uid || '00000011111')
         }
         else{
             if(!threadId.value && route.query.thread) return;
@@ -553,5 +553,25 @@ watch(
   { immediate: true }
 )
 
+
+onBeforeUnmount(() => {
+    category.value = null;
+    subcategory.value = null;
+    threadTitle.value = null;
+    threadDescription.value = null;
+    threadId.value = null
+    selectedTrades.value = [];
+    blocks.value = [];
+    isEditing.value = false;
+    status.value = 'idle';
+    thread.value = null;
+    showConfirmCreation.value = false;
+    showConfirmDeletion.value = false;
+    isConfirmedCreation.value = false;
+    isConfirmedDeletion.value = false;
+    imagePreview.value = null;
+    selectedFile.value = null;
+    
+})
 
 </script>

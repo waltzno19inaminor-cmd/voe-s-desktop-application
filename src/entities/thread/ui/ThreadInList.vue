@@ -6,7 +6,7 @@
                 {{ thread.title }}
             </p>
             <p class="text-xs text-[#666]">
-            by {{ thread.author }} · {{ thread.repliesCount }} replies · updated {{ timeAgo(thread.lastActivityAt) }}
+            by {{ displayName }} · {{ thread.repliesCount }} replies · updated {{ timeAgo(thread.lastActivityAt) }}
                 </p>
         </NuxtLink>
     </li>
@@ -19,6 +19,7 @@ import { timeAgo } from "~/composables/timeAgo";
 
 interface Props {
   thread: Thread;
+  displayName: ComputedRef<string>;
 }
 
 const props = defineProps<Props>();

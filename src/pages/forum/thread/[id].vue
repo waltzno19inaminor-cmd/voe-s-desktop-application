@@ -65,12 +65,13 @@
             </h1>
 
             <div class="text-xs tracking-widest uppercase text-[#777] mb-6">
-                {{ thread.subcategory }} · by {{ thread.author }} · Updated {{ timeAgo(thread.lastActivityAt) }}
+                {{ thread.subcategory }} · by {{ displayName }} · Updated {{ timeAgo(thread.lastActivityAt) }}
             </div>
 
           
 
             <ThreadContentRenderer @textSelected="handleTextSelected" v-if="thread?.thesis?.blocks" :blocks="thread.thesis.blocks" :isQuote="isQuoting"  />
+            <ThreadIncludedTrades  v-if="thread?.includedTrades?.length > 0" :trades="thread.includedTrades" />
 
             <div class="flex gap-6 text-xs text-[#777] mt-10">
                 <button @click="isReplying = true" class="hover:text-black dark:hover:text-white transition">Reply</button>
@@ -209,6 +210,7 @@ import { useRoute } from "vue-router";
 import { timeAgo } from "~/composables/timeAgo";
 import ThreadLink from "~/entities/threadLink/ui/ThreadLink.vue";
 import { useAuthStore } from "~/entities/user/auth.store";
+import ThreadIncludedTrades from "~/entities/thread/ui/ThreadIncludedTrades.vue";
 
 import Reply from "~/entities/reply/ui/Reply.vue";
 import { definedCategory } from "../model/useCategory";
@@ -259,7 +261,7 @@ async function submitForm(){
         context: {
             threadId: threadId,
             threadTitle: thread.value.title,
-            threadAuthor: thread.value.author,
+            threadAuthor: displayName.value,
             threadAuthorId: thread.value.authorId
         }
     })
@@ -272,6 +274,7 @@ function reloadPage(){
     window.location.reload()
 }
 
+const displayName = ref('Anonymous'); 
 
 onMounted(async () => {
   
@@ -279,10 +282,19 @@ onMounted(async () => {
   await forum.fetchReplies(threadId)
 
 
+
+
   const threadsMap = forum.threads
 
 
   thread.value = threadsMap.get(threadId)
+
+
+  const user = forum.users.get(thread.value.authorId);
+    if(user){
+        displayName.value = user.displayName
+    }
+
 
 
   links.value = await forum.fetchThreadLinks(threadId)

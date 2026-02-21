@@ -73,7 +73,7 @@
 
                             <ul v-if="!collapsed.theory && filteredThreads.filter(x => x.subcategory === 'theory').length > 0" class="dark:text-white ml-6 mt-5 max-h-96 overflow-y-auto space-y-4 border-l border-black/10 dark:border-white/10 pl-6">
 
-                            <ThreadInList class="cursor-pointer" @mouseenter="hoveredThread = thread" @mouseleave="hoveredThread = null" v-for="thread in  filteredThreads.filter(x => x.subcategory === 'theory')" :key="thread.id" :thread="thread"/>
+                            <ThreadInList class="cursor-pointer" @mouseenter="hoveredThread = thread" @mouseleave="hoveredThread = null" v-for="thread in  filteredThreads.filter(x => x.subcategory === 'theory')" :key="thread.id" :thread="thread" :display-name="getAuthorName(thread.authorId)"/>
 
                             </ul>
                             <p v-else class="text-center font-light text-sm text-[#666] mt-5 italic">No threads found</p>
@@ -96,7 +96,7 @@
 
                             <ul v-if="!collapsed.practice && filteredThreads.filter(x => x.subcategory === 'practice').length > 0" class="dark:text-white ml-6 mt-5 max-h-96 overflow-y-auto space-y-4 border-l border-black/10 dark:border-white/10 pl-6">
                                  <ClientOnly>
-                                    <ThreadInList class="cursor-pointer" @mouseenter="hoveredThread = thread" @mouseleave="hoveredThread = null" v-for="thread in filteredThreads.filter(x => x.subcategory === 'practice')" :key="thread.id" :thread="thread"/>
+                                    <ThreadInList class="cursor-pointer" @mouseenter="hoveredThread = thread" @mouseleave="hoveredThread = null" v-for="thread in filteredThreads.filter(x => x.subcategory === 'practice')" :key="thread.id" :thread="thread" :display-name="getAuthorName(thread.authorId)"/>
                                  </ClientOnly>
 
                             </ul>
@@ -161,8 +161,11 @@ import { useForumRoute } from "~/composables/useForumRoute";
 import ThreadInList from "~/entities/thread/ui/ThreadInList.vue";
 import { search } from "~/widgets/list/model/useList";
 
-import { computed, ref } from "vue";
+import { computed, ref, onMounted } from "vue";
 import ThreadOverview from "~/entities/thread/ui/ThreadOverview.vue";
+import { useForumStore } from "~/features/store/useForum";
+const forum = useForumStore()
+
 
 const { category } = useForumRoute();
 
@@ -183,5 +186,24 @@ const filteredThreads = computed(() => {
     return threads.value.filter(thread => thread.title.toLowerCase().includes(search.value.toLowerCase()));
 });
 
+
+const fetchingUsers = new Set();
+const getAuthorName = (authorId) => {
+    if (!authorId) return 'anonymous';
+
+    const user = forum.users.get(authorId);
+    if (user) {
+        return user.displayName || user.name || 'anonymous';
+    }
+
+    if (!fetchingUsers.has(authorId)) {
+        fetchingUsers.add(authorId);
+        forum.fetchUser(authorId).finally(() => {
+            fetchingUsers.delete(authorId);
+        });
+    }
+
+    return '...';
+};
 
 </script>

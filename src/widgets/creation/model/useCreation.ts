@@ -78,7 +78,7 @@ export function onImageSelect(event: Event, block: ContentBlock) {
 }
 }
 
-export async function createThread(author: string, authorId: string) {
+export async function createThread( authorId: string) {
   if (isSubmitting.value) return
   if (blocks.value.length === 0) return
 
@@ -97,7 +97,7 @@ export async function createThread(author: string, authorId: string) {
       thesis: {
         blocks: blocks.value
       },
-      author,
+      
       authorId,
       status: 'active',
       createdAt: serverTimestamp(),
