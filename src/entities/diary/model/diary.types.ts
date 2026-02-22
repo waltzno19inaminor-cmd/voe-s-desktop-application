@@ -15,6 +15,8 @@ export interface DiaryEntry {
     stopLoss?: number;
     takeProfit?: number;
     size?: number;
+    sizeInCurrency?: number;
+    currency?: string;
     result?: number;
     notes?: string;
     images?: DiaryImage[];

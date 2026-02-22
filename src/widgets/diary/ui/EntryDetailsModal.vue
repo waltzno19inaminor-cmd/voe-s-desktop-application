@@ -1,16 +1,16 @@
 <template>
   <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-    <!-- Backdrop -->
+   
     <div 
       class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
       @click="close"
     ></div>
 
-    <!-- Modal Content -->
+   
     <div 
       class="relative bg-white dark:bg-[#181818] rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden border border-black/5 dark:border-white/10 flex flex-col"
     >
-      <!-- Header -->
+    
       <div class="px-6 py-4 border-b border-black/5 dark:border-white/5 flex justify-between items-center bg-[#fafafa] dark:bg-[#1f1f1f] flex-shrink-0">
         <div>
           <h2 class="text-xl font-serif text-[#121212] dark:text-white">Trade Details</h2>
@@ -26,10 +26,10 @@
         </button>
       </div>
 
-      <!-- Body / Scrollable Content -->
+     
       <div class="p-6 overflow-y-auto custom-scrollbar">
         
-        <!-- Key Stats Grid -->
+       
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div class="p-4 bg-[#fafafa] dark:bg-[#1f1f1f] rounded-lg border border-black/5 dark:border-white/5">
                 <span class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa] mb-1">Side</span>
@@ -57,7 +57,7 @@
             </div>
         </div>
 
-        <!-- Notes -->
+       
         <div class="mb-8">
             <h3 class="text-sm uppercase tracking-widest text-[#666] dark:text-[#aaa] mb-2">Notes</h3>
             <p class="text-[#121212] dark:text-white leading-relaxed whitespace-pre-line bg-[#fafafa] dark:bg-[#1f1f1f] p-4 rounded-lg border border-black/5 dark:border-white/5">
@@ -65,7 +65,7 @@
             </p>
         </div>
 
-        <!-- Images Gallery -->
+       
         <div v-if="entry?.images && entry.images.length > 0">
             <h3 class="text-sm uppercase tracking-widest text-[#666] dark:text-[#aaa] mb-4">Visual Context</h3>
             <div class="grid grid-cols-1 gap-8">

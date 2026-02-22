@@ -67,7 +67,7 @@
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Entry / Exit</th>
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Exit Date</th>
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">SL / TP</th>
-                        <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Size</th>
+                        <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Size / Value</th>
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Result</th>
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs">Notes</th>
                         <th class="px-6 py-3 text-left font-medium text-[#666] dark:text-[#aaa] uppercase tracking-wider text-xs w-24">Context</th>
@@ -117,7 +117,12 @@
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap">
-                        {{entry.size}}
+                            <div class="flex items-center gap-2">
+                                <span>{{entry.size}} Lots</span>
+                                <span v-if="entry.sizeInCurrency" class="text-xs text-[#666] dark:text-[#aaa]">
+                                    ({{ entry.sizeInCurrency }} {{ entry.currency }})
+                                </span>
+                            </div>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap " :class="entry.result >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
@@ -238,7 +243,7 @@
 
         <div v-if="isExtendedStatsOpen" class="mt-8 transition-all duration-300">
 
-
+            <DiaryChart class="py-10" v-if="chartData && chartData.length > 1" :data="chartData" :categories="chartCategories" :xFormatter="xFormatter" :tooltipTitleFormatter="tooltipTitleFormatter" legendStyle="margin-top: 20px" />
              <div v-if="quotes" class="mt-6 p-4 rounded-xl bg-gradient-to-r from-gray-100 to-gray-50 dark:from-[#1a1a1a] dark:to-[#151515] border border-black/5 dark:border-white/5">
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider">Market Comparison (SPX 1Y)</span>
@@ -259,9 +264,11 @@
                     </div>
                 </div>
              </div>
+
+           
         </div>
    
-
+    
     <AddEntryModal />
     <EntryDetailsModal 
         :isOpen="isDetailsModalOpen" 
@@ -273,7 +280,7 @@
 
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { isAddModalOpen, removeDiaryEntry } from '@/widgets/diary/model/useDiary';
 import type { DiaryEntry } from '@/entities/diary/model/diary.types';
 import AddEntryModal from '@/widgets/diary/ui/AddEntryModal.vue';
@@ -282,7 +289,7 @@ import { useForumStore } from "~/features/store/useForum";
 import { useRoute } from "vue-router";
 import { useAuthStore } from '~/entities/user/auth.store';
 import Heatmap from '@/widgets/diary/ui/Heatmap.vue';
-
+import DiaryChart from '@/widgets/diary/ui/DiaryChart.vue';
 
 
 const forum = useForumStore()
@@ -447,6 +454,53 @@ const stats = computed(() => {
         avgHoldingTime
     };
 });
+
+const chartData = computed(() => {
+    let currentEquity = 0;
+    return sortedEntries.value.map(entry => {
+        currentEquity += entry.result || 0;
+        return {
+            date: entry.dateExit || entry.date,
+            profit: Number(currentEquity.toFixed(2))
+        };
+    });
+});
+
+const chartCategories = {
+    profit: {
+        name: 'Equity',
+        color: '#10b981' 
+    }
+};
+
+const xFormatter = (tick: number | Date) => {
+    const index = Math.round(Number(tick));
+    const item = chartData.value[index];
+    if (item && item.date) {
+        let d;
+        if (typeof item.date.toDate === 'function') {
+            d = item.date.toDate();
+        } else {
+             d = new Date(item.date);
+        }
+        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    }
+    return '';
+};
+
+const tooltipTitleFormatter = (dataItem: any) => {
+    if (dataItem && dataItem.date) {
+        let d;
+        if (typeof dataItem.date.toDate === 'function') {
+            d = dataItem.date.toDate();
+        } else {
+             d = new Date(dataItem.date);
+        }
+        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    return '';
+};
+
 
 
 watch(

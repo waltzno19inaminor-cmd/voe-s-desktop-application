@@ -55,7 +55,7 @@
         </div>
 
       
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="space-y-1">
             <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Side</label>
             <select 
@@ -68,14 +68,42 @@
             </select>
           </div>
           <div class="space-y-1">
-            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Size</label>
+            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Size (Lots)</label>
             <input 
               type="number" 
               required="true"
               v-model="newEntry.size"
               step="0.01"
+              min="0"
               class="w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
             />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Size (Currency)</label>
+            <div class="flex gap-2">
+                <input 
+                  type="number" 
+                  required="true"
+                  v-model="newEntry.sizeInCurrency"
+                  step="0.01"
+                  min="0"
+                  class="flex-1 w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
+                />
+                <select 
+                  v-model="newEntry.currency"
+                  class="w-24 px-2 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white appearance-none"
+                >
+                  <option value="USD" class="dark:bg-[#181818]">USD</option>
+                  <option value="EUR" class="dark:bg-[#181818]">EUR</option>
+                  <option value="RUB" class="dark:bg-[#181818]">RUB</option>
+                  <option value="GBP" class="dark:bg-[#181818]">GBP</option>
+                  <option value="JPY" class="dark:bg-[#181818]">JPY</option>
+                  <option value="AUD" class="dark:bg-[#181818]">AUD</option>
+                  <option value="CAD" class="dark:bg-[#181818]">CAD</option>
+                  <option value="CHF" class="dark:bg-[#181818]">CHF</option>
+                  <option value="CNY" class="dark:bg-[#181818]">CNY</option>
+                </select>
+            </div>
           </div>
         </div>
 
