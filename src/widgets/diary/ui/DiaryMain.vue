@@ -19,6 +19,7 @@
 
       <div class="flex items-center gap-4">
         <button 
+            v-if="auth.user?.uid == route.query.uid"
           @click="isAddModalOpen = true"
           class="flex items-center gap-2 text-sm bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg hover:opacity-80 transition shadow-sm"
         >

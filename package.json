@@ -27,6 +27,7 @@
     "firebase": "^12.7.0",
     "graphology": "^0.26.0",
     "nuxt": "^4.2.2",
+    "nuxt-charts": "^2.1.2",
     "pinia": "^3.0.4",
     "sigma": "^3.0.2",
     "uuid": "^13.0.0",
