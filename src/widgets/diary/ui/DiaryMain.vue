@@ -18,6 +18,8 @@
       </span>
 
       <div class="flex items-center gap-4">
+        <InitialDeposit />
+
         <button 
             v-if="auth.user?.uid == route.query.uid"
           @click="isAddModalOpen = true"
@@ -180,7 +182,7 @@
     <div v-if="isReady && entriesList && entriesList.length > 0" class="mt-8 mb-8">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       
-        <div class="bg-[#f5f5f5] dark:bg-[#1a1a1a] p-4 rounded-xl">
+        <div class="bg-[#f5f5f5] border border-black/5 dark:border-white/0 dark:bg-[#1a1a1a] p-4 rounded-xl">
              <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider block mb-1">Net Return</span>
              <span class="text-2xl font-medium" :class="stats.netResult > 0 ? 'text-emerald-600 dark:text-emerald-400' : (stats.netResult < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#121212] dark:text-white')">
                 {{ stats.netResult > 0 ? '+' : ''}}{{ stats.netResult.toFixed(2) }}%
@@ -188,7 +190,7 @@
         </div>
 
       
-        <div class="bg-[#f5f5f5] dark:bg-[#1a1a1a] p-4 rounded-xl">
+        <div class="bg-[#f5f5f5] border border-black/5 dark:border-white/0 dark:bg-[#1a1a1a] p-4 rounded-xl">
              <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider block mb-1">Win Rate</span>
              <span class="text-2xl font-medium text-[#121212] dark:text-white">
                 {{ stats.winRate.toFixed(1) }}%
@@ -196,7 +198,7 @@
         </div>
 
        
-        <div class="bg-[#f5f5f5] dark:bg-[#1a1a1a] p-4 rounded-xl">
+        <div class="bg-[#f5f5f5] border border-black/5 dark:border-white/0 dark:bg-[#1a1a1a] p-4 rounded-xl">
              <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider block mb-1">Profit Factor</span>
              <span class="text-2xl font-medium text-[#121212] dark:text-white">
                 {{ stats.profitFactor.toFixed(2) }}
@@ -204,7 +206,7 @@
         </div>
 
         
-        <div class="bg-[#f5f5f5] dark:bg-[#1a1a1a] p-4 rounded-xl">
+        <div class="bg-[#f5f5f5] border border-black/5 dark:border-white/0 dark:bg-[#1a1a1a] p-4 rounded-xl">
              <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider block mb-1">Expectancy</span>
              <span class="text-2xl font-medium" :class="stats.expectancy > 0 ? 'text-emerald-600 dark:text-emerald-400' : (stats.expectancy < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-[#121212] dark:text-white')">
                  {{ stats.expectancy > 0 ? '+' : ''}}{{ stats.expectancy.toFixed(2) }}%
@@ -242,8 +244,16 @@
         </div>
 
         <div v-if="isExtendedStatsOpen" class="mt-8 transition-all duration-300">
-
-            <DiaryChart class="py-10" v-if="chartData && chartData.length > 1" :data="chartData" :categories="chartCategories" :xFormatter="xFormatter" :tooltipTitleFormatter="tooltipTitleFormatter" legendStyle="margin-top: 20px" />
+            <div class="grid grid-cols-1 gap-8 py-10">
+                <div>
+                    <h3 class="text-sm font-medium text-[#121212] dark:text-white mb-4">Net Profit Growth (%)</h3>
+                    <DiaryChart v-if="sortedEntries && sortedEntries.length > 1" :entries="sortedEntries" legendStyle="margin-top: 20px" />
+                </div>
+                <div v-if="auth.user?.uid == route.query.uid">
+                     <h3 class="text-sm font-medium text-[#121212] dark:text-white mb-4">Deposit Growth ($)</h3>
+                     <DepositChart v-if="sortedEntries && sortedEntries.length > 0" :entries="sortedEntries" legendStyle="margin-top: 20px" />
+                </div>
+            </div>
              <div v-if="quotes" class="mt-6 p-4 rounded-xl bg-gradient-to-r from-gray-100 to-gray-50 dark:from-[#1a1a1a] dark:to-[#151515] border border-black/5 dark:border-white/5">
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-xs text-[#666] dark:text-[#aaa] uppercase tracking-wider">Market Comparison (SPX 1Y)</span>
@@ -290,6 +300,8 @@ import { useRoute } from "vue-router";
 import { useAuthStore } from '~/entities/user/auth.store';
 import Heatmap from '@/widgets/diary/ui/Heatmap.vue';
 import DiaryChart from '@/widgets/diary/ui/DiaryChart.vue';
+import DepositChart from '@/widgets/diary/ui/DepositChart.vue';
+import InitialDeposit from '@/widgets/diary/ui/InitialDeposit.vue';
 
 
 const forum = useForumStore()
@@ -455,51 +467,7 @@ const stats = computed(() => {
     };
 });
 
-const chartData = computed(() => {
-    let currentEquity = 0;
-    return sortedEntries.value.map(entry => {
-        currentEquity += entry.result || 0;
-        return {
-            date: entry.dateExit || entry.date,
-            profit: Number(currentEquity.toFixed(2))
-        };
-    });
-});
 
-const chartCategories = {
-    profit: {
-        name: 'Equity',
-        color: '#10b981' 
-    }
-};
-
-const xFormatter = (tick: number | Date) => {
-    const index = Math.round(Number(tick));
-    const item = chartData.value[index];
-    if (item && item.date) {
-        let d;
-        if (typeof item.date.toDate === 'function') {
-            d = item.date.toDate();
-        } else {
-             d = new Date(item.date);
-        }
-        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-    }
-    return '';
-};
-
-const tooltipTitleFormatter = (dataItem: any) => {
-    if (dataItem && dataItem.date) {
-        let d;
-        if (typeof dataItem.date.toDate === 'function') {
-            d = dataItem.date.toDate();
-        } else {
-             d = new Date(dataItem.date);
-        }
-        return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-    return '';
-};
 
 
 

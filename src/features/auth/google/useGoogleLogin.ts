@@ -11,8 +11,8 @@ export const googleLogin = async () => {
   auth.setLoading(true)
 
   try {
-    // Check if running in Tauri
-    const isTauri = !!(window as any).__TAURI__
+    // Check if running in Tauri (uses internals for v2 compatibility)
+    const isTauri = !!(window as any).__TAURI_INTERNALS__
 
     if (isTauri) {
       try {
@@ -73,25 +73,43 @@ export const googleLogin = async () => {
         auth.setError("Debug: Setting up Deep Link listener...")
         
         const codePromise = new Promise<string>((resolve, reject) => {
+            const handleDeepLinkUrl = (url: string) => {
+                if (url.startsWith(reversedClientId)) {
+                    const urlObj = new URL(url);
+                    const code = urlObj.searchParams.get("code");
+                    const error = urlObj.searchParams.get("error");
+                    if (code) {
+                        resolve(code);
+                    } else if (error) {
+                          reject(new Error("Google Error: " + error));
+                    }
+                }
+            }
+
             // @ts-ignore
             const unlistenPromise = onOpenUrl((urls) => {
                 console.log("Deep Link received:", urls);
                 auth.setError("Debug: Deep link received! Processing...");
-                
                 for (const url of urls) {
-                    if (url.startsWith(reversedClientId)) {
-                        const urlObj = new URL(url);
-                        const code = urlObj.searchParams.get("code");
-                        const error = urlObj.searchParams.get("error");
-                        if (code) {
-                            resolve(code);
-                            return; 
-                        } else if (error) {
-                             reject(new Error("Google Error: " + error));
-                             return;
-                        }
-                    }
+                    handleDeepLinkUrl(url);
                 }
+            });
+
+            // Listen for single-instance event (Windows)
+            import('@tauri-apps/api/event').then(({ listen }) => {
+                listen('single-instance', (event: any) => {
+                    const { payload } = event;
+                    // payload is [args, cwd]
+                    const args = payload[0] as string[];
+                    console.log("Single instance deep link received:", args);
+                    auth.setError("Debug: Single instance deep link received! Processing...");
+                    
+                    // The deep link URL is usually the second argument on Windows
+                    const url = args.find(a => a.startsWith(reversedClientId));
+                    if (url) {
+                        handleDeepLinkUrl(url);
+                    }
+                });
             });
             
             // Timeout after 3 minutes

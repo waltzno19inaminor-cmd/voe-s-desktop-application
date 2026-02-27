@@ -1,12 +1,16 @@
 <template>
-    <BaseAreaChart :data="chartData" :categories="chartCategories" :xFormatter="xFormatter" :tooltipTitleFormatter="tooltipTitleFormatter" v-bind="$attrs" />
+    <BaseAreaChart :data="depositChartData" :categories="chartCategories" :xFormatter="xFormatterDeposit" :tooltipTitleFormatter="tooltipTitleFormatterDeposit" v-bind="$attrs" />
 </template>
-
 
 <script setup lang="ts">
 import BaseAreaChart from '~/shared/charts/ui/BaseAreaChart.vue';
 import { computed, onMounted } from 'vue';
 import { isDark } from '~/composables/changeTheme';
+import { useRoute } from 'vue-router';
+import { useForumStore } from '~/features/store/useForum';
+
+const route = useRoute();
+const forum = useForumStore();
 
 const props = defineProps({
     entries: {
@@ -20,26 +24,41 @@ onMounted(() => {
 });
 
 const chartCategories = computed(() => ({
-    profit: {
-        name: 'Net Profit',
+    deposit: {
+        name: 'Equity',
         color: '#00db98'
     }
 }));
 
-const chartData = computed(() => {
-    let currentEquity = 0;
-    return props.entries.map(entry => {
-        currentEquity += entry.result || 0;
-        return {
+const depositChartData = computed(() => {
+    const user = forum.users.get(route.query.uid as string);
+    const initialDeposit = user?.initialDeposit ?? 0;
+    
+    const data: any[] = [{
+        date: props.entries.length > 0 && props.entries[0].date 
+            ? new Date(new Date(props.entries[0].date).getTime() - 24 * 60 * 60 * 1000) 
+            : new Date(), 
+        deposit: initialDeposit
+    }];
+
+    let currentDeposit = initialDeposit;
+    
+    props.entries.forEach(entry => {
+        const multiplier = 1 + ((entry.result || 0) / 100);
+        currentDeposit = currentDeposit * multiplier;
+        
+        data.push({
             date: entry.dateExit || entry.date,
-            profit: Number(currentEquity.toFixed(2))
-        };
+            deposit: Number(currentDeposit.toFixed(2))
+        });
     });
+    
+    return data;
 });
 
-const xFormatter = (tick: number | Date) => {
+const xFormatterDeposit = (tick: number | Date) => {
     const index = Math.round(Number(tick));
-    const item = chartData.value[index];
+    const item = depositChartData.value[index];
     if (item && item.date) {
         let d;
         const dateAny = item.date as any;
@@ -53,7 +72,7 @@ const xFormatter = (tick: number | Date) => {
     return '';
 };
 
-const tooltipTitleFormatter = (dataItem: any) => {
+const tooltipTitleFormatterDeposit = (dataItem: any) => {
     if (dataItem && dataItem.date) {
         let d;
         const dateAny = dataItem.date as any;

@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', {
             displayName: string | null;
             photoURL: string | null;
             joinedAt: string | null;
+            
         },
         loading: false as boolean,
         error: null as null | string,
