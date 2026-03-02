@@ -31,3 +31,30 @@ export async function changeBio(
     isSubmitting.value = false
   }
 }
+
+export async function changeName(
+  authorId: string,
+  profileId: string,
+  displayName: string
+) {
+  if (authorId !== profileId) return
+  if (!displayName.trim()) return
+
+  isSubmitting.value = true
+  status.value = 'idle'
+
+  try {
+    const userRef = doc(db, 'users', authorId)
+
+    await updateDoc(userRef, {
+      displayName: displayName.trim()
+    })
+
+    status.value = 'success'
+  } catch (e) {
+    console.error(e)
+    status.value = 'error'
+  } finally {
+    isSubmitting.value = false
+  }
+}

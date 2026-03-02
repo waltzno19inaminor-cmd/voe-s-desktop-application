@@ -77,8 +77,6 @@
                 <template v-for="(person, pIndex) in group.people" :key="person.id">
                     
                     <div
-
-                        @click="navigateTo(`/forum/portrait/${person.id}`)"
                         class="relative group cursor-pointer"
                         :class="[
                             pIndex % 2 === 0 ? 'md:bg-gradient-to-r' : 'md:bg-gradient-to-l md:text-left',
@@ -139,7 +137,10 @@
           </div>
           
            
-            <div v-if="groupedPeople.length === 0" class="py-20 text-center dark:text-white/40 text-black/40">
+            <div v-if="isLoading" class="py-20 text-center dark:text-white/40 text-black/40">
+                <p class="font-light italic">Consulting the archives...</p>
+            </div>
+            <div v-else-if="groupedPeople.length === 0" class="py-20 text-center dark:text-white/40 text-black/40">
                 <p class="font-light italic">The archives are silent for this query...</p>
             </div>
 
@@ -150,14 +151,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { searchQuery } from '@/widgets/chronicles/model/useChronicles';
-import { eras, people } from '@/entities/portrait/model/portrait.mock';
+import { eras } from '@/entities/portrait/model/portrait.mock';
+import { useLegends } from '@/entities/portrait/api/useLegends';
 
+const { legends, isLoading, fetchLegends } = useLegends();
+
+onMounted(async () => {
+  await fetchLegends();
+});
 
 const groupedPeople = computed(() => {
 
-  const filtered = people.filter(person => {
+  const filtered = legends.value.filter(person => {
     const matchesSearch = person.name.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
                           person.description.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
                           person.tags.some(t => t.toLowerCase().includes(searchQuery.value.toLowerCase()));

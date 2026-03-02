@@ -1,56 +1,104 @@
 <template>
-  <div v-if="updateAvailable" class="fixed bottom-4 right-4 z-50 bg-white dark:bg-[#1e1e1e] p-4 rounded-xl shadow-2xl border border-black/10 dark:border-white/10 max-w-sm">
-    <div class="flex items-start gap-4">
-      <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-600 dark:text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-        </svg>
+  <div class="fixed inset-0 z-[99999] bg-[#f7f5fa] dark:bg-[#121212] flex flex-col items-center justify-center px-6 text-center backdrop-blur-lg">
+    
+    <div class="w-full max-w-md mx-auto my-auto rounded-xl px-8 py-12">
+      <!-- Loading Animation -->
+      <div v-if="isChecking || isInstalling" class="flex flex-col items-center justify-center space-y-8">
+        <div class="relative w-12 h-12">
+          <div class="absolute inset-0 rounded-full border border-black/20 dark:border-white/20"></div>
+          <div class="absolute inset-0 rounded-full border border-black dark:border-white border-t-transparent animate-spin"></div>
+        </div>
+        <div class="space-y-2">
+          <h2 class="text-2xl font-serif tracking-wide text-[#121212] dark:text-white">
+            {{ isInstalling ? 'Installing Update...' : 'Checking for Updates...' }}
+          </h2>
+          <p class="text-sm text-[#666] dark:text-[#aaa]">
+            {{ isInstalling ? 'Please wait while we prepare the new version.' : 'Making sure you have the latest features.' }}
+          </p>
+        </div>
       </div>
-      <div class="flex-1">
-        <h3 class="font-bold text-lg mb-1 dark:text-white">Update Available</h3>
-        <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">Version {{ update?.version }} is ready to install.</p>
-        <p v-if="update?.body" class="text-xs text-gray-500 dark:text-gray-400 mb-4 line-clamp-3">{{ update.body }}</p>
+
+      <!-- Update Available UI -->
+      <div v-else-if="updateAvailable" class="flex flex-col items-center animate-in fade-in zoom-in duration-300">
         
-        <div class="flex gap-2">
+        <h2 class="mb-2 text-2xl font-serif tracking-wide text-[#121212] dark:text-white">New Version Available</h2>
+        <p class="mb-8 text-sm text-[#666] dark:text-[#aaa]">
+          Version {{ update?.version }} is ready to be installed.
+        </p>
+        
+        <div class="w-full text-left bg-transparent border border-black/10 dark:border-white/10 rounded-lg p-5 mb-8 max-h-48 overflow-y-auto custom-scrollbar">
+          <h4 class="text-xs uppercase tracking-widest text-[#555] dark:text-[#aaa] mb-4">
+            Release Notes
+          </h4>
+          <div class="text-sm text-[#333] dark:text-[#ddd] whitespace-pre-wrap leading-relaxed">{{ update?.body || 'No release notes provided.' }}</div>
+        </div>
+        
+        <div class="flex flex-col gap-4 w-full">
           <button 
             @click="installUpdate" 
-            :disabled="isInstalling"
-            class="flex-1 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg text-sm font-medium hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+            class="w-full rounded-full border border-black bg-black px-6 py-3 text-sm font-serif uppercase tracking-widest text-white transition hover:bg-transparent hover:text-black dark:border-white dark:bg-white dark:text-black dark:hover:bg-transparent dark:hover:text-white"
           >
-            {{ isInstalling ? 'Installing...' : 'Install Now' }}
+            Download & Install
           </button>
           <button 
             @click="dismissUpdate" 
-            class="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            class="w-full mt-2 text-xs font-serif uppercase tracking-widest text-[#666] dark:text-[#aaa] hover:text-black dark:hover:text-white transition"
           >
-            Later
+            Skip for now
           </button>
         </div>
+      </div>
+
+      <!-- Fallback -->
+      <div v-else class="text-sm text-[#666] dark:text-[#aaa]">
+        Loading...
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-
 import { ask, message } from '@tauri-apps/plugin-dialog'
-import { check, type DownloadEvent } from '@tauri-apps/plugin-updater'
+import { check } from '@tauri-apps/plugin-updater'
+import type { DownloadEvent } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
-import { ref, onMounted } from 'vue'
+import { ref, shallowRef, onMounted } from 'vue'
 
+const emit = defineEmits(['done'])
+
+const isChecking = ref(true)
 const updateAvailable = ref(false)
-const update = ref<any>(null)
+const update = shallowRef<any>(null)
 const isInstalling = ref(false)
 
 const checkForUpdates = async () => {
+  // Check if running in Tauri. Under Tauri plugin v2, `__TAURI_INTERNALS__` or `__TAURI_OS__` are reliable,
+  // but let's make it broad enough to catch dev versions too.
+  const isTauri = typeof window !== 'undefined' && 
+                 ('__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.navigator.userAgent.includes('Tauri'))
+  
+  if (!isTauri) {
+    console.log('Not running in Tauri, skipping update check')
+    finish()
+    return
+  }
+  
+  isChecking.value = true
   try {
     const fetchedUpdate = await check()
     if (fetchedUpdate) {
       update.value = fetchedUpdate
       updateAvailable.value = true
+    } else {
+      // No updates found, continue to app
+      finish()
     }
   } catch (error) {
     console.error('Failed to check for updates:', error)
+    // On error (e.g., no internet), fail gracefully and let user into app
+    finish()
+  } finally {
+    isChecking.value = false
   }
 }
 
@@ -84,19 +132,46 @@ const installUpdate = async () => {
     console.error('Failed to install update:', error)
     await message('Failed to install update. Please try again later.', { title: 'Update Error', kind: 'error' })
     isInstalling.value = false
+    // Allow the user to enter normal app if installation failed
+    finish()
   }
 }
 
 const dismissUpdate = () => {
   updateAvailable.value = false
+  finish()
+}
+
+const finish = () => {
+  emit('done')
 }
 
 // Check for updates on mount
 onMounted(() => {
-  checkForUpdates()
+  // Add a small artificial delay so the splash screen doesn't just flash instantly
+  // if internet is fast or no update check is needed. (optional, adjust as needed)
+  setTimeout(() => {
+    checkForUpdates()
+  }, 1000)
 })
 
 defineExpose({
   checkForUpdates
 })
 </script>
+
+<style scoped>
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5); /* gray-400 */
+  border-radius: 10px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(75, 85, 99, 0.5); /* gray-600 */
+}
+</style>

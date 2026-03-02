@@ -62,6 +62,14 @@ import { getVersion } from '@tauri-apps/api/app';
 const appVersion = ref('');
 
 onMounted(async () => {
+  const isTauri = typeof window !== 'undefined' && 
+                 ('__TAURI_INTERNALS__' in window || '__TAURI__' in window || window.navigator.userAgent.includes('Tauri'))
+  
+  if (!isTauri) {
+    appVersion.value = 'web-dev'
+    return
+  }
+  
   try {
     appVersion.value = await getVersion();
   } catch (e) {

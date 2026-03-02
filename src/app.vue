@@ -2,22 +2,27 @@
   <div
     class="min-h-screen bg-[#f7f5fa] bg-center bg-cover dark:bg-none dark:bg-[#121212]"
   >
-    <NuxtPage />
-    <Updater />
+    <template v-if="updaterDone">
+      <NuxtPage />
+    </template>
+    <template v-else>
+      <Updater @done="updaterDone = true" />
+    </template>
   </div>
 </template>
 
 
 <script setup>
+import { ref, watchEffect } from 'vue'
 import Updater from '~/widgets/updater/Updater.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useAuthInit } from '~/features/auth/useAuthInit'
-import { watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-
 const auth = useAuthStore()
+
+const updaterDone = ref(false)
 
 await useAuthInit()
 

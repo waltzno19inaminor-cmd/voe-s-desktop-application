@@ -22,9 +22,72 @@
                 </div>
 
                 <div class="flex-1">
-                <h1 class="text-3xl font-serif tracking-wide text-[#121212] dark:text-white mb-2">
-                {{ user?.displayName }}
-                </h1>
+                <div class="flex items-center gap-4 mb-2 w-full">
+                  <h1 class="text-3xl font-serif tracking-wide text-[#121212] dark:text-white flex-1 min-w-0 flex items-center gap-3">
+                    <span v-if="!editName" class="truncate">{{ user?.displayName }}</span>
+                    <input
+                      v-else
+                      class="
+                        text-3xl
+                        font-serif
+                        tracking-wide
+                        text-[#121212]
+                        dark:text-white
+                        bg-transparent
+                        w-full
+                        focus:outline-none
+                        border-b border-black/20 dark:border-white/20
+                        focus:border-black/50 dark:focus:border-white/50
+                        pb-1
+                        -mb-1
+                      "
+                      v-model="currentName"
+                      @keyup.enter="submitName"
+                      @keyup.esc="cancelEditName"
+                      autofocus
+                    />
+                    
+                    <button 
+                      @click="editName = true" 
+                      v-if="auth.user?.uid === route.query.uid && !editName" 
+                      class="flex items-center transition-opacity flex-shrink-0"
+                    >
+                      <img src="/assets/edit.svg" alt="edit" class="w-4 h-4 inline-block" />
+                    </button>
+                  </h1>
+                  
+                  <div v-if="auth.user?.uid === route.query.uid && editName" class="flex space-x-2 flex-shrink-0 mt-1">
+                    <button
+                      @click="cancelEditName"
+                      class="
+                        text-[10px] uppercase tracking-widest font-serif
+                        text-[#777] dark:text-[#aaa]
+                        border border-black/20 dark:border-white/20
+                        px-4 py-2 rounded-full min-w-16
+                        transition duration-200
+                        hover:text-[#121212] dark:hover:text-white
+                        hover:border-black/40 dark:hover:border-white/40
+                      "
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      @click="submitName"
+                      :disabled="isSubmitting"
+                      class="
+                        text-[10px] uppercase tracking-widest font-serif
+                        text-[#777] dark:text-[#aaa]
+                        border border-black/20 dark:border-white/20
+                        px-4 py-2 rounded-full min-w-16
+                        transition duration-200
+                        hover:text-[#121212] dark:hover:text-white
+                        hover:border-black/40 dark:hover:border-white/40
+                      "
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
 
                 <p class="text-sm uppercase tracking-widest text-[#777] dark:text-[#aaa] mb-4">
                     {{ user?.type }} participant · Joined {{ user?.joinedAt.toDate().toLocaleDateString() }}
@@ -75,7 +138,7 @@
 
 
                   <button
-                  v-if="editBio "
+                  v-if="editBio"
                     @click="cancelEditBio"
                     class="
                         text-[10px]
@@ -229,7 +292,7 @@ import type { ThreadLink } from '~/entities/threadLink/model/threadLink.types'
 import { randomOffset } from '~/utils/random'
 import { isDark } from "~/composables/changeTheme";
 import { useAuthStore } from "~/entities/user/auth.store";
-import { isSubmitting, changeBio } from "../model/useProfile";
+import { isSubmitting, changeBio, changeName } from "../model/useProfile";
 import Heatmap from '@/widgets/diary/ui/Heatmap.vue';
 import { methods } from '~/widgets/header/model/useHeader';
 import Graph from 'graphology';
@@ -238,8 +301,10 @@ import Sigma from 'sigma';
 const auth = useAuthStore();
 
 const editBio = ref(false);
+const editName = ref(false);
 
 const currentBio = ref<string | null>(null);
+const currentName = ref<string | null>(null);
 
 
 const forum = useForumStore();
@@ -270,6 +335,25 @@ const submitBio = async () => {
 const onImgError = (e: any) => {
   e.target.src = '/base-ava.svg';
 };
+
+const submitName = async () => {
+  if (!editName.value ){
+    editName.value = !editName.value
+    return;
+  } else {
+    if (!auth.user?.uid) return;
+    await changeName(auth.user?.uid, route.query.uid as string, currentName.value as string);
+    if(user.value) {
+      user.value.displayName = currentName.value;
+    }
+    editName.value = false;
+  }
+}
+
+const cancelEditName = () => {
+  currentName.value = user.value?.displayName || ''
+  editName.value = false
+}
 
 const cancelEditBio = () => {
   currentBio.value = user.value?.bio || ''
@@ -412,6 +496,9 @@ watch(
 
     if (!editBio.value) {
       currentBio.value = newUser.bio || ''
+    }
+    if (!editName.value) {
+      currentName.value = newUser.displayName || ''
     }
   },
   { immediate: true }
