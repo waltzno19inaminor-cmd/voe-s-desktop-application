@@ -29,11 +29,10 @@
         
      
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-         <div class="space-y-1">
+          <div class="space-y-1">
             <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">
-              Date & Time
+              Entry Date &amp; Time
             </label>
-
             <input 
               type="datetime-local"
               v-model="dateInput"
@@ -42,6 +41,19 @@
             />
           </div>
 
+          <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">
+              Exit Date &amp; Time
+            </label>
+            <input 
+              type="datetime-local"
+              v-model="dateExitInput"
+              class="w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-1">
             <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Asset</label>
             <input 
@@ -125,6 +137,28 @@
               type="number" 
               required="true"
               v-model="newEntry.exit"
+               step="0.0001"
+              class="w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
+            />
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Stop Loss</label>
+            <input 
+              type="number" 
+              required="true"
+              v-model="newEntry.stopLoss"
+              step="0.0001"
+              class="w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
+            />
+          </div>
+          <div class="space-y-1">
+            <label class="block text-xs uppercase tracking-widest text-[#666] dark:text-[#aaa]">Take Profit</label>
+            <input 
+              type="number" 
+              required="true"
+              v-model="newEntry.takeProfit"
                step="0.0001"
               class="w-full px-3 py-2 bg-transparent border border-black/10 dark:border-white/10 rounded-lg focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition text-sm text-[#121212] dark:text-white"
             />
@@ -273,15 +307,25 @@ const dateInput = computed({
     const date = newEntry.value.date instanceof Date
       ? newEntry.value.date
       : new Date()
-
-   
     const pad = (n: number) => n.toString().padStart(2, '0')
-
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
   },
-
   set: (val: string) => {
     newEntry.value.date = val ? new Date(val) : new Date()
+  }
+})
+
+const dateExitInput = computed({
+  get: () => {
+    if (!newEntry.value.dateExit) return ''
+    const date = newEntry.value.dateExit instanceof Date
+      ? newEntry.value.dateExit
+      : new Date(newEntry.value.dateExit as any)
+    const pad = (n: number) => n.toString().padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  },
+  set: (val: string) => {
+    newEntry.value.dateExit = val ? new Date(val) : undefined
   }
 })
 

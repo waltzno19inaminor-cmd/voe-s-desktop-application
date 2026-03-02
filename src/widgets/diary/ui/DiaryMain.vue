@@ -249,6 +249,10 @@
                     <h3 class="text-sm font-medium text-[#121212] dark:text-white mb-4">Net Profit Growth (%)</h3>
                     <DiaryChart v-if="sortedEntries && sortedEntries.length > 1" :entries="sortedEntries" legendStyle="margin-top: 20px" />
                 </div>
+                <div>
+                     <h3 class="text-sm font-medium text-[#121212] dark:text-white mb-4">Avg Reward/Risk Ratio</h3>
+                     <RiskRewardChart v-if="sortedEntries && sortedEntries.length > 0" :entries="sortedEntries" legendStyle="margin-top: 20px" />
+                </div>
                 <div v-if="auth.user?.uid == route.query.uid">
                      <h3 class="text-sm font-medium text-[#121212] dark:text-white mb-4">Deposit Growth ($)</h3>
                      <DepositChart v-if="sortedEntries && sortedEntries.length > 0" :entries="sortedEntries" legendStyle="margin-top: 20px" />
@@ -301,6 +305,7 @@ import { useAuthStore } from '~/entities/user/auth.store';
 import Heatmap from '@/widgets/diary/ui/Heatmap.vue';
 import DiaryChart from '@/widgets/diary/ui/DiaryChart.vue';
 import DepositChart from '@/widgets/diary/ui/DepositChart.vue';
+import RiskRewardChart from '@/widgets/diary/ui/RiskRewardChart.vue';
 import InitialDeposit from '@/widgets/diary/ui/InitialDeposit.vue';
 
 

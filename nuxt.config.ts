@@ -41,5 +41,13 @@ export default defineNuxtConfig({
 
     }
 
+  },
+  ignore: ['**/src-tauri/**'],
+  vite: {
+    server: {
+      watch: {
+        ignored: ['**/src-tauri/**']
+      }
+    }
   }
 })

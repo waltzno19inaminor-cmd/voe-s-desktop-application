@@ -2,15 +2,10 @@
   <div
     class="min-h-screen bg-[#f7f5fa] bg-center bg-cover dark:bg-none dark:bg-[#121212]"
   >
-    <template v-if="updaterDone">
-      <NuxtPage />
-    </template>
-    <template v-else>
-      <Updater @done="updaterDone = true" />
-    </template>
+    <NuxtPage />
+    <Updater v-if="!updaterDone" @done="updaterDone = true" />
   </div>
 </template>
-
 
 <script setup>
 import { ref, watchEffect } from 'vue'
@@ -24,8 +19,7 @@ const auth = useAuthStore()
 
 const updaterDone = ref(false)
 
-await useAuthInit()
-
+useAuthInit()
 
 watchEffect(() => {
   if (!auth.authReady) return
