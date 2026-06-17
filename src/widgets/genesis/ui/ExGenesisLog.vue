@@ -334,18 +334,18 @@
     />
 
     <Teleport to="body">
-      <Transition name="panel-slide" mode="out-in">
+      <Transition name="panel-center" mode="out-in">
         <div
           v-if="selectedTrade && showExtraDetails && !isTradeEntryOpen"
           key="trade-analysis-panel"
-          class="fixed right-12 top-1/2 -translate-y-1/2 w-[1100px] max-w-[calc(100vw-6rem)] h-[85vh] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]"
+          class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] max-w-[calc(100vw-6rem)] h-[85vh] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]"
         >
           <ExTradeAnalysisPanel
             :trade="mappedTradeForAnalysis"
             :global-stability="64"
             :initial-page="panelInitialPage"
             :initial-expanded-note-id="panelInitialNoteId"
-            @close="showExtraDetails = false; panelInitialPage = 3; panelInitialNoteId = undefined"
+            @close="showExtraDetails = false; panelInitialPage = 5; panelInitialNoteId = undefined"
           />
         </div>
       </Transition>
@@ -698,7 +698,7 @@ const editTrade = (trade: any) => {
 }
 
 const showExtraDetails = ref(false)
-const panelInitialPage = ref<number | undefined>(3)
+const panelInitialPage = ref<number | undefined>(5)
 const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
@@ -716,7 +716,7 @@ const canOpenCapitalForecast = computed(() => {
 })
 
 const openNodeMap = () => {
-  panelInitialPage.value = 3
+  panelInitialPage.value = 5
   panelInitialNoteId.value = undefined
   showExtraDetails.value = true
 }
@@ -2215,5 +2215,17 @@ canvas { image-rendering: pixelated; }
   100% {
     transform: translateX(220%);
   }
+}
+
+.panel-center-enter-active, .panel-center-leave-active {
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.panel-center-enter-from, .panel-center-leave-to {
+  transform: translate(-50%, -45%) scale(0.95);
+  opacity: 0;
+}
+.panel-center-enter-to, .panel-center-leave-from {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
 }
 </style>
