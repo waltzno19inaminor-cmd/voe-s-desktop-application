@@ -351,9 +351,28 @@
               <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
                 {{ displayBalance }}
               </span>
+              <button class="pointer-events-auto flex h-10 w-10 items-center justify-center border border-white/20 bg-[#0a0a0a]/80 backdrop-blur-xl text-white/45 transition-all hover:border-white/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
+                      :class="isApiSyncing ? 'border-white/40 text-white' : ''"
+                      :disabled="isApiSyncing"
+                      :title="apiSyncButtonTitle"
+                      @click="syncCurrentStrategyApi">
+                <svg viewBox="0 0 24 24"
+                     fill="none"
+                     stroke="currentColor"
+                     stroke-width="2"
+                     stroke-linecap="round"
+                     stroke-linejoin="round"
+                     class="h-4 w-4"
+                     :class="isApiSyncing ? 'animate-spin' : ''">
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                  <path d="M3 21v-5h5" />
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                  <path d="M16 8h5V3" />
+                </svg>
+              </button>
             </div>
             <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-              REIFIED_BALANCE_SNAPSHOT
+              {{ apiSyncStatusMessage || 'REIFIED_BALANCE_SNAPSHOT' }}
             </span>
           </div>
         </div>
@@ -1030,6 +1049,19 @@
           </div>
         </button>
 
+        <!-- BROKER / EXCHANGE CONNECTORS -->
+        <button v-if="!showMetricsPanel && !showDistribution3D"
+                @click="showBrokerConnectPanel = true"
+                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
+            {{ isRu ? '[ ПОДКЛЮЧИТЬ_БРОКЕР_API ]' : '[ CONNECT_BROKER_API ]' }}
+          </div>
+        </button>
+
         <!-- PURGE DIARY RECORDS -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
                 @click="showClearConfirmation = true" 
@@ -1134,97 +1166,13 @@
     </div>
 
     <!-- CALENDAR OVERLAY -->
-    <Transition name="fade">
-      <div v-if="showCalendarMode" class="absolute inset-0 z-[100] bg-theme-bg pointer-events-auto flex flex-col font-mono nier-text-primary">
-        <div class="relative flex flex-col items-center h-full pt-24 pb-8 px-12 w-full max-w-4xl mx-auto">
-          <!-- CALENDAR HEADER -->
-          <div class="flex-shrink-0 flex items-center justify-center w-full mb-6 border-b nier-border-primary pb-6">
-            <h2 class="text-3xl font-black tracking-[0.2em] uppercase">{{ currentCalendarMonthName }}</h2>
-          </div>
-
-          <!-- CALENDAR GRID -->
-          <div class="w-full flex-1 min-h-0 flex flex-col">
-            <div class="flex-shrink-0 grid grid-cols-7 gap-4 mb-4 text-center text-[10px] uppercase tracking-widest opacity-50">
-              <div v-for="d in calendarDaysOfWeek" :key="d">{{ d }}</div>
-            </div>
-            <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2">
-              <div class="grid grid-cols-7 gap-4 pb-4">
-                <div v-for="(day, idx) in calendarDays" :key="idx" 
-                   class="calendar-day-cell relative aspect-square border transition-all duration-300"
-                   :class="[
-                     !day.isInMonth ? 'border-transparent bg-transparent' : 
-                     day.tradesCount === 0 ? 'border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5' :
-                     day.pnl > 0 ? 'border-black/30 dark:border-white/30 bg-black/10 dark:bg-white/10' :
-                     day.pnl < 0 ? 'border-red-500/30 bg-red-500/10' :
-                     'border-yellow-500/30 bg-yellow-500/10'
-                   ]"
-                   @mouseenter="showCalendarDayTooltip($event, day)"
-                   @mousemove="moveCalendarDayTooltip($event, day)"
-                   @mouseleave="hideCalendarDayTooltip">
-                <template v-if="day.isInMonth">
-                  <div class="absolute top-2 right-2 text-[10px] opacity-40 font-bold" :class="{ 'nier-text-primary opacity-100': day.isToday }">{{ day.dayNum }}</div>
-                  
-                  <div v-if="day.tradesCount > 0" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span class="calendar-day-result font-black"
-                          :title="formatCalendarDayValue(day)"
-                          :class="day.pnl > 0 ? 'nier-text-primary' : day.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
-                      {{ formatCalendarDayValue(day) }}
-                    </span>
-                    <span class="text-[9px] uppercase tracking-widest opacity-50 mt-1">{{ day.tradesCount }} TRADES</span>
-                  </div>
-                </template>
-              </div>
-            </div>
-            </div>
-          </div>
-
-          <!-- CALENDAR FOOTER -->
-          <div class="flex-shrink-0 flex items-center justify-center w-full mt-6">
-            <!-- Pagination — centered -->
-            <div class="flex items-center space-x-2">
-              <button @click="prevCalendarMonth" 
-                      class="w-7 h-7 flex items-center justify-center border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-20"
-                      :disabled="currentCalendarMonthIndex <= 0">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              </button>
-              <button @click="nextCalendarMonth" 
-                      class="w-7 h-7 flex items-center justify-center border border-black/20 dark:border-white/20 hover:bg-black/5 dark:hover:bg-white/5 transition-colors disabled:opacity-20"
-                      :disabled="currentCalendarMonthIndex >= calendarMonthsList.length - 1">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <Teleport to="body">
-      <Transition name="tooltip-dist-fade">
-        <div v-if="hoveredCalendarDayTooltip"
-             class="theme-tooltip-panel fixed z-[2147483647] pointer-events-none border px-5 py-4 min-w-[240px] shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
-             :style="{ left: hoveredCalendarDayTooltip.x + 'px', top: hoveredCalendarDayTooltip.y + 'px' }">
-          <div class="flex items-center justify-between mb-3 pb-2 border-b border-black/10 dark:border-white/10">
-            <div class="text-[10px] font-mono uppercase tracking-[0.32em] opacity-40">{{ hoveredCalendarDayTooltip.date }}</div>
-            <div class="text-[13px] font-mono font-black tracking-[0.12em] whitespace-nowrap ml-4"
-                 :class="hoveredCalendarDayTooltip.pnl > 0 ? 'nier-text-primary' : hoveredCalendarDayTooltip.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
-              {{ hoveredCalendarDayTooltip.value }}
-            </div>
-          </div>
-          <div class="flex flex-col space-y-2">
-            <div v-for="(trade, idx) in hoveredCalendarDayTooltip.trades" :key="idx"
-                 class="flex items-center justify-between text-[11px] font-mono gap-4">
-              <div class="flex items-center space-x-3">
-                <span class="opacity-40">{{ new Date(trade.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                <span class="opacity-80 font-bold">{{ trade.asset || 'UNKNOWN' }}</span>
-              </div>
-              <span class="font-black whitespace-nowrap" :class="(trade.profitInCurrency || 0) > 0 ? 'text-emerald-500' : (trade.profitInCurrency || 0) < 0 ? 'text-rose-500' : 'text-white'">
-                {{ (trade.profitInCurrency || 0) > 0 ? '+' : '' }}{{ (trade.profitInCurrency || 0).toFixed(2) }}
-              </span>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ExCalendarMode 
+      v-if="showCalendarMode"
+      :trades="getFilteredTrades()"
+      :initial-deposit="props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId) || 10000"
+      :value-mode="calendarValueMode"
+      :locale="locale"
+    />
 
     <Teleport to="body">
       <Transition name="page-reify">
@@ -1232,6 +1180,14 @@
                       class="fixed inset-0 z-[2000]"
                       @close="isTradeEntryOpen = false" 
                       @addTrade="isTradeEntryOpen = false" />
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="page-reify">
+        <ExBrokerConnectPanel v-if="showBrokerConnectPanel"
+                              :strategy-id="selectedStrategyId"
+                              @close="showBrokerConnectPanel = false" />
       </Transition>
     </Teleport>
 
@@ -1258,6 +1214,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
+import { useAppBootStore } from '~/features/store/useAppBoot'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -1267,9 +1224,17 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from './ExPaywallOverlay.vue'
+import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
+import ExCalendarMode from './components/ExCalendarMode.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { SP500_BENCHMARK_RATE } from '~/shared/constants'
+import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
+import {
+  isSyncableBrokerConnection,
+  syncBrokerConnectionTrades,
+  type StoredBrokerConnection
+} from '~/utils/brokerTradeSync'
 
 const authStore = useAuthStore()
 const sp500BenchmarkRate = ref(SP500_BENCHMARK_RATE)
@@ -1285,6 +1250,7 @@ interface StrategyBenchmarkMetrics {
 }
 
 const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v1'
+const BROKER_CONNECTIONS_STORAGE_KEY = 'broker_connections_v1'
 const benchmarkMetricsByStrategy = ref<Record<string, StrategyBenchmarkMetrics>>({})
 
 const themeStore = useThemeStore()
@@ -1367,12 +1333,27 @@ const matrixNodes = ref<any[]>([])
 const matrixConnections = ref<any[]>([])
 const loadMatrixData = async () => {
   try {
-    matrixNodes.value = []
-    matrixConnections.value = []
+    const appBootStore = useAppBootStore()
+    const data = appBootStore.genesisMatrixCache || await loadFromDisk<{ nodes: any[], connections?: any[] }>('genesis_matrix_v2')
+    if (data && data.nodes) {
+      matrixNodes.value = data.nodes
+      matrixConnections.value = data.connections || []
+    }
   } catch (err) {
     console.error('Failed to load matrix data:', err)
   }
 }
+
+watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
+  if (loading) return
+  const cores = (nodes as any[])
+    .filter((n: any) => n.type === 'strategy' || n.type === 'system')
+    .map((n: any) => ({
+      id: n.id,
+      name: (n.params?.customName || n.label).toUpperCase()
+    }))
+  tradeStore.syncStrategies(cores)
+}, { immediate: true, deep: true })
 
 const selectedStrategyId = computed({
   get: () => tradeStore.selectedStrategyId,
@@ -1405,19 +1386,20 @@ const flattenMatrixConnections = (nodes: any[] = [], rootConnections: any[] = []
 }
 
 const activeRiskManagement = computed(() => {
-  return {
-    riskPerTradeValue: undefined,
-    riskPerTradeUnit: '%',
-    riskPerSessionValue: undefined,
-    riskPerSessionUnit: '%',
-    riskRewardRatio: undefined,
-    tradingStyle: undefined,
-    sourceNode: null
-  }
+  return resolveRiskManagementForStrategy(
+    flattenMatrixNodes(matrixNodes.value),
+    flattenMatrixConnections(matrixNodes.value, matrixConnections.value),
+    selectedStrategyId.value
+  )
 })
 
 const activeRiskPerTradeDollars = computed(() => {
-  return undefined
+  const initialDeposit = props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
+  return riskValueToDollars(
+    activeRiskManagement.value.riskPerTradeValue,
+    activeRiskManagement.value.riskPerTradeUnit,
+    initialDeposit
+  )
 })
 
 const simulatorDefaultRiskPerTrade = computed(() => {
@@ -1445,6 +1427,7 @@ const showRobustnessHistogram = ref(false)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
+const showBrokerConnectPanel = ref(false)
 
 const openSimulator = () => {
   showSimulator.value = true
@@ -1583,9 +1566,7 @@ const selectedWinrateTarget = computed(() => {
   if (!selectedWinrateNodeId.value) return null
   return winrateMenuNodes.value.find(node => node.id === selectedWinrateNodeId.value) || null
 })
-const currentCalendarMonthStr = ref('') // Format: 'YYYY-MM'
 const calendarValueMode = ref<'currency' | 'percentage'>('currency')
-const hoveredCalendarDayTooltip = ref<{ x: number; y: number; value: string; date: string; pnl: number, trades: any[] } | null>(null)
 
 const hasEnoughTradesForDiagnostics = computed(() => diagnosticStats.value.pnls.length >= 20)
 
@@ -1918,7 +1899,11 @@ const strategyMetrics = computed(() => {
   const currentTrades = getFilteredTrades()
   const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
   const riskManagement = activeRiskManagement.value
-  const configuredRiskPerTrade = undefined
+  const configuredRiskPerTrade = riskValueToDollars(
+    riskManagement.riskPerTradeValue,
+    riskManagement.riskPerTradeUnit,
+    initialDeposit
+  )
 
   const trades = [...currentTrades]
     .sort((a, b) => getTradeTimestamp(a) - getTradeTimestamp(b))
@@ -5447,6 +5432,22 @@ const equityPoints3D = ref<CurvePoint[]>([])
 const benchmarkPoints3D = ref<CurvePoint[]>([])
 const riskFreePoints3D = ref<CurvePoint[]>([])
 const winratePoints3D = ref<CurvePoint[]>([])
+const isApiSyncing = ref(false)
+const apiSyncStatusMessage = ref('')
+
+const findAllActiveApiConnections = async () => {
+  const connections = await loadFromDisk<Record<string, StoredBrokerConnection>>(BROKER_CONNECTIONS_STORAGE_KEY)
+  if (!connections) return []
+
+  return Object.values(connections).filter((connection) => {
+    return isSyncableBrokerConnection(connection)
+  })
+}
+
+const apiSyncButtonTitle = computed(() => {
+  if (isApiSyncing.value) return isRu.value ? 'Синхронизация сделок...' : 'Syncing trades...'
+  return isRu.value ? 'Синхронизировать сделки из API' : 'Sync trades from API'
+})
 
 const displayBalance = computed(() => {
   if (showWinrateCurve.value) {
@@ -5458,6 +5459,44 @@ const displayBalance = computed(() => {
   const val = (lastPoint?.value ?? 0) * revealProgress.value
   return val.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 })
+
+const syncCurrentStrategyApi = async () => {
+  if (isApiSyncing.value) return
+
+  isApiSyncing.value = true
+  apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_STARTING' : 'API_SYNC_STARTING'
+
+  try {
+    const connections = await findAllActiveApiConnections()
+    if (connections.length === 0) {
+      apiSyncStatusMessage.value = isRu.value ? 'НЕТ_АКТИВНЫХ_API_КЛЮЧЕЙ' : 'NO_ACTIVE_API_CONNECTIONS'
+      return
+    }
+
+    apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_IN_PROGRESS' : 'API_SYNC_IN_PROGRESS'
+    
+    let totalImported = 0
+    let totalDuplicates = 0
+    let sources: string[] = []
+    
+    for (const connection of connections) {
+      const targetId = connection.credentials?.targetStrategyId || 'MAIN_DIARY'
+      const result = await syncBrokerConnectionTrades(connection, targetId, tradeStore)
+      totalImported += result.importedCount
+      totalDuplicates += result.duplicateCount
+      sources.push(result.sourceLabel)
+    }
+    
+    initData()
+    apiSyncStatusMessage.value = totalImported > 0
+      ? `${sources.join(', ')}: +${totalImported}_TRADES`
+      : `${sources.join(', ')}: 0_NEW / ${totalDuplicates}_DUP`
+  } catch (error: any) {
+    apiSyncStatusMessage.value = error?.message || 'API_SYNC_FAILED'
+  } finally {
+    isApiSyncing.value = false
+  }
+}
 
 // --- THEME COLORS --- //
 const colors = ref({
@@ -7478,174 +7517,6 @@ onMounted(() => {
   void hydrateData().catch(err => {
     console.error('[ExEquityCurve3D] Failed to hydrate deferred data:', err)
   })
-})
-
-// --- CALENDAR DAY BLOCKS LOGIC ---
-
-interface CalendarDay {
-  dateStr: string
-  dayNum: number
-  pnl: number
-  pnlPercent: number
-  tradesCount: number
-  isToday: boolean
-  isInMonth: boolean
-  trades: any[]
-}
-
-// Group all trades by YYYY-MM
-const calendarMonthsList = computed(() => {
-  const months = new Set<string>()
-  const currentTrades = getFilteredTrades()
-  currentTrades.forEach(trade => {
-    const dVal = trade.dateExit || trade.date
-    const date = dVal instanceof Date ? dVal : new Date(dVal)
-    const ym = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    months.add(ym)
-  })
-  const sorted = Array.from(months).sort()
-  return sorted
-})
-
-watch(calendarMonthsList, (newList) => {
-  if (newList.length > 0 && !currentCalendarMonthStr.value) {
-    currentCalendarMonthStr.value = newList[newList.length - 1]!
-  } else if (newList.length === 0) {
-    currentCalendarMonthStr.value = ''
-  }
-}, { immediate: true })
-
-const currentCalendarMonthIndex = computed(() => {
-  return calendarMonthsList.value.indexOf(currentCalendarMonthStr.value)
-})
-
-const nextCalendarMonth = () => {
-  const idx = currentCalendarMonthIndex.value
-  if (idx < calendarMonthsList.value.length - 1) {
-    currentCalendarMonthStr.value = calendarMonthsList.value[idx + 1]!
-  }
-}
-
-const prevCalendarMonth = () => {
-  const idx = currentCalendarMonthIndex.value
-  if (idx > 0) {
-    currentCalendarMonthStr.value = calendarMonthsList.value[idx - 1]!
-  }
-}
-
-const currentCalendarMonthName = computed(() => {
-  if (!currentCalendarMonthStr.value) {
-    return locale.value === 'ru' ? 'НЕТ ДАННЫХ' : 'NO DATA'
-  }
-  const [y, m] = currentCalendarMonthStr.value.split('-')
-  const date = new Date(parseInt(y!), parseInt(m!) - 1, 1)
-  const loc = locale.value === 'ru' ? 'ru-RU' : 'en-US'
-  return date.toLocaleString(loc, { month: 'long', year: 'numeric' })
-})
-
-const calendarDaysOfWeek = computed(() => {
-  return locale.value === 'ru' 
-    ? ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
-    : ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
-})
-
-function formatCalendarDayValue(day: CalendarDay) {
-  const sign = day.pnl > 0 ? '+' : ''
-  if (calendarValueMode.value === 'currency') {
-    return `${sign}${day.pnl.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`
-  }
-  return `${sign}${day.pnlPercent.toFixed(2)}%`
-}
-
-function setCalendarDayTooltip(event: MouseEvent, day: CalendarDay) {
-  if (!day.isInMonth || day.tradesCount <= 0) {
-    hoveredCalendarDayTooltip.value = null
-    return
-  }
-  hoveredCalendarDayTooltip.value = {
-    x: event.clientX + 16,
-    y: event.clientY + 16,
-    value: formatCalendarDayValue(day),
-    date: day.dateStr,
-    pnl: day.pnl,
-    trades: day.trades || []
-  }
-}
-
-function showCalendarDayTooltip(event: MouseEvent, day: CalendarDay) {
-  setCalendarDayTooltip(event, day)
-}
-
-function moveCalendarDayTooltip(event: MouseEvent, day: CalendarDay) {
-  setCalendarDayTooltip(event, day)
-}
-
-function hideCalendarDayTooltip() {
-  hoveredCalendarDayTooltip.value = null
-}
-
-const calendarDays = computed(() => {
-  if (!currentCalendarMonthStr.value) return []
-  const [y, m] = currentCalendarMonthStr.value.split('-')
-  const year = parseInt(y!)
-  const month = parseInt(m!) - 1
-  
-  // Get trades for this month
-  const currentTrades = getFilteredTrades()
-  const tradesForMonth = currentTrades.filter(trade => {
-    const dVal = trade.dateExit || trade.date
-    const date = dVal instanceof Date ? dVal : new Date(dVal)
-    return date.getFullYear() === year && date.getMonth() === month
-  })
-  
-  // Map day -> stats
-  const dayStats = new Map<number, { pnl: number, count: number, trades: any[] }>()
-  tradesForMonth.forEach(trade => {
-    const dVal = trade.dateExit || trade.date
-    const date = dVal instanceof Date ? dVal : new Date(dVal)
-    const day = date.getDate()
-    
-    if (!dayStats.has(day)) {
-      dayStats.set(day, { pnl: 0, count: 0, trades: [] })
-    }
-    const stat = dayStats.get(day)!
-    stat.pnl += (trade.profitInCurrency || 0)
-    stat.count++
-    stat.trades.push(trade)
-  })
-
-  // Build grid
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const firstDayOfWeek = new Date(year, month, 1).getDay() // 0 = Sunday
-  
-  const days: CalendarDay[] = []
-  
-  // Pad beginning
-  const startPad = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Make Monday = 0
-  for (let i = 0; i < startPad; i++) {
-    days.push({ dateStr: '', dayNum: 0, pnl: 0, pnlPercent: 0, tradesCount: 0, isToday: false, isInMonth: false, trades: [] })
-  }
-  
-  const today = new Date()
-  const initialDeposit = props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId.value) || 10000
-  
-  for (let i = 1; i <= daysInMonth; i++) {
-    const stat = dayStats.get(i)
-    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === i
-    const pnl = stat ? stat.pnl : 0
-    days.push({
-      dateStr: `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`,
-      dayNum: i,
-      pnl,
-      pnlPercent: (pnl / initialDeposit) * 100,
-      tradesCount: stat ? stat.count : 0,
-      isToday,
-      isInMonth: true,
-      trades: stat ? stat.trades : []
-    })
-  }
-  
-  return days
 })
 
 // --- END CALENDAR LOGIC ---
