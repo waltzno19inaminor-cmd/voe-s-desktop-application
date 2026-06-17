@@ -92,6 +92,24 @@
       <MatrixTelemetry :view-state="state.viewState.value" :is-scenario-context="!!state.isScenarioContext.value"
                        @reset-view="canvas.resetView" @update-scale="(s) => state.viewState.value.scale = s" />
 
+      <!-- OFFSCREEN STRATEGY INDICATORS -->
+      <div v-for="indicator in strategyIndicators" :key="indicator.id" 
+           class="absolute pointer-events-auto flex flex-col items-center transition-all duration-300 z-[150]"
+           :style="{ left: indicator.x + 'px', top: indicator.y + 'px', transform: 'translate(-50%, -50%)' }">
+        <div class="w-10 h-10 flex items-center justify-center transition-transform duration-100 cursor-pointer group"
+             :style="{ transform: `rotate(${indicator.angle}deg)` }"
+             @click="focusNode(indicator.id)"
+             :title="'Focus ' + indicator.name">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="drop-shadow-sm transition-transform group-hover:scale-125" :class="isDark ? 'text-white' : 'text-black'">
+            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="flex flex-col items-center mt-1">
+          <span class="text-[8px] font-mono font-bold tracking-widest uppercase truncate max-w-[100px]" :class="isDark ? 'text-white' : 'text-black'">{{ indicator.name }}</span>
+          <span class="text-[7px] font-mono opacity-60 font-bold" :class="isDark ? 'text-white' : 'text-black'">{{ indicator.dist }}px</span>
+        </div>
+      </div>
+
       <!-- CENTERED NAVIGATION HUB -->
       <Transition name="hud-pop">
          <div v-if="state.navigationStack.value.length > 0"
@@ -181,7 +199,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref, computed } from 'vue'
 
 import ExSkillNode from './ExSkillNode.vue'
 import ExZone from './ExZone.vue'
@@ -214,9 +232,72 @@ const zoneTools = useMatrixZones(state)
 const uploads = useMatrixUploads(state)
 const pathMath = usePathMath(state)
 
+const windowSize = ref({ width: typeof window !== 'undefined' ? window.innerWidth : 1000, height: typeof window !== 'undefined' ? window.innerHeight : 1000 })
+const updateWindowSize = () => {
+  windowSize.value = { width: window.innerWidth, height: window.innerHeight }
+}
+
+const getIndicatorState = (worldX: number, worldY: number, hubWidth = 256, hubHeight = 96) => {
+  const scale = state.viewState.value.scale
+  const screenX = (worldX * scale) + state.viewState.value.panX
+  const screenY = (worldY * scale) + state.viewState.value.panY
+  const padding = 60
+
+  const scaledWidth = hubWidth * scale
+  const scaledHeight = hubHeight * scale
+
+  const isOffScreen = 
+    screenX + scaledWidth < 0 || 
+    screenX > windowSize.value.width || 
+    screenY + scaledHeight < 0 || 
+    screenY > windowSize.value.height
+
+  if (!isOffScreen) return null
+
+  // Calculate clamped edge position
+  const clampedX = Math.max(padding, Math.min(windowSize.value.width - padding, screenX + scaledWidth / 2))
+  const clampedY = Math.max(padding, Math.min(windowSize.value.height - padding, screenY + scaledHeight / 2))
+
+  // Calculate distance and angle
+  const dx = screenX + scaledWidth / 2 - clampedX
+  const dy = screenY + scaledHeight / 2 - clampedY
+  const dist = Math.round(Math.sqrt(dx * dx + dy * dy))
+  const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+  return { x: clampedX, y: clampedY, dist, angle }
+}
+
+const strategyIndicators = computed(() => {
+  // Only show if we are on the global layer
+  if (state.navigationStack.value.length > 0) return []
+  const strategyNodes = state.nodes.value.filter(n => n.type === 'strategy')
+  
+  return strategyNodes.map(node => {
+    const indicator = getIndicatorState(node.x, node.y, 320, 120)
+    if (!indicator) return null
+    return {
+      id: node.id,
+      name: node.identityName || node.name || 'Strategy Core',
+      ...indicator
+    }
+  }).filter(Boolean) as any[]
+})
+
+const focusNode = (id: string) => {
+  const node = state.nodes.value.find(n => n.id === id)
+  if (node && canvas.canvasWrapper.value) {
+    const rect = canvas.canvasWrapper.value.getBoundingClientRect()
+    state.viewState.value.scale = 1
+    state.viewState.value.panX = (rect.width / 2) - node.x
+    state.viewState.value.panY = (rect.height / 2) - node.y
+    state.lastSelectedId.value = node.id
+  }
+}
+
 // Global Key Listeners and Clicks
 onMounted(async () => {
   initAssetService()
+  window.addEventListener('resize', updateWindowSize)
   window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('click', handleGlobalClick)
   document.addEventListener('selectionchange', menu.saveTextSelection)
@@ -226,6 +307,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('resize', updateWindowSize)
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('click', handleGlobalClick)
   document.removeEventListener('selectionchange', menu.saveTextSelection)
