@@ -4,7 +4,6 @@ import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import ExEquityCurve2D from '~/widgets/genesis/ui/ExEquityCurve2D.vue'
-import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 
 const { t } = useI18n()
@@ -15,9 +14,6 @@ const props = withDefaults(defineProps<{
   trade?: any
   emotionalRank?: number
   pickedEmotions?: any[]
-  initialPage?: number
-  initialExpandedNoteId?: string
-  openAnalyticsOnMount?: boolean
 }>(), {
   isDark: false,
   emotionalRank: 64,
@@ -97,21 +93,6 @@ const viewState = ref({
 
 const tradeStore = useStrategyTradesStore()
 const equityModalOpen = ref(false)
-const analyticsModalOpen = ref(props.openAnalyticsOnMount || false)
-const activeAnalyticsPage = ref(props.initialPage || 3)
-
-import { watch } from 'vue'
-
-watch(() => props.initialPage, (newVal) => {
-  if (newVal) activeAnalyticsPage.value = newVal
-}, { immediate: true })
-
-watch(() => props.openAnalyticsOnMount, (newVal) => {
-  if (newVal) {
-    if (props.initialPage) activeAnalyticsPage.value = props.initialPage
-    analyticsModalOpen.value = true
-  }
-}, { immediate: true })
 const equityTrades = computed(() => {
   if (!props.trade) return []
   const strategyId = props.trade.strategyId || 'MAIN_DIARY'
@@ -511,7 +492,7 @@ const miniChartPaths = computed(() => {
 function startPan(e: MouseEvent) {
   // Don't pan if clicking on a node or if a modal is open
   if ((e.target as HTMLElement).closest('.node-element')) return
-  if (equityModalOpen.value || analyticsModalOpen.value) return
+  if (equityModalOpen.value) return
   
   viewState.value.isPanning = true
   const startX = e.clientX
@@ -691,7 +672,7 @@ const emotionalStatus = computed(() => {
            :class="isDark ? 'bg-[#0a0a0a]/30 border-white/10' : 'bg-white/30 border-black/10'">
         
         <!-- View Trade Analytics Reified -->
-        <button @click.stop="activeAnalyticsPage = 3; analyticsModalOpen = true"
+        <button @click.stop="emit('close')"
                 class="w-10 h-10 flex items-center justify-center transition-all duration-300 cursor-pointer pointer-events-auto"
                 :class="isDark ? 'hover:bg-white/10 text-white/50 hover:text-white' : 'hover:bg-black/5 text-black/50 hover:text-black'"
                 :title="t('tacticalNodeMap.viewAnalytics')">
@@ -948,22 +929,6 @@ const emotionalStatus = computed(() => {
         </button>
 
         <ExEquityCurve2D :trades="equityTrades" :initialBalance="currentInitialDeposit" />
-      </div>
-    </div>
-
-    <!-- Trade Analytics Reified Modal -->
-    <div v-if="analyticsModalOpen" 
-         class="absolute inset-0 z-[20000] bg-white/30 dark:bg-black/20 backdrop-blur-sm flex items-center justify-center pointer-events-auto"
-         @mousedown.stop
-         @click="analyticsModalOpen = false">
-      <div class="w-[1100px] h-[85vh]" @click.stop>
-        <ExTradeAnalysisPanel 
-          :trade="props.trade" 
-          :global-stability="calculatedStabilityIndex" 
-          :initial-page="activeAnalyticsPage" 
-          :initial-expanded-note-id="props.initialExpandedNoteId" 
-          @close="analyticsModalOpen = false" 
-        />
       </div>
     </div>
 

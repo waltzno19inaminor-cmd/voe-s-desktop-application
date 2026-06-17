@@ -351,28 +351,9 @@
               <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
                 {{ displayBalance }}
               </span>
-              <button class="pointer-events-auto flex h-10 w-10 items-center justify-center border border-white/20 bg-[#0a0a0a]/80 backdrop-blur-xl text-white/45 transition-all hover:border-white/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
-                      :class="isApiSyncing ? 'border-white/40 text-white' : ''"
-                      :disabled="isApiSyncing"
-                      :title="apiSyncButtonTitle"
-                      @click="syncCurrentStrategyApi">
-                <svg viewBox="0 0 24 24"
-                     fill="none"
-                     stroke="currentColor"
-                     stroke-width="2"
-                     stroke-linecap="round"
-                     stroke-linejoin="round"
-                     class="h-4 w-4"
-                     :class="isApiSyncing ? 'animate-spin' : ''">
-                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                  <path d="M3 21v-5h5" />
-                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                  <path d="M16 8h5V3" />
-                </svg>
-              </button>
             </div>
             <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-              {{ apiSyncStatusMessage || 'REIFIED_BALANCE_SNAPSHOT' }}
+              REIFIED_BALANCE_SNAPSHOT
             </span>
           </div>
         </div>
@@ -1049,19 +1030,6 @@
           </div>
         </button>
 
-        <!-- BROKER / EXCHANGE CONNECTORS -->
-        <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showBrokerConnectPanel = true"
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ isRu ? '[ ПОДКЛЮЧИТЬ_БРОКЕР_API ]' : '[ CONNECT_BROKER_API ]' }}
-          </div>
-        </button>
-
         <!-- PURGE DIARY RECORDS -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
                 @click="showClearConfirmation = true" 
@@ -1254,14 +1222,6 @@
 
     <Teleport to="body">
       <Transition name="page-reify">
-        <ExBrokerConnectPanel v-if="showBrokerConnectPanel"
-                              :strategy-id="selectedStrategyId"
-                              @close="showBrokerConnectPanel = false" />
-      </Transition>
-    </Teleport>
-
-    <Teleport to="body">
-      <Transition name="page-reify">
         <ExEquityCurveSimulator 
           v-if="showSimulator" 
           @close="showSimulator = false"
@@ -1283,7 +1243,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
-import { useAppBootStore } from '~/features/store/useAppBoot'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -1293,16 +1252,9 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from './ExPaywallOverlay.vue'
-import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { SP500_BENCHMARK_RATE } from '~/shared/constants'
-import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
-import {
-  isSyncableBrokerConnection,
-  syncBrokerConnectionTrades,
-  type StoredBrokerConnection
-} from '~/utils/brokerTradeSync'
 
 const authStore = useAuthStore()
 const sp500BenchmarkRate = ref(SP500_BENCHMARK_RATE)
@@ -1318,7 +1270,6 @@ interface StrategyBenchmarkMetrics {
 }
 
 const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v1'
-const BROKER_CONNECTIONS_STORAGE_KEY = 'broker_connections_v1'
 const benchmarkMetricsByStrategy = ref<Record<string, StrategyBenchmarkMetrics>>({})
 
 const themeStore = useThemeStore()
@@ -1401,27 +1352,12 @@ const matrixNodes = ref<any[]>([])
 const matrixConnections = ref<any[]>([])
 const loadMatrixData = async () => {
   try {
-    const appBootStore = useAppBootStore()
-    const data = appBootStore.genesisMatrixCache || await loadFromDisk<{ nodes: any[], connections?: any[] }>('genesis_matrix_v2')
-    if (data && data.nodes) {
-      matrixNodes.value = data.nodes
-      matrixConnections.value = data.connections || []
-    }
+    matrixNodes.value = []
+    matrixConnections.value = []
   } catch (err) {
     console.error('Failed to load matrix data:', err)
   }
 }
-
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const cores = (nodes as any[])
-    .filter((n: any) => n.type === 'strategy' || n.type === 'system')
-    .map((n: any) => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
 
 const selectedStrategyId = computed({
   get: () => tradeStore.selectedStrategyId,
@@ -1454,20 +1390,19 @@ const flattenMatrixConnections = (nodes: any[] = [], rootConnections: any[] = []
 }
 
 const activeRiskManagement = computed(() => {
-  return resolveRiskManagementForStrategy(
-    flattenMatrixNodes(matrixNodes.value),
-    flattenMatrixConnections(matrixNodes.value, matrixConnections.value),
-    selectedStrategyId.value
-  )
+  return {
+    riskPerTradeValue: undefined,
+    riskPerTradeUnit: '%',
+    riskPerSessionValue: undefined,
+    riskPerSessionUnit: '%',
+    riskRewardRatio: undefined,
+    tradingStyle: undefined,
+    sourceNode: null
+  }
 })
 
 const activeRiskPerTradeDollars = computed(() => {
-  const initialDeposit = props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
-  return riskValueToDollars(
-    activeRiskManagement.value.riskPerTradeValue,
-    activeRiskManagement.value.riskPerTradeUnit,
-    initialDeposit
-  )
+  return undefined
 })
 
 const simulatorDefaultRiskPerTrade = computed(() => {
@@ -1495,7 +1430,6 @@ const showRobustnessHistogram = ref(false)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
-const showBrokerConnectPanel = ref(false)
 
 const openSimulator = () => {
   showSimulator.value = true
@@ -1969,11 +1903,7 @@ const strategyMetrics = computed(() => {
   const currentTrades = getFilteredTrades()
   const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
   const riskManagement = activeRiskManagement.value
-  const configuredRiskPerTrade = riskValueToDollars(
-    riskManagement.riskPerTradeValue,
-    riskManagement.riskPerTradeUnit,
-    initialDeposit
-  )
+  const configuredRiskPerTrade = undefined
 
   const trades = [...currentTrades]
     .sort((a, b) => getTradeTimestamp(a) - getTradeTimestamp(b))
@@ -5502,22 +5432,6 @@ const equityPoints3D = ref<CurvePoint[]>([])
 const benchmarkPoints3D = ref<CurvePoint[]>([])
 const riskFreePoints3D = ref<CurvePoint[]>([])
 const winratePoints3D = ref<CurvePoint[]>([])
-const isApiSyncing = ref(false)
-const apiSyncStatusMessage = ref('')
-
-const findAllActiveApiConnections = async () => {
-  const connections = await loadFromDisk<Record<string, StoredBrokerConnection>>(BROKER_CONNECTIONS_STORAGE_KEY)
-  if (!connections) return []
-
-  return Object.values(connections).filter((connection) => {
-    return isSyncableBrokerConnection(connection)
-  })
-}
-
-const apiSyncButtonTitle = computed(() => {
-  if (isApiSyncing.value) return isRu.value ? 'Синхронизация сделок...' : 'Syncing trades...'
-  return isRu.value ? 'Синхронизировать сделки из API' : 'Sync trades from API'
-})
 
 const displayBalance = computed(() => {
   if (showWinrateCurve.value) {
@@ -5529,44 +5443,6 @@ const displayBalance = computed(() => {
   const val = (lastPoint?.value ?? 0) * revealProgress.value
   return val.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 })
-
-const syncCurrentStrategyApi = async () => {
-  if (isApiSyncing.value) return
-
-  isApiSyncing.value = true
-  apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_STARTING' : 'API_SYNC_STARTING'
-
-  try {
-    const connections = await findAllActiveApiConnections()
-    if (connections.length === 0) {
-      apiSyncStatusMessage.value = isRu.value ? 'НЕТ_АКТИВНЫХ_API_КЛЮЧЕЙ' : 'NO_ACTIVE_API_CONNECTIONS'
-      return
-    }
-
-    apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_IN_PROGRESS' : 'API_SYNC_IN_PROGRESS'
-    
-    let totalImported = 0
-    let totalDuplicates = 0
-    let sources: string[] = []
-    
-    for (const connection of connections) {
-      const targetId = connection.credentials?.targetStrategyId || 'MAIN_DIARY'
-      const result = await syncBrokerConnectionTrades(connection, targetId, tradeStore)
-      totalImported += result.importedCount
-      totalDuplicates += result.duplicateCount
-      sources.push(result.sourceLabel)
-    }
-    
-    initData()
-    apiSyncStatusMessage.value = totalImported > 0
-      ? `${sources.join(', ')}: +${totalImported}_TRADES`
-      : `${sources.join(', ')}: 0_NEW / ${totalDuplicates}_DUP`
-  } catch (error: any) {
-    apiSyncStatusMessage.value = error?.message || 'API_SYNC_FAILED'
-  } finally {
-    isApiSyncing.value = false
-  }
-}
 
 // --- THEME COLORS --- //
 const colors = ref({

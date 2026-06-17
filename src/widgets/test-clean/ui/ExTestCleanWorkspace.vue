@@ -33,7 +33,7 @@
 
                 <!-- Matrix -->
                 <div v-else-if="currentGenesisMode === 'matrix'" key="matrix" class="w-full h-screen">
-                   <ExGenesisMatrix :active-tab="activeTab" :is-dark="isDark" @exit="clearMode" />
+                   <ExGenesisMatrix :active-tab="activeTab" :is-dark="isDark" @exit="clearMode" @triggerPaywall="showPaywall = true" />
                 </div>
 
                 <!-- Diary -->

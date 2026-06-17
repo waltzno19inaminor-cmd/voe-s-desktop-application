@@ -1,23 +1,23 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import allAssets from '~/shared/data/global_assets.json'
-import { loadFromDisk } from '~/shared/diskStorage'
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import ExText from '~/shared/ui/ExText.vue'
 import ExEquityCurve2D from '~/widgets/genesis/ui/ExEquityCurve2D.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/ExPaywallOverlay.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
-import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
 import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 const { locale } = useI18n()
 
 const emit = defineEmits(['addTrade', 'updateTrade', 'close'])
+const showPaywall = ref(false)
 const props = defineProps({
   initialTrade: {
     type: Object,
@@ -148,12 +148,9 @@ const isMatrixLoading = ref(true)
 const loadMatrixData = async () => {
   isMatrixLoading.value = true
   try {
-    const data = await loadFromDisk('genesis_matrix_v2')
-    if (data && data.nodes) {
-      matrixNodes.value = data.nodes
-      matrixConnections.value = data.connections || []
-      matrixZones.value = data.zones || []
-    }
+    matrixNodes.value = []
+    matrixConnections.value = []
+    matrixZones.value = []
   } catch (err) {
     console.error('Failed to load matrix data:', err)
   } finally {
@@ -212,18 +209,19 @@ const findNodeById = (list, id) => {
 }
 
 const activeRiskManagement = computed(() => {
-  const allNodes = findAllNodes(matrixNodes.value)
-  const allConnections = findAllConnections(matrixNodes.value, matrixConnections.value)
-  return resolveRiskManagementForStrategy(allNodes, allConnections, selectedStrategyId.value)
+  return {
+    riskPerTradeValue: undefined,
+    riskPerTradeUnit: '%',
+    riskPerSessionValue: undefined,
+    riskPerSessionUnit: '%',
+    riskRewardRatio: undefined,
+    tradingStyle: undefined,
+    sourceNode: null
+  }
 })
 
 const activeRiskPerTradeDollars = computed(() => {
-  const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
-  return riskValueToDollars(
-    activeRiskManagement.value.riskPerTradeValue,
-    activeRiskManagement.value.riskPerTradeUnit,
-    initialDeposit
-  )
+  return undefined
 })
 
 const activeRiskSnapshot = computed(() => {
@@ -328,18 +326,6 @@ const getNodeZoneType = (targetId, currentNodes, currentZones) => {
   return null
 }
 
-// Sync strategies when matrix nodes change
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const allNodes = findAllNodes(nodes)
-  const cores = allNodes
-    .filter(n => n.type === 'strategy' || n.type === 'system')
-    .map(n => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
 const showStrategyMenu = ref(false)
 
 const failedIcons = ref(new Set())
@@ -420,7 +406,7 @@ onMounted(() => {
     takeProfit.value = t.takeProfit || ''
     openDate.value = t.date ? new Date(t.date) : new Date()
     exitDate.value = t.dateExit ? new Date(t.dateExit) : new Date()
-    selectedEmotions.value = Array.isArray(t.emotions) ? [...t.emotions] : []
+    selectedEmotions.value = []
 
     if (t.images && Array.isArray(t.images)) {
       journalEntries.value = t.images.map((img, index) => ({
@@ -433,23 +419,7 @@ onMounted(() => {
       }))
     }
 
-    // Reconstruct active conditions
-    const reconstructConditions = (scenario) => {
-      const conds = scenario?.info?.conditions || scenario?.conditions
-      if (!conds) return
-      conds.forEach(cond => {
-        if (cond.indicatorUnits) {
-          cond.indicatorUnits.forEach(unit => {
-            if (unit.type === 'bundle') unit.items?.forEach(i => activeConditions.value.add(i.id))
-            else if (unit.type === 'single' && unit.item) activeConditions.value.add(unit.item.id)
-          })
-        } else if (cond.id) {
-          activeConditions.value.add(cond.id)
-        }
-      })
-    }
-    reconstructConditions(t.boardScenarioEntry)
-    reconstructConditions(t.boardScenarioExit)
+    activeConditions.value.clear()
   }
 })
 
@@ -488,9 +458,7 @@ const getNodesForStrategy = (type, entryExit = 'ALL') => {
 const DEFAULT_ENTRY_CONDITIONS = []
 const DEFAULT_ENTRY_SCENARIOS = []
 const DEFAULT_EXIT_CONDITIONS = []
-const DEFAULT_EXIT_SCENARIOS = [
-  { id: 'default-exit-system', label: 'SYSTEM_PROTOCOLS', params: { customName: 'SYSTEM_PROTOCOLS', phase: 'EXIT' }, isMini: true }
-]
+const DEFAULT_EXIT_SCENARIOS = []
 
 const entryConditions = computed(() => {
   const items = getNodesForStrategy('condition', 'ENTRY')
@@ -1601,7 +1569,7 @@ const submit = async () => {
   const finalSize = totalSize.value
   const committedOpenDate = cloneDate(openDate.value)
   const committedExitDate = cloneDate(exitDate.value)
-  const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
+  const plannedRiskReward = undefined
 
   if (!finalEntry || !finalExit || !finalSize) return
   if (commitState.value !== 'idle') return
@@ -1616,9 +1584,9 @@ const submit = async () => {
     return byConditions || null
   }
 
-  const activeEntry = findActiveScenario(entryScenarios.value)
-  const activeExit = findActiveScenario(exitScenarios.value.filter(s => !s.isMini))
-  const activeMini = miniExitScenarios.value.find(s => getActiveConditionsInScenario(s.id).length > 0)
+  const activeEntry = null
+  const activeExit = null
+  const activeMini = null
 
   const getScenarioActiveConditions = (scenId) => {
     if (!scenId) return []
@@ -1826,9 +1794,9 @@ const submit = async () => {
     entryFee: +entryFee.value || 0,
     exitFee: +exitFee.value || 0,
     feeType: feeType.value,
-    emotions: [...selectedEmotions.value],
-    boardScenarioEntry: formatScen(activeEntry, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value),
-    boardScenarioExit: formatScen(activeExit || activeMini, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value),
+    emotions: [],
+    boardScenarioEntry: null,
+    boardScenarioExit: null,
     images: journalEntries.value.map(e => ({
       url: e.image,
       name: e.name || getArchiveNodeName(e.id),
@@ -2363,7 +2331,7 @@ const submit = async () => {
         <div v-if="!showConditionLibrary && !showEmotionSelector && !showEntryMethod" 
              class="fixed left-10 top-1/2 -translate-y-1/2 flex flex-col gap-10 z-[9999]">
         <!-- UNIFIED MATRIX TOGGLE -->
-        <button @click="showConditionLibrary = !showConditionLibrary" 
+        <button @click="showPaywall = true"
                 :disabled="commitState === 'loading'"
                 class="group relative opacity-35 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 disabled:cursor-not-allowed">
            <div class="relative flex items-center justify-center w-12 h-12">
@@ -3163,6 +3131,7 @@ const submit = async () => {
       </Transition>
     </Teleport>
 
+    <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
   </div>
 </template>
 

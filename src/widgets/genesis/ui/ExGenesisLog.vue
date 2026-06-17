@@ -76,9 +76,6 @@
                  <path d="M3 17l5-5 4 4 8-9"></path>
                  <path d="M17 7h3v3"></path>
               </svg>
-              <div v-if="patternForecastLoading"
-                   class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.55)]">
-              </div>
            </button>
         </div>
         <!-- Facet Navigation -->
@@ -333,9 +330,6 @@
       :is-open="showNodeMap" 
       :trade="mappedTradeForAnalysis"
       :is-dark="isDark"
-      :initial-page="panelInitialPage"
-      :initial-expanded-note-id="panelInitialNoteId"
-      :open-analytics-on-mount="showExtraDetails"
       @close="showNodeMap = false; showExtraDetails = false" 
     />
 
@@ -358,20 +352,6 @@
             :editable="false"
           />
        </ExPanel>
-    </div>
-
-    <div
-      v-if="!showNodeMap && viewType === 'cube' && showCapitalForecast && isHudVisible && canOpenCapitalForecast"
-      class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[8990] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500"
-    >
-      <ExPatternForecastPanel
-        :visible="showCapitalForecast"
-        :trades="currentTrades"
-        :initial-capital="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
-        :strategy-id="selectedStrategyId"
-        :strategy-name="selectedStrategy.name"
-        @loading-change="patternForecastLoading = $event"
-      />
     </div>
 
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
@@ -543,13 +523,11 @@
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
-import { loadFromDisk } from '~/shared/diskStorage'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
 import { calculateTacticalHistory } from '~/shared/utils/tacticalHistory'
-import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import globalAssets from '~/shared/data/global_assets.json'
 import { getIconForAsset } from '~/shared/api/asset.service'
 import ExTacticalNodeMap from '~/widgets/genesis/ui/ExTacticalNodeMap.vue'
@@ -558,7 +536,6 @@ import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/ExPaywallOverlay.vue'
-import ExPatternForecastPanel from '~/widgets/genesis/ui/ExPatternForecastPanel.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import OpenStrategyMetrics from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
 import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
@@ -576,7 +553,6 @@ const authStore = useAuthStore()
 const showShareCardModal = ref(false)
 const isGeneratingPng = ref(false)
 const showCapitalForecast = ref(false)
-const patternForecastLoading = ref(false)
 
 const tradeEfficiency = computed(() => {
   return mappedTradeForAnalysis.value?.percentileRank ?? 0
@@ -703,8 +679,6 @@ const editTrade = (trade: any) => {
 }
 
 const showExtraDetails = ref(false)
-const panelInitialPage = ref<number | undefined>(undefined)
-const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
 const showComplianceStatus = ref(false)
@@ -717,11 +691,11 @@ watch(isHudVisible, (val) => {
 })
 const showPaywall = ref(false)
 const canOpenCapitalForecast = computed(() => {
-  return true
+  return false
 })
 
 const openNodeMap = () => {
-  showNodeMap.value = true
+  showPaywall.value = true
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
@@ -1006,8 +980,7 @@ const complianceDotColor = computed(() => {
 })
 
 const toggleCapitalForecast = () => {
-
-  showCapitalForecast.value = !showCapitalForecast.value
+  showPaywall.value = true
 }
 
 const calculateRR = (trade: any) => {
@@ -1419,26 +1392,8 @@ const getHistory = (id: string, allTrades: any[]) => {
 const loadMatrixData = async () => {
   isMatrixLoading.value = true
   try {
-    const data = await loadFromDisk('genesis_matrix_v2') as any
-    if (data) {
-      const allNodes: any[] = []
-      const allConns: any[] = []
-      
-      const flatten = (nodesList: any[], connsList: any[]) => {
-        nodesList.forEach(n => {
-          allNodes.push(n)
-          if (n.subGraph) {
-            flatten(n.subGraph.nodes || [], n.subGraph.connections || [])
-          }
-        })
-        connsList.forEach(c => allConns.push(c))
-      }
-      
-      flatten(data.nodes || [], data.connections || [])
-      
-      matrixNodes.value = allNodes
-      matrixConnections.value = allConns
-    }
+    matrixNodes.value = []
+    matrixConnections.value = []
   } catch (err) {
     console.error('Failed to load matrix data:', err)
   } finally {
@@ -1574,17 +1529,6 @@ const handleRemoveTrade = async (tradeId: string) => {
     selectedTradeId.value = null
   }
 }
-
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const cores = (nodes as any[])
-    .filter(n => n.type === 'strategy' || n.type === 'system')
-    .map(n => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
 
 const activeFaceIndices = computed(() => {
   return facesTrades.value
@@ -2076,14 +2020,10 @@ const handleMouseDown = (e: MouseEvent) => {
            }
         }
         
-        if (nearest) {
+           if (nearest) {
            if (nearest.node.isNote && nearest.node.parentId) {
               selectedTradeId.value = nearest.node.parentId
-              const noteId = nearest.node.id.split('_').slice(2).join('_')
-              panelInitialPage.value = 5
-              panelInitialNoteId.value = noteId
-              showExtraDetails.value = true
-              showNodeMap.value = true
+              showPaywall.value = true
            } else {
               selectedTradeId.value = nearest.id
               showExtraDetails.value = false
@@ -2122,11 +2062,7 @@ const handleDoubleClick = (e: MouseEvent) => {
         
         if (nearest && nearest.node.isNote && nearest.node.parentId) {
            selectedTradeId.value = nearest.node.parentId
-           // Extract actual note ID from the composed string "note_tradeId_noteId"
-           const noteId = nearest.node.id.split('_').slice(2).join('_')
-           panelInitialPage.value = 5
-           panelInitialNoteId.value = noteId
-           showExtraDetails.value = true
+           showPaywall.value = true
         }
      }
   }
