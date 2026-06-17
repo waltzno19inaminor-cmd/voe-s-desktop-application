@@ -1091,7 +1091,8 @@
           </button>
 
           <!-- BENCHMARK / RISK-FREE RATE TOGGLE -->
-          <button @click="showBenchmarkCurves = !showBenchmarkCurves"
+          <button v-if="!showCalendarMode"
+                  @click="showBenchmarkCurves = !showBenchmarkCurves"
                   class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
                   :class="showBenchmarkCurves ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white opacity-60 hover:opacity-100'">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
