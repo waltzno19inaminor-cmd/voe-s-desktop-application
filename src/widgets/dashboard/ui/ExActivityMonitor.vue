@@ -2,7 +2,7 @@
   <div class="w-full h-full flex items-center justify-center p-8 md:p-16 relative">
 
     <!-- Activity Matrix Container -->
-    <div class="w-full h-full bg-theme-bg/50 p-6 md:p-12 flex flex-col items-center justify-center overflow-hidden relative">
+    <div class="w-full h-full p-6 md:p-12 flex flex-col items-center justify-center overflow-hidden relative">
       
       <!-- Header Section -->
       <div class="flex flex-col items-center mb-16 text-center z-10 w-full">
