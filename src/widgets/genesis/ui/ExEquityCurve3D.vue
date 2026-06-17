@@ -1201,12 +1201,26 @@
     <Teleport to="body">
       <Transition name="tooltip-dist-fade">
         <div v-if="hoveredCalendarDayTooltip"
-             class="theme-tooltip-panel fixed z-[2147483647] pointer-events-none border px-3 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
+             class="theme-tooltip-panel fixed z-[2147483647] pointer-events-none border px-5 py-4 min-w-[240px] shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
              :style="{ left: hoveredCalendarDayTooltip.x + 'px', top: hoveredCalendarDayTooltip.y + 'px' }">
-          <div class="text-[9px] font-mono uppercase tracking-[0.32em] opacity-40 mb-1">{{ hoveredCalendarDayTooltip.date }}</div>
-          <div class="text-[12px] font-mono font-black tracking-[0.12em] whitespace-nowrap"
-               :class="hoveredCalendarDayTooltip.pnl > 0 ? 'nier-text-primary' : hoveredCalendarDayTooltip.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
-            {{ hoveredCalendarDayTooltip.value }}
+          <div class="flex items-center justify-between mb-3 pb-2 border-b border-black/10 dark:border-white/10">
+            <div class="text-[10px] font-mono uppercase tracking-[0.32em] opacity-40">{{ hoveredCalendarDayTooltip.date }}</div>
+            <div class="text-[13px] font-mono font-black tracking-[0.12em] whitespace-nowrap ml-4"
+                 :class="hoveredCalendarDayTooltip.pnl > 0 ? 'nier-text-primary' : hoveredCalendarDayTooltip.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
+              {{ hoveredCalendarDayTooltip.value }}
+            </div>
+          </div>
+          <div class="flex flex-col space-y-2">
+            <div v-for="(trade, idx) in hoveredCalendarDayTooltip.trades" :key="idx"
+                 class="flex items-center justify-between text-[11px] font-mono gap-4">
+              <div class="flex items-center space-x-3">
+                <span class="opacity-40">{{ new Date(trade.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+                <span class="opacity-80 font-bold">{{ trade.asset || 'UNKNOWN' }}</span>
+              </div>
+              <span class="font-black whitespace-nowrap" :class="(trade.profitInCurrency || 0) > 0 ? 'text-emerald-500' : (trade.profitInCurrency || 0) < 0 ? 'text-rose-500' : 'text-white'">
+                {{ (trade.profitInCurrency || 0) > 0 ? '+' : '' }}{{ (trade.profitInCurrency || 0).toFixed(2) }}
+              </span>
+            </div>
           </div>
         </div>
       </Transition>
@@ -1571,7 +1585,7 @@ const selectedWinrateTarget = computed(() => {
 })
 const currentCalendarMonthStr = ref('') // Format: 'YYYY-MM'
 const calendarValueMode = ref<'currency' | 'percentage'>('currency')
-const hoveredCalendarDayTooltip = ref<{ x: number; y: number; value: string; date: string; pnl: number } | null>(null)
+const hoveredCalendarDayTooltip = ref<{ x: number; y: number; value: string; date: string; pnl: number, trades: any[] } | null>(null)
 
 const hasEnoughTradesForDiagnostics = computed(() => diagnosticStats.value.pnls.length >= 20)
 
@@ -7476,6 +7490,7 @@ interface CalendarDay {
   tradesCount: number
   isToday: boolean
   isInMonth: boolean
+  trades: any[]
 }
 
 // Group all trades by YYYY-MM
@@ -7552,7 +7567,8 @@ function setCalendarDayTooltip(event: MouseEvent, day: CalendarDay) {
     y: event.clientY + 16,
     value: formatCalendarDayValue(day),
     date: day.dateStr,
-    pnl: day.pnl
+    pnl: day.pnl,
+    trades: day.trades || []
   }
 }
 
@@ -7583,18 +7599,19 @@ const calendarDays = computed(() => {
   })
   
   // Map day -> stats
-  const dayStats = new Map<number, { pnl: number, count: number }>()
+  const dayStats = new Map<number, { pnl: number, count: number, trades: any[] }>()
   tradesForMonth.forEach(trade => {
     const dVal = trade.dateExit || trade.date
     const date = dVal instanceof Date ? dVal : new Date(dVal)
     const day = date.getDate()
     
     if (!dayStats.has(day)) {
-      dayStats.set(day, { pnl: 0, count: 0 })
+      dayStats.set(day, { pnl: 0, count: 0, trades: [] })
     }
     const stat = dayStats.get(day)!
     stat.pnl += (trade.profitInCurrency || 0)
     stat.count++
+    stat.trades.push(trade)
   })
 
   // Build grid
@@ -7606,7 +7623,7 @@ const calendarDays = computed(() => {
   // Pad beginning
   const startPad = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Make Monday = 0
   for (let i = 0; i < startPad; i++) {
-    days.push({ dateStr: '', dayNum: 0, pnl: 0, pnlPercent: 0, tradesCount: 0, isToday: false, isInMonth: false })
+    days.push({ dateStr: '', dayNum: 0, pnl: 0, pnlPercent: 0, tradesCount: 0, isToday: false, isInMonth: false, trades: [] })
   }
   
   const today = new Date()
@@ -7623,7 +7640,8 @@ const calendarDays = computed(() => {
       pnlPercent: (pnl / initialDeposit) * 100,
       tradesCount: stat ? stat.count : 0,
       isToday,
-      isInMonth: true
+      isInMonth: true,
+      trades: stat ? stat.trades : []
     })
   }
   
