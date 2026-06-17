@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, onMounted } from 'vue'
+import { computed, ref, shallowRef, onMounted, watch } from 'vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useThemeStore } from '~/features/store/useTheme'
-import { loadFromDisk } from '~/shared/diskStorage'
 import ExPanel from "~/shared/ui/ExPanel.vue"
 import ExHeading from "~/shared/ui/ExHeading.vue"
 import ExText from "~/shared/ui/ExText.vue"
@@ -13,7 +12,6 @@ import ExImageEditor from './ExImageEditor.vue'
 import ExEfficiencyLattice from "~/shared/ui/ExEfficiencyLattice.vue"
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import { useI18n } from '~/shared/i18n/useI18n'
-import { resolveRiskManagementForStrategy } from '~/widgets/genesis/model/riskManagement'
 
 interface Condition {
   id: string;
@@ -511,30 +509,8 @@ watch(() => props.trade?.id, () => {
 }, { immediate: true });
 
 const loadMatrixData = async () => {
-  try {
-    const data = await loadFromDisk('genesis_matrix_v2') as any;
-    if (data) {
-      const allNodes: any[] = [];
-      const allConns: any[] = [];
-      
-      const flatten = (nodesList: any[], connsList: any[]) => {
-        nodesList.forEach(n => {
-          allNodes.push(n);
-          if (n.subGraph) {
-            flatten(n.subGraph.nodes || [], n.subGraph.connections || []);
-          }
-        });
-        connsList.forEach(c => allConns.push(c));
-      };
-      
-      flatten(data.nodes || [], data.connections || []);
-      
-      matrixNodes.value = allNodes;
-      matrixConnections.value = allConns;
-    }
-  } catch (err) {
-    console.error('Failed to load matrix data in panel:', err);
-  }
+  matrixNodes.value = [];
+  matrixConnections.value = [];
 };
 
 const allTrades = computed(() => {
@@ -568,7 +544,12 @@ const percentileRank = computed(() => {
 });
 
 const resolvedRiskManagement = computed(() => {
-  return resolveRiskManagementForStrategy(matrixNodes.value, matrixConnections.value, props.trade?.strategyId);
+  return {
+    tradingStyle: '',
+    tradingStyleExtraType: null,
+    riskPerTradeValue: undefined,
+    riskPerTradeUnit: '%'
+  };
 });
 
 const resolvedStyleNode = computed(() => {
@@ -1643,8 +1624,8 @@ const strategyExecutionMetrics = computed(() => {
 
       <!-- MAIN CONTENT WRAPPER (Relative to ensure it stays above decor) -->
       <div class="relative z-10 h-full">
-      <!-- 0. STRATEGY LOCKOUT (WARNING) -->
-      <div v-if="(enrichedTrade.tradingStyle === 'Main Diary' || enrichedTrade.strategyId === 'MAIN_DIARY') && currentPage === 3" class="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 bg-black/[0.01] dark:bg-white/[0.01]">
+      <!-- 0. DEMO LOCKOUT (REPORT ANALYSIS) -->
+      <div v-if="currentPage === 3" class="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 bg-black/[0.01] dark:bg-white/[0.01]">
           <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
              <div class="absolute inset-0 border nier-border-primary rotate-45 animate-[pulse_4s_ease-in-out_infinite]"></div>
              <div class="absolute inset-4 border border-black/20 dark:border-white/20 -rotate-45"></div>
@@ -1657,17 +1638,17 @@ const strategyExecutionMetrics = computed(() => {
           
           <div class="flex flex-col items-center space-y-3 max-w-sm">
              <div class="flex flex-col items-center space-y-1">
-                <span class="text-[10px] font-mono uppercase tracking-[0.6em] font-black text-red-500/40">Diagnostic_Lockout</span>
-                <ExHeading level="h3" variant="module" class="!text-2xl nier-text-primary text-center animate-glow-red">PROTOCOL_UNDEFINED</ExHeading>
+                <span class="text-[10px] font-mono uppercase tracking-[0.6em] font-black text-red-500/40">Demo_Build_Access</span>
+                <ExHeading level="h3" variant="module" class="!text-2xl nier-text-primary text-center animate-glow-red">TRADE_ANALYSIS_LOCKED</ExHeading>
              </div>
              <ExText variant="small" class="opacity-40 uppercase tracking-[0.2em] leading-relaxed text-center">
-                High-fidelity analysis requires a specific strategy protocol. Tactical mapping is currently disabled for generic [Main Diary] entries.
+                The report analysis module is unavailable in this demo build. Visual evidence and session notes remain available for this trade.
              </ExText>
           </div>
           
           <div class="pt-6 flex flex-col items-center space-y-4">
              <div class="w-16 h-px bg-black/10 dark:bg-white/10"></div>
-             <span class="text-[8px] font-mono uppercase tracking-[0.4em] opacity-20">Initialization_Pending...</span>
+             <span class="text-[8px] font-mono uppercase tracking-[0.4em] opacity-20">Notes_And_Visuals_Available</span>
           </div>
       </div>
 

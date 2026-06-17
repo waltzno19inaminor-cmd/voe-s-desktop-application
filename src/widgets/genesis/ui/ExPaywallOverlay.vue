@@ -66,9 +66,7 @@
               <button
                 @click="openPatreon"
                 class="relative flex-1 group/btn w-full overflow-hidden border transition-all duration-500 py-5 px-6 flex items-center justify-center gap-4"
-                :class="isDark
-                  ? 'border-[#FF424D]/50 hover:border-[#FF424D] bg-[#FF424D]/5 hover:bg-[#FF424D]/15'
-                  : 'border-[#c7343d]/45 hover:border-[#c7343d] bg-[#c7343d]/8 hover:bg-[#c7343d]/14 shadow-[0_12px_32px_rgba(199,52,61,0.10)]'"
+                :class="'border-[#FF424D]/50 hover:border-[#FF424D] bg-[#FF424D]/5 hover:bg-[#FF424D]/15'"
               >
                 <div
                   class="absolute inset-0 bg-gradient-to-r from-transparent to-transparent -translate-x-[100%] group-hover/btn:translate-x-[100%] transition-transform duration-1000 pointer-events-none"
@@ -76,7 +74,7 @@
                 ></div>
                 <svg
                   class="w-6 h-6 relative z-10 transition-all duration-500"
-                  :class="isDark ? 'fill-[#FF424D] drop-shadow-[0_0_8px_rgba(255,66,77,0.8)]' : 'fill-[#c7343d] drop-shadow-[0_6px_14px_rgba(199,52,61,0.22)]'"
+                  :class="'fill-[#FF424D] drop-shadow-[0_0_8px_rgba(255,66,77,0.8)]'"
                   viewBox="0 0 512 512"
                   xmlns="http://www.w3.org/2000/svg"
                   fill-rule="evenodd"
@@ -86,7 +84,7 @@
                 ><g transform="matrix(.47407 0 0 .47407 .383 .422)"><clipPath id="prefix__a"><path d="M0 0h1080v1080H0z"/></clipPath><g clip-path="url(#prefix__a)"><path d="M1033.05 324.45c-.19-137.9-107.59-250.92-233.6-291.7-156.48-50.64-362.86-43.3-512.28 27.2-181.1 85.46-237.99 272.66-240.11 459.36-1.74 153.5 13.58 557.79 241.62 560.67 169.44 2.15 194.67-216.18 273.07-321.33 55.78-74.81 127.6-95.94 216.01-117.82 151.95-37.61 255.51-157.53 255.29-316.38z" fill-rule="nonzero"/></g></g></svg>
                 <span
                   class="text-xs sm:text-sm font-black tracking-[0.2em] uppercase transition-colors relative z-10"
-                  :class="isDark ? 'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]' : 'text-[#171411]'"
+                  :class="'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]'"
                 >
                   {{ locale === 'ru' ? 'ОФОРМИТЬ ПОДПИСКУ НА PATREON' : 'GET THE FULL APP ON PATREON' }}
                 </span>

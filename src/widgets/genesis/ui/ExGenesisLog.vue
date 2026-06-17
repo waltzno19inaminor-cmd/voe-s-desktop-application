@@ -333,6 +333,24 @@
       @close="showNodeMap = false; showExtraDetails = false" 
     />
 
+    <Teleport to="body">
+      <Transition name="panel-slide" mode="out-in">
+        <div
+          v-if="selectedTrade && showExtraDetails && !isTradeEntryOpen"
+          key="trade-analysis-panel"
+          class="fixed right-12 top-1/2 -translate-y-1/2 w-[1100px] max-w-[calc(100vw-6rem)] h-[85vh] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]"
+        >
+          <ExTradeAnalysisPanel
+            :trade="mappedTradeForAnalysis"
+            :global-stability="64"
+            :initial-page="panelInitialPage"
+            :initial-expanded-note-id="panelInitialNoteId"
+            @close="showExtraDetails = false; panelInitialPage = 3; panelInitialNoteId = undefined"
+          />
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
     <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500">
        <ExPanel
@@ -531,6 +549,7 @@ import { calculateTacticalHistory } from '~/shared/utils/tacticalHistory'
 import globalAssets from '~/shared/data/global_assets.json'
 import { getIconForAsset } from '~/shared/api/asset.service'
 import ExTacticalNodeMap from '~/widgets/genesis/ui/ExTacticalNodeMap.vue'
+import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -679,6 +698,8 @@ const editTrade = (trade: any) => {
 }
 
 const showExtraDetails = ref(false)
+const panelInitialPage = ref<number | undefined>(3)
+const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
 const showComplianceStatus = ref(false)
@@ -695,7 +716,9 @@ const canOpenCapitalForecast = computed(() => {
 })
 
 const openNodeMap = () => {
-  showPaywall.value = true
+  panelInitialPage.value = 3
+  panelInitialNoteId.value = undefined
+  showExtraDetails.value = true
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
@@ -2023,7 +2046,10 @@ const handleMouseDown = (e: MouseEvent) => {
            if (nearest) {
            if (nearest.node.isNote && nearest.node.parentId) {
               selectedTradeId.value = nearest.node.parentId
-              showPaywall.value = true
+              const noteId = nearest.node.id.split('_').slice(2).join('_')
+              panelInitialPage.value = 5
+              panelInitialNoteId.value = noteId
+              showExtraDetails.value = true
            } else {
               selectedTradeId.value = nearest.id
               showExtraDetails.value = false
@@ -2062,7 +2088,10 @@ const handleDoubleClick = (e: MouseEvent) => {
         
         if (nearest && nearest.node.isNote && nearest.node.parentId) {
            selectedTradeId.value = nearest.node.parentId
-           showPaywall.value = true
+           const noteId = nearest.node.id.split('_').slice(2).join('_')
+           panelInitialPage.value = 5
+           panelInitialNoteId.value = noteId
+           showExtraDetails.value = true
         }
      }
   }
