@@ -1135,7 +1135,7 @@
 
     <!-- CALENDAR OVERLAY -->
     <Transition name="fade">
-      <div v-if="showCalendarMode" class="absolute inset-0 z-[100] nier-bg-panel pointer-events-auto flex flex-col font-mono nier-text-primary">
+      <div v-if="showCalendarMode" class="absolute inset-0 z-[100] bg-theme-bg pointer-events-auto flex flex-col font-mono nier-text-primary">
         <div class="relative flex flex-col items-center h-full pt-24 pb-8 px-12 w-full max-w-4xl mx-auto">
           <!-- CALENDAR HEADER -->
           <div class="flex-shrink-0 flex items-center justify-center w-full mb-6 border-b nier-border-primary pb-6">
