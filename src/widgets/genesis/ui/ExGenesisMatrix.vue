@@ -119,7 +119,7 @@
       <!-- SEQUENTIAL PROMPT (Nier Style) -->
       <div v-if="state.shouldShowInitializePrompt.value" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20 pointer-events-none">
          <div class="flex flex-col items-center space-y-4">
-            <span class="text-[10px] font-mono tracking-[1em] uppercase">Initialize_First_Step</span>
+            <span class="text-[10px] font-mono tracking-[1em] uppercase">INIT FIRST STEP</span>
             <div class="w-1 h-32 bg-current animate-pulse"></div>
          </div>
       </div>

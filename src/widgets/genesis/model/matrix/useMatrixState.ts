@@ -59,9 +59,7 @@ export type MenuCategory =
   | 'LABELS'
 
 // Singleton reactive state
-const rootNodes = ref<Node[]>([
-  { id: 'root', label: 'STRATEGY_CORE', type: 'strategy', x: 200, y: 300, color: 'currentColor', params: { value: 'System_Init' }, isRoot: true }
-])
+const rootNodes = ref<Node[]>([])
 const rootConnections = ref<Connection[]>([])
 const rootZones = ref<Zone[]>([])
 
@@ -75,7 +73,7 @@ const viewState = ref({
   isPanning: false
 })
 
-const lastSelectedId = ref<string | null>('root')
+const lastSelectedId = ref<string | null>(null)
 const isCommentDragging = ref(false)
 const activeDrawingNodeId = ref<string | null>(null)
 const activeTextNodeId = ref<string | null>(null)
@@ -158,7 +156,7 @@ export function useMatrixState() {
   })
 
   const shouldShowInitializePrompt = computed(() => (
-    isScenarioContext.value ? nodes.value.length === 0 : nodes.value.length === 1
+    nodes.value.length === 0
   ))
 
   const bundleGroups = computed(() => {
@@ -420,14 +418,12 @@ export function useMatrixState() {
     const strategyTradesStore = useStrategyTradesStore()
     strategyTradesStore.purgeAllStrategies()
 
-    rootNodes.value = [
-      { id: 'root', label: 'STRATEGY_CORE', type: 'strategy', x: 200, y: 300, color: 'currentColor', params: { value: 'System_Init' }, isRoot: true }
-    ]
+    rootNodes.value = []
     rootConnections.value = []
     rootZones.value = []
     navigationStack.value = []
     savedScales.clear()
-    lastSelectedId.value = 'root'
+    lastSelectedId.value = null
     saveMatrixData()
   }
 
@@ -539,16 +535,7 @@ export function useMatrixState() {
       }
     } catch (err) {
       console.warn('[GenesisPersistence] fallback:', err)
-      rootNodes.value = [{
-        id: 'root-strategy',
-        label: 'GENESIS_PROTOCOL',
-        type: 'strategy',
-        x: 400,
-        y: 400,
-        color: 'currentColor',
-        params: { phase: 'NONE' },
-        isRoot: true
-      }]
+      rootNodes.value = []
       rootConnections.value = []
       rootZones.value = []
     }
