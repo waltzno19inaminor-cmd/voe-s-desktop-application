@@ -277,7 +277,7 @@ const strategyIndicators = computed(() => {
     if (!indicator) return null
     return {
       id: node.id,
-      name: node.identityName || node.name || 'Strategy Core',
+      name: node.params?.identityName || node.label || 'Strategy Core',
       ...indicator
     }
   }).filter(Boolean) as any[]
