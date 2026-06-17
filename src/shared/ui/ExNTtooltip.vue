@@ -18,17 +18,17 @@
           :style="tooltipStyle"
           class="fixed pointer-events-none z-[2147483647]"
         >
-          <div class="border border-nier-text-light/30 dark:border-nier-text-dark/30 p-6 shadow-[0_20px_50px_rgba(0,0,0,0.6)] min-w-[320px] max-w-[450px] flex flex-col space-y-4 text-nier-text-light dark:text-nier-text-dark relative bg-nier-white dark:bg-nier-black">
-            <div v-if="title" class="flex items-center justify-between border-b border-nier-border-light dark:border-nier-border-dark pb-3">
+          <div class="theme-tooltip-panel border p-6 min-w-[320px] max-w-[450px] flex flex-col space-y-4 relative shadow-[6px_6px_0_0_rgba(0,0,0,0.25)] dark:shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
+            <div v-if="title" class="flex items-center justify-between border-b theme-tooltip-divider pb-3">
               <span class="text-[10px] font-mono uppercase tracking-[0.4em] font-black">{{ title }}</span>
-              <div class="w-2 h-2 bg-theme-accent rotate-45"></div>
+              <div class="w-2 h-2 bg-current opacity-70 rotate-45"></div>
             </div>
             <div class="text-[12px] font-mono leading-relaxed opacity-100">
               <slot></slot>
             </div>
           </div>
           <!-- Tooltip Stem -->
-          <div class="w-3 h-3 border-r border-b border-nier-text-light/30 dark:border-nier-text-dark/30 rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-nier-white dark:bg-nier-black"
+          <div class="theme-tooltip-stem w-3 h-3 border-r border-b rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2"
                :style="stemStyle"></div>
         </div>
       </Transition>

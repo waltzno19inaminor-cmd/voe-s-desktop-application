@@ -73,24 +73,7 @@ const {
 </script>
 
 <style scoped>
-/* THEME DEFINITIONS */
-.theme-dark {
-  --theme-bg: #0a0a0a;
-  --theme-text: rgba(255, 255, 255, 0.7);
-  --theme-border: rgba(255, 255, 255, 0.1);
-  --theme-border-strong: rgba(255, 255, 255, 0.25);
-}
-
-.theme-light {
-  --theme-bg: #FFFFFF;
-  --theme-text: #2C3E50;
-  --theme-border: rgba(44, 62, 80, 0.1);
-  --theme-border-strong: rgba(44, 62, 80, 0.25);
-}
-
 .ethereal-void {
-  background-color: var(--theme-bg);
-  color: var(--theme-text);
   font-family: 'Cormorant Garamond', serif;
 }
 </style>

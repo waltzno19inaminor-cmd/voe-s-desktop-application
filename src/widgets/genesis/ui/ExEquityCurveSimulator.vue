@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 z-[5000] text-black dark:text-white font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
-       :class="hasRun ? 'bg-white dark:bg-[#070707]' : 'bg-transparent'">
+  <div class="fixed inset-0 z-[5000] nier-text-primary font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
+       :class="hasRun ? 'nier-bg-panel' : 'bg-transparent'">
     
     <!-- ETHEREAL VIGNETTE (From main app) -->
     <DesignVignette v-if="!showParams" :is-dark="themeStore.settings.isDark" class="z-20 pointer-events-none" />
@@ -22,12 +22,12 @@
     <div class="absolute top-12 left-12 z-50 pointer-events-auto flex items-center space-x-8">
       <button v-if="hasRun" @click="$emit('close')" class="group flex items-center space-x-4 opacity-40 hover:opacity-100 transition-all duration-500">
         <div class="w-2 h-2 border border-black dark:border-white rotate-45 group-hover:bg-black dark:group-hover:bg-white transition-colors"></div>
-        <div class="text-[10px] font-mono tracking-[0.4em] uppercase text-black dark:text-white">EXIT</div>
+        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">EXIT</div>
       </button>
 
       <button v-if="hasRun && !showParams" @click="showParams = true" class="group flex items-center space-x-4 opacity-40 hover:opacity-100 transition-all duration-500">
-        <div class="w-2 h-2 bg-black dark:bg-white opacity-50 group-hover:opacity-100 transition-opacity"></div>
-        <div class="text-[10px] font-mono tracking-[0.4em] uppercase text-black dark:text-white">PARAMETERS</div>
+        <div class="w-2 h-2 nier-bg-inverted opacity-50 group-hover:opacity-100 transition-opacity"></div>
+        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">PARAMETERS</div>
       </button>
     </div>
 
@@ -42,38 +42,38 @@
           <div class="flex flex-col space-y-8 relative z-10 p-4">
             <div class="flex flex-col">
               <span class="text-[8px] font-mono tracking-[0.5em] opacity-40 uppercase">Probabilistic_Projection_Module</span>
-              <h2 class="text-xl font-mono tracking-widest uppercase font-black mt-2 text-black dark:text-white">EQUITY_SIMULATOR</h2>
+              <h2 class="text-xl font-mono tracking-widest uppercase font-black mt-2 nier-text-primary">EQUITY_SIMULATOR</h2>
             </div>
 
             <div class="flex flex-col space-y-5">
               
               <!-- LOCKED METRICS -->
-              <div class="grid grid-cols-2 gap-4 border-b border-black/10 dark:border-white/10 pb-5">
+              <div class="grid grid-cols-2 gap-4 border-b nier-border-primary pb-5">
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Initial Equity [LOCKED]</label>
-                  <input type="number" readonly v-model.number="params.initialEquity" class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows text-black dark:text-white" />
+                  <input type="number" readonly v-model.number="params.initialEquity" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Win Prob. (%) [LOCKED]</label>
-                  <input type="number" readonly v-model.number="params.winRate" class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows text-black dark:text-white" />
+                  <input type="number" readonly v-model.number="params.winRate" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Reward/Risk [LOCKED]</label>
-                  <input type="number" step="0.1" readonly v-model.number="params.rewardRisk" class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows text-black dark:text-white" />
+                  <input type="number" step="0.1" readonly v-model.number="params.rewardRisk" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Risk/Trade (%) [LOCKED]</label>
-                  <input type="number" step="0.1" readonly v-model.number="params.riskPerTrade" class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows text-black dark:text-white" />
+                  <input type="number" step="0.1" readonly v-model.number="params.riskPerTrade" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Simulation Model [LOCKED]</label>
-                  <div class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed text-black dark:text-white">
+                  <div class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed nier-text-primary">
                     {{ simulationModelLabel }}
                   </div>
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-40">Regime Periods [LOCKED]</label>
-                  <div class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed text-black dark:text-white">
+                  <div class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed nier-text-primary">
                     {{ simulationRegimeLabel }}
                   </div>
                 </div>
@@ -83,11 +83,11 @@
               <div class="grid grid-cols-2 gap-4">
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Steps (Trades)</label>
-                  <input type="number" v-model.number="params.numTrades" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows text-black dark:text-white" />
+                  <input type="number" v-model.number="params.numTrades" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows nier-text-primary" />
                 </div>
                 <div class="flex flex-col space-y-1 group">
                   <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Paths (Simulations)</label>
-                  <input type="number" v-model.number="params.numLines" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows text-black dark:text-white" />
+                  <input type="number" v-model.number="params.numLines" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows nier-text-primary" />
                 </div>
               </div>
 
@@ -95,11 +95,11 @@
 
             <div class="flex flex-col space-y-3 pt-2">
               <button @click="runSimulation" 
-                      class="w-full py-4 bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] tracking-[0.5em] uppercase font-black hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
+                      class="w-full py-4 nier-bg-inverted nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase font-black hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
                 INITIATE_PROJECTION
               </button>
               <button @click="hasRun ? showParams = false : $emit('close')" 
-                      class="w-full py-3 border border-black/20 dark:border-white/20 text-black dark:text-white font-mono text-[10px] tracking-[0.5em] uppercase hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                      class="w-full py-3 border border-black/20 dark:border-white/20 nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
                 CANCEL
               </button>
             </div>
@@ -107,7 +107,7 @@
 
           <!-- Background Scan Line -->
           <div class="absolute inset-0 pointer-events-none overflow-hidden opacity-5">
-            <div class="w-full h-px bg-black dark:bg-white animate-scan"></div>
+            <div class="w-full h-px nier-bg-inverted animate-scan"></div>
           </div>
         </ExPanel>
       </div>
@@ -165,7 +165,7 @@
     </Transition>
 
     <Transition name="protocol-slide">
-       <div v-if="!showParams && hasRun" class="absolute top-12 right-12 z-40 flex flex-col space-y-2 pointer-events-none text-[9px] uppercase tracking-widest text-right bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 border border-black/10 dark:border-white/10 shadow-sm">
+       <div v-if="!showParams && hasRun" class="absolute top-12 right-12 z-40 flex flex-col space-y-2 pointer-events-none text-[9px] uppercase tracking-widest text-right bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 border nier-border-primary shadow-sm">
           <div class="flex items-center justify-end space-x-2"><span>Best Scenario</span><div class="w-3 h-0.5 bg-green-500"></div></div>
           <div class="flex items-center justify-end space-x-2"><span>Worst Scenario</span><div class="w-3 h-0.5 bg-red-500"></div></div>
           <div class="flex items-center justify-end space-x-2 opacity-30"><span>Simulated Paths</span><div class="w-3 h-0.5 bg-current"></div></div>
@@ -175,7 +175,7 @@
     <!-- TOAST NOTIFICATION -->
     <Transition name="protocol-slide">
       <div v-if="showToast" class="absolute bottom-12 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <div class="bg-black/90 dark:bg-white/90 text-white dark:text-black px-6 py-3 font-mono text-[9px] tracking-widest uppercase shadow-lg border border-white/20 dark:border-black/20 backdrop-blur-sm">
+        <div class="bg-black/90 dark:bg-white/90 nier-text-primary px-6 py-3 font-mono text-[9px] tracking-widest uppercase shadow-lg border border-white/20 dark:border-black/20 backdrop-blur-sm">
           VISUALIZATION OPTIMIZED: RENDERED LAST 50 PATHS FOR CLARITY
         </div>
       </div>

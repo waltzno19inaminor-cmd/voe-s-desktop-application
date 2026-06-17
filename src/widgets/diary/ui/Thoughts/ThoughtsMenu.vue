@@ -19,7 +19,7 @@
       <button
         @click="createNew"
         :disabled="isThoughtsSubmitting"
-        class="w-full flex items-center justify-center gap-2 py-3 bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition rounded-xl text-xs uppercase tracking-widest font-bold shadow-sm"
+        class="w-full flex items-center justify-center gap-2 py-3 nier-bg-inverted nier-text-primary hover:opacity-80 transition rounded-xl text-xs uppercase tracking-widest font-bold shadow-sm"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -48,7 +48,7 @@
            <!-- Active Indicator -->
            <div 
              class="w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 transition-all duration-300"
-             :class="activeThoughtId === item.id ? 'bg-black dark:bg-white' : 'bg-transparent group-hover:bg-black/20 dark:group-hover:bg-white/20'"
+             :class="activeThoughtId === item.id ? 'nier-bg-inverted' : 'bg-transparent group-hover:bg-black/20 dark:group-hover:bg-white/20'"
            ></div>
            
            <div class="flex-1 min-w-0">

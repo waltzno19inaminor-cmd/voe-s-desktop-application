@@ -95,7 +95,7 @@
              <input type="file" accept="image/*" class="hidden" @change="onImageUpload" />
           </label>
 
-          <button @click="isAttachTradeModalOpen = true" class="px-3 py-1.5 rounded-lg flex items-center gap-2 bg-transparent border border-black/10 dark:border-white/10 hover:border-black/30 dark:hover:border-white/30 transition text-xs font-bold uppercase tracking-widest text-[#050505] dark:text-white">
+          <button @click="isAttachTradeModalOpen = true" class="px-3 py-1.5 rounded-lg flex items-center gap-2 bg-transparent border nier-border-primary hover:border-black/30 dark:hover:border-white/30 transition text-xs font-bold uppercase tracking-widest text-[#050505] dark:text-white">
              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
              Trade
           </button>
@@ -146,7 +146,7 @@
       <div v-if="isDeleteModalOpen" class="fixed inset-0 z-[3000] flex items-center justify-center p-4">
          <div @click="isDeleteModalOpen = false" class="absolute inset-0 bg-black/60 dark:bg-black/80 backdrop-blur-md transition-opacity"></div>
          
-         <div class="relative bg-white dark:bg-[#0a0a0a] w-full max-w-sm rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-black/5 dark:border-white/10 text-center">
+         <div class="relative nier-bg-panel w-full max-w-sm rounded-[2rem] p-8 shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-black/5 dark:border-white/10 text-center">
             <div class="w-16 h-16 bg-red-500/10 text-red-500 dark:text-red-400 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

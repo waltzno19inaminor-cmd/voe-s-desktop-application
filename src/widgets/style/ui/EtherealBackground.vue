@@ -5,7 +5,7 @@
          :style="{ 
            backgroundImage: 'url(\'/assets/white_ethereal_bg.png\')',
            filter: 'blur(20px) brightness(1.1) contrast(0.9)',
-           opacity: isDark ? 0 : (isAssembled ? 0.55 : 0)
+              opacity: !isDark ? (isAssembled ? 0.2 : 0) : 0
          }"></div>
 
     <!-- Dark Theme Ethereal Background -->

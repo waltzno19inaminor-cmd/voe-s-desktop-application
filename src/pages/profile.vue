@@ -93,7 +93,8 @@
                   v-for="mode in appearanceModes"
                   :key="mode.key"
                   type="button"
-                  class="p-4 border text-left transition-colors duration-300 text-theme-text"
+                  @click="setAppearanceMode(mode.key)"
+                  class="p-4 border text-left transition-colors duration-300 text-theme-text cursor-pointer"
                   :class="mode.active ? 'border-theme-text bg-theme-text/[0.06] shadow-[inset_3px_0_0_var(--theme-text)]' : 'border-theme-border bg-theme-bg hover:border-theme-text/40'"
                 >
                   <span class="block text-[9px] font-mono uppercase tracking-[0.35em] font-black text-theme-text">{{ mode.label }}</span>
@@ -188,11 +189,33 @@ const profileDescriptionDraft = ref(
     : 'Keep the profile minimal, readable, and aligned with the app\'s overall tone.'
 )
 
-const appearanceModes = computed(() => [
-  { key: 'dark', label: 'Dark', note: 'Active', active: isDark.value },
-  { key: 'light', label: 'Light', note: 'Available', active: !isDark.value },
-  { key: 'system', label: 'System', note: 'Auto', active: false }
-])
+const appearanceModes = computed(() => {
+  const currentMode = themeStore.settings.themeMode || (themeStore.settings.isDark ? 'dark' : 'light')
+  return [
+    {
+      key: 'dark' as const,
+      label: 'Dark',
+      note: currentMode === 'dark' ? 'Active' : 'Available',
+      active: currentMode === 'dark'
+    },
+    {
+      key: 'light' as const,
+      label: 'Light',
+      note: currentMode === 'light' ? 'Active' : 'Available',
+      active: currentMode === 'light'
+    },
+    {
+      key: 'system' as const,
+      label: 'System',
+      note: currentMode === 'system' ? 'Active' : 'Auto',
+      active: currentMode === 'system'
+    }
+  ]
+})
+
+function setAppearanceMode(mode: 'light' | 'dark' | 'system') {
+  themeStore.setTheme({ themeMode: mode })
+}
 
 const appearanceTones = [
   { name: 'Ink', value: 'var(--theme-text)' },
@@ -201,11 +224,10 @@ const appearanceTones = [
   { name: 'Mint', value: 'rgba(16, 185, 129, 0.7)' }
 ]
 
-const backgroundImageUrl = ref<string | null>(null)
 const backgroundFileName = ref('')
 
 const backgroundImageStyle = computed(() => ({
-  backgroundImage: backgroundImageUrl.value ? `url(${backgroundImageUrl.value})` : 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0))'
+  backgroundImage: themeStore.settings.bgImage ? `url(${themeStore.settings.bgImage})` : 'linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0))'
 }))
 
 const handleBackgroundUpload = (event: Event) => {
@@ -213,17 +235,16 @@ const handleBackgroundUpload = (event: Event) => {
   const file = input.files?.[0]
   if (!file) return
 
-  if (backgroundImageUrl.value) {
-    URL.revokeObjectURL(backgroundImageUrl.value)
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const base64 = e.target?.result as string
+    themeStore.setTheme({
+      bgImage: base64,
+      isImageBg: true,
+      themeName: 'Custom'
+    })
+    backgroundFileName.value = file.name
   }
-
-  backgroundImageUrl.value = URL.createObjectURL(file)
-  backgroundFileName.value = file.name
+  reader.readAsDataURL(file)
 }
-
-onBeforeUnmount(() => {
-  if (backgroundImageUrl.value) {
-    URL.revokeObjectURL(backgroundImageUrl.value)
-  }
-})
 </script>

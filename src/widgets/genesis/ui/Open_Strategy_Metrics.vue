@@ -176,7 +176,7 @@ const groupedMetrics = computed(() => {
   --osp-accent:    #38bdf8;
 }
 .osp-light {
-  --osp-bg:        #f4f4f2;
+  --osp-bg:        #FFFFFF;
   --osp-bg-card:   rgba(255,255,255,0.92);
   --osp-bg-hover:  rgba(0,0,0,0.04);
   --osp-text:      #1a1a18;

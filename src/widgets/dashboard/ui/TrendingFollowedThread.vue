@@ -33,7 +33,7 @@
             <div class="font-serif italic text-[#050505] dark:text-[#d0d0d0] truncate max-w-[100px] mb-0.5">by {{ authorName }}</div>
             <div class="text-[8px] uppercase tracking-tighter opacity-70">{{ timeAgo }}</div>
           </div>
-          <div class="w-8 h-8 rounded-full bg-black dark:bg-white flex items-center justify-center text-white dark:text-black shadow-md transition-transform group-hover:scale-110">
+          <div class="w-8 h-8 rounded-full nier-bg-inverted flex items-center justify-center nier-text-primary shadow-md transition-transform group-hover:scale-110">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
           </div>
         </div>

@@ -74,7 +74,7 @@
               <div v-for="(step, sIdx) in node.steps" :key="sIdx" 
                    @click="scrollToStep(sIdx + 1)"
                    class="relative z-10 flex flex-col items-center space-y-4 cursor-pointer group/step">
-                <div class="w-12 h-12 rounded-full border border-current/20 bg-white dark:bg-black text-current flex items-center justify-center text-sm font-mono shadow-xl transition-all group-hover/step:scale-110 group-hover/step:border-current/60">
+                <div class="w-12 h-12 rounded-full border border-current/20 nier-bg-panel text-current flex items-center justify-center text-sm font-mono shadow-xl transition-all group-hover/step:scale-110 group-hover/step:border-current/60">
                   {{ sIdx + 1 }}
                 </div>
                 <span class="text-[8px] font-serif italic opacity-40 uppercase tracking-widest group-hover/step:opacity-100 transition-opacity">{{ step }}</span>

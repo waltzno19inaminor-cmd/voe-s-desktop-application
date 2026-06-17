@@ -50,7 +50,7 @@
           </div>
 
           <!-- Confidence telemetry badge -->
-          <div class="flex items-center gap-2 border border-black/10 dark:border-white/10 px-2 py-1 bg-black/[0.02] dark:bg-white/[0.02]">
+          <div class="flex items-center gap-2 border nier-border-primary px-2 py-1 bg-black/[0.02] dark:bg-white/[0.02]">
             <div class="h-1.5 w-1.5 rotate-45 bg-black/40 dark:bg-white/40"></div>
             <span class="font-mono text-[8px] font-black uppercase tracking-[0.25em]" :class="confidenceClass">
               {{ confidenceLabel }}
@@ -116,7 +116,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Вероятный итог за 10 сделок' : 'Likely outcome over 10 trades' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatPercentWithCapital(forecast.tactical.horizons[0]?.p50 ?? 0, forecast.currentCapital) }}
               </div>
             </div>
@@ -124,7 +124,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Вероятный итог за 20 сделок' : 'Likely outcome over 20 trades' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatPercentWithCapital(forecast.tactical.horizons[1]?.p50 ?? 0, forecast.currentCapital) }}
               </div>
             </div>
@@ -132,7 +132,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Похожесть на прибыльные истории' : 'Similarity to profitable histories' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatPercent(forecast.lifecycle.affinityAbove30, false) }}
               </div>
             </div>
@@ -140,7 +140,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Шанс завершиться в плюсе' : 'Chance to finish in profit' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatPercent(forecast.lifecycle.affinityPositive, false) }}
               </div>
             </div>
@@ -165,7 +165,7 @@
             class="border border-black/10 px-4 py-4 dark:border-white/10"
           >
             <div class="flex items-center justify-between gap-3">
-              <span class="font-mono text-[8px] font-black uppercase tracking-[0.25em] text-black dark:text-white">
+              <span class="font-mono text-[8px] font-black uppercase tracking-[0.25em] nier-text-primary">
                 {{ horizon.horizonTrades }}T
               </span>
               <span class="font-mono text-[8px] uppercase tracking-[0.22em] text-black/40 dark:text-white/40">
@@ -177,7 +177,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.25em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Вероятный итог' : 'Likely outcome' }}
               </div>
-              <div class="mt-1 font-mono text-lg font-black text-black dark:text-white">
+              <div class="mt-1 font-mono text-lg font-black nier-text-primary">
                   {{ formatPercentWithCapital(horizon.p50, forecast.currentCapital) }}
               </div>
             </div>
@@ -185,7 +185,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.25em] text-black/35 dark:text-white/35">
                   {{ locale === 'ru' ? 'Шанс на прибыль' : 'Profit chance' }}
                 </div>
-                <div class="mt-1 font-mono text-lg font-black text-black dark:text-white">
+                <div class="mt-1 font-mono text-lg font-black nier-text-primary">
                   {{ formatPercent(horizon.probabilityPositive, false) }}
                 </div>
               </div>
@@ -218,7 +218,7 @@
           <div class="font-mono text-[8px] uppercase tracking-[0.28em] text-black/35 dark:text-white/35">
             {{ locale === 'ru' ? 'Ключевой вывод' : 'Key takeaway' }}
           </div>
-          <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+          <div class="mt-2 font-mono text-sm font-black nier-text-primary">
             {{ lifecycleSummary }}
           </div>
           <div class="mt-2 grid grid-cols-1 gap-1 md:grid-cols-3">
@@ -246,10 +246,10 @@
               ? 'bg-white text-black dark:bg-white dark:text-black'
               : ''"
           >
-            <div class="font-mono text-[8px] font-black uppercase tracking-[0.22em]" :class="topLifecycleGroupKeys.has(group.key) ? 'text-black' : 'text-black dark:text-white'">
+            <div class="font-mono text-[8px] font-black uppercase tracking-[0.22em]" :class="topLifecycleGroupKeys.has(group.key) ? 'text-black' : 'nier-text-primary'">
               {{ group.label }}
             </div>
-            <div class="mt-2 font-mono text-base font-black" :class="topLifecycleGroupKeys.has(group.key) ? 'text-black' : 'text-black dark:text-white'">
+            <div class="mt-2 font-mono text-base font-black" :class="topLifecycleGroupKeys.has(group.key) ? 'text-black' : 'nier-text-primary'">
               {{ formatPercent(group.affinityScore, false) }}
             </div>
             <div class="mt-1 font-mono text-[10px]" :class="topLifecycleGroupKeys.has(group.key) ? 'text-black/55' : 'text-black/40 dark:text-white/40'">
@@ -275,7 +275,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Средний duration' : 'Avg duration' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatHours(forecast.styleProfile.averageDurationHours) }}
               </div>
             </div>
@@ -283,7 +283,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Median abs / trade' : 'Median abs / trade' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatPercent(forecast.styleProfile.medianAbsReturnPct, false) }}
               </div>
             </div>
@@ -291,7 +291,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Сделок в неделю' : 'Trades / week' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatNumber(forecast.styleProfile.tradeFrequencyPerWeek, 1) }}
               </div>
             </div>
@@ -299,7 +299,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Текущий капитал' : 'Current capital' }}
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatMoney(forecast.currentCapital) }}
               </div>
             </div>
@@ -307,7 +307,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 Avg RR
               </div>
-              <div class="mt-2 font-mono text-sm font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-sm font-black nier-text-primary">
                 {{ formatNumber(forecast.styleProfile.averageRR, 2) }}
               </div>
             </div>
@@ -315,7 +315,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Вероятный диапазон результата' : 'Likely result range' }}
               </div>
-              <div class="mt-2 font-mono text-[10px] font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-[10px] font-black nier-text-primary">
                 {{ formatPercentWithCapital(forecast.tactical.horizons[0]?.p25 ?? 0, forecast.currentCapital) }}
                 ...
                 {{ formatPercentWithCapital(forecast.tactical.horizons[0]?.p75 ?? 0, forecast.currentCapital) }}
@@ -325,7 +325,7 @@
               <div class="font-mono text-[7px] uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
                 {{ locale === 'ru' ? 'Простой расчет по текущему профилю' : 'Simple estimate from current profile' }}
               </div>
-              <div class="mt-2 font-mono text-[10px] font-black text-black dark:text-white">
+              <div class="mt-2 font-mono text-[10px] font-black nier-text-primary">
                 {{ formatPercentWithCapital(forecast.tactical.horizons[0]?.userLinearEstimatePct ?? 0, forecast.currentCapital) }}
               </div>
             </div>
@@ -393,7 +393,7 @@
           >
               <div class="flex items-center justify-between gap-3">
                 <div class="flex flex-col">
-                  <span class="font-mono text-[8px] font-black uppercase tracking-[0.22em]" :class="index < 2 ? 'text-white' : 'text-black dark:text-white'">
+                  <span class="font-mono text-[8px] font-black uppercase tracking-[0.22em]" :class="index < 2 ? 'text-white' : 'nier-text-primary'">
                     {{ index + 1 }}
                   </span>
                 </div>
@@ -414,7 +414,7 @@
                 <div class="font-mono text-[10px]" :class="index < 2 ? 'text-white/80' : 'text-black/45 dark:text-white/45'">
                   {{ locale === 'ru' ? 'Через 20 сделок' : '+20T' }}: {{ formatPercent(match.continuation20Pct) }}
                 </div>
-                <div class="font-mono text-[10px]" :class="index < 2 ? 'text-white' : 'text-black dark:text-white'">
+                <div class="font-mono text-[10px]" :class="index < 2 ? 'text-white' : 'nier-text-primary'">
                   {{ locale === 'ru' ? 'До конца' : 'End' }}: {{ formatPercent(match.continuationToEndPct) }}
                 </div>
                 <div class="font-mono text-[10px]" :class="index < 2 ? 'text-white/80' : 'text-black/45 dark:text-white/45'">

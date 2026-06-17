@@ -16,7 +16,7 @@
     </div>
 
     <div class="space-y-6 text-xs text-[#050505] dark:text-[#bcbcbc]">
-      <NuxtLink v-for="thread in filteredThreads" :key="thread.id" :to="`/forum/thread/${thread.id}`" class="block border-b border-black/10 dark:border-white/10 pb-4 hover:opacity-80 transition">
+      <NuxtLink v-for="thread in filteredThreads" :key="thread.id" :to="`/forum/thread/${thread.id}`" class="block border-b nier-border-primary pb-4 hover:opacity-80 transition">
         <span class="font-medium">{{ thread.title }}</span>
         <div class="text-[#666] dark:text-[#6f6f6f] mt-1">
           by {{ forum.getAuthor(thread.authorId)?.displayName || 'Unknown' }} · {{ thread.repliesCount || 0 }} contributions · updated {{ new Date(((thread.lastActivityAt as any)?.seconds || 0) * 1000).toLocaleDateString() }}

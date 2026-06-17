@@ -115,7 +115,7 @@
                 <!-- Points Only -->
                 <div class="w-full flex justify-between relative z-1">
                     <!-- Entry Dot -->
-                    <div class="w-4 h-4 rounded-full bg-white dark:bg-black border-2 border-black dark:border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-transform duration-500 hover:scale-150"></div>
+                    <div class="w-4 h-4 rounded-full nier-bg-panel border-2 border-black dark:border-white shadow-[0_0_15px_rgba(255,255,255,0.5)] transition-transform duration-500 hover:scale-150"></div>
                     
                     <!-- Exit Dot -->
                     <div 
@@ -218,7 +218,7 @@
                         </button>
                         <button 
                             @click="handleSave"
-                            class="px-4 py-1.5 rounded-full bg-black dark:bg-white text-white dark:text-black text-[9px] font-premium-sans uppercase tracking-[0.2em] font-bold shadow-lg transition-transform active:scale-95"
+                            class="px-4 py-1.5 rounded-full nier-bg-inverted nier-text-primary text-[9px] font-premium-sans uppercase tracking-[0.2em] font-bold shadow-lg transition-transform active:scale-95"
                         >
                             Commit Reflection
                         </button>
@@ -284,7 +284,7 @@
                 </div>
                 
                 <!-- Strategy Metadata -->
-                <div class="p-6 rounded-[2.5rem] bg-[#050505] dark:bg-white text-white dark:text-black flex flex-col justify-between overflow-hidden relative">
+                <div class="p-6 rounded-[2.5rem] bg-[#050505] dark:bg-white nier-text-primary flex flex-col justify-between overflow-hidden relative">
                     <div class="absolute -bottom-8 -right-8 opacity-10">
                          <svg class="w-32 h-32" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                     </div>
@@ -324,7 +324,7 @@
             <div v-if="isEditing" class="animate-modal-in">
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                     <!-- Action Cards -->
-                    <div @click="triggerFileUpload" class="group relative rounded-3xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-500 min-h-[160px]">
+                    <div @click="triggerFileUpload" class="group relative rounded-3xl bg-black/5 dark:bg-white/5 border-2 border-dashed nier-border-primary p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-500 min-h-[160px]">
                          <div class="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
                              <svg v-if="isUploadingImage" class="animate-spin h-5 w-5 text-[#777]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -337,7 +337,7 @@
                          <span class="text-[9px] uppercase font-bold tracking-[0.3em] text-[#777]">Import Device</span>
                     </div>
 
-                    <div @click="isUrlPromptOpen = !isUrlPromptOpen" class="group relative rounded-3xl bg-black/5 dark:bg-white/5 border-2 border-dashed border-black/10 dark:border-white/10 p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-500 min-h-[160px]">
+                    <div @click="isUrlPromptOpen = !isUrlPromptOpen" class="group relative rounded-3xl bg-black/5 dark:bg-white/5 border-2 border-dashed nier-border-primary p-8 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-all duration-500 min-h-[160px]">
                          <div class="w-10 h-10 rounded-full bg-black/5 dark:bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform duration-500">
                              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#777]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />
@@ -353,8 +353,8 @@
                 <!-- URL Prompt -->
                 <div v-if="isUrlPromptOpen" class="mb-8 p-4 bg-black/5 dark:bg-white/5 rounded-3xl border border-white/5">
                     <div class="flex gap-2">
-                         <input v-model="urlInput" type="text" placeholder="https://..." class="flex-1 bg-white dark:bg-[#181818] border border-black/10 dark:border-white/10 rounded-xl px-4 py-2 text-xs text-[#050505] dark:text-white focus:outline-none" @keyup.enter="addByLink" />
-                         <button @click="addByLink" class="px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-xl text-[9px] uppercase font-bold tracking-widest hover:opacity-80 transition">Attach</button>
+                         <input v-model="urlInput" type="text" placeholder="https://..." class="flex-1 bg-white dark:bg-[#181818] border nier-border-primary rounded-xl px-4 py-2 text-xs text-[#050505] dark:text-white focus:outline-none" @keyup.enter="addByLink" />
+                         <button @click="addByLink" class="px-4 py-2 nier-bg-inverted nier-text-primary rounded-xl text-[9px] uppercase font-bold tracking-widest hover:opacity-80 transition">Attach</button>
                     </div>
                 </div>
 
@@ -405,7 +405,7 @@
                     </div>
                     
                     <!-- Narrative Overlay/Bottom -->
-                    <div v-if="img.context" class="mt-6 px-10 border-l-2 border-black/10 dark:border-white/10 py-2">
+                    <div v-if="img.context" class="mt-6 px-10 border-l-2 nier-border-primary py-2">
                         <p class="text-[#050505] dark:text-white/80 italic text-lg leading-relaxed font-serif tracking-wide">
                             {{ img.context }}
                         </p>
@@ -414,7 +414,7 @@
             </div>
 
             <!-- Empty State for Visuals -->
-            <div v-else-if="!isEditing" class="text-center py-20 bg-black/5 dark:bg-white/5 rounded-[3rem] border border-dashed border-black/10 dark:border-white/10">
+            <div v-else-if="!isEditing" class="text-center py-20 bg-black/5 dark:bg-white/5 rounded-[3rem] border border-dashed nier-border-primary">
                 <div class="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 opacity-30">
                      <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 </div>
@@ -493,7 +493,7 @@
       <footer class="px-10 py-8 border-t border-black/5 dark:border-white/5 bg-white/50 dark:bg-white/[0.02] backdrop-blur-md flex justify-end flex-shrink-0">
         <button 
           @click="close"
-          class="px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.3em] text-white bg-black dark:bg-white dark:text-black rounded-full hover:shadow-[0_10px_30px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_30px_rgba(255,255,255,0.1)] transition-all transform active:scale-95"
+          class="px-8 py-3.5 text-[11px] font-bold uppercase tracking-[0.3em] text-white nier-bg-inverted dark:text-black rounded-full hover:shadow-[0_10px_30px_rgba(0,0,0,0.2)] dark:hover:shadow-[0_10px_30px_rgba(255,255,255,0.1)] transition-all transform active:scale-95"
         >
           Archive Detail Dismissed
         </button>

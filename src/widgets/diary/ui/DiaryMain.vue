@@ -138,7 +138,7 @@
                       </svg>
                     </button>
                     <Transition name="dropdown-fade-up">
-                      <div v-if="isSortDropdownOpen" class="absolute bottom-full right-0 mb-4 w-40 bg-white/95 dark:bg-[#050505]/90 backdrop-blur-2xl rounded-xl border border-black/10 dark:border-white/10 shadow-2xl z-[100] py-2">
+                      <div v-if="isSortDropdownOpen" class="absolute bottom-full right-0 mb-4 w-40 bg-white/95 dark:bg-[#050505]/90 backdrop-blur-2xl rounded-xl border nier-border-primary shadow-2xl z-[100] py-2">
                         <button v-for="opt in sortOptions" :key="opt.id" @click="diarySortMode = opt.id; isSortDropdownOpen = false" class="w-full text-left px-4 py-2 text-[9px] uppercase font-bold tracking-widest hover:bg-black/5 dark:hover:bg-white/5" :class="diarySortMode === opt.id ? 'text-emerald-500' : 'text-[#777]'">
                           {{ opt.label }}
                         </button>
@@ -155,8 +155,8 @@
                     <button 
                         v-if="auth.user?.uid == route.query.uid"
                         @click="isBladeOpen = !isBladeOpen"
-                        class="ml-2 w-8 h-8 flex items-center justify-center text-white dark:text-black rounded-full hover:scale-110 active:scale-95 transition-all duration-500 shadow-lg"
-                        :class="isBladeOpen ? 'bg-emerald-500 rotate-45 shadow-emerald-500/20' : 'bg-black dark:bg-white'"
+                        class="ml-2 w-8 h-8 flex items-center justify-center nier-text-primary rounded-full hover:scale-110 active:scale-95 transition-all duration-500 shadow-lg"
+                        :class="isBladeOpen ? 'bg-emerald-500 rotate-45 shadow-emerald-500/20' : 'nier-bg-inverted'"
                     >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -172,7 +172,7 @@
     <TacticalCommandSidebar v-if="false" />
 
    
-    <div v-if="selectedStrategyId && !hasRiskNode" class="flex flex-col items-center justify-center py-20 bg-white dark:bg-[#0a0a0a] rounded-xl border border-black/10 dark:border-white/10 shadow-sm text-center">
+    <div v-if="selectedStrategyId && !hasRiskNode" class="flex flex-col items-center justify-center py-20 nier-bg-panel rounded-xl border nier-border-primary shadow-sm text-center">
       <div class="bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 p-4 rounded-full mb-4">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -205,7 +205,7 @@
                 <div 
                     v-for="entry in paginatedEntries" 
                     :key="entry.id"
-                    class="group relative bg-white dark:bg-[#0a0a0a] border border-black/5 dark:border-white/5 rounded-2xl p-6 lg:px-8 lg:py-5 opacity-85 hover:opacity-100 transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-white/5 hover:-translate-y-0.5 grid grid-cols-2 lg:grid-cols-[1.2fr,1fr,1fr,0.8fr,130px,40px] items-center gap-y-6 gap-x-4 cursor-pointer"
+                    class="group relative nier-bg-panel border border-black/5 dark:border-white/5 rounded-2xl p-6 lg:px-8 lg:py-5 opacity-85 hover:opacity-100 transition-all duration-500 hover:shadow-2xl hover:shadow-black/5 dark:hover:shadow-white/5 hover:-translate-y-0.5 grid grid-cols-2 lg:grid-cols-[1.2fr,1fr,1fr,0.8fr,130px,40px] items-center gap-y-6 gap-x-4 cursor-pointer"
                     @click="openDetails(entry)"
                 >
                     <!-- Left Glow Indicator -->
@@ -231,7 +231,7 @@
                         </div>
                         <div class="flex flex-col">
                             <div class="flex items-center gap-2">
-                                <span class="text-sm font-serif font-bold text-black dark:text-white">{{ entry.asset }}</span>
+                                <span class="text-sm font-serif font-bold nier-text-primary">{{ entry.asset }}</span>
                                 <div v-if="getTradeWarning(entry)" class="relative flex items-center justify-center">
                                     <svg 
                                         class="w-3.5 h-3.5 text-amber-500 cursor-help animate-pulse" 
@@ -357,7 +357,7 @@
             </div>
 
             <!-- Empty State (Only if list is empty) -->
-            <div v-else class="text-center py-24 bg-white/50 dark:bg-white/[0.02] rounded-3xl border border-dashed border-black/10 dark:border-white/10">
+            <div v-else class="text-center py-24 bg-white/50 dark:bg-white/[0.02] rounded-3xl border border-dashed nier-border-primary">
                 <div class="w-16 h-16 bg-black/5 dark:bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 opacity-40">
                     <svg class="w-8 h-8 text-[#777]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />

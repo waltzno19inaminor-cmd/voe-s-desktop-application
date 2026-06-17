@@ -4,177 +4,978 @@
       "id": "TREND",
       "name": "Overlap Studies & Trend",
       "indicators": [
-        { "label": "SMA", "type": "indicator", "color": "#FFF", "description": "Simple Moving Average - Average price over a specific period." },
-        { "label": "EMA", "type": "indicator", "color": "#FFF", "description": "Exponential Moving Average - Reacts faster to recent price changes." },
-        { "label": "WMA", "type": "indicator", "color": "#FFF", "description": "Weighted Moving Average - Assigns more weight to recent data points." },
-        { "label": "DEMA", "type": "indicator", "color": "#FFF", "description": "Double Exponential Moving Average - Reduces lag of traditional EMAs." },
-        { "label": "TEMA", "type": "indicator", "color": "#FFF", "description": "Triple Exponential Moving Average - Further reduces lag for high-speed trend tracking." },
-        { "label": "TRIMA", "type": "indicator", "color": "#FFF", "description": "Triangular Moving Average - Double-smoothed simple moving average." },
-        { "label": "KAMA", "type": "indicator", "color": "#FFF", "description": "Kaufman Adaptive Moving Average - Adjusts sensitivity based on volatility." },
-        { "label": "MAMA", "type": "indicator", "color": "#FFF", "description": "MESA Adaptive Moving Average - Separates phase and amplitude for smoother tracking." },
-        { "label": "T3", "type": "indicator", "color": "#FFF", "description": "Triple Exponential Moving Average (T3) - Advanced smoothing with less lag." },
-        { "label": "BB", "type": "indicator", "color": "#FFF", "description": "Bollinger Bands - Volatility bands placed above and below a moving average." },
-        { "label": "HTT", "type": "indicator", "color": "#FFF", "description": "Hilbert Transform Trendline - Instantaneous trendline using cyclic analysis." },
-        { "label": "SAR", "type": "indicator", "color": "#FFF", "description": "Parabolic SAR - Identifies potential trend reversals and stop levels." },
-        { "label": "MID", "type": "indicator", "color": "#FFF", "description": "Midpoint - Calculates the midpoint of a period high and low." },
-        { "label": "MPR", "type": "indicator", "color": "#FFF", "description": "Midprice - Calculates the midpoint of high-low ranges." }
+        {
+          "label": "SMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Simple Moving Average - Average price over a specific period."
+        },
+        {
+          "label": "EMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Exponential Moving Average - Reacts faster to recent price changes.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "WMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Weighted Moving Average - Assigns more weight to recent data points.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "DEMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Double Exponential Moving Average - Reduces lag of traditional EMAs.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TEMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Triple Exponential Moving Average - Further reduces lag for high-speed trend tracking.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TRIMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Triangular Moving Average - Double-smoothed simple moving average.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "KAMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Kaufman Adaptive Moving Average - Adjusts sensitivity based on volatility.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MAMA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "MESA Adaptive Moving Average - Separates phase and amplitude for smoother tracking.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "T3",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Triple Exponential Moving Average (T3) - Advanced smoothing with less lag.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "BB",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Bollinger Bands - Volatility bands placed above and below a moving average.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "HTT",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Hilbert Transform Trendline - Instantaneous trendline using cyclic analysis.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "SAR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Parabolic SAR - Identifies potential trend reversals and stop levels.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MID",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Midpoint - Calculates the midpoint of a period high and low.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MPR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Midprice - Calculates the midpoint of high-low ranges.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "MOMENTUM",
       "name": "Momentum & Oscillators",
       "indicators": [
-        { "label": "ADX", "type": "indicator", "color": "#FFF", "description": "Average Directional Index - Measures the strength of a trend." },
-        { "label": "ADXR", "type": "indicator", "color": "#FFF", "description": "Average Directional Index Rating - Quantifies trend momentum over time." },
-        { "label": "APO", "type": "indicator", "color": "#FFF", "description": "Absolute Price Oscillator - Difference between two moving averages." },
-        { "label": "ARN", "type": "indicator", "color": "#FFF", "description": "Aroon - Measures the time since the last high or low to detect trends." },
-        { "label": "ARO", "type": "indicator", "color": "#FFF", "description": "Aroon Oscillator - Difference between Aroon Up and Aroon Down." },
-        { "label": "BOP", "type": "indicator", "color": "#FFF", "description": "Balance of Power - Measures the power of buyers vs sellers." },
-        { "label": "CCI", "type": "indicator", "color": "#FFF", "description": "Commodity Channel Index - Identifies new trends or extreme conditions." },
-        { "label": "CMO", "type": "indicator", "color": "#FFF", "description": "Chande Momentum Oscillator - Pure momentum measuring overbought/oversold." },
-        { "label": "DX", "type": "indicator", "color": "#FFF", "description": "Directional Movement Index - Measures direction and strength of price." },
-        { "label": "MACD", "type": "indicator", "color": "#FFF", "description": "MACD - Moving Average Convergence Divergence." },
-        { "label": "MFI", "type": "indicator", "color": "#FFF", "description": "Money Flow Index - RSI weighted by volume." },
-        { "label": "MOM", "type": "indicator", "color": "#FFF", "description": "Momentum - Measures the rate of change in price." },
-        { "label": "PPO", "type": "indicator", "color": "#FFF", "description": "Percentage Price Oscillator - MACD-style oscillator using percentages." },
-        { "label": "ROC", "type": "indicator", "color": "#FFF", "description": "Rate of Change - Pure percentage change in price." },
-        { "label": "RSI", "type": "indicator", "color": "#FFF", "description": "Relative Strength Index - Standard momentum oscillator." },
-        { "label": "STOC", "type": "indicator", "color": "#FFF", "description": "Stochastic Oscillator - Fast/Slow price range comparison." },
-        { "label": "TRIX", "type": "indicator", "color": "#FFF", "description": "TRIX - 1-day rate-of-change of a triple-smoothed EMA." },
-        { "label": "ULT", "type": "indicator", "color": "#FFF", "description": "Ultimate Oscillator - Combined momentum across three timeframes." },
-        { "label": "WIL", "type": "indicator", "color": "#FFF", "description": "Williams %R - Momentum indicator for overbought conditions." }
+        {
+          "label": "ADX",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Average Directional Index - Measures the strength of a trend.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ADXR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Average Directional Index Rating - Quantifies trend momentum over time.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "APO",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Absolute Price Oscillator - Difference between two moving averages.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ARN",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Aroon - Measures the time since the last high or low to detect trends.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ARO",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Aroon Oscillator - Difference between Aroon Up and Aroon Down.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "BOP",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Balance of Power - Measures the power of buyers vs sellers.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "CCI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Commodity Channel Index - Identifies new trends or extreme conditions.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "CMO",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Chande Momentum Oscillator - Pure momentum measuring overbought/oversold.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "DX",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Directional Movement Index - Measures direction and strength of price.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MACD",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "MACD - Moving Average Convergence Divergence.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MFI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Money Flow Index - RSI weighted by volume.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "MOM",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Momentum - Measures the rate of change in price.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "PPO",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Percentage Price Oscillator - MACD-style oscillator using percentages.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ROC",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Rate of Change - Pure percentage change in price.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "RSI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Relative Strength Index - Standard momentum oscillator.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "STOC",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Stochastic Oscillator - Fast/Slow price range comparison.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TRIX",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "TRIX - 1-day rate-of-change of a triple-smoothed EMA.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ULT",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Ultimate Oscillator - Combined momentum across three timeframes.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "WIL",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Williams %R - Momentum indicator for overbought conditions.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "PATTERNS",
       "name": "Pattern Recognition",
       "indicators": [
-        { "label": "2CR", "type": "pattern", "color": "#FFF", "description": "Two Crows - Bearish reversal pattern." },
-        { "label": "3BC", "type": "pattern", "color": "#FFF", "description": "Three Black Crows - Strong bearish reversal." },
-        { "label": "3IN", "type": "pattern", "color": "#FFF", "description": "Three Inside Up/Down - Potential trend reversal signature." },
-        { "label": "3LS", "type": "pattern", "color": "#FFF", "description": "Three Line Strike - Trend continuation/reversal pattern." },
-        { "label": "3OUT", "type": "pattern", "color": "#FFF", "description": "Three Outside Up/Down - Momentum expansion/reversal." },
-        { "label": "3SS", "type": "pattern", "color": "#FFF", "description": "Three Stars In The South - Rare bullish reversal pattern." },
-        { "label": "3WS", "type": "pattern", "color": "#FFF", "description": "Three White Soldiers - Strong bullish reversal." },
-        { "label": "ABN", "type": "pattern", "color": "#FFF", "description": "Abandoned Baby - High-reliability reversal pattern." },
-        { "label": "ADV", "type": "pattern", "color": "#FFF", "description": "Advance Block - Bullish trend weakening signal." },
-        { "label": "BEL", "type": "pattern", "color": "#FFF", "description": "Belt-hold - Trend reversal/exhaustion signature." },
-        { "label": "BRK", "type": "pattern", "color": "#FFF", "description": "Breakaway - Potential trend-changing break." },
-        { "label": "CMU", "type": "pattern", "color": "#FFF", "description": "Closing Marubozu - Extreme trend strength indication." },
-        { "label": "CBS", "type": "pattern", "color": "#FFF", "description": "Concealing Baby Swallow - Bullish reversal pattern." },
-        { "label": "CTR", "type": "pattern", "color": "#FFF", "description": "Counterattack - Trend transition/neutral pattern." },
-        { "label": "DCC", "type": "pattern", "color": "#FFF", "description": "Dark Cloud Cover - Bearish reversal hallmark." },
-        { "label": "DOJ", "type": "pattern", "color": "#FFF", "description": "Doji - Pure market indecision signature." },
-        { "label": "DJS", "type": "pattern", "color": "#FFF", "description": "Doji Star - High-probability reversal signal." },
-        { "label": "DFD", "type": "pattern", "color": "#FFF", "description": "Dragonfly Doji - Bullish reversal candidate." },
-        { "label": "ENG", "type": "pattern", "color": "#FFF", "description": "Engulfing Pattern - Aggressive market sentiment shift." },
-        { "label": "EDS", "type": "pattern", "color": "#FFF", "description": "Evening Doji Star - Major bearish reversal marker." },
-        { "label": "EVE", "type": "pattern", "color": "#FFF", "description": "Evening Star - Traditional bearish top signature." },
-        { "label": "GSW", "type": "pattern", "color": "#FFF", "description": "Up/Down Gap Side-By-Side White Lines - Continuation signal." },
-        { "label": "GSD", "type": "pattern", "color": "#FFF", "description": "Gravestone Doji - Bearish reversal hallmark at tops." },
-        { "label": "HAM", "type": "pattern", "color": "#FFF", "description": "Hammer - Foundational bullish reversal pattern." },
-        { "label": "HGM", "type": "pattern", "color": "#FFF", "description": "Hanging Man - Traditional bearish exhaustion signal." },
-        { "label": "HAR", "type": "pattern", "color": "#FFF", "description": "Harami Pattern - Trend contraction/transition signal." },
-        { "label": "HRC", "type": "pattern", "color": "#FFF", "description": "Harami Cross - High-precision reversal pattern." },
-        { "label": "HIW", "type": "pattern", "color": "#FFF", "description": "High-Wave Candle - Extreme volatility/indecision." },
-        { "label": "HIK", "type": "pattern", "color": "#FFF", "description": "Hikkake Pattern - False breakout reversal signal." },
-        { "label": "HKM", "type": "pattern", "color": "#FFF", "description": "Modified Hikkake Pattern - Advanced reversal detection." },
-        { "label": "HMP", "type": "pattern", "color": "#FFF", "description": "Homing Pigeon - Moderate-strength bullish reversal." },
-        { "label": "ID3", "type": "pattern", "color": "#FFF", "description": "Identical Three Crows - Strong bearish signature." },
-        { "label": "INK", "type": "pattern", "color": "#FFF", "description": "In-Neck Pattern - Bearish trend continuation." },
-        { "label": "IVH", "type": "pattern", "color": "#FFF", "description": "Inverted Hammer - Early bullish reversal warning." },
-        { "label": "KIC", "type": "pattern", "color": "#FFF", "description": "Kicking - High-intensity sentiment shift." },
-        { "label": "KBL", "type": "pattern", "color": "#FFF", "description": "Kicking By Length - Volume-weighted kicker detection." },
-        { "label": "LDB", "type": "pattern", "color": "#FFF", "description": "Ladder Bottom - Deep trend reversal signal." },
-        { "label": "LLD", "type": "pattern", "color": "#FFF", "description": "Long-legged Doji - Maximum market uncertainty." },
-        { "label": "LLC", "type": "pattern", "color": "#FFF", "description": "Long Line Candle - Strong momentum/velocity." },
-        { "label": "MAR", "type": "pattern", "color": "#FFF", "description": "Marubozu - Pure trend dominance." },
-        { "label": "MTL", "type": "pattern", "color": "#FFF", "description": "Matching Low - Potential bottom/support detection." },
-        { "label": "MTH", "type": "pattern", "color": "#FFF", "description": "Mat Hold - Strong trend continuation pattern." },
-        { "label": "MDS", "type": "pattern", "color": "#FFF", "description": "Morning Doji Star - Major bullish reversal marker." },
-        { "label": "MOR", "type": "pattern", "color": "#FFF", "description": "Morning Star - Foundational bullish bottom signature." },
-        { "label": "ONK", "type": "pattern", "color": "#FFF", "description": "On-Neck Pattern - Bearish continuation signature." },
-        { "label": "PIE", "type": "pattern", "color": "#FFF", "description": "Piercing Pattern - Moderate bullish reversal." },
-        { "label": "RSM", "type": "pattern", "color": "#FFF", "description": "Rickshaw Man - Specialized Doji variant." },
-        { "label": "RF3", "type": "pattern", "color": "#FFF", "description": "Rising/Falling Three Methods - Classical continuation pattern." },
-        { "label": "SEP", "type": "pattern", "color": "#FFF", "description": "Separating Lines - Pure breakout/continuation." },
-        { "label": "SST", "type": "pattern", "color": "#FFF", "description": "Shooting Star - Professional bearish reversal hallmark." },
-        { "label": "SHL", "type": "pattern", "color": "#FFF", "description": "Short Line Candle - Market contraction/consolidation." },
-        { "label": "SPT", "type": "pattern", "color": "#FFF", "description": "Spinning Top - Local indecision signature." },
-        { "label": "STA", "type": "pattern", "color": "#FFF", "description": "Stalled Pattern - Exhaustion/reversal warning." },
-        { "label": "SSW", "type": "pattern", "color": "#FFF", "description": "Stick Sandwich - Range/support validation pattern." },
-        { "label": "TAK", "type": "pattern", "color": "#FFF", "description": "Takuri Line - Highly-sensitive bullish bottom hammer." },
-        { "label": "TAS", "type": "pattern", "color": "#FFF", "description": "Tasuki Gap - Reversal/exhaustion signal." },
-        { "label": "THR", "type": "pattern", "color": "#FFF", "description": "Thrusting Pattern - Bearish continuation variant." },
-        { "label": "TRI", "type": "pattern", "color": "#FFF", "description": "Tristar Pattern - Extreme exhaustion/reversal signal." },
-        { "label": "U3R", "type": "pattern", "color": "#FFF", "description": "Unique 3 River - Bullish reversal pattern." },
-        { "label": "U2C", "type": "pattern", "color": "#FFF", "description": "Upside Gap Two Crows - High-probability bearish top." },
-        { "label": "XG3", "type": "pattern", "color": "#FFF", "description": "Up/Down Gap Three Methods - Continuation signature." }
+        {
+          "label": "2CR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Two Crows - Bearish reversal pattern."
+        },
+        {
+          "label": "3BC",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three Black Crows - Strong bearish reversal."
+        },
+        {
+          "label": "3IN",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three Inside Up/Down - Potential trend reversal signature."
+        },
+        {
+          "label": "3LS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three Line Strike - Trend continuation/reversal pattern."
+        },
+        {
+          "label": "3OUT",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three Outside Up/Down - Momentum expansion/reversal."
+        },
+        {
+          "label": "3SS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three Stars In The South - Rare bullish reversal pattern."
+        },
+        {
+          "label": "3WS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Three White Soldiers - Strong bullish reversal."
+        },
+        {
+          "label": "ABN",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Abandoned Baby - High-reliability reversal pattern."
+        },
+        {
+          "label": "ADV",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Advance Block - Bullish trend weakening signal."
+        },
+        {
+          "label": "BEL",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Belt-hold - Trend reversal/exhaustion signature."
+        },
+        {
+          "label": "BRK",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Breakaway - Potential trend-changing break."
+        },
+        {
+          "label": "CMU",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Closing Marubozu - Extreme trend strength indication."
+        },
+        {
+          "label": "CBS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Concealing Baby Swallow - Bullish reversal pattern."
+        },
+        {
+          "label": "CTR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Counterattack - Trend transition/neutral pattern."
+        },
+        {
+          "label": "DCC",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Dark Cloud Cover - Bearish reversal hallmark."
+        },
+        {
+          "label": "DOJ",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Doji - Pure market indecision signature."
+        },
+        {
+          "label": "DJS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Doji Star - High-probability reversal signal."
+        },
+        {
+          "label": "DFD",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Dragonfly Doji - Bullish reversal candidate."
+        },
+        {
+          "label": "ENG",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Engulfing Pattern - Aggressive market sentiment shift."
+        },
+        {
+          "label": "EDS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Evening Doji Star - Major bearish reversal marker."
+        },
+        {
+          "label": "EVE",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Evening Star - Traditional bearish top signature."
+        },
+        {
+          "label": "GSW",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Up/Down Gap Side-By-Side White Lines - Continuation signal."
+        },
+        {
+          "label": "GSD",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Gravestone Doji - Bearish reversal hallmark at tops."
+        },
+        {
+          "label": "HAM",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Hammer - Foundational bullish reversal pattern."
+        },
+        {
+          "label": "HGM",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Hanging Man - Traditional bearish exhaustion signal."
+        },
+        {
+          "label": "HAR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Harami Pattern - Trend contraction/transition signal."
+        },
+        {
+          "label": "HRC",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Harami Cross - High-precision reversal pattern."
+        },
+        {
+          "label": "HIW",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "High-Wave Candle - Extreme volatility/indecision."
+        },
+        {
+          "label": "HIK",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Hikkake Pattern - False breakout reversal signal."
+        },
+        {
+          "label": "HKM",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Modified Hikkake Pattern - Advanced reversal detection."
+        },
+        {
+          "label": "HMP",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Homing Pigeon - Moderate-strength bullish reversal."
+        },
+        {
+          "label": "ID3",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Identical Three Crows - Strong bearish signature."
+        },
+        {
+          "label": "INK",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "In-Neck Pattern - Bearish trend continuation."
+        },
+        {
+          "label": "IVH",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Inverted Hammer - Early bullish reversal warning."
+        },
+        {
+          "label": "KIC",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Kicking - High-intensity sentiment shift."
+        },
+        {
+          "label": "KBL",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Kicking By Length - Volume-weighted kicker detection."
+        },
+        {
+          "label": "LDB",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Ladder Bottom - Deep trend reversal signal."
+        },
+        {
+          "label": "LLD",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Long-legged Doji - Maximum market uncertainty."
+        },
+        {
+          "label": "LLC",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Long Line Candle - Strong momentum/velocity."
+        },
+        {
+          "label": "MAR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Marubozu - Pure trend dominance."
+        },
+        {
+          "label": "MTL",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Matching Low - Potential bottom/support detection."
+        },
+        {
+          "label": "MTH",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Mat Hold - Strong trend continuation pattern."
+        },
+        {
+          "label": "MDS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Morning Doji Star - Major bullish reversal marker."
+        },
+        {
+          "label": "MOR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Morning Star - Foundational bullish bottom signature."
+        },
+        {
+          "label": "ONK",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "On-Neck Pattern - Bearish continuation signature."
+        },
+        {
+          "label": "PIE",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Piercing Pattern - Moderate bullish reversal."
+        },
+        {
+          "label": "RSM",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Rickshaw Man - Specialized Doji variant."
+        },
+        {
+          "label": "RF3",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Rising/Falling Three Methods - Classical continuation pattern."
+        },
+        {
+          "label": "SEP",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Separating Lines - Pure breakout/continuation."
+        },
+        {
+          "label": "SST",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Shooting Star - Professional bearish reversal hallmark."
+        },
+        {
+          "label": "SHL",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Short Line Candle - Market contraction/consolidation."
+        },
+        {
+          "label": "SPT",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Spinning Top - Local indecision signature."
+        },
+        {
+          "label": "STA",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Stalled Pattern - Exhaustion/reversal warning."
+        },
+        {
+          "label": "SSW",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Stick Sandwich - Range/support validation pattern."
+        },
+        {
+          "label": "TAK",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Takuri Line - Highly-sensitive bullish bottom hammer."
+        },
+        {
+          "label": "TAS",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Tasuki Gap - Reversal/exhaustion signal."
+        },
+        {
+          "label": "THR",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Thrusting Pattern - Bearish continuation variant."
+        },
+        {
+          "label": "TRI",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Tristar Pattern - Extreme exhaustion/reversal signal."
+        },
+        {
+          "label": "U3R",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Unique 3 River - Bullish reversal pattern."
+        },
+        {
+          "label": "U2C",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Upside Gap Two Crows - High-probability bearish top."
+        },
+        {
+          "label": "XG3",
+          "type": "pattern",
+          "color": "#FFF",
+          "description": "Up/Down Gap Three Methods - Continuation signature."
+        }
       ]
     },
     {
       "id": "VOLATILITY",
       "name": "Volatility Measures",
       "indicators": [
-        { "label": "ATR", "type": "indicator", "color": "#FFF", "description": "Average True Range - Essential market volatility measure." },
-        { "label": "NAT", "type": "indicator", "color": "#FFF", "description": "Normalized Average True Range - Volatility scaled for comparison." },
-        { "label": "TRA", "type": "indicator", "color": "#FFF", "description": "True Range - Maximum price range for the current bar." }
+        {
+          "label": "ATR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Average True Range - Essential market volatility measure.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "NAT",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Normalized Average True Range - Volatility scaled for comparison.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TRA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "True Range - Maximum price range for the current bar.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "STATS",
       "name": "Statistical Analysis",
       "indicators": [
-        { "label": "BET", "type": "indicator", "color": "#FFF", "description": "Beta - Calculates the slope of linear regression." },
-        { "label": "COR", "type": "indicator", "color": "#FFF", "description": "Pearson's Correlation - Measures dependency between datasets." },
-        { "label": "LRE", "type": "indicator", "color": "#FFF", "description": "Linear Regression - Projects price trendlines." },
-        { "label": "LRA", "type": "indicator", "color": "#FFF", "description": "Linear Regression Angle - Quantifies trend slope in degrees." },
-        { "label": "LRI", "type": "indicator", "color": "#FFF", "description": "Linear Regression Intercept - Theoretical price origin." },
-        { "label": "LRS", "type": "indicator", "color": "#FFF", "description": "Linear Regression Slope - Velocity of trend projection." },
-        { "label": "STD", "type": "indicator", "color": "#FFF", "description": "Standard Deviation - Statistical Dispersion." },
-        { "label": "TSF", "type": "indicator", "color": "#FFF", "description": "Time Series Forecast - Projects future price values." },
-        { "label": "VAR", "type": "indicator", "color": "#FFF", "description": "Variance - Squared standard deviation." }
+        {
+          "label": "BET",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Beta - Calculates the slope of linear regression.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "COR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Pearson's Correlation - Measures dependency between datasets.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "LRE",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Linear Regression - Projects price trendlines.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "LRA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Linear Regression Angle - Quantifies trend slope in degrees.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "LRI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Linear Regression Intercept - Theoretical price origin.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "LRS",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Linear Regression Slope - Velocity of trend projection.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "STD",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Standard Deviation - Statistical Dispersion.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TSF",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Time Series Forecast - Projects future price values.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "VAR",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Variance - Squared standard deviation.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "VOLUME",
       "name": "Volume & Flow",
       "indicators": [
-        { "label": "ADL", "type": "indicator", "color": "#FFF", "description": "Chaikin A/D Line - Measures underlying buying/selling pressure." },
-        { "label": "ADO", "type": "indicator", "color": "#FFF", "description": "Chaikin A/D Oscillator - Momentum of accumulation flow." },
-        { "label": "OBV", "type": "indicator", "color": "#FFF", "description": "On-Balance Volume - Volume-weighted momentum tracker." }
+        {
+          "label": "ADL",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Chaikin A/D Line - Measures underlying buying/selling pressure.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ADO",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Chaikin A/D Oscillator - Momentum of accumulation flow.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "OBV",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "On-Balance Volume - Volume-weighted momentum tracker.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "CYCLES",
       "name": "Cycle Analysis",
       "indicators": [
-        { "label": "DCP", "type": "indicator", "color": "#FFF", "description": "HT Dominant Cycle Period - Detected cycle duration." },
-        { "label": "DCA", "type": "indicator", "color": "#FFF", "description": "HT Dominant Cycle Phase - Current cycle position." },
-        { "label": "PHS", "type": "indicator", "color": "#FFF", "description": "HT Phasor Components - Sine/Cosine cycle breakdowns." },
-        { "label": "SIN", "type": "indicator", "color": "#FFF", "description": "HT Sine Wave - Hilbert Transform predictive oscillator." },
-        { "label": "TMD", "type": "indicator", "color": "#FFF", "description": "HT Trend vs Cycle Mode - Identifies trending or cyclic markets." }
+        {
+          "label": "DCP",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "HT Dominant Cycle Period - Detected cycle duration.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "DCA",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "HT Dominant Cycle Phase - Current cycle position.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "PHS",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "HT Phasor Components - Sine/Cosine cycle breakdowns.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "SIN",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "HT Sine Wave - Hilbert Transform predictive oscillator.",
+          "params": {
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "TMD",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "HT Trend vs Cycle Mode - Identifies trending or cyclic markets.",
+          "params": {
+            "needsConfig": true
+          }
+        }
       ]
     },
     {
       "id": "SMC",
       "name": "Smart Money Concepts",
       "indicators": [
-        { "label": "BOS", "type": "smc", "color": "#FFF", "description": "Break of Structure - Trend continuation signal." },
-        { "label": "CHO", "type": "smc", "color": "#FFF", "description": "Change of Character - Initial trend reversal signature." },
-        { "label": "MSS", "type": "smc", "color": "#FFF", "description": "Market Structure Shift - Confirmation of trend transition." },
-        { "label": "OB", "type": "smc", "color": "#FFF", "description": "Order Block - Institutional accumulation/distribution zone." },
-        { "label": "BB", "type": "smc", "color": "#FFF", "description": "Breaker Block - Failed order block acting as support/resistance." },
-        { "label": "MB", "type": "smc", "color": "#FFF", "description": "Mitigation Block - Institutional exit zone at break-even." },
-        { "label": "FVG", "type": "smc", "color": "#FFF", "description": "Fair Value Gap - Market imbalance/inefficiency gap." },
-        { "label": "BSL", "type": "smc", "color": "#FFF", "description": "Buy-Side Liquidity - Pooled stop orders above resistance." },
-        { "label": "SSL", "type": "smc", "color": "#FFF", "description": "Sell-Side Liquidity - Pooled stop orders below support." },
-        { "label": "SWP", "type": "smc", "color": "#FFF", "description": "Liquidity Sweep - Rapid hunt of stop-losses before reversal." },
-        { "label": "EQH", "type": "smc", "color": "#FFF", "description": "Equal Highs - Liquidity pool signature at resistance." },
-        { "label": "EQL", "type": "smc", "color": "#FFF", "description": "Equal Lows - Liquidity pool signature at support." },
-        { "label": "PRE", "type": "smc", "color": "#FFF", "description": "Premium Zone - High-value institutional selling domain." },
-        { "label": "DIS", "type": "smc", "color": "#FFF", "description": "Discount Zone - Low-value institutional buying domain." },
-        { "label": "EQ", "type": "smc", "color": "#FFF", "description": "Equilibrium - The 50% fair value level of a range." }
+        {
+          "label": "BOS",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Break of Structure - Trend continuation signal."
+        },
+        {
+          "label": "CHO",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Change of Character - Initial trend reversal signature."
+        },
+        {
+          "label": "MSS",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Market Structure Shift - Confirmation of trend transition."
+        },
+        {
+          "label": "OB",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Order Block - Institutional accumulation/distribution zone."
+        },
+        {
+          "label": "BB",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Breaker Block - Failed order block acting as support/resistance."
+        },
+        {
+          "label": "MB",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Mitigation Block - Institutional exit zone at break-even."
+        },
+        {
+          "label": "FVG",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Fair Value Gap - Market imbalance/inefficiency gap."
+        },
+        {
+          "label": "BSL",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Buy-Side Liquidity - Pooled stop orders above resistance."
+        },
+        {
+          "label": "SSL",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Sell-Side Liquidity - Pooled stop orders below support."
+        },
+        {
+          "label": "SWP",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Liquidity Sweep - Rapid hunt of stop-losses before reversal."
+        },
+        {
+          "label": "EQH",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Equal Highs - Liquidity pool signature at resistance."
+        },
+        {
+          "label": "EQL",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Equal Lows - Liquidity pool signature at support."
+        },
+        {
+          "label": "PRE",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Premium Zone - High-value institutional selling domain."
+        },
+        {
+          "label": "DIS",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Discount Zone - Low-value institutional buying domain."
+        },
+        {
+          "label": "EQ",
+          "type": "smc",
+          "color": "#FFF",
+          "description": "Equilibrium - The 50% fair value level of a range."
+        }
       ]
     }
   ]

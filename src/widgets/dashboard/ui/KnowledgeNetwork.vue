@@ -4,7 +4,7 @@
       Knowledge Network
     </h2>
 
-    <div class="h-[24rem] w-full border border-black/10 dark:border-white/10 bg-[#fafafa] dark:bg-[#181818] rounded-lg relative overflow-hidden shrink-0" ref="container">
+    <div class="h-[24rem] w-full border nier-border-primary bg-[#fafafa] dark:bg-[#181818] rounded-lg relative overflow-hidden shrink-0" ref="container">
       <div v-if="!sigmaReady" class="absolute inset-0 flex items-center justify-center text-[11px] text-[#6f6f6f]">
         Building your connected research threads...
       </div>

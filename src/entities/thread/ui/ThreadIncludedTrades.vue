@@ -18,7 +18,7 @@
         v-for="(entry, index) in trades"
         :key="index"
         @click="openDetails(entry)"
-        class="group relative bg-white dark:bg-[#0a0a0a] border border-black/5 dark:border-white/5 rounded-2xl p-5 lg:px-6 lg:py-4 opacity-85 hover:opacity-100 transition-all duration-500 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 hover:-translate-y-0.5 grid grid-cols-2 lg:grid-cols-[1.2fr,1fr,1fr,0.8fr,130px] items-center gap-y-5 gap-x-4 cursor-pointer"
+        class="group relative nier-bg-panel border border-black/5 dark:border-white/5 rounded-2xl p-5 lg:px-6 lg:py-4 opacity-85 hover:opacity-100 transition-all duration-500 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5 hover:-translate-y-0.5 grid grid-cols-2 lg:grid-cols-[1.2fr,1fr,1fr,0.8fr,130px] items-center gap-y-5 gap-x-4 cursor-pointer"
       >
         <!-- Left glow indicator -->
         <div
@@ -35,7 +35,7 @@
             {{ entry.asset?.substring(0, 2).toUpperCase() || 'TR' }}
           </div>
           <div class="flex flex-col min-w-0">
-            <span class="text-sm font-serif font-bold text-black dark:text-white truncate">{{ entry.asset }}</span>
+            <span class="text-sm font-serif font-bold nier-text-primary truncate">{{ entry.asset }}</span>
             <span class="text-[10px] text-[#777] uppercase tracking-widest font-mono mt-0.5">{{ formatDate(entry.date) }}</span>
           </div>
         </div>

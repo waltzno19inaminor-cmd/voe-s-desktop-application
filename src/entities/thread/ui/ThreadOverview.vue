@@ -6,7 +6,7 @@
     overview
     </span>
 
-    <h3 class="text-xl font-serif mb-4 pb-3 border-b border-black/10 dark:border-white/10">
+    <h3 class="text-xl font-serif mb-4 pb-3 border-b nier-border-primary">
     {{ thread.title }}
     </h3>
 
@@ -15,7 +15,7 @@
     </p>
 
     <div
-    class="mt-8 pt-4 border-t border-black/10 dark:border-white/10
+    class="mt-8 pt-4 border-t nier-border-primary
             flex gap-6 text-[11px] tracking-wide text-[#666]"
     >
         <span v-if="thread.repliesCount > 0">{{ thread.repliesCount }} replies</span>

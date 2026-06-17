@@ -1,5 +1,5 @@
 <template>
-     <div @click="goToSource()" v-if="notification" class="px-5 py-4 hover:bg-black/5 text-black dark:text-white space-y-1 dark:hover:bg-white/5 transition cursor-pointer">
+     <div @click="goToSource()" v-if="notification" class="px-5 py-4 hover:bg-black/5 nier-text-primary space-y-1 dark:hover:bg-white/5 transition cursor-pointer">
                 <span class="font-serif opacity-60 text-sm">{{ notification.context?.threadTitle }} by {{ notification.context?.threadAuthor }}</span>
                 <p class="text-sm leading-snug">
                 <span>{{ notification.actorLabel }}</span> {{ convertNotificationType(notification.type) }} 

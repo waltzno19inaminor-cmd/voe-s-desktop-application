@@ -61,7 +61,7 @@
       <Teleport to="body">
         <Transition name="fade-curve">
           <div v-if="hoveredPoint && tooltipPos" 
-               class="fixed pointer-events-none z-[9999] bg-white/95 dark:bg-[#0a0a0a]/95 border border-black/10 dark:border-white/10 p-5 shadow-2xl flex flex-col space-y-3 backdrop-blur-xl min-w-[200px]"
+               class="fixed pointer-events-none z-[9999] bg-white/95 dark:bg-[#0a0a0a]/95 border nier-border-primary p-5 shadow-2xl flex flex-col space-y-3 backdrop-blur-xl min-w-[200px]"
                :style="{ left: `${tooltipPos.x}px`, top: `${tooltipPos.y}px`, transform: 'translate(-50%, -120%)' }">
             
             <div class="flex flex-col space-y-0.5">
@@ -73,20 +73,20 @@
 
             <div class="flex flex-col">
               <span class="text-[8px] font-mono tracking-widest text-black/40 dark:text-white/40 uppercase mb-1">AGGREGATE_BALANCE</span>
-              <span class="text-2xl font-mono font-bold text-black dark:text-white tracking-tighter">
+              <span class="text-2xl font-mono font-bold nier-text-primary tracking-tighter">
                 {{ formatCurrency(hoveredPoint.value) }}
               </span>
             </div>
 
             <div class="flex flex-col">
               <span class="text-[8px] font-mono tracking-widest text-black/40 dark:text-white/40 uppercase mb-1">TACTICAL_SOURCE</span>
-              <span class="text-[10px] font-mono text-black dark:text-white font-bold">
+              <span class="text-[10px] font-mono nier-text-primary font-bold">
                 {{ hoveredPoint.label }}
               </span>
             </div>
 
             <!-- Decorative corner accent -->
-            <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-white dark:bg-[#0a0a0a] border-b border-r border-black/10 dark:border-white/10 rotate-45"></div>
+            <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 nier-bg-panel border-b border-r nier-border-primary rotate-45"></div>
           </div>
         </Transition>
       </Teleport>

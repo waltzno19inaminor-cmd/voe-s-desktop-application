@@ -13,7 +13,7 @@
     <p class="text-[11px] text-[#777] mt-1 flex items-center gap-2">
       <span
         v-if="linkType"
-        class="uppercase tracking-widest border border-black/10 dark:border-white/10 px-2 py-0.5 text-[9px]"
+        class="uppercase tracking-widest border nier-border-primary px-2 py-0.5 text-[9px]"
       >{{ linkType }}</span>
       <span>{{ capitalize(thread.subcategory) }} · {{ capitalize(thread.status) }}</span>
     </p>

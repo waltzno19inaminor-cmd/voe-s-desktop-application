@@ -9,7 +9,7 @@
         'group text-left px-4 py-3 border transition-all duration-200 rounded-sm',
         modelValue === type.value
           ? 'border-black/40 dark:border-white/40 bg-black/[0.03] dark:bg-white/[0.04]'
-          : 'border-black/10 dark:border-white/10 hover:border-black/25 dark:hover:border-white/25'
+          : 'nier-border-primary hover:border-black/25 dark:hover:border-white/25'
       ]"
     >
       <span

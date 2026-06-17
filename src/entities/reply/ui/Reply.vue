@@ -71,7 +71,7 @@
       <button @click.prevent="replyTo(reply.id); isQuoting = true" class="hover:text-black dark:hover:text-white transition">
         Quote reply
       </button>
-      <button @click.prevent="addLike(reply)" :class="reply?.likedByMe ? 'text-black dark:text-white' : 'text-[#777] dark:text-[#aaa]'"
+      <button @click.prevent="addLike(reply)" :class="reply?.likedByMe ? 'nier-text-primary' : 'text-[#777] dark:text-[#aaa]'"
         class="hover:text-black dark:hover:text-white transition space-x-1">
           <span>Like</span> <span v-if="reply.likes > 0">{{ reply.likes }}</span>
       </button>
@@ -82,7 +82,7 @@
     <form @submit.prevent="submitForm" v-show="isReplyingTo === reply.id" class="w-full pt-6">
 
       <!-- Quote preview (prominent) -->
-      <div v-if="selectQuotation && isQuoting" class="mb-8 p-5 rounded-sm border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
+      <div v-if="selectQuotation && isQuoting" class="mb-8 p-5 rounded-sm border nier-border-primary bg-black/[0.02] dark:bg-white/[0.02]">
         <p class="text-[10px] uppercase tracking-widest text-[#777] mb-3">Quoting this reply</p>
         <p class="text-sm font-serif italic text-[#444] dark:text-[#bbb] leading-relaxed">"{{ selectQuotation.text }}"</p>
         <button
@@ -97,7 +97,7 @@
         v-model="replyText"
         rows="1"
         placeholder="Write your reply…"
-        class="resize-none border-b text-sm py-4 dark:border-white/30 border-black/20 bg-transparent w-full text-black dark:text-white focus:outline-none mb-6"></textarea>
+        class="resize-none border-b text-sm py-4 dark:border-white/30 border-black/20 bg-transparent w-full nier-text-primary focus:outline-none mb-6"></textarea>
 
       <!-- Type selector -->
       <p class="text-[10px] uppercase tracking-widest text-[#777] mb-3">Select reply type</p>
@@ -116,7 +116,7 @@
           class="text-[11px] uppercase tracking-widest font-serif px-6 py-2.5 rounded-full border transition duration-200"
           :class="replyText && replyText.trim() !== '' && replyType
             ? 'border-black/40 dark:border-white/40 text-[#050505] dark:text-white hover:border-black/70 dark:hover:border-white/70'
-            : 'border-black/10 dark:border-white/10 text-[#aaa] cursor-not-allowed'"
+            : 'nier-border-primary text-[#aaa] cursor-not-allowed'"
         >Submit</button>
       </div>
 

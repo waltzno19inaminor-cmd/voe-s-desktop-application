@@ -1,0 +1,117 @@
+name: "hotfix"
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_version:
+        description: "Public base version, e.g. 1.0.4"
+        required: true
+      patch_id:
+        description: "Patch id, e.g. 1.0.4-hotfix.1"
+        required: true
+      to_patch_level:
+        description: "Internal patch level, e.g. hotfix.1"
+        required: true
+      base_public_zip_url:
+        description: "Zip URL containing the original .output/public for the base version"
+        required: true
+      from_patch_level:
+        description: "Required existing patch level; leave empty for unpatched base"
+        required: false
+        default: ""
+
+jobs:
+  build-hotfix:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            patch_platform: windows-x64
+            patcher_ext: .exe
+            patcher_source: src-tauri/target/release/hotfix_patcher.exe
+          - platform: macos-latest
+            patch_platform: macos-universal
+            patcher_ext: ""
+            patcher_source: src-tauri/target/release/hotfix_patcher
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: install minisign
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew install minisign
+          else
+            choco install minisign -y
+          fi
+
+      - name: restore minisign key
+        shell: bash
+        env:
+          MINISIGN_PRIVATE_KEY: ${{ secrets.MINISIGN_PRIVATE_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jlj-hotfix"
+          printf "%s" "$MINISIGN_PRIVATE_KEY" > "$RUNNER_TEMP/jlj-hotfix/minisign.key"
+
+      - name: download base frontend
+        shell: bash
+        run: |
+          mkdir -p artifacts/base
+          curl -L "${{ inputs.base_public_zip_url }}" -o artifacts/base-public.zip
+          unzip -q artifacts/base-public.zip -d artifacts/base
+
+      - name: build fixed frontend
+        run: npm run build
+
+      - name: build standalone patcher
+        working-directory: src-tauri
+        run: cargo build --release --bin hotfix_patcher
+
+      - name: create signed jljpatch
+        shell: bash
+        env:
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PRIVATE_KEY_PASSWORD }}
+        run: |
+          mkdir -p dist/hotfix
+          FROM_PATCH_ARGS=()
+          if [[ -n "${{ inputs.from_patch_level }}" ]]; then
+            FROM_PATCH_ARGS=(--from-patch-level "${{ inputs.from_patch_level }}")
+          fi
+          npm run hotfix:package -- \
+            --base-version "${{ inputs.base_version }}" \
+            --patch-id "${{ inputs.patch_id }}" \
+            --to-patch-level "${{ inputs.to_patch_level }}" \
+            --platform "${{ matrix.patch_platform }}" \
+            "${FROM_PATCH_ARGS[@]}" \
+            --base-dir artifacts/base \
+            --fixed-dir .output/public \
+            --minisign-key "$RUNNER_TEMP/jlj-hotfix/minisign.key" \
+            --out "dist/hotfix/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}.jljpatch"
+
+      - name: collect patcher
+        shell: bash
+        run: |
+          cp "${{ matrix.patcher_source }}" "dist/hotfix/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}-patcher${{ matrix.patcher_ext }}"
+
+      - name: upload hotfix artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: hotfix-${{ matrix.patch_platform }}
+          path: dist/hotfix/*

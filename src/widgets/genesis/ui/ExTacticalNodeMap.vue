@@ -649,16 +649,16 @@ const emotionalStatus = computed(() => {
     <DesignVignette :is-dark="!!isDark" />
 
     <!-- ADAPTIVE BACKGROUND DECORATIONS -->
-    <div class="absolute inset-0 pointer-events-none overflow-hidden select-none z-0 opacity-20 dark:opacity-40 text-black dark:text-white">
+    <div class="absolute inset-0 pointer-events-none overflow-hidden select-none z-0 opacity-20 dark:opacity-40 nier-text-primary">
       <!-- Tesseract / 3D Wireframe -->
-      <div class="absolute -top-[240px] -right-[240px] w-[1152px] h-[1152px] border border-black/10 dark:border-white/10 rounded-full">
+      <div class="absolute -top-[240px] -right-[240px] w-[1152px] h-[1152px] border nier-border-primary rounded-full">
          <div class="absolute inset-[120px] border border-black/5 dark:border-white/5 rotate-45"></div>
          <div class="absolute inset-[240px] border border-black/5 dark:border-white/5 -rotate-12"></div>
       </div>
 
       <!-- Floating Squares / Tesseracts -->
       <div class="absolute top-1/4 left-10 w-12 h-12 border border-black/20 dark:border-white/20 rotate-12"></div>
-      <div class="absolute bottom-1/4 right-10 w-24 h-24 border border-black/10 dark:border-white/10 -rotate-45"></div>
+      <div class="absolute bottom-1/4 right-10 w-24 h-24 border nier-border-primary -rotate-45"></div>
 
       <!-- Geometric Pulse Circles -->
       <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-black/[0.03] dark:border-white/[0.03] rounded-full"></div>
@@ -681,7 +681,7 @@ const emotionalStatus = computed(() => {
         <div class="px-6 py-2 transition-all duration-500"
              :class="isDark ? 'text-white/40 hover:text-white/70' : 'text-black/40 hover:text-black/70'">
           <span class="text-base font-serif tracking-widest">
-            {{ t('tacticalNodeMap.betterThan') }} <span class="font-bold text-black dark:text-white">{{ percentileRank }}%</span> {{ t('tacticalNodeMap.ofYourTrades') }}
+            {{ t('tacticalNodeMap.betterThan') }} <span class="font-bold nier-text-primary">{{ percentileRank }}%</span> {{ t('tacticalNodeMap.ofYourTrades') }}
           </span>
         </div>
       </div>
@@ -805,7 +805,7 @@ const emotionalStatus = computed(() => {
               <div class="text-xl font-black uppercase tracking-widest truncate" :class="isDark ? 'text-white' : 'text-black'">{{ entryHubData.name }}</div>
             </div>
 
-            <div class="flex items-center justify-around w-full border-t border-black/10 dark:border-white/10 pt-4">
+            <div class="flex items-center justify-around w-full border-t nier-border-primary pt-4">
               <div class="flex flex-col items-center">
                 <span class="text-[8px] font-mono opacity-40 uppercase mb-1" :class="isDark ? 'text-white' : 'text-black'">{{ t('tacticalNodeMap.frequency') }}</span>
                 <div class="flex items-center space-x-1">
@@ -841,7 +841,7 @@ const emotionalStatus = computed(() => {
               <div class="text-xl font-black uppercase tracking-widest truncate" :class="isDark ? 'text-white' : 'text-black'">{{ exitHubData.name }}</div>
             </div>
 
-            <div class="flex items-center justify-around w-full border-t border-black/10 dark:border-white/10 pt-4">
+            <div class="flex items-center justify-around w-full border-t nier-border-primary pt-4">
               <div class="flex flex-col items-center">
                 <span class="text-[8px] font-mono opacity-40 uppercase mb-1" :class="isDark ? 'text-white' : 'text-black'">{{ t('tacticalNodeMap.frequency') }}</span>
                 <div class="flex items-center space-x-1">
@@ -933,7 +933,7 @@ const emotionalStatus = computed(() => {
          class="absolute inset-0 z-[20000] bg-white/30 dark:bg-black/20 backdrop-blur-sm flex items-center justify-center pointer-events-auto"
          @mousedown.stop
          @click="equityModalOpen = false">
-      <div class="relative w-[1100px] h-[600px] bg-white/75 dark:bg-[#0a0a0a]/75 backdrop-blur-xl border border-black/10 dark:border-white/10 p-8 shadow-2xl overflow-visible text-black dark:text-white" @click.stop>
+      <div class="relative w-[1100px] h-[600px] bg-white/75 dark:bg-[#0a0a0a]/75 backdrop-blur-xl border nier-border-primary p-8 shadow-2xl overflow-visible nier-text-primary" @click.stop>
         <!-- Tactical Corners -->
         <div class="absolute -top-1 -left-1 w-6 h-6 border-t border-l opacity-60 z-50 border-black/30 dark:border-white/30"></div>
         <div class="absolute -top-1 -right-1 w-6 h-6 border-t border-r opacity-60 z-50 border-black/30 dark:border-white/30"></div>
@@ -941,7 +941,7 @@ const emotionalStatus = computed(() => {
         <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b border-r opacity-60 z-50 border-black/30 dark:border-white/30"></div>
         
         <!-- Close Button -->
-        <button @click="equityModalOpen = false" class="absolute top-4 right-4 z-50 w-8 h-8 flex items-center justify-center border border-dashed border-black/10 dark:border-white/10 hover:bg-black/5 dark:hover:bg-white/5 transition-all text-black dark:text-white">
+        <button @click="equityModalOpen = false" class="absolute top-4 right-4 z-50 w-8 h-8 flex items-center justify-center border border-dashed nier-border-primary hover:bg-black/5 dark:hover:bg-white/5 transition-all nier-text-primary">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
@@ -1058,7 +1058,7 @@ const emotionalStatus = computed(() => {
             <!-- Noise Overlay -->
             <div class="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
             
-            <span class="text-xl font-serif italic text-white dark:text-black leading-none drop-shadow-md">{{ calculatedStabilityIndex }}</span>
+            <span class="text-xl font-serif italic nier-text-primary leading-none drop-shadow-md">{{ calculatedStabilityIndex }}</span>
             
             <!-- Scanning effect -->
             <div class="absolute inset-0 bg-white/10 animate-[scan_4s_linear_infinite] pointer-events-none"></div>

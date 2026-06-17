@@ -6,10 +6,14 @@ mod binance;
 mod bybit;
 mod ibkr;
 mod kraken;
+pub mod patch;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    let builder = patch::register_patch_protocol(builder);
+
+    builder
         .manage(audio_recorder::NativeAudioRecorder::default())
         .manage(benchmark::BenchmarkState::default())
         .invoke_handler(tauri::generate_handler![
@@ -23,7 +27,10 @@ pub fn run() {
             bybit::bybit_signed_request,
             ibkr::ibkr_fetch_xml,
             kraken::kraken_signed_request,
-            kraken::kraken_futures_signed_request
+            kraken::kraken_futures_signed_request,
+            patch::patch_get_state,
+            patch::patch_verify_active,
+            patch::patch_clear_active
         ])
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
             let _ = app.emit("single-instance", (args, cwd));
@@ -43,6 +50,7 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_fs::init())?;
+            patch::navigate_to_active_resource_patch(app);
 
             Ok(())
         })

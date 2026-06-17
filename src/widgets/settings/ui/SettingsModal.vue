@@ -28,7 +28,7 @@
           <button 
             @click="activeSection = 'appearance'"
             class="w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all duration-300 group"
-            :class="activeSection === 'appearance' ? 'bg-black/[0.03] dark:bg-white/[0.05] text-black dark:text-white' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white/60'"
+            :class="activeSection === 'appearance' ? 'bg-black/[0.03] dark:bg-white/[0.05] nier-text-primary' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white/60'"
           >
             <div class="flex items-center gap-4">
               <svg class="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -411,10 +411,10 @@ const presets: Preset[] = [
     name: 'Default',
     headerBg: 'transparent',
     footerBg: 'transparent',
-    contentBg: '#f7f5fa',
+    contentBg: '#FFFFFF',
     isGradient: false,
     gradientAngle: 135,
-    gradientStart: '#f7f5fa',
+    gradientStart: '#FFFFFF',
     gradientEnd: '#e2e8f0',
     themeName: 'Default',
     isDark: false,

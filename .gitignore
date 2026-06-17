@@ -30,3 +30,8 @@ dist/
 .DS_Store
 .env
 
+# Signing keys and hotfix build scratch
+*.key
+*.minisig
+.hotfix-work/
+dist/hotfix/

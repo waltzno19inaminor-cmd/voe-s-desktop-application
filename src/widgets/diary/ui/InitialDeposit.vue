@@ -1,6 +1,6 @@
 <template>
   <div v-if="auth.user?.uid === uid" class="flex items-center gap-2">
-    <div class="flex items-center bg-white dark:bg-[#0a0a0a] rounded-xl border border-black/10 dark:border-white/10 shadow-sm h-10 overflow-hidden pr-2">
+    <div class="flex items-center nier-bg-panel rounded-xl border nier-border-primary shadow-sm h-10 overflow-hidden pr-2">
         <div class="ml-4 mr-2 flex items-center justify-center p-1.5 rounded-lg bg-black/5 dark:bg-white/5" title="Initial Deposit">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 text-[#777] dark:text-[#aaa]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -35,7 +35,7 @@
            v-if="isChanged && !isLocked"
            @click="saveDeposit"
            :disabled="isSaving"
-           class="ml-2 p-2 rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-80 transition shadow-sm flex items-center justify-center"
+           class="ml-2 p-2 rounded-lg nier-bg-inverted nier-text-primary hover:opacity-80 transition shadow-sm flex items-center justify-center"
            title="Save Initial Deposit"
         >
            <svg v-if="!isSaving" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

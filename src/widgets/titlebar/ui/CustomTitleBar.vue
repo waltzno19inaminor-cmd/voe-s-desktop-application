@@ -2,27 +2,34 @@
   <div 
     v-show="!isFullscreen"
     @mousedown="startDrag"
-    class="h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[99999] transition-colors bg-transparent"
+    class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[99999] transition-colors"
   >
+    <div class="titlebar-surface" aria-hidden="true"></div>
     <div class="flex items-center h-full" @mousedown.stop>
-      <div 
+      <button
+        type="button"
         @click="minimize" 
-        class="inline-flex justify-center items-center w-12 h-full hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors"
+        class="window-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
+        title="Minimize"
       >
-        <Icon name="lucide:minus" class="w-4 h-4 text-[var(--text-heading)]" />
-      </div>
-      <div 
+        <Icon name="lucide:minus" class="w-4 h-4" />
+      </button>
+      <button
+        type="button"
         @click="toggleFullscreen" 
-        class="inline-flex justify-center items-center w-12 h-full hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer transition-colors"
+        class="window-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
+        title="Fullscreen"
       >
-        <Icon name="lucide:maximize" class="w-3.5 h-3.5 text-[var(--text-heading)]" />
-      </div>
-      <div 
+        <Icon name="lucide:maximize" class="w-3.5 h-3.5" />
+      </button>
+      <button
+        type="button"
         @click="close" 
-        class="inline-flex justify-center items-center w-12 h-full hover:bg-red-500 hover:text-white cursor-pointer group transition-colors"
+        class="window-control close-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
+        title="Close"
       >
-        <Icon name="lucide:x" class="w-4 h-4 text-[var(--text-heading)] group-hover:text-white" />
-      </div>
+        <Icon name="lucide:x" class="w-4 h-4" />
+      </button>
     </div>
   </div>
 </template>
@@ -110,4 +117,46 @@ const close = async () => {
 </script>
 
 <style scoped>
+.titlebar-panel {
+  color: var(--theme-text);
+  isolation: isolate;
+}
+
+.titlebar-surface {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to bottom,
+      rgb(var(--theme-bg-rgb) / 0.28),
+      rgb(var(--theme-bg-rgb) / 0.12) 62%,
+      transparent
+    );
+  backdrop-filter: blur(10px) saturate(130%);
+  -webkit-backdrop-filter: blur(10px) saturate(130%);
+}
+
+.window-control {
+  position: relative;
+  border: 0;
+  background: transparent;
+  color: rgb(var(--theme-text-rgb) / 0.82);
+  outline: none;
+}
+
+.window-control:hover {
+  background: rgb(var(--theme-text-rgb) / 0.08);
+  color: var(--theme-text);
+}
+
+.window-control:focus-visible {
+  box-shadow: inset 0 0 0 1px rgb(var(--theme-text-rgb) / 0.34);
+}
+
+.close-control:hover {
+  background: rgb(239 68 68 / 0.92);
+  color: white;
+}
 </style>

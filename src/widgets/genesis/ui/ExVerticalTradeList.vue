@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col space-y-6 text-black dark:text-white font-mono select-none">
+  <div class="flex flex-col space-y-6 font-mono select-none nier-text-primary">
     <!-- FILTER BAR -->
-    <div ref="filterBarRef" class="relative z-30 flex flex-col gap-3 pb-4 border-b border-black/10 dark:border-white/10">
+    <div ref="filterBarRef" class="relative z-30 flex flex-col gap-3 pb-4 border-b nier-border-primary">
       <div class="flex items-center justify-between gap-4 text-xs">
         <div class="flex items-center gap-3 min-w-0">
           <span class="font-black uppercase tracking-widest">{{ locale === 'ru' ? 'Фильтры' : 'Filters' }}</span>
@@ -11,11 +11,11 @@
           </button>
         </div>
         <div class="flex items-center space-x-3 shrink-0">
-          <div class="flex items-center gap-1 pr-3 border-r border-black/10 dark:border-white/10">
+          <div class="flex items-center gap-1 pr-3 border-r nier-border-primary">
             <button
               @click="setResultDisplayMode('currency')"
               class="h-5 min-w-5 px-1.5 border text-[10px] font-bold transition-colors"
-              :class="resultDisplayMode === 'currency' ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
+              :class="resultDisplayMode === 'currency' ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
               :title="locale === 'ru' ? 'Показать результат в долларах' : 'Show result in dollars'"
             >
               $
@@ -23,7 +23,7 @@
             <button
               @click="setResultDisplayMode('percent')"
               class="h-5 min-w-5 px-1.5 border text-[10px] font-bold transition-colors"
-              :class="resultDisplayMode === 'percent' ? 'bg-black text-white dark:bg-white dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
+              :class="resultDisplayMode === 'percent' ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
               :title="locale === 'ru' ? 'Показать результат в процентах' : 'Show result in percent'"
             >
               %
@@ -31,7 +31,7 @@
           </div>
           <button @click="colorMode = 'monochrome'" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Монохром' : 'Monochrome'">
             <div class="absolute top-0.5 left-0.5 w-1.5 h-1.5 border border-black dark:border-white transition-opacity" :class="colorMode === 'monochrome' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
-            <div class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-black dark:bg-white transition-opacity" :class="colorMode === 'monochrome' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
+            <div class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 nier-bg-inverted transition-opacity" :class="colorMode === 'monochrome' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
           </button>
           <button @click="colorMode = 'colorful'" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Цветной' : 'Colorful'">
             <div class="absolute top-0.5 left-0.5 w-1.5 h-1.5 border border-red-500 transition-opacity" :class="colorMode === 'colorful' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
@@ -54,10 +54,10 @@
           <Transition name="fade">
             <div
               v-if="openFilterId === filter.id"
-              class="absolute top-full mt-1 w-80 max-w-[calc(100vw-3rem)] bg-[#f3f0e8]/95 dark:bg-[#070707]/95 border border-black/20 dark:border-white/20 shadow-xl backdrop-blur-md p-3 z-50"
+              class="absolute top-full mt-1 w-80 max-w-[calc(100vw-3rem)] bg-white/95 dark:bg-[#070707]/95 border border-black/20 dark:border-white/20 shadow-xl backdrop-blur-md p-3 z-50"
               :class="filter.id === 'profit' || filter.id === 'time' || filter.id === 'duration' ? 'right-0 left-auto' : 'left-0'"
             >
-              <div v-if="filter.id !== 'profit'" class="flex items-center justify-between pb-2 border-b border-black/10 dark:border-white/10">
+              <div v-if="filter.id !== 'profit'" class="flex items-center justify-between pb-2 border-b nier-border-primary">
                 <span class="text-[10px] font-black uppercase tracking-widest">{{ filter.label }}</span>
                 <button
                   v-if="filter.isActive"
@@ -74,7 +74,7 @@
                   :key="item.id"
                   @click.stop="selectDropdownOption(filter.id, item.id)"
                   class="w-full px-2.5 py-2 text-left text-[10px] uppercase tracking-wider transition-colors flex items-center justify-between gap-3 border-b border-black/5 dark:border-white/5 last:border-0"
-                  :class="isDropdownOptionActive(filter.id, item.id) ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
+                  :class="isDropdownOptionActive(filter.id, item.id) ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
                 >
                   <span class="truncate">{{ item.label }}</span>
                   <span v-if="isDropdownOptionActive(filter.id, item.id)" class="text-[8px] opacity-60">{{ locale === 'ru' ? 'АКТИВНО' : 'ACTIVE' }}</span>
@@ -82,7 +82,7 @@
               </div>
 
               <div v-else-if="filter.id === 'profit'" class="py-2">
-                <div class="pb-2 border-b border-black/10 dark:border-white/10">
+                <div class="pb-2 border-b nier-border-primary">
                   <div class="flex items-center justify-between">
                     <span class="text-[11px] font-black uppercase tracking-wider">{{ locale === 'ru' ? 'Изменение прибыли' : 'Profit change' }} {{ resultMetricLabel }}</span>
                     <button
@@ -108,7 +108,7 @@
                     :key="item.id"
                     @click.stop="selectedProfitTier = selectedProfitTier === item.id ? 'ALL' : item.id"
                     class="w-full px-2.5 py-2 text-left text-[10px] uppercase tracking-wider transition-colors flex items-start justify-between gap-3 border-b border-black/5 dark:border-white/5 last:border-0"
-                    :class="selectedProfitTier === item.id ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
+                    :class="selectedProfitTier === item.id ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black font-bold' : 'opacity-70 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
                   >
                     <span class="flex flex-col min-w-0">
                       <span class="truncate">{{ item.label }}</span>
@@ -118,7 +118,7 @@
                   </button>
                 </div>
 
-                <div class="mt-1 pt-3 border-t border-black/10 dark:border-white/10">
+                <div class="mt-1 pt-3 border-t nier-border-primary">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-[9px] uppercase tracking-widest opacity-45">{{ locale === 'ru' ? 'Ручная настройка' : 'Manual Setup' }}</span>
                     <span class="text-[9px] opacity-40">{{ resultMetricLabel }}</span>
@@ -130,7 +130,7 @@
                     <button
                       @click.stop="selectedProfitTier = 'CUSTOM'"
                       class="px-2 py-1 text-[9px] uppercase border border-black/20 dark:border-white/20 opacity-60 hover:opacity-100"
-                      :class="selectedProfitTier === 'CUSTOM' ? 'bg-black text-white dark:bg-white dark:text-black opacity-100' : ''"
+                      :class="selectedProfitTier === 'CUSTOM' ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black opacity-100' : ''"
                     >
                       {{ locale === 'ru' ? 'Применить' : 'Apply' }}
                     </button>
@@ -156,7 +156,7 @@
                   :key="preset.id"
                   @click.stop="applyTimeWindowPreset(preset)"
                   class="w-full px-2.5 py-2 text-left text-[10px] uppercase tracking-wider transition-colors flex items-start justify-between gap-3 border-b border-black/5 dark:border-white/5 last:border-0"
-                  :class="isTimeWindowPresetActive(preset) ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
+                  :class="isTimeWindowPresetActive(preset) ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
                 >
                   <span class="flex flex-col min-w-0">
                     <span class="truncate">{{ preset.label }}</span>
@@ -165,7 +165,7 @@
                   <span v-if="isTimeWindowPresetActive(preset)" class="text-[8px] opacity-60">ACTIVE</span>
                 </button>
 
-                <div class="mt-3 pt-3 border-t border-black/10 dark:border-white/10">
+                <div class="mt-3 pt-3 border-t nier-border-primary">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-[9px] uppercase tracking-widest opacity-45">{{ locale === 'ru' ? 'Ручная настройка' : 'Manual Setup' }}</span>
                     <span class="text-[9px] opacity-40">{{ timeWindowLabel }}</span>
@@ -184,7 +184,7 @@
                   :key="preset.id"
                   @click.stop="applyDurationWindowPreset(preset)"
                   class="w-full px-2.5 py-2 text-left text-[10px] uppercase tracking-wider transition-colors flex items-start justify-between gap-3 border-b border-black/5 dark:border-white/5 last:border-0"
-                  :class="isDurationWindowPresetActive(preset) ? 'bg-black text-white dark:bg-white dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
+                  :class="isDurationWindowPresetActive(preset) ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
                 >
                   <span class="flex flex-col min-w-0">
                     <span class="truncate">{{ preset.label }}</span>
@@ -193,7 +193,7 @@
                   <span v-if="isDurationWindowPresetActive(preset)" class="text-[8px] opacity-60">ACTIVE</span>
                 </button>
 
-                <div class="mt-3 pt-3 border-t border-black/10 dark:border-white/10">
+                <div class="mt-3 pt-3 border-t nier-border-primary">
                   <div class="flex items-center justify-between mb-2">
                     <span class="text-[9px] uppercase tracking-widest opacity-45">{{ locale === 'ru' ? 'Ручная настройка' : 'Manual Setup' }}</span>
                     <span class="text-[9px] opacity-40">{{ durationWindowLabel }}</span>
@@ -207,7 +207,7 @@
                 </div>
               </div>
 
-              <div v-if="filter.id === 'conditions' && selectedCondition.length > 0" class="pt-2 border-t border-black/10 dark:border-white/10">
+              <div v-if="filter.id === 'conditions' && selectedCondition.length > 0" class="pt-2 border-t nier-border-primary">
                 <button
                   @click.stop="conditionMatchMode = conditionMatchMode === 'INCLUDED' ? 'EXACT' : 'INCLUDED'"
                   class="w-full px-2 py-2 text-[9px] uppercase tracking-wider flex items-center justify-between opacity-60 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
@@ -227,7 +227,7 @@
           v-for="chip in activeFilterChips"
           :key="chip.id"
           @click="removeFilterChip(chip.id)"
-          class="flex items-center space-x-2 px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-[9px] uppercase group"
+          class="flex items-center space-x-2 px-2 py-1 bg-black/5 dark:bg-white/5 border nier-border-primary hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-[9px] uppercase group"
         >
           <span class="opacity-45">{{ chip.type }}:</span>
           <span class="font-bold">{{ chip.label }}</span>
@@ -274,9 +274,9 @@
         </button>
       </div>
 
-      <div class="grid grid-cols-[1fr_0.8fr_1.35fr_1fr_1fr_auto] gap-2 items-center pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+      <div class="grid grid-cols-[1fr_0.8fr_1.35fr_1fr_1fr_auto] gap-2 items-center pb-3 border-b nier-border-primary text-[10px] opacity-40 uppercase tracking-widest px-2">
         <div class="flex items-center space-x-3">
-          <button @click.stop="toggleSelectAllTrades" class="w-3.5 h-3.5 border border-black dark:border-white flex items-center justify-center transition-all hover:opacity-100 shrink-0" :class="isAllSelected ? 'bg-black dark:bg-white text-white dark:text-black opacity-100' : 'opacity-40'">
+          <button @click.stop="toggleSelectAllTrades" class="w-3.5 h-3.5 border border-black dark:border-white flex items-center justify-center transition-all hover:opacity-100 shrink-0" :class="isAllSelected ? 'nier-bg-inverted nier-text-inverted opacity-100' : 'opacity-40'">
             <span v-if="isAllSelected" class="text-[8px] font-bold">✓</span>
             <span v-else-if="selectedTradeIds.length > 0" class="text-[8px] font-bold">-</span>
           </button>
@@ -308,10 +308,10 @@
             @click="emit('open-trade', { tradeId: trade.id })"
           >
             <div class="flex items-center space-x-3 truncate" @click.stop="toggleSelectTrade(trade.id)">
-              <button class="w-3.5 h-3.5 border border-black dark:border-white flex items-center justify-center transition-all hover:opacity-100 shrink-0 cursor-pointer" :class="selectedTradeIds.includes(trade.id) ? 'bg-black dark:bg-white text-white dark:text-black opacity-100' : 'opacity-30'">
+              <button class="w-3.5 h-3.5 border border-black dark:border-white flex items-center justify-center transition-all hover:opacity-100 shrink-0 cursor-pointer" :class="selectedTradeIds.includes(trade.id) ? 'nier-bg-inverted nier-text-inverted opacity-100' : 'opacity-30'">
                 <span v-if="selectedTradeIds.includes(trade.id)" class="text-[8px] font-bold">✓</span>
               </button>
-              <span class="w-1 h-1 rounded-full shrink-0" :class="colorMode === 'colorful' ? (trade.status === 'WIN' ? 'bg-green-500' : trade.status === 'LOSS' ? 'bg-red-500' : 'bg-yellow-500') : (trade.status === 'WIN' ? 'bg-black dark:bg-white' : trade.status === 'LOSS' ? 'bg-black/30 dark:bg-white/30' : 'bg-black/60 dark:bg-white/60')"></span>
+              <span class="w-1 h-1 rounded-full shrink-0" :class="colorMode === 'colorful' ? (trade.status === 'WIN' ? 'bg-green-500' : trade.status === 'LOSS' ? 'bg-red-500' : 'bg-yellow-500') : (trade.status === 'WIN' ? 'bg-black dark:bg-[#F9F6F0]' : trade.status === 'LOSS' ? 'bg-black/30 dark:bg-white/30' : 'bg-black/60 dark:bg-white/60')"></span>
               <span class="font-bold uppercase tracking-widest">{{ trade.direction }}</span>
               <span v-if="isTradeHidden(trade)" class="text-[8px] uppercase tracking-[0.24em] opacity-45">
                 {{ locale === 'ru' ? 'скрыто' : 'hidden' }}
@@ -346,7 +346,7 @@
                   {{ locale === 'ru' ? '[Закрыть]' : '[Close]' }}
                 </button>
               </div>
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-[10px]">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-3.5 bg-black/5 dark:bg-white/5 border nier-border-primary font-mono text-[10px]">
                 <div class="flex flex-col">
                   <span class="opacity-40 text-[9px] uppercase tracking-wider">{{ locale === 'ru' ? 'Цена Входа' : 'Entry Price' }}</span>
                   <span class="font-bold mt-0.5 text-xs">{{ trade.entryPrice }}</span>
@@ -391,7 +391,7 @@
               <div class="flex items-center justify-between">
                 <span class="block text-[9px] opacity-40 uppercase tracking-widest">{{ locale === 'ru' ? '// Методы входа-выхода' : '// Entry-Exit Methods' }}</span>
               </div>
-              <div class="p-3.5 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 font-mono text-[10px]">
+              <div class="p-3.5 bg-black/5 dark:bg-white/5 border nier-border-primary font-mono text-[10px]">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="flex flex-col space-y-2 md:pr-4 md:border-r md:border-black/10 md:dark:border-white/10">
                     <div class="flex items-center justify-between">
@@ -453,7 +453,7 @@
                 <div 
                   v-for="(note, nIdx) in trade.notes" 
                   :key="note.id" 
-                  class="flex flex-col py-1.5 border-b border-black/10 dark:border-white/10 cursor-pointer group"
+                  class="flex flex-col py-1.5 border-b nier-border-primary cursor-pointer group"
                   @click.stop="onNoteClick(trade.id, note.id)"
                 >
                   <div class="flex items-center justify-between text-[10px] font-mono opacity-60 group-hover:opacity-100 transition-opacity">
@@ -1315,7 +1315,7 @@ const getScenarioConditions = (scenarioId: string) => {
                subNodes.find((node: any) => node.id === nodeId) ||
                (parentCond.subGraph?.nodes || []).find((node: any) => node.id === nodeId)
                
-     if (!n || n.params?.needsConfig) return null
+     if (!n || n.type === 'placeholder') return null
      
      return {
         id: n.id,
@@ -1369,9 +1369,9 @@ const getScenarioConditions = (scenarioId: string) => {
         ...subConns.filter((c: any) => c.fromId === cond.id).map((c: any) => c.toId)
       ]
       const indicators = [
-        ...matrixNodes.value.filter(n => indicatorIds.includes(n.id) && !n.params?.needsConfig),
-        ...subNodes.filter((n: any) => indicatorIds.includes(n.id) && !n.params?.needsConfig),
-        ...(cond.subGraph?.nodes || []).filter((n: any) => !n.params?.needsConfig)
+        ...matrixNodes.value.filter(n => indicatorIds.includes(n.id)),
+        ...subNodes.filter((n: any) => indicatorIds.includes(n.id)),
+        ...(cond.subGraph?.nodes || [])
       ]
       
       indicators.forEach(i => {

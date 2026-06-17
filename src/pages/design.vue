@@ -115,7 +115,7 @@
             <div class="flex flex-col space-y-6">
               <span class="text-[9px] font-mono tracking-[0.4em] opacity-40 uppercase">Variant: Standard (Heavy)</span>
               <ExPanel title="ARCHIVAL_REGISTRY_v1.1" telemetry="0x4F92" variant="standard">
-                <div class="space-y-4 font-mono text-[11px] leading-relaxed opacity-80 uppercase tracking-widest text-black dark:text-white">
+                <div class="space-y-4 font-mono text-[11px] leading-relaxed opacity-80 uppercase tracking-widest nier-text-primary">
                   <p>Establishing secure connection to tactical node...</p>
                   <p class="text-blue-500">>> Authenticated: [REDACTED]</p>
                   <div class="h-1 bg-black/10 dark:bg-white/10 w-full overflow-hidden">
@@ -129,13 +129,13 @@
             <div class="flex flex-col space-y-6">
               <span class="text-[9px] font-mono tracking-[0.4em] opacity-40 uppercase">Variant: Light (Minimalist)</span>
               <ExPanel title="TELEMETRY_FEED_SUB" telemetry="LIVE_STREAM" variant="light">
-                <div class="space-y-4 font-mono text-[11px] leading-relaxed opacity-80 uppercase tracking-widest text-black dark:text-white">
+                <div class="space-y-4 font-mono text-[11px] leading-relaxed opacity-80 uppercase tracking-widest nier-text-primary">
                   <div class="grid grid-cols-2 gap-4">
-                    <div class="border border-black/10 dark:border-white/10 p-4">
+                    <div class="border nier-border-primary p-4">
                       <span class="block opacity-40 text-[8px] mb-2">Sync_Rate</span>
                       <span class="text-lg font-black">98.2%</span>
                     </div>
-                    <div class="border border-black/10 dark:border-white/10 p-4">
+                    <div class="border nier-border-primary p-4">
                       <span class="block opacity-40 text-[8px] mb-2">Latency</span>
                       <span class="text-lg font-black">42ms</span>
                     </div>
@@ -653,8 +653,8 @@
                   <!-- Noise Overlay -->
                   <div class="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
                   
-                  <span class="text-6xl font-serif italic text-white dark:text-black leading-none drop-shadow-md">{{ testEmotionalRank }}</span>
-                  <span class="text-[11px] font-mono font-black uppercase tracking-[0.3em] text-white dark:text-black mt-2 opacity-80">{{ emotionalStatus.label }}</span>
+                  <span class="text-6xl font-serif italic nier-text-primary leading-none drop-shadow-md">{{ testEmotionalRank }}</span>
+                  <span class="text-[11px] font-mono font-black uppercase tracking-[0.3em] nier-text-primary mt-2 opacity-80">{{ emotionalStatus.label }}</span>
                   
                   <!-- Scanning effect -->
                   <div class="absolute inset-0 bg-white/10 animate-[scan_4s_linear_infinite] pointer-events-none"></div>
@@ -1336,15 +1336,15 @@ const maxDiarySize = computed(() => {
 const getDiaryHeatmapBoxClass = (trade: any) => {
   const pnl = trade.profitInCurrency || 0
   if (pnl > 10000) {
-    return 'bg-green-600/90 dark:bg-green-500/85 border-green-700 dark:border-green-400 text-white dark:text-black font-bold shadow-lg'
+    return 'bg-green-600/90 dark:bg-green-500/85 border-green-700 dark:border-green-400 nier-text-primary font-bold shadow-lg'
   } else if (pnl > 0) {
     return 'bg-green-500/30 dark:bg-green-500/25 border-green-500/50 dark:border-green-400/40 text-green-800 dark:text-green-300'
   } else if (pnl < -10000) {
-    return 'bg-red-600/90 dark:bg-red-500/85 border-red-700 dark:border-red-400 text-white dark:text-black font-bold shadow-lg'
+    return 'bg-red-600/90 dark:bg-red-500/85 border-red-700 dark:border-red-400 nier-text-primary font-bold shadow-lg'
   } else if (pnl < 0) {
     return 'bg-red-500/30 dark:bg-red-500/25 border-red-500/50 dark:border-red-400/40 text-red-800 dark:text-red-300'
   } else {
-    return 'bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 text-black dark:text-white opacity-70'
+    return 'bg-black/10 dark:bg-white/10 border-black/20 dark:border-white/20 nier-text-primary opacity-70'
   }
 }
 
@@ -1439,7 +1439,7 @@ const getDiaryHeatmapFontClasses = (trade: any) => {
 }
 
 .theme-light {
-  --theme-bg: #f4f4f2; /* Nier-style aged paper/light gray */
+  --theme-bg: #FFFFFF; /* Snow white */
   --theme-text: #2c2c2a;
   --theme-border: rgba(0, 0, 0, 0.1);
   --theme-border-strong: rgba(0, 0, 0, 0.25);

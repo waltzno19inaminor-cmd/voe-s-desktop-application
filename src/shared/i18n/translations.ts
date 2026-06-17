@@ -92,6 +92,9 @@ export const translations = {
         }
       },
       tree: {
+        re: {
+          title: "Presets"
+        },
         tooltip: {
           type: "Type",
           frequency: "Frequency",
@@ -357,6 +360,9 @@ export const translations = {
         }
       },
       tree: {
+        re: {
+          title: "Пресеты"
+        },
         tooltip: {
           type: "Тип",
           frequency: "Частота",

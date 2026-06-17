@@ -3,14 +3,14 @@
     
     <!-- Avatar Slot / Icon -->
     <div 
-      :class="detailed ? 'w-12 h-12 bg-theme-text flex items-center justify-center overflow-hidden' : 'w-10 h-10 border border-theme-border relative overflow-hidden flex items-center justify-center bg-theme-text/10'"
+      :class="detailed ? 'w-12 h-12 bg-theme-text flex items-center justify-center overflow-hidden' : 'w-10 h-10 relative overflow-hidden flex items-center justify-center bg-theme-text'"
     >
       <template v-if="avatarUrl">
         <img :src="avatarUrl" alt="avatar" class="w-full h-full object-cover" />
       </template>
       <template v-else-if="detailed">
         <span class="text-theme-bg font-mono font-black text-xl">
-          <slot name="avatar">{{ name?.charAt(0) }}</slot>
+          <slot name="avatar">{{ name?.charAt(0)?.toUpperCase() }}</slot>
         </span>
       </template>
       <template v-else>

@@ -1,7 +1,7 @@
 <template>
   <div class="h-full flex flex-col p-12 max-w-7xl mx-auto space-y-12 relative">
     <!-- Update Notification Widget -->
-    <div v-if="updateNotification.showUpdate" class="absolute top-0 left-12 right-12 z-[250] bg-black dark:bg-white p-5 flex justify-between items-center overflow-hidden group shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
+    <div v-if="updateNotification.showUpdate" class="absolute top-0 left-12 right-12 z-[250] nier-bg-inverted p-5 flex justify-between items-center overflow-hidden group shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
       
       <!-- Animated Background Scanline -->
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1500ms] ease-in-out"></div>
@@ -22,13 +22,13 @@
             <ExText variant="telemetry" class="!opacity-100 uppercase tracking-[0.2em] !text-white dark:!text-black font-bold">
               {{ t('dashboard.ui.newVersionAvailable') }}
             </ExText>
-            <span class="px-2 py-0.5 border border-theme-accent text-white dark:text-black text-[9px] font-mono font-bold shadow-[0_0_5px_rgba(var(--theme-accent-rgb),0.3)]" v-if="updateNotification.version">
+            <span class="px-2 py-0.5 border border-theme-accent nier-text-primary text-[9px] font-mono font-bold shadow-[0_0_5px_rgba(var(--theme-accent-rgb),0.3)]" v-if="updateNotification.version">
               v{{ updateNotification.version }}
             </span>
           </div>
           <div class="flex items-center space-x-2 mt-1.5 opacity-60">
-            <div class="h-[1px] w-12 bg-white dark:bg-black"></div>
-            <span class="text-[7.5px] font-mono tracking-widest text-white dark:text-black uppercase opacity-70">Your data will be saved.</span>
+            <div class="h-[1px] w-12 nier-bg-panel"></div>
+            <span class="text-[7.5px] font-mono tracking-widest nier-text-primary uppercase opacity-70">Your data will be saved.</span>
           </div>
         </div>
       </div>
@@ -43,10 +43,10 @@
         
         <button 
           @click="handleDownload(updateNotification.downloadLink)" 
-          class="relative px-8 py-3.5 bg-transparent border border-white/20 dark:border-black/20 text-white dark:text-black text-[10px] font-mono uppercase tracking-[0.25em] overflow-hidden group/btn hover:border-white dark:hover:border-black transition-colors duration-300 cursor-pointer"
+          class="relative px-8 py-3.5 bg-transparent border border-white/20 dark:border-black/20 nier-text-primary text-[10px] font-mono uppercase tracking-[0.25em] overflow-hidden group/btn hover:border-white dark:hover:border-black transition-colors duration-300 cursor-pointer"
         >
           <!-- Button background slide -->
-          <div class="absolute inset-0 bg-white dark:bg-black transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
+          <div class="absolute inset-0 nier-bg-panel transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
           
           <span class="relative z-10 flex items-center space-x-3 group-hover/btn:text-black dark:group-hover/btn:text-white transition-colors duration-500 font-bold">
             <span>{{ t('dashboard.ui.download') }}</span>
@@ -66,6 +66,7 @@
         <ExHeading level="h1" variant="cinematic" class="!text-3xl">{{ t('dashboard.title') }}</ExHeading>
         <div class="flex items-center space-x-4">
            <ExTag>v{{ pkg.version.toUpperCase().replace('-', '_') }}</ExTag>
+           <ExTag v-if="patchBadge">HOTFIX_{{ patchBadge }}</ExTag>
          
         </div>
       </div>
@@ -105,7 +106,7 @@
                   v-if="userMenuOpen"
                   ref="menuRef"
                   :style="menuStyle"
-                  class="fixed z-[9999] min-w-[200px] border border-theme-border bg-theme-bg shadow-[0_16px_40px_rgba(0,0,0,0.4)]"
+                  class="fixed z-[9999] min-w-[200px] border border-theme-border bg-theme-bg shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.4)]"
                 >
                   <!-- User info strip -->
                   <div class="px-5 py-3 border-b border-theme-border">
@@ -115,7 +116,7 @@
                   <!-- Settings -->
                   <button
                     @click="goProfile"
-                    class="w-full flex items-center space-x-3 px-5 py-3 border-b border-theme-border text-[9px] font-mono uppercase tracking-[0.4em] hover:text-white transition-all duration-300"
+                    class="w-full flex items-center space-x-3 px-5 py-3 border-b border-theme-border text-[9px] font-mono uppercase tracking-[0.4em] transition-all duration-300"
                   >
                     <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="3"/>
@@ -126,7 +127,7 @@
                   <!-- Sign out -->
                   <button
                     @click="doSignOut"
-                    class="w-full flex items-center space-x-3 px-5 py-3 text-[9px] font-mono uppercase tracking-[0.4em] hover:text-red-400 transition-all duration-300"
+                    class="w-full flex items-center space-x-3 px-5 py-3 text-[9px] font-mono uppercase tracking-[0.4em] transition-all duration-300"
                   >
                     <svg class="w-3 h-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -139,19 +140,6 @@
               </Transition>
             </Teleport>
           </div>
-
-          <!-- Report Feature -->
-          <button
-            @click="navigateTo('/report')"
-            class="opacity-40 hover:opacity-100 hover:text-red-400 transition-all duration-300"
-            title="Submit a report"
-          >
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-          </button>
 
           <!-- Theme Toggle -->
           <!-- <button
@@ -235,7 +223,7 @@
                 <!-- Diamond Icon -->
                 <div class="relative w-4 h-4 mb-8">
                   <div class="absolute inset-0 bg-emerald-500 rotate-45 animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.6)]"></div>
-                  <div class="absolute inset-1 bg-white dark:bg-[#0a0a0a] rotate-45"></div>
+                  <div class="absolute inset-1 nier-bg-panel rotate-45"></div>
                   <div class="absolute inset-[3px] bg-emerald-500 rotate-45"></div>
                 </div>
 
@@ -248,12 +236,12 @@
                 <ExText class="text-center mb-12 !text-[11px] !leading-[2.5] uppercase tracking-widest text-black/70 dark:text-white/60">
                   <span v-if="locale === 'ru'">
                     ПРОТОКОЛ АУТЕНТИФИКАЦИИ УСПЕШНО ЗАВЕРШЕН.<br/><br/>
-                    <span class="text-black dark:text-white font-bold tracking-[0.4em]">ПРЕМИУМ-СТАТУС ПОДТВЕРЖДЕН.</span><br/><br/>
+                    <span class="nier-text-primary font-bold tracking-[0.4em]">ПРЕМИУМ-СТАТУС ПОДТВЕРЖДЕН.</span><br/><br/>
                     ПОЛНЫЙ ДОСТУП К МАТРИЦЕ ГЕНЕЗИСА И ПРОДВИНУТОЙ АНАЛИТИКЕ ДНЕВНИКА АКТИВИРОВАН.
                   </span>
                   <span v-else>
                     AUTHENTICATION PROTOCOL SUCCESSFULLY COMPLETED.<br/><br/>
-                    <span class="text-black dark:text-white font-bold tracking-[0.4em]">PREMIUM STATUS CONFIRMED.</span><br/><br/>
+                    <span class="nier-text-primary font-bold tracking-[0.4em]">PREMIUM STATUS CONFIRMED.</span><br/><br/>
                     FULL ACCESS TO THE GENESIS MATRIX AND ADVANCED DIARY ANALYTICS HAS BEEN ACTIVATED.
                   </span>
                 </ExText>
@@ -277,6 +265,7 @@ import { getAuth, signOut } from 'firebase/auth'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import { open } from '@tauri-apps/plugin-shell'
+import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/shared/i18n/useI18n'
 import pkg from '../../../../package.json'
 import ExHeading from "~/shared/ui/ExHeading.vue"
@@ -354,6 +343,8 @@ const handleOutsideClick = (e: MouseEvent) => {
   }
 }
 const updateNotification = ref({ showUpdate: false, downloadLink: '', version: '' })
+const patchState = ref<{ patchLevel?: string | null; patchId?: string | null } | null>(null)
+const patchBadge = computed(() => patchState.value?.patchLevel?.replace(/^hotfix\./i, '') || '')
 let unsubUpdate: any = null
 let unsubUser: any = null
 const showPremiumUnlocked = ref(false)
@@ -371,7 +362,14 @@ const handleDownload = async (url: string) => {
 
 onMounted(() => {
   document.addEventListener('mousedown', handleOutsideClick)
-  
+
+  invoke('patch_get_state')
+    .then((state: any) => {
+      patchState.value = state
+    })
+    .catch((err) => {
+      console.debug('Patch state unavailable outside Tauri runtime:', err)
+    })
 
 
   unsubUpdate = onSnapshot(doc(db, 'app_settings', 'update_notification'), (docSnap) => {

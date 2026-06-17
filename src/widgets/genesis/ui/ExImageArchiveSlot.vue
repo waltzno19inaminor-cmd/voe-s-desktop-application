@@ -66,7 +66,7 @@ function getTagColor(tag: string) {
 </script>
 
 <template>
-  <div class="relative group border border-black/10 dark:border-white/10 bg-white dark:bg-[#0a0a0a] overflow-hidden transition-all duration-500 hover:border-black/40 dark:hover:border-white/40 shadow-lg">
+  <div class="relative group border nier-border-primary nier-bg-panel overflow-hidden transition-all duration-500 hover:border-black/40 dark:hover:border-white/40 shadow-lg">
     <!-- Image Preview Area -->
     <div class="aspect-video relative overflow-hidden bg-black/5 dark:bg-white/5">
       <template v-if="imageUrl">
@@ -100,21 +100,21 @@ function getTagColor(tag: string) {
         <div class="flex flex-col space-y-2">
             <!-- Name editing -->
             <div class="flex items-center space-x-2 w-full">
-              <div class="w-1.5 h-1.5 bg-black dark:bg-white rotate-45 opacity-60 shrink-0"></div>
+              <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45 opacity-60 shrink-0"></div>
               
               <template v-if="isEditingName">
                 <input 
                   v-model="localName" 
                   @blur="saveName"
                   @keyup.enter="saveName"
-                  class="bg-transparent border-b border-black/20 dark:border-white/20 outline-none text-[9px] font-mono uppercase tracking-[0.2em] font-black text-black dark:text-white w-full"
+                  class="bg-transparent border-b border-black/20 dark:border-white/20 outline-none text-[9px] font-mono uppercase tracking-[0.2em] font-black nier-text-primary w-full"
                   autofocus
                 />
               </template>
               <template v-else>
                 <span 
                   @click="isEditingName = true" 
-                  class="text-[9px] font-mono uppercase tracking-[0.2em] font-black opacity-60 text-black dark:text-white cursor-text hover:opacity-100 transition-opacity truncate"
+                  class="text-[9px] font-mono uppercase tracking-[0.2em] font-black opacity-60 nier-text-primary cursor-text hover:opacity-100 transition-opacity truncate"
                 >
                   {{ name || `Archive_Node_${id || '0x42'}` }}
                 </span>
@@ -134,23 +134,23 @@ function getTagColor(tag: string) {
                    @blur="addTag"
                    @keyup.enter="addTag"
                    @keyup.esc="isAddingTag = false"
-                   class="bg-transparent border-b border-black/20 dark:border-white/20 outline-none text-[9px] font-mono px-2 py-1 w-20 text-black dark:text-white uppercase"
+                   class="bg-transparent border-b border-black/20 dark:border-white/20 outline-none text-[9px] font-mono px-2 py-1 w-20 nier-text-primary uppercase"
                    placeholder="TAG..."
                    autofocus
                  />
                </template>
-               <button v-else @click="isAddingTag = true" class="text-[9px] font-mono px-2 py-1 border border-dashed border-black/20 dark:border-white/20 opacity-30 hover:opacity-100 text-black dark:text-white transition-opacity uppercase tracking-widest">
+               <button v-else @click="isAddingTag = true" class="text-[9px] font-mono px-2 py-1 border border-dashed border-black/20 dark:border-white/20 opacity-30 hover:opacity-100 nier-text-primary transition-opacity uppercase tracking-widest">
                  + Tag
                </button>
             </div>
         </div>
-        <span class="text-[8px] font-mono opacity-30 uppercase tracking-[0.3em] pl-3 text-black dark:text-white mt-1">{{ displayTimestamp }}</span>
+        <span class="text-[8px] font-mono opacity-30 uppercase tracking-[0.3em] pl-3 nier-text-primary mt-1">{{ displayTimestamp }}</span>
       </div>
       
       <!-- Remove Button -->
       <button 
         @click="$emit('remove')" 
-        class="group relative p-2 text-black dark:text-white opacity-20 hover:opacity-100 transition-all duration-300 shrink-0 self-start"
+        class="group relative p-2 nier-text-primary opacity-20 hover:opacity-100 transition-all duration-300 shrink-0 self-start"
         title="REMOVE_ARCHIVE"
       >
         <div class="absolute inset-0 border border-red-500/0 group-hover:border-red-500/20 scale-0 group-hover:scale-100 transition-transform duration-500"></div>

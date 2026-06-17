@@ -1,5 +1,5 @@
 <template>
-  <div class="diary-3d-hub h-full w-full relative overflow-hidden bg-transparent text-white" ref="container">
+  <div class="diary-3d-hub h-full w-full relative overflow-hidden bg-transparent nier-text-primary" ref="container">
     
     
 
@@ -31,7 +31,7 @@
            <!-- HUD Toggle -->
            <button @click="isHudVisible = !isHudVisible" 
                    class="w-8 h-8 flex items-center justify-center transition-all bg-white/5 dark:bg-black/5 backdrop-blur-md hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
-                   :class="isHudVisible ? 'text-black dark:text-white' : 'text-black/40 dark:text-white/40'"
+                   :class="isHudVisible ? 'nier-text-primary' : 'text-black/40 dark:text-white/40'"
                    title="Toggle HUD">
               <svg v-if="isHudVisible" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -107,10 +107,11 @@
       <!-- LIST VIEW LAYER -->
       <div
         v-if="viewType === 'list'"
-        class="absolute inset-0 z-40 flex flex-col overflow-hidden bg-white dark:bg-[#070707] backdrop-blur-3xl pointer-events-auto transition-all duration-300"
+        class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
-         <div class="w-full h-full overflow-y-auto custom-scrollbar px-12 md:px-24 py-24 md:py-32">
+         <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
+         <div class="relative z-10 w-full h-full overflow-y-auto custom-scrollbar px-12 md:px-24 py-24 md:py-32">
            <ExVerticalTradeList :trades="currentTradesForList" @open-note="handleOpenNote" @open-trade="handleOpenTrade" />
          </div>
       </div>
@@ -121,38 +122,38 @@
         class="absolute bottom-12 left-12 z-[10000] flex flex-col space-y-3 pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
       >
-         <div class="flex items-center space-x-2 p-1.5 border border-black/10 dark:border-white/10 bg-white/5 dark:bg-black/5 backdrop-blur-xl relative">
+         <div class="flex items-center space-x-2 p-1.5 border nier-border-primary bg-white/5 dark:bg-black/5 backdrop-blur-xl relative">
             <!-- Brackets -->
             <div class="absolute -top-px -left-px w-1.5 h-1.5 border-t border-l border-black/40 dark:border-white/40"></div>
             <div class="absolute -bottom-px -right-px w-1.5 h-1.5 border-b border-r border-black/40 dark:border-white/40"></div>
 
             <button @click="viewType = 'cube'" 
                     class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
-                    :class="viewType === 'cube' ? 'bg-black dark:bg-white shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
+                    :class="viewType === 'cube' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
                <div class="w-4 h-4 border-2 transition-all duration-700 relative flex items-center justify-center"
                     :class="viewType === 'cube' ? 'border-white dark:border-black rotate-[135deg] scale-110' : 'border-black/40 dark:border-white/40 group-hover:border-black dark:group-hover:border-white group-hover:rotate-45'">
                   <div class="w-1 h-1 bg-current rotate-45"></div>
                </div>
-               <div v-if="viewType === 'cube'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-black dark:bg-white opacity-50"></div>
+               <div v-if="viewType === 'cube'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
 
             <button @click="viewType = 'list'" 
                     class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
-                    :class="viewType === 'list' ? 'bg-black dark:bg-white shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
+                    :class="viewType === 'list' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
                <div class="flex flex-col items-center space-y-1.5 transition-all duration-700"
-                    :class="viewType === 'list' ? 'text-white dark:text-black scale-110' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white group-hover:translate-y-[-1px]'">
+                    :class="viewType === 'list' ? 'nier-text-primary scale-110' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white group-hover:translate-y-[-1px]'">
                   <div class="w-5 h-[1.5px] bg-current"></div>
                   <div class="w-5 h-[1.5px] bg-current opacity-60"></div>
                   <div class="w-5 h-[1.5px] bg-current opacity-30"></div>
                </div>
-               <div v-if="viewType === 'list'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-black dark:bg-white opacity-50"></div>
+               <div v-if="viewType === 'list'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
 
             <button @click="viewType = 'tree'" 
                     class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
-                    :class="viewType === 'tree' ? 'bg-black dark:bg-white shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'"
+                    :class="viewType === 'tree' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'"
                     title="Tree View">
-               <svg v-if="viewType === 'tree'" class="w-4 h-4 transition-all duration-500 text-white dark:text-black scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+               <svg v-if="viewType === 'tree'" class="w-4 h-4 transition-all duration-500 nier-text-primary scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M12 5v14"></path>
                   <path d="M12 9H7"></path>
                   <path d="M12 13h5"></path>
@@ -162,7 +163,7 @@
                   <rect x="15" y="10" width="4" height="4" rx="0.8"></rect>
                   <rect x="10" y="17" width="4" height="4" rx="0.8"></rect>
                </svg>
-               <svg v-else class="w-4 h-4 text-black dark:text-white transition-all duration-500 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+               <svg v-else class="w-4 h-4 nier-text-primary transition-all duration-500 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M12 5v14"></path>
                   <path d="M12 9H7"></path>
                   <path d="M12 13h5"></path>
@@ -172,7 +173,7 @@
                   <rect x="15" y="10" width="4" height="4" rx="0.8"></rect>
                   <rect x="10" y="17" width="4" height="4" rx="0.8"></rect>
                </svg>
-               <div v-if="viewType === 'tree'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-black dark:bg-white opacity-50"></div>
+               <div v-if="viewType === 'tree'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
          </div>
       </div>
@@ -190,11 +191,11 @@
        <Transition name="panel-slide" mode="out-in">
           <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen" 
                key="trade-archive-insight"
-               class="fixed right-12 top-1/2 -translate-y-1/2 w-[440px] z-[10005] transition-colors duration-500">
+               class="fixed right-12 top-1/2 -translate-y-1/2 w-[440px] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]">
              
              <!-- CLOSE HANDLE (LEFT EDGE) -->
              <button @click="selectedTradeId = null"
-                     class="absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-40 bg-gray-100 dark:bg-[#070707] border-t border-l border-b border-black/20 dark:border-white/20 flex items-center justify-center group/close-tab cursor-pointer hover:bg-gray-200 dark:hover:bg-[#111] transition-colors">
+                     class="absolute -left-6 top-1/2 -translate-y-1/2 w-6 h-40 bg-theme-bg dark:bg-[#070707] border-t border-l border-b border-black/20 dark:border-white/20 flex items-center justify-center group/close-tab cursor-pointer hover:bg-theme-surface dark:hover:bg-[#111] transition-colors">
                <div class="w-[1px] h-16 bg-black/10 dark:bg-white/10 group-hover/close-tab:bg-black/40 dark:group-hover/close-tab:bg-white/40 transition-all duration-300"></div>
                <span class="absolute text-[7px] font-mono tracking-[0.4em] uppercase text-black/10 dark:text-white/10 group-hover/close-tab:text-black/40 dark:group-hover/close-tab:text-white/40 -rotate-90 whitespace-nowrap">{{ t('genesis.virtualLog.closeArchive') }}</span>
              </button>
@@ -208,15 +209,15 @@
              >
                <div class="flex flex-col space-y-6 p-6">
                  <div class="flex items-center space-x-6">
-                    <div v-if="assetIcon && !imageLoadError" class="w-16 h-16 border border-black/10 dark:border-white/10 flex items-center justify-center bg-white p-2 shadow-inner">
+                    <div v-if="assetIcon && !imageLoadError" class="w-16 h-16 border nier-border-primary flex items-center justify-center bg-white p-2 shadow-inner">
                       <img :src="assetIcon" class="w-full h-full object-contain" @error="imageLoadError = true" />
                     </div>
-                    <div v-else class="w-16 h-16 border border-black/10 dark:border-white/10 flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner">
-                      <span class="text-2xl font-black opacity-20 font-mono text-black dark:text-white uppercase">{{ selectedTrade?.asset?.slice(0, 2) }}</span>
+                    <div v-else class="w-16 h-16 border nier-border-primary flex items-center justify-center bg-black/5 dark:bg-white/5 shadow-inner">
+                      <span class="text-2xl font-black opacity-20 font-mono nier-text-primary uppercase">{{ selectedTrade?.asset?.slice(0, 2) }}</span>
                     </div>
                    <div class="flex flex-col">
-                     <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.5em] text-black dark:text-white">{{ t('genesis.virtualLog.assetIdentifier') }}</span>
-                     <h3 class="text-3xl font-light font-serif tracking-[0.2em] uppercase text-black dark:text-white mt-1 leading-none">
+                     <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.5em] nier-text-primary">{{ t('genesis.virtualLog.assetIdentifier') }}</span>
+                     <h3 class="text-3xl font-light font-serif tracking-[0.2em] uppercase nier-text-primary mt-1 leading-none">
                        {{ selectedTrade?.asset }}
                      </h3>
                    </div>
@@ -227,60 +228,60 @@
                   <div class="grid grid-cols-2 gap-x-8 gap-y-8 px-6 pb-6 mt-4">
                     <!-- ENTRY -->
                     <div class="flex flex-col">
-                      <span v-if="hasMultipleEntries" class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ locale === 'ru' ? 'СРЕДНИЙ_ВХОД' : 'AVERAGE_ENTRY' }}</span>
-                      <span v-else class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ t('genesis.virtualLog.entryPrice') }}</span>
-                      <span class="text-xl font-mono font-bold text-black dark:text-white mt-2 leading-none">{{ formatFullPrice(selectedTrade?.entry) }}</span>
-                      <span class="text-[12px] font-mono opacity-50 text-black dark:text-white mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.date).replace('\n', ' // ') }}</span>
+                      <span v-if="hasMultipleEntries" class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'СРЕДНИЙ_ВХОД' : 'AVERAGE_ENTRY' }}</span>
+                      <span v-else class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.entryPrice') }}</span>
+                      <span class="font-mono font-bold nier-text-primary mt-2 leading-none" :class="getDynamicPriceClass(selectedTrade?.entry)">{{ formatFullPrice(selectedTrade?.entry) }}</span>
+                      <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.date).replace('\n', ' // ') }}</span>
                     </div>
 
                     <!-- EXIT -->
                     <div class="flex flex-col">
-                      <span v-if="hasMultipleExits" class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ locale === 'ru' ? 'СРЕДНИЙ_ВЫХОД' : 'AVERAGE_EXIT' }}</span>
-                      <span v-else class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ t('genesis.virtualLog.exitPrice') }}</span>
-                      <span class="text-xl font-mono font-bold text-black dark:text-white mt-2 leading-none">{{ formatFullPrice(selectedTrade?.exit) }}</span>
-                      <span class="text-[12px] font-mono opacity-50 text-black dark:text-white mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') }}</span>
+                      <span v-if="hasMultipleExits" class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'СРЕДНИЙ_ВЫХОД' : 'AVERAGE_EXIT' }}</span>
+                      <span v-else class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.exitPrice') }}</span>
+                      <span class="font-mono font-bold nier-text-primary mt-2 leading-none" :class="getDynamicPriceClass(selectedTrade?.exit)">{{ formatFullPrice(selectedTrade?.exit) }}</span>
+                      <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') }}</span>
                     </div>
 
                     <!-- RISK MANAGEMENT -->
                     <div class="flex flex-col pt-4 border-t border-black/5 dark:border-white/5">
-                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ t('genesis.virtualLog.riskExposure') }}</span>
+                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.riskExposure') }}</span>
                       <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex items-baseline justify-between">
-                          <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ t('genesis.virtualLog.stopLoss') }}</span>
-                          <span class="text-sm font-mono font-bold text-black dark:text-white tracking-widest">{{ formatFullPrice(selectedTrade?.stopLoss) }}</span>
+                          <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.stopLoss') }}</span>
+                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatFullPrice(selectedTrade?.stopLoss) }}</span>
                         </div>
                         <div class="flex items-baseline justify-between">
-                          <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ t('genesis.virtualLog.takeProfit') }}</span>
-                          <span class="text-sm font-mono font-bold text-black dark:text-white tracking-widest">{{ formatFullPrice(selectedTrade?.takeProfit) }}</span>
+                          <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.takeProfit') }}</span>
+                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatFullPrice(selectedTrade?.takeProfit) }}</span>
                         </div>
                       </div>
                     </div>
 
                     <!-- PERFORMANCE -->
                     <div class="flex flex-col pt-4 border-t border-black/5 dark:border-white/5">
-                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ t('genesis.virtualLog.tradeMetrics') }}</span>
+                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.tradeMetrics') }}</span>
                       <div class="flex flex-col mt-2 space-y-2">
                          <div class="flex items-baseline justify-between">
-                           <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ t('genesis.virtualLog.rrRatio') }}</span>
-                           <span class="text-sm font-mono font-bold text-black dark:text-white tracking-widest">1:{{ calculateRR(selectedTrade) }}</span>
+                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.rrRatio') }}</span>
+                           <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">1:{{ calculateRR(selectedTrade) }}</span>
                          </div>
                          <div class="flex items-baseline justify-between">
-                           <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ t('genesis.virtualLog.duration') }}</span>
-                           <span class="text-sm font-mono font-bold text-black dark:text-white tracking-widest">{{ calculateDuration(selectedTrade) }}</span>
+                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.duration') }}</span>
+                           <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ calculateDuration(selectedTrade) }}</span>
                          </div>
                       </div>
                     </div>
 
                     <!-- COMMISSIONS -->
                     <div class="flex flex-col pt-4 border-t border-black/5 dark:border-white/5 col-span-2" v-if="selectedTrade?.entryFee || selectedTrade?.exitFee">
-                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] text-black dark:text-white">{{ locale === 'ru' ? 'КОМИССИИ' : 'COMMISSIONS' }}</span>
+                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'КОМИССИИ' : 'COMMISSIONS' }}</span>
                       <div class="flex mt-2 space-x-8">
                          <div class="flex flex-col flex-1 space-y-1">
-                            <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ locale === 'ru' ? 'ВХОДНАЯ' : 'ENTRY' }}</span>
+                            <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ locale === 'ru' ? 'ВХОДНАЯ' : 'ENTRY' }}</span>
                             <span class="text-sm font-mono font-bold text-amber-500/80 tracking-widest">{{ getEntryFeeDisplay(selectedTrade) }}</span>
                          </div>
                          <div class="flex flex-col flex-1 space-y-1">
-                            <span class="text-[8px] font-mono opacity-30 text-black dark:text-white uppercase">{{ locale === 'ru' ? 'ВЫХОДНАЯ' : 'EXIT' }}</span>
+                            <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ locale === 'ru' ? 'ВЫХОДНАЯ' : 'EXIT' }}</span>
                             <span class="text-sm font-mono font-bold text-amber-500/80 tracking-widest">{{ getExitFeeDisplay(selectedTrade) }}</span>
                          </div>
                       </div>
@@ -377,65 +378,28 @@
     <div v-if="!showNodeMap && isHudVisible && viewType !== 'tree' && !isTradeEntryOpen" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
        
        <!-- The Dropdown Menu -->
-       <Transition name="protocol-slide">
-         <div class="absolute bottom-full mb-6 w-80 z-[200] pointer-events-auto" v-if="showStrategyMenu">
-           <ExPanel variant="light" :no-padding="true" :no-shadow="true" :show-corners="true" class="!border-black/20 dark:!border-white/20">
-            <!-- Topbar -->
-            <div class="flex items-center justify-between px-3 py-1.5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
-            </div>
 
-
-            <div class="max-h-80 overflow-y-auto custom-scrollbar py-2">
-               <div v-for="s in strategies" :key="s.id" 
-                    @click.stop="selectStrategy(s.id)" 
-                    class="group/item relative px-8 py-4 cursor-pointer transition-all duration-300"
-                    :class="selectedStrategyId === s.id ? 'bg-black dark:bg-white' : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'">
-                  
-                  <div v-if="selectedStrategyId === s.id" class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white dark:bg-black rotate-45 ml-4"></div>
-                  
-                  <span class="relative z-10 text-[10px] font-mono tracking-[0.3em] uppercase font-bold transition-colors duration-300"
-                        :class="selectedStrategyId === s.id ? 'text-white dark:text-black' : 'text-black/50 dark:text-white/50 group-hover/item:text-black dark:group-hover/item:text-white'">
-                     {{ s.name }}
-                  </span>
-                  <div class="absolute bottom-0 left-0 h-px bg-black dark:bg-white w-0 group-hover/item:w-full transition-all duration-500 opacity-20"></div>
-               </div>
-            </div>
-         </ExPanel>
-         </div>
-       </Transition>
 
        <!-- The Pagination + Protocol Select Button Row -->
        <div class="flex items-center space-x-4">
           <!-- Left Pagination Arrow -->
-          <button @click="prevCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border border-black/10 dark:border-white/10 flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
+          <button @click="prevCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
              <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-black/30 dark:border-white/30"></div>
              <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-black/30 dark:border-white/30"></div>
              <div class="w-2 h-2 border-t-2 border-l-2 border-black dark:border-white -rotate-45 group-hover/arrow:-translate-x-0.5 transition-transform"></div>
           </button>
 
           <!-- The Button -->
-          <div class="flex items-center space-x-6 px-8 py-4 bg-white/5 dark:bg-black/5 border border-black/10 dark:border-white/10 relative group/hud backdrop-blur-md pointer-events-auto cursor-pointer"
-               @click="showStrategyMenu = !showStrategyMenu">
-             <!-- Corner Decor -->
-             <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black/30 dark:border-white/30"></div>
-             <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black/30 dark:border-white/30"></div>
-
-             <div class="flex flex-col min-w-[220px] py-1">
-                <span class="text-[7px] font-mono opacity-50 uppercase tracking-[0.5em] font-bold text-black dark:text-white">{{ t('genesis.virtualLog.systemProtocolSelect') }}</span>
-                <div class="flex items-center justify-between mt-1">
-                   <div class="flex items-center gap-3">
-                      <div class="w-1.5 h-1.5 bg-black dark:bg-white rotate-45 animate-pulse"></div>
-                      <span class="text-[11px] font-mono tracking-[0.3em] uppercase font-black leading-tight text-black dark:text-white" :class="isMatrixLoading ? 'animate-pulse' : ''">
-                        {{ isMatrixLoading ? t('genesis.virtualLog.loadingProtocol') : selectedStrategyLabel }}
-                      </span>
-                   </div>
-                   <div class="w-2 h-2 border-b-2 border-r-2 border-black/60 dark:border-white/60 rotate-45 ml-4 transition-transform duration-500" :class="showStrategyMenu ? '-rotate-[135deg] translate-y-1' : ''"></div>
-                </div>
-             </div>
-          </div>
+          <SystemProtocolSelect
+            v-model="selectedStrategyId"
+            :strategies="strategies"
+            :is-loading="isMatrixLoading"
+            menu-position="top"
+            @update:modelValue="selectStrategy($event)"
+          />
 
           <!-- Right Pagination Arrow -->
-          <button @click="nextCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border border-black/10 dark:border-white/10 flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
+          <button @click="nextCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
              <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-black/30 dark:border-white/30"></div>
              <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-black/30 dark:border-white/30"></div>
              <div class="w-2 h-2 border-t-2 border-r-2 border-black dark:border-white rotate-45 group-hover/arrow:translate-x-0.5 transition-transform"></div>
@@ -507,12 +471,12 @@
       <Transition name="protocol-slide">
       <div v-if="isTemporalOpen" 
            class="fixed inset-0 z-[2000] flex items-center justify-center p-20 bg-black/40 dark:bg-black/80 backdrop-blur-md">
-        <div class="relative w-full max-w-4xl bg-white dark:bg-black border border-black/40 dark:border-white/40 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto">
+        <div class="relative w-full max-w-4xl nier-bg-panel border border-black/40 dark:border-white/40 shadow-[0_0_100px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto">
           
-          <div class="flex items-center justify-between px-10 py-6 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
+          <div class="flex items-center justify-between px-10 py-6 border-b nier-border-primary bg-black/5 dark:bg-white/5">
             <div class="flex items-center gap-4">
-              <div class="w-2 h-2 bg-black dark:bg-white rotate-45"></div>
-              <span class="text-xs uppercase tracking-[0.8em] font-black font-mono text-black dark:text-white">{{ t('genesis.virtualLog.temporalMatrixProtocol') }}</span>
+              <div class="w-2 h-2 nier-bg-inverted rotate-45"></div>
+              <span class="text-xs uppercase tracking-[0.8em] font-black font-mono nier-text-primary">{{ t('genesis.virtualLog.temporalMatrixProtocol') }}</span>
             </div>
 
             <button @click="isTemporalOpen = false" 
@@ -525,14 +489,14 @@
             <div class="flex flex-col p-10 gap-8 justify-center items-center">
               <div class="flex flex-col items-center gap-4 text-center max-w-xs">
                 <div class="w-8 h-8 border border-black/20 dark:border-white/20 flex items-center justify-center rotate-45 mb-4">
-                  <div class="w-2 h-2 bg-black dark:bg-white animate-pulse"></div>
+                  <div class="w-2 h-2 nier-bg-inverted animate-pulse"></div>
                 </div>
-                <span class="text-xs uppercase tracking-widest font-mono font-bold text-black dark:text-white">{{ t('genesis.virtualLog.customTemporalLock') }}</span>
-                <p class="text-[10px] font-mono text-black/40 dark:bg-white/40 tracking-wider mb-4 leading-relaxed">
+                <span class="text-xs uppercase tracking-widest font-mono font-bold nier-text-primary">{{ t('genesis.virtualLog.customTemporalLock') }}</span>
+                <p class="text-[10px] font-mono text-black/40 dark:text-white/40 tracking-wider mb-4 leading-relaxed">
                   {{ t('genesis.virtualLog.temporalDescription') }}
                 </p>
                 <button @click="customDate = new Date(); syncTempParts()" 
-                        class="w-full py-3 border border-black/10 dark:border-white/10 text-[9px] uppercase tracking-widest text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10 font-mono cursor-pointer font-bold transition-all shadow-sm">
+                        class="w-full py-3 border nier-border-primary text-[9px] uppercase tracking-widest text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10 font-mono cursor-pointer font-bold transition-all shadow-sm">
                   {{ t('genesis.virtualLog.syncToCurrentSystemTime') }}
                 </button>
               </div>
@@ -542,12 +506,12 @@
               <div class="flex flex-col items-center gap-10 font-mono">
                 <div class="flex items-center gap-4">
                   <div v-for="unit in ['day', 'month', 'year']" :key="unit" class="flex flex-col items-center gap-2">
-                    <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                    <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px nier-bg-inverted"></div></button>
                     <input v-model="tempDateParts[unit as any]"
                            :maxlength="unit === 'year' ? 4 : 2"
                            @input="e => handleManualDate(activeTemporalTarget, unit, (e.target as any).value)"
-                           class="w-24 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-tighter text-black dark:text-white" />
-                    <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                           class="w-24 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-tighter nier-text-primary" />
+                    <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px nier-bg-inverted"></div></button>
                     <span class="text-[7px] uppercase tracking-widest text-black/40 dark:text-white/40">{{ translateTemporalUnit(unit) }}</span>
                   </div>
                 </div>
@@ -556,12 +520,12 @@
 
                 <div class="flex items-center gap-6">
                   <div v-for="unit in ['hour', 'minute']" :key="unit" class="flex flex-col items-center gap-2">
-                    <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                    <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px nier-bg-inverted"></div></button>
                     <input v-model="tempDateParts[unit as any]"
                            maxlength="2"
                            @input="e => handleManualDate(activeTemporalTarget, unit, (e.target as any).value)"
-                           class="w-20 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-widest text-black dark:text-white" />
-                    <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                           class="w-20 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-widest nier-text-primary" />
+                    <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity cursor-pointer"><div class="w-4 h-px nier-bg-inverted"></div></button>
                     <span class="text-[7px] uppercase tracking-widest text-black/40 dark:text-white/40">{{ translateTemporalUnit(unit) }}</span>
                   </div>
                 </div>
@@ -600,8 +564,9 @@ import OpenStrategyMetrics from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
 import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
 import ExGenesisTree from '~/widgets/genesis/tree/ui/ExGenesisTree.vue'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
+import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
 
-const emit = defineEmits(['exit', 'nodeMapState', 'hudState'])
+const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openTrade'])
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore?.settings?.isDark ?? false)
@@ -752,27 +717,24 @@ watch(isHudVisible, (val) => {
 })
 const showPaywall = ref(false)
 const canOpenCapitalForecast = computed(() => {
-  return false
+  return true
 })
 
 const openNodeMap = () => {
-  showPaywall.value = true
-  return
+  showNodeMap.value = true
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
-  showPaywall.value = true
-  return
+  emit('openNote', payload)
 }
 
 const handleOpenTrade = (payload: { tradeId: string }) => {
-  showPaywall.value = true
-  return
+  emit('openTrade', payload)
 }
 
 const handleTreeOpenTradeArchive = (trade: { id?: string; strategyId?: string }) => {
-  showPaywall.value = true
-  return
+  if (!trade.id || !trade.strategyId) return
+  emit('openTrade', { tradeId: trade.id })
 }
 
 watch(showNodeMap, (val) => {
@@ -800,6 +762,16 @@ const formatFullPrice = (value: unknown) => {
   const number = Number(value)
   if (!Number.isFinite(number)) return String(value)
   return Number.isInteger(number) ? String(number) : number.toString()
+}
+
+const getDynamicPriceClass = (price: unknown) => {
+  const str = formatFullPrice(price)
+  const len = str.length
+  if (len > 14) return 'text-[10px]'
+  if (len > 11) return 'text-xs'
+  if (len > 8) return 'text-sm'
+  if (len > 6) return 'text-base'
+  return 'text-xl'
 }
 
 const translateTemporalUnit = (unit: string) => t(`genesis.virtualLog.units.${unit}`)
@@ -1034,11 +1006,7 @@ const complianceDotColor = computed(() => {
 })
 
 const toggleCapitalForecast = () => {
-  if (!canOpenCapitalForecast.value) {
-    showPaywall.value = true
-    showCapitalForecast.value = false
-    return
-  }
+
   showCapitalForecast.value = !showCapitalForecast.value
 }
 

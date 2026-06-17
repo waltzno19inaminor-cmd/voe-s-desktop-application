@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import plugin from 'tailwindcss/plugin'
 
 export default {
     darkMode: 'class',
@@ -13,9 +14,16 @@ export default {
     theme: {
         extend: {
             colors: {
+                'theme': {
+                    'bg': 'rgb(var(--theme-bg-rgb) / <alpha-value>)',
+                    'panel': 'rgb(var(--theme-panel-rgb) / <alpha-value>)',
+                    'text': 'rgb(var(--theme-text-rgb) / <alpha-value>)',
+                    'border': 'rgb(var(--theme-border-rgb) / <alpha-value>)',
+                    'accent': 'rgb(var(--theme-accent-rgb) / <alpha-value>)',
+                },
                 'nier': {
                     'black': '#0a0a0a',
-                    'white': '#f4f4f2',
+                    'white': '#FFFFFF',
                     'text': {
                         'light': '#2c2c2a',
                         'dark': '#ffffff'
@@ -32,5 +40,36 @@ export default {
             }
         }
     },
-    plugins: []
+    plugins: [
+        plugin(function({ addUtilities }) {
+            addUtilities({
+                '.nier-text-primary': {
+                    'color': 'var(--theme-text)',
+                },
+                '.nier-text-secondary': {
+                    'color': 'var(--theme-muted)',
+                },
+                '.nier-text-inverted': {
+                    'color': 'var(--theme-bg)',
+                },
+                '.nier-bg-primary': {
+                    'background-color': 'var(--theme-bg)',
+                },
+                '.nier-bg-panel': {
+                    'background-color': 'var(--theme-panel)',
+                },
+                '.nier-bg-inverted': {
+                    'background-color': 'var(--theme-text)',
+                },
+                '.nier-border-primary': {
+                    'border-color': 'var(--theme-border)',
+                },
+                '.theme-grid': {
+                    'background-image': 'radial-gradient(var(--theme-grid-dot) 1px, transparent 1px)',
+                    'background-size': '24px 24px',
+                    'background-position': 'center',
+                },
+            })
+        })
+    ]
 } satisfies Config

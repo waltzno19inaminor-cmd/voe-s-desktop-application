@@ -14,22 +14,36 @@
      <!-- NIER STYLE SKILL CHIP (Reified with Design System) -->
      <ExNTtooltip :title="tooltipTitle" :disabled="isScenarioContentNode" class="w-full h-full">
        <template #trigger>
-           <div class="relative w-full h-full border-[2px] flex flex-col items-center justify-center transition-all duration-500"
-                :class="[
-                  node.type === 'placeholder' ? 'border-dashed border-[1px] opacity-80' : '',
-                  isRiskPanel ? '' : (
-                    isSelected ? (node.type === 'risk-element' ? 'border-red-500 shadow-[0_0_60px_rgba(239,68,68,0.3)]' : 'border-nier-text-light dark:border-nier-text-dark shadow-[0_0_60px_rgba(44,44,42,0.3)] dark:shadow-[0_0_60px_rgba(255,255,255,0.3)]') : (node.type === 'risk-element' ? 'border-red-500/40 group-hover:border-red-500' : 'border-nier-border-light dark:border-nier-border-dark group-hover:border-nier-text-light dark:group-hover:border-nier-text-dark group-hover:shadow-[0_0_60px_rgba(44,44,42,0.2)] dark:group-hover:shadow-[0_0_60px_rgba(255,255,255,0.2)]')
-                  ),
-                  (node.type === 'image' || node.type === 'step' || node.type === 'scaling-entry' || isRiskPanel) ? 'border-none shadow-none' : ''
-                ]"
-                :style="node.params?.needsConfig ? {} : (displayColor ? { borderColor: displayColor, boxShadow: isSelected ? `0 0 60px ${displayColor}40` : `0 0 30px ${displayColor}20` } : {})"
-                @dblclick.stop="$emit('doubleclick')">
+          <!-- Editing Description Overlay -->
+          <div v-if="node.params?.isEditingDescription" class="w-full h-full relative pointer-events-auto z-50">
+            <ExPanel variant="light" :showCorners="true" noPadding class="w-full h-full">
+              <textarea
+                v-model="node.params.customDescription"
+                @blur="node.params.isEditingDescription = false"
+                v-autofocus
+                placeholder="ENTER_DESCRIPTION..."
+                class="w-full h-full bg-transparent text-nier-text-light dark:text-nier-text-dark p-4 text-[12px] font-mono tracking-widest outline-none resize-none"
+              ></textarea>
+            </ExPanel>
+          </div>
+
+          <!-- Normal Node View -->
+          <div v-else class="relative w-full h-full border-[2px] flex flex-col items-center justify-center transition-all duration-500"
+               :class="[
+                 node.type === 'placeholder' ? 'border-dashed border-[1px] opacity-80' : '',
+                 isRiskPanel ? '' : (
+                   isSelected ? (node.type === 'risk-element' ? 'border-red-500 shadow-[0_0_60px_rgba(239,68,68,0.3)]' : 'border-nier-text-light dark:border-nier-text-dark shadow-[0_0_60px_rgba(44,44,42,0.3)] dark:shadow-[0_0_60px_rgba(255,255,255,0.3)]') : (node.type === 'risk-element' ? 'border-red-500/40 group-hover:border-red-500' : 'border-nier-border-light dark:border-nier-border-dark group-hover:border-nier-text-light dark:group-hover:border-nier-text-dark group-hover:shadow-[0_0_60px_rgba(44,44,42,0.2)] dark:group-hover:shadow-[0_0_60px_rgba(255,255,255,0.2)]')
+                 ),
+                 (node.type === 'image' || node.type === 'step' || node.type === 'scaling-entry' || isRiskPanel) ? 'border-none shadow-none' : ''
+               ]"
+               :style="displayColor ? { borderColor: displayColor, boxShadow: isSelected ? `0 0 60px ${displayColor}40` : `0 0 30px ${displayColor}20` } : {}"
+               @dblclick.stop="$emit('doubleclick')">
 
              <!-- Separate Background Layer -->
              <div class="absolute inset-0 pointer-events-none -z-10 transition-colors duration-500"
                   :class="[
                     (node.type === 'step' || node.type === 'scaling-entry') ? 'rounded-full bg-nier-text-light dark:bg-nier-text-dark' : 'bg-nier-white/10 dark:bg-nier-black/10',
-                    node.params?.needsConfig ? 'needs-config-pulse !bg-red-500/10' : '',
+                    '',
                     node.type === 'image' ? '!bg-transparent' : '',
                     isRiskPanel ? '!bg-transparent' : '',
                     node.params?.direction === 'LONG' ? '!bg-green-500/50' : '',
@@ -95,10 +109,10 @@
                   class="w-[360px] min-h-[320px] !border-red-500/30 dark:!border-red-400/30"
                   :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden }">
                   <div v-if="isRiskPanelContentHidden" class="risk-panel-hatch"></div>
-                  <div class="relative z-10 flex items-center justify-between border-b border-black/10 dark:border-white/10 px-4 py-2 bg-red-500/[0.03]">
+                  <div class="relative z-10 flex items-center justify-between border-b nier-border-primary px-4 py-2 bg-red-500/[0.03]">
                     <div class="flex items-center gap-3">
                       <div class="w-2 h-2 rotate-45 bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]"></div>
-                      <span class="text-[9px] font-mono uppercase tracking-[0.28em] font-black text-white">Risk_Management</span>
+                      <span class="text-[9px] font-mono uppercase tracking-[0.28em] font-black nier-text-primary">Risk_Management</span>
                     </div>
                     <span class="text-[8px] font-mono uppercase tracking-[0.18em] text-red-500/70">Panel</span>
                   </div>
@@ -397,18 +411,36 @@
            </svg>
            </div>
 
-           <!-- Connection Points -->
-            <div v-if="!node.isRoot" @mousedown.stop="$emit('pickup-input', node)" @mouseup.stop="$emit('drop', node)"
+            <!-- Connection Points -->
+            <!-- Left (Passive) -->
+            <div v-if="!node.isRoot" @mousedown.stop="$emit('pickup-input', { node, port: 'left' })" @mouseup.stop="$emit('drop', { node, port: 'left' })"
                  @dblclick.stop="$emit('clear-input', node)"
                  :class="[
                    isClosest ? 'opacity-100 scale-125' : 'opacity-0 group-hover:opacity-100',
                    isRiskPanel ? '!shadow-none dark:!shadow-none' : ''
                  ]"
                  class="absolute top-1/2 -translate-y-1/2 w-[12px] h-[12px] -left-[6px] border-[2px] border-nier-text-light dark:border-nier-text-dark rotate-45 bg-nier-white dark:bg-nier-black transition-all shadow-[0_0_20px_rgba(44,44,42,0.3)] dark:shadow-[0_0_20px_rgba(255,255,255,0.3)]"></div>
-            <div @mousedown.stop="$emit('start-output', node)"
+            
+            <!-- Right (Active) -->
+            <div @mousedown.stop="$emit('start-output', { node, port: 'right' })"
                  @dblclick.stop="$emit('clear-output', node)"
                  :class="isRiskPanel ? '!shadow-none dark:!shadow-none' : ''"
                  class="absolute top-1/2 -translate-y-1/2 w-[12px] h-[12px] -right-[6px] border-[2px] border-nier-text-light dark:border-nier-text-dark rotate-45 bg-nier-white dark:bg-nier-black opacity-0 group-hover:opacity-100 transition-all hover:bg-nier-text-light dark:hover:bg-nier-text-dark shadow-[0_0_20px_rgba(44,44,42,0.3)] dark:shadow-[0_0_20px_rgba(255,255,255,0.3)]"></div>
+
+            <!-- Top (Passive) -->
+            <div v-if="!node.isRoot" @mousedown.stop="$emit('pickup-input', { node, port: 'top' })" @mouseup.stop="$emit('drop', { node, port: 'top' })"
+                 @dblclick.stop="$emit('clear-input', node)"
+                 :class="[
+                   isClosest ? 'opacity-100 scale-125' : 'opacity-0 group-hover:opacity-100',
+                   isRiskPanel ? '!shadow-none dark:!shadow-none' : ''
+                 ]"
+                 class="absolute left-1/2 -translate-x-1/2 w-[12px] h-[12px] -top-[6px] border-[2px] border-nier-text-light dark:border-nier-text-dark rotate-45 bg-nier-white dark:bg-nier-black transition-all shadow-[0_0_20px_rgba(44,44,42,0.3)] dark:shadow-[0_0_20px_rgba(255,255,255,0.3)]"></div>
+
+            <!-- Bottom (Active) -->
+            <div @mousedown.stop="$emit('start-output', { node, port: 'bottom' })"
+                 @dblclick.stop="$emit('clear-output', node)"
+                 :class="isRiskPanel ? '!shadow-none dark:!shadow-none' : ''"
+                 class="absolute left-1/2 -translate-x-1/2 w-[12px] h-[12px] -bottom-[6px] border-[2px] border-nier-text-light dark:border-nier-text-dark rotate-45 bg-nier-white dark:bg-nier-black opacity-0 group-hover:opacity-100 transition-all hover:bg-nier-text-light dark:hover:bg-nier-text-dark shadow-[0_0_20px_rgba(44,44,42,0.3)] dark:shadow-[0_0_20px_rgba(255,255,255,0.3)]"></div>
             <div v-if="node.type === 'condition' && node.params?.priority && node.params.priority !== 'NONE'"
                  class="absolute -bottom-1 -right-1 w-2 h-2 rotate-45 border border-white/70"
                  :class="node.params.priority === 'REQUIRED' ? 'bg-[#ff0000]' : 'bg-[#00d4ff]'"
@@ -450,7 +482,7 @@
            </template>
            <template v-else-if="node.type === 'emotion-state'">
              <div class="flex min-w-[180px] flex-col gap-2">
-               <p class="font-mono text-[13px] font-black uppercase tracking-wide text-black dark:text-white">
+               <p class="font-mono text-[13px] font-black uppercase tracking-wide nier-text-primary">
                  {{ emotionTooltipData.title }}
                </p>
                <div class="h-px w-full bg-white/20"></div>
@@ -460,28 +492,31 @@
              </div>
            </template>
            <!-- Default tooltip body for other node types -->
-           <div v-else-if="node.params?.description || node.params?.value || node.type === 'scaling-entry'">
-             <p class="text-[11px] leading-relaxed text-nier-text-light dark:text-nier-text-dark font-bold uppercase tracking-wide">
-                <template v-if="node.type === 'scaling-entry'">
-                   <template v-if="locale === 'ru'">
-                      {{ node.params.lotsMode === 'PERCENT' ? node.params.lots + '% КАПИТАЛА' : node.params.lots + ' ЛОТОВ' }} в {{ node.params.step === 0 && node.params.unit === '$' ? 'ЦЕНА_ВХОДА' : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}
-                   </template>
-                   <template v-else>
-                      {{ node.params.lotsMode === 'PERCENT' ? node.params.lots + '% CAP' : node.params.lots + ' LOTS' }} in {{ node.params.step === 0 && node.params.unit === '$' ? 'ENTRY_PRICE' : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}
-                   </template>
-                </template>
-                <template v-else-if="node.type === 'smc'">
-                   {{ smcTooltipData?.description }}
-                </template>
-                <template v-else>
-                  {{ locale === 'ru' ? t(node.params.description || node.params.value || '') : (node.params.description || node.params.value || '') }}
-                </template>
-             </p>
+           <div v-else-if="node.params?.customDescription || node.params?.description || node.params?.value || node.type === 'scaling-entry'">
+              <p v-if="node.params?.customDescription" class="text-[11px] leading-relaxed text-nier-text-light dark:text-nier-text-dark font-bold uppercase tracking-wide whitespace-pre-wrap">
+                 {{ node.params.customDescription }}
+              </p>
+              <p v-else class="text-[11px] leading-relaxed text-nier-text-light dark:text-nier-text-dark font-bold uppercase tracking-wide">
+                 <template v-if="node.type === 'scaling-entry'">
+                    <template v-if="locale === 'ru'">
+                       {{ node.params.lotsMode === 'PERCENT' ? node.params.lots + '% КАПИТАЛА' : node.params.lots + ' ЛОТОВ' }} в {{ node.params.step === 0 && node.params.unit === '$' ? 'ЦЕНА_ВХОДА' : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}
+                    </template>
+                    <template v-else>
+                       {{ node.params.lotsMode === 'PERCENT' ? node.params.lots + '% CAP' : node.params.lots + ' LOTS' }} in {{ node.params.step === 0 && node.params.unit === '$' ? 'ENTRY_PRICE' : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}
+                    </template>
+                 </template>
+                 <template v-else-if="node.type === 'smc'">
+                    {{ smcTooltipData?.description }}
+                 </template>
+                 <template v-else>
+                   {{ locale === 'ru' ? t(node.params.description || node.params.value || '') : (node.params.description || node.params.value || '') }}
+                 </template>
+              </p>
            </div>
           <div class="flex items-center space-x-4 opacity-40 text-[8px] font-mono">
              <span>{{ locale === 'ru' ? 'ТИП' : 'TYPE' }}: {{ locale === 'ru' && t(node.type) && t(node.type) !== node.type ? t(node.type).toUpperCase() : node.type.toUpperCase() }}</span>
              <span v-if="node.type === 'condition'">{{ locale === 'ru' ? 'ПРИОРИТЕТ' : 'PRIORITY' }}: {{ node.params?.priority === 'REQUIRED' ? (locale === 'ru' ? 'ОБЯЗАТЕЛЬНО' : 'REQUIRED') : node.params?.priority === 'ADDITIONAL' ? (locale === 'ru' ? 'ДОПОЛНИТЕЛЬНО' : 'ADDITIONAL') : (locale === 'ru' ? 'НЕТ' : 'NONE') }}</span>
-             <span>{{ locale === 'ru' ? 'СТАТУС' : 'STATUS' }}: {{ node.params?.needsConfig ? (locale === 'ru' ? 'ОЖИДАЕТ_НАСТРОЙКИ' : 'AWAITING_REIFICATION') : (locale === 'ru' ? 'АКТИВИРОВАНО' : 'REIFIED') }}</span>
+             <span>{{ locale === 'ru' ? 'СТАТУС' : 'STATUS' }}: {{ locale === 'ru' ? 'АКТИВИРОВАНО' : 'REIFIED' }}</span>
            </div>
         </div>
      </ExNTtooltip>
@@ -541,33 +576,39 @@
          </div>
       </div>
 
-     <!-- Custom Identity Label -->
-      <div v-if="['condition', 'scenario', 'strategy'].includes(node.type) && (node.params?.customName || node.params?.isEditingName)"
+     <!-- Custom Labels Container -->
+      <div v-if="['condition', 'scenario', 'strategy'].includes(node.type) && (node.params?.customName || node.params?.isEditingName || node.params?.customDescription || node.params?.isEditingDescription)"
            v-show="scale > 0.25"
-           class="absolute top-full left-1/2 mt-2 flex flex-col items-center z-50"
+           class="absolute top-full left-1/2 mt-2 flex flex-col items-center gap-2 z-50"
            :style="{ transform: `translate(-50%, 0) scale(${scale})`, transformOrigin: 'top center' }">
-       <!-- Editing Mode -->
-       <div v-if="node.params?.isEditingName" class="min-w-full w-max pointer-events-auto relative">
-          <ExInput
-            variant="terminal"
-            :modelValue="node.params.customName"
-            @update:modelValue="node.params.customName = $event.toUpperCase()"
-            @blur="node.params.isEditingName = false"
-            @keyup.enter="node.params.isEditingName = false"
-            v-autofocus
-            placeholder="ENTER_ID..."
-            class="bg-nier-white dark:bg-nier-black"
-          />
-       </div>
-        <!-- Display Mode -->
-        <div v-else-if="node.params?.customName"
-             class="min-w-full w-max bg-nier-white dark:bg-nier-black border border-nier-border-light dark:border-nier-border-dark shadow-[0_5px_15px_rgba(0,0,0,0.5)] pointer-events-none relative text-center px-4 py-1.5 flex flex-col items-center">
-           <ExText variant="telemetry" class="!opacity-100 font-black">{{ node.params.customName }}</ExText>
-           <!-- Mini Corners -->
-           <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-nier-border-light dark:border-nier-border-dark"></div>
-           <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-nier-border-light dark:border-nier-border-dark"></div>
-        </div>
-     </div>
+           
+       <!-- Custom Identity Label -->
+       <template v-if="node.params?.customName || node.params?.isEditingName">
+         <!-- Editing Mode -->
+         <div v-if="node.params?.isEditingName" class="min-w-full w-max pointer-events-auto relative">
+            <ExInput
+              variant="terminal"
+              :modelValue="node.params.customName"
+              @update:modelValue="node.params.customName = $event.toUpperCase()"
+              @blur="node.params.isEditingName = false"
+              @keyup.enter="node.params.isEditingName = false"
+              v-autofocus
+              placeholder="ENTER_ID..."
+              class="bg-nier-white dark:bg-nier-black"
+            />
+         </div>
+         <!-- Display Mode -->
+         <div v-else-if="node.params?.customName"
+              class="min-w-full w-max bg-nier-white dark:bg-nier-black border border-nier-border-light dark:border-nier-border-dark shadow-[0_5px_15px_rgba(0,0,0,0.5)] pointer-events-none relative text-center px-4 py-1.5 flex flex-col items-center">
+            <ExText variant="telemetry" class="!opacity-100 font-black">{{ node.params.customName }}</ExText>
+            <!-- Mini Corners -->
+            <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-nier-border-light dark:border-nier-border-dark"></div>
+            <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-nier-border-light dark:border-nier-border-dark"></div>
+         </div>
+       </template>
+
+       <!-- End Custom Labels -->
+      </div>
 
       <!-- Emotion State Label -->
        <div v-if="node.type === 'emotion-state' && node.label"
@@ -816,6 +857,7 @@ const scenarioPanelSize = computed(() => (
         ) : { width: 260, height: 180 }
 ))
 const nodeWidth = computed(() => {
+  if (props.node.params?.isEditingDescription) return `${Math.round(400 * props.scale)}px`
   const getW = () => {
     if (props.node.type === 'image') return props.node.params?.width || 300
     if (isAudioNote.value) return scenarioPanelSize.value.width
@@ -831,6 +873,7 @@ const nodeWidth = computed(() => {
   return `${Math.round((getW() * props.scale) / 2) * 2}px`
 })
 const nodeHeight = computed(() => {
+  if (props.node.params?.isEditingDescription) return `${Math.round(250 * props.scale)}px`
   const getH = () => {
     if (props.node.type === 'image') return props.node.params?.height || 200
     if (isAudioNote.value) return scenarioPanelSize.value.height
@@ -1501,7 +1544,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   cursor: text;
 }
 
-:global(.dark) .matrix-text-rich {
+:global(html.dark) .matrix-text-rich {
   --matrix-text-default-color: #ffffff;
 }
 
@@ -1602,7 +1645,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   text-transform: uppercase;
 }
 
-:global(.dark) .risk-panel-field > span {
+:global(html.dark) .risk-panel-field > span {
   color: rgb(255 255 255 / 0.72);
 }
 
@@ -1616,8 +1659,8 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   min-width: 0;
 }
 
-:global(.dark) .risk-panel-control,
-:global(.dark) .risk-style-control {
+:global(html.dark) .risk-panel-control,
+:global(html.dark) .risk-style-control {
   background: rgb(255 255 255 / 0.035);
   border-color: rgb(255 255 255 / 0.16);
 }
@@ -1626,7 +1669,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   appearance: none;
   background: transparent;
   border: 0;
-  color: #fff;
+  color: #000;
   flex: 1 1 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 12px;
@@ -1637,12 +1680,13 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   text-align: center;
 }
 
-:global(.dark) .risk-panel-control input {
+:global(html.dark) .risk-panel-control input {
   color: #fff;
 }
 
 .risk-panel-control input[type='number'] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .risk-panel-control input[type='number']::-webkit-inner-spin-button,
@@ -1652,8 +1696,8 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-panel-control button {
-  border-left: 1px solid rgb(255 255 255 / 0.16);
-  color: rgb(255 255 255 / 0.9);
+  border-left: 1px solid rgb(0 0 0 / 0.16);
+  color: rgb(0 0 0 / 0.9);
   flex: 0 0 34px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
@@ -1662,8 +1706,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-:global(.dark) .risk-panel-control button {
+:global(html.dark) .risk-panel-control button {
   border-left-color: rgb(255 255 255 / 0.14);
+  color: rgb(255 255 255 / 0.9);
 }
 
 .risk-panel-control button:hover {
@@ -1672,7 +1717,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 
 .risk-panel-prefix {
   border-right: 1px solid rgb(0 0 0 / 0.12);
-  color: rgb(255 255 255 / 0.78);
+  color: rgb(0 0 0 / 0.78);
   flex: 0 0 38px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 11px;
@@ -1681,8 +1726,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   text-align: center;
 }
 
-:global(.dark) .risk-panel-prefix {
+:global(html.dark) .risk-panel-prefix {
   border-right-color: rgb(255 255 255 / 0.14);
+  color: rgb(255 255 255 / 0.78);
 }
 
 .risk-style-control {
@@ -1692,7 +1738,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-style-control button {
-  color: rgb(255 255 255 / 0.42);
+  color: rgb(0 0 0 / 0.6);
   flex: 1 1 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: 9px;
@@ -1709,8 +1755,8 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-style-control button::before {
-  border-left: 1px solid rgb(255 255 255 / 0.16);
-  border-top: 1px solid rgb(255 255 255 / 0.16);
+  border-left: 1px solid rgb(0 0 0 / 0.16);
+  border-top: 1px solid rgb(0 0 0 / 0.16);
   content: '';
   height: 6px;
   left: 0;
@@ -1722,6 +1768,11 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   width: 6px;
 }
 
+:global(html.dark) .risk-style-control button::before {
+  border-left-color: rgb(255 255 255 / 0.16);
+  border-top-color: rgb(255 255 255 / 0.16);
+}
+
 .risk-style-control button.is-active {
   background: rgb(239 68 68 / 0.18);
   box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.45), 0 0 18px rgb(239 68 68 / 0.18);
@@ -1729,6 +1780,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-style-control button:not(.is-active):hover {
+  color: rgb(0 0 0 / 0.9);
+}
+:global(html.dark) .risk-style-control button:not(.is-active):hover {
   color: rgb(255 255 255 / 0.78);
 }
 

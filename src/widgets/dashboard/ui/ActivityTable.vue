@@ -67,7 +67,7 @@
                v-model="todaysNote"
                rows="2"
                placeholder="Briefly describe your today's objective..."
-               class="w-full bg-transparent border-b border-black/10 dark:border-white/10 py-2 text-sm text-[#050505] dark:text-white placeholder:text-[#999] dark:placeholder:text-[#333] focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors resize-none italic font-sans"
+               class="w-full bg-transparent border-b nier-border-primary py-2 text-sm text-[#050505] dark:text-white placeholder:text-[#999] dark:placeholder:text-[#333] focus:outline-none focus:border-black/30 dark:focus:border-white/30 transition-colors resize-none italic font-sans"
              ></textarea>
            </div>
         </div>
@@ -84,7 +84,7 @@
             class="relative z-10 overflow-hidden h-14 min-w-44 px-8 rounded-full transition-all duration-500 transform active:scale-95 disabled:opacity-50"
             :class="[
               checkInUsedToday 
-                ? 'bg-black dark:bg-white text-white dark:text-[#050505] shadow-lg shadow-black/10 dark:shadow-white/5' 
+                ? 'nier-bg-inverted text-white dark:text-[#050505] shadow-lg shadow-black/10 dark:shadow-white/5' 
                 : 'bg-transparent border border-black/20 dark:border-white/20 text-[#050505] dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-[#050505] hover:border-transparent'
             ]"
           >

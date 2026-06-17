@@ -73,7 +73,7 @@
                             {{ entry.side }}
                         </div>
                     </div>
-                    <button class="w-8 h-8 rounded-full border border-black/10 dark:border-white/10 flex items-center justify-center text-[#050505] dark:text-white group-hover:bg-black group-hover:dark:bg-white group-hover:text-white group-hover:dark:text-black transition-colors">
+                    <button class="w-8 h-8 rounded-full border nier-border-primary flex items-center justify-center text-[#050505] dark:text-white group-hover:bg-black group-hover:dark:bg-white group-hover:text-white group-hover:dark:text-black transition-colors">
                         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                         </svg>

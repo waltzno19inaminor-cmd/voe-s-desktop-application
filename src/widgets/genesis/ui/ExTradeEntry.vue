@@ -4,6 +4,7 @@ import allAssets from '~/shared/data/global_assets.json'
 import { loadFromDisk } from '~/shared/diskStorage'
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import ExText from '~/shared/ui/ExText.vue'
 import ExEquityCurve2D from '~/widgets/genesis/ui/ExEquityCurve2D.vue'
@@ -12,7 +13,8 @@ import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
-
+import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
+import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 const { locale } = useI18n()
 
 const emit = defineEmits(['addTrade', 'updateTrade', 'close'])
@@ -235,6 +237,57 @@ const activeRiskSnapshot = computed(() => {
     riskRewardRatio: risk.riskRewardRatio,
     tradingStyle: risk.tradingStyle
   }
+})
+
+// ─── Risk Violation Detection ────────────────────────────────────────────────
+const actualRR = computed(() => {
+  const e = +entry.value
+  const tp = +takeProfit.value
+  const sl = +stopLoss.value
+  if (!e || !tp || !sl || e === sl) return null
+  const reward = Math.abs(tp - e)
+  const risk = Math.abs(e - sl)
+  if (risk === 0) return null
+  return reward / risk
+})
+
+const actualRiskPercent = computed(() => {
+  const e = +entry.value
+  const sl = +stopLoss.value
+  const s = +size.value
+  if (!e || !sl || !s) return null
+  const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
+  const riskInAsset = Math.abs(e - sl) * s
+  return (riskInAsset / initialDeposit) * 100
+})
+
+const violatesRR = computed(() => {
+  const required = activeRiskManagement.value.riskRewardRatio
+  if (!required || actualRR.value === null) return false
+  return actualRR.value < required
+})
+
+const violatesRiskPerTrade = computed(() => {
+  const required = activeRiskManagement.value.riskPerTradeValue
+  const unit = activeRiskManagement.value.riskPerTradeUnit
+  if (!required) return false
+  const e = +entry.value
+  const sl = +stopLoss.value
+  const s = +size.value
+  if (!e || !sl || !s) return false
+  const riskInAsset = Math.abs(e - sl) * s
+  const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
+  const riskLimit = unit === '%' ? (required / 100) * initialDeposit : required
+  return riskInAsset > riskLimit
+})
+
+const riskViolationMessage = computed(() => {
+  const rrViol = violatesRR.value
+  const rptViol = violatesRiskPerTrade.value
+  if (rrViol && rptViol) return 'YOU VIOLATE BOTH RISK RULES'
+  if (rrViol) return 'YOU VIOLATE RISK REWARD RULE'
+  if (rptViol) return 'YOU VIOLATE RISK PER TRADE RULE'
+  return null
 })
 
 const getReachableNodes = (startId, allNodes, allConnections) => {
@@ -782,7 +835,7 @@ const getScenarioConditions = (scenarioId) => {
   // Helper to get indicator data
   const getIndicatorData = (nodeId, parentCond) => {
      const n = findNodeById(matrixNodes.value, nodeId)
-                    if (!n || n.params?.needsConfig || n.type === 'placeholder') return null
+                    if (!n || n.type === 'placeholder') return null
      
      return {
         id: n.id,
@@ -835,8 +888,8 @@ const getScenarioConditions = (scenarioId) => {
       // Fallback: Just get all indicators connected to this condition flatly
       const indicatorIds = allConnections.filter(c => c.fromId === cond.id).map(c => c.toId)
       const indicators = [
-         ...allNodes.filter(n => indicatorIds.includes(n.id) && !n.params?.needsConfig && n.type !== 'placeholder'),
-         ...(cond.subGraph?.nodes || []).filter(n => !n.params?.needsConfig && n.type !== 'placeholder')
+         ...allNodes.filter(n => indicatorIds.includes(n.id) && n.type !== 'placeholder'),
+         ...(cond.subGraph?.nodes || []).filter(n => n.type !== 'placeholder')
       ]
       
       indicators.forEach(i => {
@@ -1244,8 +1297,13 @@ const takeProfit = ref('')
 const openDate = ref(new Date())
 const exitDate = ref(new Date())
 
+const cloneDate = (date) => {
+  const cloned = new Date(date)
+  return Number.isNaN(cloned.getTime()) ? new Date() : cloned
+}
+
 const adjustDate = (target, unit, delta) => {
-  const d = new Date(target === 'open' ? openDate.value : exitDate.value)
+  const d = cloneDate(target === 'open' ? openDate.value : exitDate.value)
   if (unit === 'year') d.setFullYear(d.getFullYear() + delta)
   if (unit === 'month') {
     let m = d.getMonth() + delta
@@ -1276,15 +1334,15 @@ const adjustDate = (target, unit, delta) => {
     if (m < 0) m = 59
     d.setMinutes(m)
   }
-  if (target === 'open') openDate.value = new Date(d)
-  else exitDate.value = new Date(d)
+  if (target === 'open') openDate.value = cloneDate(d)
+  else exitDate.value = cloneDate(d)
   
   // After adjustment, we always sync to ensure UI is valid
   syncTempParts()
 }
 
 const formatPart = (date, unit) => {
-  const d = new Date(date)
+  const d = cloneDate(date)
   if (unit === 'year') return d.getFullYear()
   if (unit === 'month') return (d.getMonth() + 1).toString().padStart(2, '0')
   if (unit === 'day') return d.getDate().toString().padStart(2, '0')
@@ -1326,12 +1384,21 @@ const handleManualDate = (target, unit, val) => {
   if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hour) || isNaN(minute)) return
   if (month < 1 || month > 12 || day < 1 || day > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59) return
 
-  const d = new Date(year, month - 1, 1, hour, minute)
+  const currentDate = cloneDate(target === 'open' ? openDate.value : exitDate.value)
+  const d = new Date(
+    year,
+    month - 1,
+    1,
+    hour,
+    minute,
+    currentDate.getSeconds(),
+    currentDate.getMilliseconds()
+  )
   const lastDay = new Date(year, month, 0).getDate()
   d.setDate(Math.min(day, lastDay))
 
-  if (target === 'open') openDate.value = d
-  else exitDate.value = d
+  if (target === 'open') openDate.value = cloneDate(d)
+  else exitDate.value = cloneDate(d)
 }
 
 // Equity Projection Logic
@@ -1456,7 +1523,14 @@ const equityCurveTrades = computed(() => {
 
 const isTemporalOpen = ref(false)
 const activeTemporalTarget = ref('open')
-const tempDateParts = ref({ day: '01', month: '01', year: '2024', hour: '00', minute: '00' })
+const _now = new Date()
+const tempDateParts = ref({
+  day: _now.getDate().toString().padStart(2, '0'),
+  month: (_now.getMonth() + 1).toString().padStart(2, '0'),
+  year: _now.getFullYear().toString(),
+  hour: _now.getHours().toString().padStart(2, '0'),
+  minute: _now.getMinutes().toString().padStart(2, '0')
+})
 
 const syncTempParts = () => {
   const d = activeTemporalTarget.value === 'open' ? openDate.value : exitDate.value
@@ -1525,6 +1599,9 @@ const submit = async () => {
   const finalEntry = entryMethodEnabled.value ? averageEntry.value : +entry.value
   const finalExit = exitMethodEnabled.value ? averageExit.value : +exit.value
   const finalSize = totalSize.value
+  const committedOpenDate = cloneDate(openDate.value)
+  const committedExitDate = cloneDate(exitDate.value)
+  const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
 
   if (!finalEntry || !finalExit || !finalSize) return
   if (commitState.value !== 'idle') return
@@ -1684,7 +1761,7 @@ const submit = async () => {
            side: side.value === 'long' ? 'Long' : 'Short',
            price: parseFloat(e.price) || 0,
            size: parseFloat(e.size) || 0,
-           date: openDate.value,
+           date: cloneDate(committedOpenDate),
            label: entryMethodType.value
          })
        }
@@ -1696,7 +1773,7 @@ const submit = async () => {
          side: side.value === 'long' ? 'Long' : 'Short',
          price: parseFloat(entry.value) || 0,
          size: parseFloat(size.value) || 0,
-         date: openDate.value,
+         date: cloneDate(committedOpenDate),
          label: 'SINGLE'
     })
   }
@@ -1710,7 +1787,7 @@ const submit = async () => {
            side: 'Close',
            price: parseFloat(e.price) || 0,
            size: parseFloat(e.size) || 0,
-           date: exitDate.value,
+           date: cloneDate(committedExitDate),
            label: 'EXIT_SCALE'
          })
        }
@@ -1722,7 +1799,7 @@ const submit = async () => {
          side: 'Close',
          price: parseFloat(exit.value) || 0,
          size: parseFloat(size.value) || 0,
-         date: exitDate.value,
+         date: cloneDate(committedExitDate),
          label: 'SINGLE'
     })
   }
@@ -1737,13 +1814,13 @@ const submit = async () => {
     executions: builtExecutions,
     stopLoss: +stopLoss.value,
     takeProfit: +takeProfit.value,
-    date: openDate.value,
-    dateExit: exitDate.value,
+    date: cloneDate(committedOpenDate),
+    dateExit: cloneDate(committedExitDate),
     profitInCurrency: pnl.value,
     assetType: currentAssetData.value?.type || 'Forex',
     strategyId: selectedStrategyId.value,
     risk: Number.isFinite(activeRiskPerTradeDollars.value) ? activeRiskPerTradeDollars.value : undefined,
-    riskReward: activeRiskManagement.value.riskRewardRatio || undefined,
+    riskReward: plannedRiskReward,
     tradingStyle: activeRiskManagement.value.tradingStyle || undefined,
     riskManagement: activeRiskSnapshot.value || undefined,
     entryFee: +entryFee.value || 0,
@@ -1786,9 +1863,9 @@ const submit = async () => {
 
 <template>
   <div ref="scrollContainer" 
-       class="flex flex-col items-center h-full w-full overflow-y-auto custom-scrollbar transition-colors duration-500 pb-40 bg-white dark:bg-[#0a0a0a] text-black dark:text-white"
+       class="flex flex-col items-center h-full w-full overflow-y-auto custom-scrollbar transition-colors duration-500 pb-40 bg-theme-bg nier-text-primary"
         :class="{ dark: isDark }">
-    
+     <DesignVignette :is-dark="isDark" />
     <!-- CME Metadata Notice Backdrop -->
     <Transition name="fade">
       <div v-if="currentAssetData?.contractSize && showCmeNotice" 
@@ -1797,25 +1874,25 @@ const submit = async () => {
     <!-- CME Metadata Notice -->
     <Transition name="protocol-slide">
       <div v-if="currentAssetData?.contractSize && showCmeNotice" 
-           class="fixed inset-0 m-auto z-[1000] flex flex-col items-center justify-center gap-6 px-12 py-10 bg-black dark:bg-white shadow-[0_0_100px_rgba(0,0,0,0.8)] dark:shadow-[0_0_100px_rgba(255,255,255,0.2)] w-fit min-w-[500px] max-w-2xl h-fit max-h-[80vh] overflow-hidden text-center">
+           class="fixed inset-0 m-auto z-[1000] flex flex-col items-center justify-center gap-6 px-12 py-10 nier-bg-inverted shadow-[0_0_100px_rgba(0,0,0,0.8)] dark:shadow-[0_0_100px_rgba(255,255,255,0.2)] w-fit min-w-[500px] max-w-2xl h-fit max-h-[80vh] overflow-hidden text-center">
         
         <div class="flex flex-col items-center w-full mt-4">
           <div class="flex items-center justify-center gap-4 w-full mb-6">
-            <div class="w-3 h-3 bg-white dark:bg-black rotate-45"></div>
-            <span class="text-xl md:text-2xl font-mono tracking-[0.3em] uppercase font-black text-white dark:text-black">
+            <div class="w-3 h-3 nier-bg-panel rotate-45"></div>
+            <span class="text-xl md:text-2xl font-mono tracking-[0.3em] uppercase font-black nier-text-primary">
               <span v-if="locale === 'en'">CME_CONTRACT_SPECIFICATIONS</span>
               <span v-if="locale === 'ru'">СПЕЦИФИКАЦИИ_КОНТРАКТОВ_CME</span>
             </span>
-            <div class="w-3 h-3 bg-white dark:bg-black rotate-45"></div>
+            <div class="w-3 h-3 nier-bg-panel rotate-45"></div>
           </div>
           <div class="flex flex-col items-center gap-2 h-20 justify-center">
-            <span v-if="locale === 'en'" class="text-xs font-mono tracking-[0.1em] opacity-80 uppercase text-white dark:text-black leading-loose max-w-[90%] transition-opacity">
+            <span v-if="locale === 'en'" class="text-xs font-mono tracking-[0.1em] opacity-80 uppercase nier-text-primary leading-loose max-w-[90%] transition-opacity">
               Utilizing official CME contract sizes for Commodities & Indices to calculate Estimated Yield.
             </span>
-            <span v-if="locale === 'ru'" class="text-[10px] font-mono tracking-[0.1em] opacity-80 uppercase text-white dark:text-black leading-loose max-w-[90%] transition-opacity">
+            <span v-if="locale === 'ru'" class="text-[10px] font-mono tracking-[0.1em] opacity-80 uppercase nier-text-primary leading-loose max-w-[90%] transition-opacity">
               Для расчета ожидаемой прибыли используются официальные размеры контрактов CME для сырья и индексов.
             </span>
-            <div class="mt-2 flex flex-col items-center opacity-60 text-[10px] font-mono tracking-[0.1em] uppercase text-white dark:text-black">
+            <div class="mt-2 flex flex-col items-center opacity-60 text-[10px] font-mono tracking-[0.1em] uppercase nier-text-primary">
               <span v-if="locale === 'en'">(e.g. {{ asset }}: 1 contract = {{ currentAssetData?.contractSize }})</span>
               <span v-if="locale === 'ru'">(например: 1 контракт = {{ currentAssetData?.contractSize }})</span>
             </div>
@@ -1828,7 +1905,7 @@ const submit = async () => {
           <label class="flex items-center gap-3 cursor-pointer group">
             <div class="relative w-5 h-5 border border-white/50 dark:border-black/50 group-hover:border-white dark:group-hover:border-black transition-colors flex items-center justify-center">
               <input type="checkbox" v-model="rememberCmeNotice" class="absolute opacity-0 cursor-pointer w-full h-full" />
-              <div v-if="rememberCmeNotice" class="w-3 h-3 bg-white dark:bg-black"></div>
+              <div v-if="rememberCmeNotice" class="w-3 h-3 nier-bg-panel"></div>
             </div>
             <span class="flex flex-col text-[10px] font-mono tracking-[0.15em] text-white/60 dark:text-black/60 group-hover:text-white dark:group-hover:text-black transition-colors uppercase text-left">
               <span v-if="locale === 'en'">Remember & Don't Show Again</span>
@@ -1837,12 +1914,12 @@ const submit = async () => {
           </label>
           
           <button @click="closeCmeNotice" 
-                  class="px-8 py-3 border border-white dark:border-black text-white dark:text-black font-mono text-sm tracking-[0.2em] hover:bg-white hover:text-black dark:hover:bg-black dark:hover:text-white transition-colors uppercase font-bold relative group/btn overflow-hidden w-48 h-12">
+                  class="px-8 py-3 border border-white dark:border-black nier-text-primary font-mono text-sm tracking-[0.2em] hover:bg-white hover:text-black dark:hover:bg-black dark:hover:text-white transition-colors uppercase font-bold relative group/btn overflow-hidden w-48 h-12">
             <span class="absolute inset-0 flex items-center justify-center z-10 transition-colors group-hover/btn:text-black dark:group-hover/btn:text-white">
               <span v-if="locale === 'en'">Acknowledge</span>
               <span v-if="locale === 'ru'" class="text-[10px] opacity-90 mt-0.5 tracking-[0.3em]">ПОДТВЕРДИТЬ</span>
             </span>
-            <div class="absolute inset-0 bg-white dark:bg-black translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
+            <div class="absolute inset-0 nier-bg-panel translate-y-full group-hover/btn:translate-y-0 transition-transform duration-300"></div>
           </button>
         </div>
       </div>
@@ -1850,59 +1927,16 @@ const submit = async () => {
     <!-- TOP SECTION: STRATEGIC PANEL (REORDERED TO CORNERS) -->
     <div class="w-full flex justify-between items-start px-12 py-10 shrink-0">
       <!-- LEFT CORNER: PROTOCOL SELECT -->
-      <div class="relative flex flex-col z-[200]">
-        <!-- The Button -->
-        <div class="flex items-center space-x-6 px-8 py-4 bg-white/5 dark:bg-black/5 border border-black/10 dark:border-white/10 relative group/hud backdrop-blur-md pointer-events-auto cursor-pointer"
-             @click="showStrategyMenu = !showStrategyMenu">
-           <!-- Corner Decor -->
-           <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black/30 dark:border-white/30"></div>
-           <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black/30 dark:border-white/30"></div>
-
-           <div class="flex flex-col min-w-[220px] py-1">
-              <span class="text-[7px] font-mono opacity-50 uppercase tracking-[0.5em] font-bold text-black dark:text-white">SYSTEM_PROTOCOL_SELECT</span>
-              <div class="flex items-center justify-between mt-1">
-                 <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 bg-black dark:bg-white rotate-45 animate-pulse"></div>
-                    <span class="text-[11px] font-mono tracking-[0.3em] uppercase font-black leading-tight text-black dark:text-white" :class="isMatrixLoading ? 'animate-pulse' : ''">
-                      {{ isMatrixLoading ? 'LOADING_PROTOCOL...' : (selectedStrategy?.name || 'MAIN_DIARY') }}
-                    </span>
-                 </div>
-                 <div class="w-2 h-2 border-b-2 border-r-2 border-black/60 dark:border-white/60 rotate-45 ml-4 transition-transform duration-500" :class="showStrategyMenu ? '-rotate-[135deg] translate-y-1' : ''"></div>
-              </div>
-           </div>
-        </div>
-
-        <!-- The Dropdown Menu -->
-        <Transition name="protocol-slide">
-          <div class="absolute top-full mt-6 w-80 z-[200] pointer-events-auto" v-if="showStrategyMenu">
-            <ExPanel variant="light" :no-padding="true" :no-shadow="true" :show-corners="true" class="!border-black/20 dark:!border-white/20">
-             <!-- Topbar -->
-             <div class="flex items-center justify-between px-3 py-1.5 border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
-             </div>
-
-             <div class="max-h-80 overflow-y-auto custom-scrollbar py-2">
-                <div v-for="s in strategies" :key="s.id" 
-                     @click.stop="selectedStrategyId = s.id; showStrategyMenu = false" 
-                     class="group/item relative px-8 py-4 cursor-pointer transition-all duration-300"
-                     :class="selectedStrategyId === s.id ? 'bg-black dark:bg-white' : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'">
-                   
-                   <div v-if="selectedStrategyId === s.id" class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-white dark:bg-black rotate-45 ml-4"></div>
-                   
-                   <span class="relative z-10 text-[10px] font-mono tracking-[0.3em] uppercase font-bold transition-colors duration-300"
-                         :class="selectedStrategyId === s.id ? 'text-white dark:text-black' : 'text-black/50 dark:text-white/50 group-hover/item:text-black dark:group-hover/item:text-white'">
-                      {{ s.name }}
-                   </span>
-                   <div class="absolute bottom-0 left-0 h-px bg-black dark:bg-white w-0 group-hover/item:w-full transition-all duration-500 opacity-20"></div>
-                </div>
-             </div>
-            </ExPanel>
-          </div>
-        </Transition>
-      </div>
+      <SystemProtocolSelect
+        v-model="selectedStrategyId"
+        :strategies="strategies"
+        :is-loading="isMatrixLoading"
+        menu-position="bottom"
+      />
 
       <!-- RIGHT CORNER: TACTICAL DATA SNAPSHOT -->
       <div class="flex items-center gap-6 relative z-[10010]">
-        <div class="flex items-center px-8 py-4 bg-black/[0.02] dark:bg-white/[0.02] border border-black/10 dark:border-white/10 backdrop-blur-md gap-10 relative">
+        <div class="flex items-center px-8 py-4 bg-black/[0.02] dark:bg-white/[0.02] border nier-border-primary backdrop-blur-md gap-10 relative">
            <!-- Corner Decor -->
            <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-black/30 dark:border-white/30"></div>
            <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-black/30 dark:border-white/30"></div>
@@ -1911,11 +1945,11 @@ const submit = async () => {
            <div class="flex gap-8">
               <div class="flex flex-col">
                  <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em]">Entry_Point</span>
-                 <span class="text-[12px] font-mono font-bold text-black dark:text-white tabular-nums">{{ (+entry || 0).toFixed(2) }}</span>
+                 <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">{{ (+entry || 0).toFixed(2) }}</span>
               </div>
               <div class="flex flex-col">
                  <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em]">Exit_Target</span>
-                 <span class="text-[12px] font-mono font-bold text-black dark:text-white tabular-nums">{{ (+exit || 0).toFixed(2) }}</span>
+                 <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">{{ (+exit || 0).toFixed(2) }}</span>
               </div>
            </div>
 
@@ -1932,13 +1966,60 @@ const submit = async () => {
                  <span class="text-[12px] font-mono font-bold text-emerald-500/80 tabular-nums">{{ (+takeProfit || 0).toFixed(2) }}</span>
               </div>
            </div>
+
+           <div class="w-px h-8 bg-black/10 dark:bg-white/10"></div>
+
+           <!-- Protocol Risk Group -->
+           <ExTooltip
+             :force-show="!!riskViolationMessage"
+             :is-dark="isDark"
+             variant="basic"
+             placement="bottom"
+             :title="riskViolationMessage || ''"
+           >
+             <template #trigger>
+               <div class="flex gap-8 cursor-default" :class="riskViolationMessage ? 'ring-1 ring-rose-500/30 px-2 -mx-2 py-1 -my-1 rounded-sm' : ''">
+                 <div class="flex flex-col">
+                    <span class="text-[7px] font-mono uppercase tracking-[0.3em] font-bold" :class="riskViolationMessage ? 'text-rose-400/80' : 'opacity-40'">Panel_Risk</span>
+                    <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">
+                       {{ activeRiskManagement.riskPerTradeValue ?? '--' }}{{ activeRiskManagement.riskPerTradeUnit }} / {{ activeRiskManagement.riskRewardRatio ? `1:${activeRiskManagement.riskRewardRatio}` : 'RR_--' }}
+                    </span>
+                 </div>
+                 <div class="flex flex-col">
+                    <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em] font-bold">Trade_Style</span>
+                    <span class="text-[12px] font-mono font-bold nier-text-primary truncate max-w-[100px]">
+                       {{ activeRiskManagement.tradingStyle || 'UNLINKED' }}
+                    </span>
+                 </div>
+               </div>
+             </template>
+             <div class="flex flex-col gap-2">
+               <div v-if="actualRR !== null" class="flex items-center justify-between gap-6">
+                 <span class="opacity-50 text-[11px]">Your Risk Reward:</span>
+                 <span class="font-black text-[11px]" :class="violatesRR ? 'text-rose-400' : 'text-emerald-400'">1 / {{ actualRR.toFixed(2) }}</span>
+               </div>
+               <div v-if="actualRiskPercent !== null" class="flex items-center justify-between gap-6">
+                 <span class="opacity-50 text-[11px]">Your Risk Per Trade:</span>
+                 <span class="font-black text-[11px]" :class="violatesRiskPerTrade ? 'text-rose-400' : 'text-emerald-400'">{{ actualRiskPercent.toFixed(2) }}%</span>
+               </div>
+               <div class="h-px bg-white/10 my-1"></div>
+               <div v-if="activeRiskManagement.riskRewardRatio" class="flex items-center justify-between gap-6">
+                 <span class="opacity-40 text-[10px]">Required R:R:</span>
+                 <span class="opacity-70 text-[10px]">1 / {{ activeRiskManagement.riskRewardRatio }}</span>
+               </div>
+               <div v-if="activeRiskManagement.riskPerTradeValue" class="flex items-center justify-between gap-6">
+                 <span class="opacity-40 text-[10px]">Max Risk Per Trade:</span>
+                 <span class="opacity-70 text-[10px]">{{ activeRiskManagement.riskPerTradeValue }}{{ activeRiskManagement.riskPerTradeUnit }}</span>
+               </div>
+             </div>
+           </ExTooltip>
         </div>
 
         <button @click="emit('close')" :disabled="commitState === 'loading'" class="group relative h-14 w-14 bg-transparent border border-black/20 dark:border-white/20 hover:bg-black dark:hover:bg-white transition-all duration-500 disabled:opacity-50 disabled:cursor-not-allowed">
            <div class="relative w-full h-full flex items-center justify-center">
               <div class="w-4 h-4 relative">
-                 <div class="absolute inset-0 m-auto w-full h-px bg-black dark:bg-white rotate-45 group-hover:bg-white dark:group-hover:bg-black transition-colors duration-500"></div>
-                 <div class="absolute inset-0 m-auto w-full h-px bg-black dark:bg-white -rotate-45 group-hover:bg-white dark:group-hover:bg-black transition-colors duration-500"></div>
+                 <div class="absolute inset-0 m-auto w-full h-px nier-bg-inverted rotate-45 group-hover:bg-white dark:group-hover:bg-black transition-colors duration-500"></div>
+                 <div class="absolute inset-0 m-auto w-full h-px nier-bg-inverted -rotate-45 group-hover:bg-white dark:group-hover:bg-black transition-colors duration-500"></div>
               </div>
            </div>
         </button>
@@ -1956,7 +2037,7 @@ const submit = async () => {
                <!-- Protocol Briefing Header -->
                <div class="flex flex-col space-y-6 border-b border-black/5 dark:border-white/5 pb-10">
                   <div class="flex items-center gap-4">
-                     <div class="w-2 h-2 bg-black dark:bg-white rotate-45"></div>
+                     <div class="w-2 h-2 nier-bg-inverted rotate-45"></div>
                      <span class="text-[9px] font-mono tracking-[0.6em] text-black/80 dark:text-white/80 uppercase">Archival_Briefing_Protocol</span>
                   </div>
                   
@@ -1979,7 +2060,7 @@ const submit = async () => {
                            <span class="text-[9px] font-mono text-black/70 dark:text-white/80 uppercase tracking-tighter">0x{{ selectedRegistryScenarioId.slice(0, 8).toUpperCase() }}</span>
                         </div>
                         <button @click="showConditionLibrary = true; selectedRegistryScenarioId = null" 
-                                class="group/save relative h-14 px-12 bg-black dark:bg-white dark:text-black  font-black border hover:border-black dark:hover:border-white dark:hover:bg-black hover:bg-white text-white dark:hover:text-white hover:text-black transition-all duration-500 ease-in-out">
+                                class="group/save relative h-14 px-12 nier-bg-inverted dark:text-black  font-black border hover:border-black dark:hover:border-white dark:hover:bg-black hover:bg-white text-white dark:hover:text-white hover:text-black transition-all duration-500 ease-in-out">
                            <span class="relative z-10 text-[11px] uppercase tracking-[0.8em]">Accept </span>
                         </button>
                      </div>
@@ -2020,7 +2101,7 @@ const submit = async () => {
                                    </span>
                                    <div v-if="cond.direction" 
                                         class="px-1.5 py-0.5 border text-[6px] font-mono tracking-widest uppercase transition-colors"
-                                        :class="mismatchedNodeIds.has(cond.id) ? 'border-red-500/50 text-red-500' : 'border-black/10 dark:border-white/10 text-black/80 dark:text-white/80'">
+                                        :class="mismatchedNodeIds.has(cond.id) ? 'border-red-500/50 text-red-500' : 'nier-border-primary text-black/80 dark:text-white/80'">
                                       {{ cond.direction }}
                                    </div>
                                    <div v-if="cond.priority && cond.priority !== 'NONE'" 
@@ -2065,19 +2146,19 @@ const submit = async () => {
                                         @click="toggleCondition(item.id, selectedRegistryScenarioId)"
                                         class="flex items-start gap-3 p-3 border transition-all cursor-pointer group/item overflow-hidden relative"
                                         :class="[
-                                          activeConditions.has(item.id) ? 'bg-black dark:bg-white border-black dark:border-white' : 'bg-black/[0.01] dark:bg-white/[0.01] border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10',
+                                          activeConditions.has(item.id) ? 'nier-bg-inverted border-black dark:border-white' : 'bg-black/[0.01] dark:bg-white/[0.01] border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10',
                                           mismatchedNodeIds.has(item.id) ? '!border-red-500/20 !bg-red-500/5 !pointer-events-none' : ''
                                         ]">
                                       <div class="w-1 h-1 border rotate-45 mt-1.5 transition-colors"
                                            :class="[
-                                             activeConditions.has(item.id) ? 'bg-white dark:bg-black border-white dark:border-black' : 'border-black/20 dark:border-white/20 group-hover/item:bg-black/40 dark:group-hover/item:bg-white/40',
+                                             activeConditions.has(item.id) ? 'nier-bg-panel border-white dark:border-black' : 'border-black/20 dark:border-white/20 group-hover/item:bg-black/40 dark:group-hover/item:bg-white/40',
                                              mismatchedNodeIds.has(item.id) ? '!bg-red-500 !border-red-500' : ''
                                            ]"></div>
                                       <div class="flex flex-col relative z-10">
                                          <div class="flex items-center gap-2">
                                             <span class="text-[9px] font-mono font-bold tracking-widest uppercase transition-colors"
                                                   :class="[
-                                                    activeConditions.has(item.id) ? 'text-white dark:text-black' : 'text-black/80 dark:text-white/90 group-hover/item:text-black dark:group-hover/item:text-white',
+                                                    activeConditions.has(item.id) ? 'nier-text-primary' : 'text-black/80 dark:text-white/90 group-hover/item:text-black dark:group-hover/item:text-white',
                                                     mismatchedNodeIds.has(item.id) ? '!text-red-500' : ''
                                                   ]">{{ item.label }}</span>
                                             <span v-if="item.priority && item.priority !== 'NONE'" 
@@ -2099,12 +2180,12 @@ const submit = async () => {
                                 <div @click="toggleCondition(unit.item.id, selectedRegistryScenarioId)"
                                      class="flex items-start gap-3 p-3 border transition-all cursor-pointer group/item w-1/2 overflow-hidden relative"
                                      :class="[
-                                       activeConditions.has(unit.item.id) ? 'bg-black dark:bg-white border-black dark:border-white' : 'bg-black/[0.01] dark:bg-white/[0.01] border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10',
+                                       activeConditions.has(unit.item.id) ? 'nier-bg-inverted border-black dark:border-white' : 'bg-black/[0.01] dark:bg-white/[0.01] border-black/5 dark:border-white/5 hover:border-black/10 dark:hover:border-white/10',
                                        mismatchedNodeIds.has(unit.item.id) ? '!border-red-500/20 !bg-red-500/5 !pointer-events-none' : ''
                                      ]">
                                    <div class="w-1 h-1 border rotate-45 mt-1.5 transition-colors"
                                         :class="[
-                                          activeConditions.has(unit.item.id) ? 'bg-white dark:bg-black border-white dark:border-black' : 'border-black/20 dark:border-white/20 group-hover/item:bg-black/40 dark:group-hover/item:bg-white/40',
+                                          activeConditions.has(unit.item.id) ? 'nier-bg-panel border-white dark:border-black' : 'border-black/20 dark:border-white/20 group-hover/item:bg-black/40 dark:group-hover/item:bg-white/40',
                                           mismatchedNodeIds.has(unit.item.id) ? '!bg-red-500 !border-red-500' : ''
                                         ]"></div>
                                    <div class="flex flex-col flex-1 min-w-0 relative z-10">
@@ -2112,7 +2193,7 @@ const submit = async () => {
                                          <div class="flex items-center gap-2">
                                             <span class="text-[9px] font-mono font-black tracking-widest uppercase transition-colors"
                                                   :class="[
-                                                    activeConditions.has(unit.item.id) ? 'text-white dark:text-black' : 'text-black/80 dark:text-white/90 group-hover/item:text-black dark:group-hover/item:text-white',
+                                                    activeConditions.has(unit.item.id) ? 'nier-text-primary' : 'text-black/80 dark:text-white/90 group-hover/item:text-black dark:group-hover/item:text-white',
                                                     mismatchedNodeIds.has(unit.item.id) ? '!text-red-500' : ''
                                                   ]">{{ unit.item.label }}</span>
                                             <span v-if="unit.item.priority && unit.item.priority !== 'NONE'" 
@@ -2159,8 +2240,8 @@ const submit = async () => {
                      <ExEquityCurve2D :trades="equityCurveTrades" :initial-balance="1000" />
                   </div>
                   <div v-else key="empty" class="flex flex-col items-center justify-center py-20 opacity-20">
-                     <div class="w-16 h-px bg-black dark:bg-white mb-8 group-hover:w-24 transition-all duration-700"></div>
-                     <span class="text-[9px] font-mono tracking-[0.6em] uppercase text-black dark:text-white">NOT_ENOUGH_DATA_FOR_PROJECTION</span>
+                     <div class="w-16 h-px nier-bg-inverted mb-8 group-hover:w-24 transition-all duration-700"></div>
+                     <span class="text-[9px] font-mono tracking-[0.6em] uppercase nier-text-primary">NOT_ENOUGH_DATA_FOR_PROJECTION</span>
                      <div class="mt-8 flex gap-2">
                         <div v-for="i in 3" :key="i" class="w-1 h-1 bg-black/20 dark:bg-white/20 rotate-45"></div>
                      </div>
@@ -2172,18 +2253,18 @@ const submit = async () => {
           <div v-else key="journal" class="flex flex-col space-y-8">
             <div class="flex items-center justify-between w-full border-b border-black/5 dark:border-white/5 pb-6">
               <div class="flex items-center space-x-4">
-                <div class="w-1.5 h-1.5 bg-black dark:bg-white rotate-45"></div>
-                <span class="text-[9px] font-mono tracking-[0.4em] uppercase font-black text-black dark:text-white">EVIDENCE_ARCHIVE</span>
+                <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45"></div>
+                <span class="text-[9px] font-mono tracking-[0.4em] uppercase font-black nier-text-primary">EVIDENCE_ARCHIVE</span>
               </div>
-              <button @click="addJournalEntry" class="flex items-center space-x-3 group px-4 py-1.5 border border-black/10 dark:border-white/10 hover:bg-black dark:hover:bg-white transition-all">
+              <button @click="addJournalEntry" class="flex items-center space-x-3 group px-4 py-1.5 border nier-border-primary hover:bg-black dark:hover:bg-white transition-all">
                  <span class="text-[8px] font-mono tracking-widest uppercase font-black text-black/40 dark:text-white/80 group-hover:text-white dark:group-hover:text-black">New_Archive_Slot</span>
                  <div class="w-1.5 h-1.5 bg-black/20 dark:bg-white/20 rotate-45 group-hover:bg-white dark:group-hover:bg-black"></div>
               </button>
             </div>
 
-            <div v-if="journalEntries.length === 0" class="flex flex-col items-center justify-center py-32 border border-dashed border-black/10 dark:border-white/10 opacity-30">
-              <div class="w-12 h-px bg-black dark:bg-white mb-6 animate-pulse"></div>
-              <span class="text-[9px] font-mono tracking-[0.6em] uppercase text-black dark:text-white">No_Evidences_In_The_Archive</span>
+            <div v-if="journalEntries.length === 0" class="flex flex-col items-center justify-center py-32 border border-dashed nier-border-primary opacity-30">
+              <div class="w-12 h-px nier-bg-inverted mb-6 animate-pulse"></div>
+              <span class="text-[9px] font-mono tracking-[0.6em] uppercase nier-text-primary">No_Evidences_In_The_Archive</span>
               <div class="mt-6 flex gap-2">
                 <div v-for="i in 3" :key="i" class="w-1 h-1 bg-black/20 dark:bg-white/20 rotate-45"></div>
               </div>
@@ -2191,17 +2272,17 @@ const submit = async () => {
 
             <div v-else class="grid grid-cols-2 gap-8">
                  <ExPanel v-for="entry in journalEntries" :key="entry.id" variant="light" :no-padding="true" :show-corners="true" :no-shadow="true"
-                       class="group flex flex-col transition-all duration-500 hover:!border-black/30 dark:hover:!border-white/30 !border-black/10 dark:!border-white/10">
+                       class="group flex flex-col transition-all duration-500 hover:!border-black/30 dark:hover:!border-white/30 !border-black/10 dark:!border-white/10 nier-text-primary">
                     
                     <!-- Remove Button -->
                     <button @click.stop="removeJournalEntry(entry.id)" 
-                            class="absolute top-0 right-0 z-30 w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-red-500/80 hover:text-white border-l border-b border-black/10 dark:border-white/10">
+                            class="absolute top-0 right-0 z-30 w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-red-500/80 hover:text-white nier-text-primary border-l border-b nier-border-primary">
                        <span class="text-[10px] font-mono">✕</span>
                     </button>
  
                     <!-- Image Upload Area -->
                     <div @click="triggerUpload(entry.id)" 
-                         class="relative aspect-video cursor-pointer overflow-hidden border-b border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 group/img">
+                         class="relative aspect-video cursor-pointer overflow-hidden border-b nier-border-primary bg-black/5 dark:bg-white/5 group/img">
                        <input :id="`file-input-${entry.id}`" type="file" class="hidden" accept="image/*" @change="e => handleImageUpload(entry.id, e)" />
                        
                        <div v-if="entry.image" class="w-full h-full">
@@ -2212,38 +2293,38 @@ const submit = async () => {
                        </div>
                        <div v-else class="w-full h-full flex flex-col items-center justify-center space-y-4">
                           <div class="w-8 h-8 border border-black/20 dark:border-white/20 rotate-45 flex items-center justify-center group-hover/img:border-black dark:group-hover/img:border-white transition-colors">
-                             <div class="w-1 h-1 bg-black/40 dark:bg-white/40 rotate-45"></div>
+                             <div class="w-1.5 h-1.5 bg-black/40 dark:bg-white/40 rotate-45"></div>
                           </div>
-                          <span class="text-[8px] font-mono tracking-[0.4em] uppercase opacity-30 group-hover/img:opacity-100">Upload_Tactical_Capture</span>
+                          <span class="text-[8px] font-mono tracking-[0.4em] uppercase opacity-30 group-hover/img:opacity-100 nier-text-primary">Upload_Tactical_Capture</span>
                        </div>
  
                        <!-- SCANNING LINE -->
                        <div class="absolute inset-0 pointer-events-none opacity-[0.05] overflow-hidden">
-                          <div class="w-full h-px bg-black dark:bg-white animate-scan"></div>
+                          <div class="w-full h-px nier-bg-inverted animate-scan"></div>
                        </div>
                     </div>
  
                     <!-- Controls & Info -->
-                    <div class="p-6 flex flex-col space-y-4">
+                    <div class="p-6 flex flex-col space-y-4 nier-text-primary">
                        <!-- Visual metadata aligned with Trade Analytics Visuals -->
                        <div class="relative">
                           <input v-model="entry.name"
                                  type="text"
                                  placeholder="Archive_Node_Name..."
-                                 class="w-full bg-transparent border border-black/5 dark:border-white/5 px-4 py-3 text-[10px] font-mono tracking-[0.2em] font-black focus:outline-none transition-all text-black dark:text-white uppercase placeholder:opacity-20 focus:border-black/20 dark:focus:border-white/20" />
+                                 class="w-full bg-transparent border border-black/5 dark:border-white/5 px-4 py-3 text-[10px] font-mono tracking-[0.2em] font-black focus:outline-none transition-all nier-text-primary uppercase placeholder:opacity-20 focus:border-black/20 dark:focus:border-white/20" />
                        </div>
 
                        <div class="flex flex-col gap-3">
                           <div class="flex flex-wrap gap-2 min-h-7">
                              <span v-for="tag in entry.tags" :key="tag"
-                                   class="flex items-center gap-2 border border-black/10 dark:border-white/10 px-2 py-1 text-[8px] font-mono uppercase tracking-widest text-black/60 dark:text-white/70">
+                                   class="flex items-center gap-2 border nier-border-primary px-2 py-1 text-[8px] font-mono uppercase tracking-widest text-black/60 dark:text-white/70">
                                 {{ tag }}
                                 <button @click="removeJournalEntryTag(entry, tag)"
                                         class="text-[9px] leading-none opacity-40 hover:opacity-100 hover:text-red-500 transition-all">
                                    x
                                 </button>
                              </span>
-                             <span v-if="!entry.tags?.length" class="text-[8px] font-mono uppercase tracking-[0.3em] opacity-20 self-center">
+                             <span v-if="!entry.tags?.length" class="text-[8px] font-mono uppercase tracking-[0.3em] opacity-20 self-center nier-text-primary">
                                 No_Tags_Attached
                              </span>
                           </div>
@@ -2253,16 +2334,16 @@ const submit = async () => {
                                     @keyup.enter="addJournalEntryTag(entry)"
                                     type="text"
                                     placeholder="Custom_Tag..."
-                                    class="flex-1 bg-transparent border border-black/5 dark:border-white/5 px-3 py-2 text-[9px] font-mono uppercase tracking-widest focus:outline-none transition-all text-black dark:text-white placeholder:opacity-20 focus:border-black/20 dark:focus:border-white/20" />
+                                    class="flex-1 bg-transparent border border-black/5 dark:border-white/5 px-3 py-2 text-[9px] font-mono uppercase tracking-widest focus:outline-none transition-all nier-text-primary placeholder:opacity-20 focus:border-black/20 dark:focus:border-white/20" />
                              <button @click="addJournalEntryTag(entry)"
-                                     class="px-3 py-2 border border-black/10 dark:border-white/10 text-[8px] font-mono uppercase tracking-widest opacity-50 hover:opacity-100 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
+                                     class="px-3 py-2 border nier-border-primary text-[8px] font-mono uppercase tracking-widest opacity-50 hover:opacity-100 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
                                 Add_Tag
                              </button>
                           </div>
                        </div>
  
                        <!-- Footer Metadata -->
-                       <div class="flex items-center justify-between opacity-20">
+                       <div class="flex items-center justify-between opacity-20 nier-text-primary">
                           <span class="text-[6px] font-mono uppercase tracking-widest">Archive_ID: {{ entry.id.toString(16).toUpperCase().slice(-6) }}</span>
                           <button @click="removeJournalEntry(entry.id)" class="hover:text-red-500 transition-colors">
                              <span class="text-[6px] font-mono uppercase tracking-widest">[ DE-SYNC ]</span>
@@ -2287,9 +2368,9 @@ const submit = async () => {
                 class="group relative opacity-35 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 disabled:cursor-not-allowed">
            <div class="relative flex items-center justify-center w-12 h-12">
               <div class="absolute inset-0 border border-black/20 dark:border-white/20 rotate-45 group-hover:bg-black dark:group-hover:bg-white group-hover:border-black dark:group-hover:border-white transition-all duration-500 shadow-xl"
-                   :class="{ 'bg-black dark:bg-white border-black dark:border-white': showConditionLibrary }"></div>
+                   :class="{ 'nier-bg-inverted border-black dark:border-white': showConditionLibrary }"></div>
               <div class="w-3 h-3 flex items-center justify-center relative z-10 transition-all duration-700 group-hover:text-white dark:group-hover:text-black"
-                   :class="showConditionLibrary ? 'text-white dark:text-black' : 'text-black dark:text-white'">
+                   :class="showConditionLibrary ? 'nier-text-primary' : 'nier-text-primary'">
                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                    <rect x="3" y="3" width="7" height="7" />
                    <rect x="14" y="3" width="7" height="7" />
@@ -2299,8 +2380,8 @@ const submit = async () => {
               </div>
               <div class="absolute left-full ml-8 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-4 group-hover:translate-x-0 whitespace-nowrap pointer-events-none">
                  <div class="flex flex-col items-start">
-                    <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black text-black dark:text-white">GENESIS_MATRIX_PROTOCOL</span>
-                    <div class="h-px w-0 group-hover:w-full bg-black dark:bg-white transition-all duration-500 mt-1 opacity-40"></div>
+                    <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black nier-text-primary">GENESIS_MATRIX_PROTOCOL</span>
+                    <div class="h-px w-0 group-hover:w-full nier-bg-inverted transition-all duration-500 mt-1 opacity-40"></div>
                  </div>
               </div>
            </div>
@@ -2312,14 +2393,14 @@ const submit = async () => {
                 class="group relative disabled:opacity-50 disabled:cursor-not-allowed">
            <div class="relative flex items-center justify-center w-12 h-12">
               <div class="absolute inset-0 border border-black/20 dark:border-white/20 rotate-45 group-hover:bg-black dark:group-hover:bg-white transition-all duration-500 shadow-xl"
-                   :class="{ 'bg-black dark:bg-white': showEntryMethod }"></div>
-              <div class="w-2 h-2 bg-black dark:bg-white relative z-10 transition-colors duration-500 group-hover:bg-white dark:group-hover:bg-black"
-                   :class="{ 'bg-white dark:bg-black': showEntryMethod }"></div>
+                   :class="{ 'nier-bg-inverted': showEntryMethod }"></div>
+              <div class="w-2 h-2 nier-bg-inverted relative z-10 transition-colors duration-500 group-hover:bg-white dark:group-hover:bg-black"
+                   :class="{ 'nier-bg-panel': showEntryMethod }"></div>
               
               <div class="absolute left-full ml-8 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-4 group-hover:translate-x-0 whitespace-nowrap pointer-events-none">
                  <div class="flex flex-col items-start">
-                    <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black text-black dark:text-white">{{ locale === 'ru' ? 'МЕТОД ВХОДА' : 'ENTRY_METHOD' }}</span>
-                    <div class="h-px w-0 group-hover:w-full bg-black dark:bg-white transition-all duration-500 mt-1 opacity-40"></div>
+                    <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black nier-text-primary">{{ locale === 'ru' ? 'МЕТОД ВХОДА' : 'ENTRY_METHOD' }}</span>
+                    <div class="h-px w-0 group-hover:w-full nier-bg-inverted transition-all duration-500 mt-1 opacity-40"></div>
                  </div>
               </div>
            </div>
@@ -2340,7 +2421,7 @@ const submit = async () => {
                   class="group relative disabled:opacity-50 disabled:cursor-not-allowed">
              <div class="relative flex items-center justify-center w-12 h-12">
                 <div class="absolute inset-0 border border-black/20 dark:border-white/20 rotate-45 group-hover:bg-black dark:group-hover:bg-white group-hover:border-black dark:border-white transition-all duration-500 shadow-xl"
-                     :class="{ 'bg-black dark:bg-white border-black dark:border-white': viewMode === 'journal' }"></div>
+                     :class="{ 'nier-bg-inverted border-black dark:border-white': viewMode === 'journal' }"></div>
                 <div class="w-2.5 h-2.5 border-t-2 border-r-2 relative z-10 transition-all duration-700 dark:group-hover:border-black" 
                      :class="[
                        viewMode === 'tactical' ? 'rotate-45 border-black dark:border-white' : '-rotate-[135deg] border-white dark:border-black',
@@ -2348,10 +2429,10 @@ const submit = async () => {
                      ]"></div>
                 <div class="absolute right-full mr-8 opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0 whitespace-nowrap pointer-events-none">
                    <div class="flex flex-col items-end">
-                      <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black text-black dark:text-white">
+                      <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black nier-text-primary">
                          {{ viewMode === 'tactical' ? 'INIT_JOURNAL' : 'EXIT_JOURNAL' }}
                       </span>
-                      <div class="h-px w-0 group-hover:w-full bg-black dark:bg-white transition-all duration-500 mt-1 opacity-40"></div>
+                      <div class="h-px w-0 group-hover:w-full nier-bg-inverted transition-all duration-500 mt-1 opacity-40"></div>
                    </div>
                 </div>
              </div>
@@ -2438,26 +2519,26 @@ const submit = async () => {
         
         <!-- NIER SECTOR TABS AND SWITCHER -->
       <div class="flex justify-between items-end w-full px-2 max-w-5xl">
-        <div class="flex gap-0.5 bg-black dark:bg-black p-1 border-t border-l border-r border-white/30">
+        <div class="flex gap-0.5 bg-black/60 p-1 border-t border-l border-r border-white/30">
           <button 
             v-for="sector in sectors" 
             :key="sector.id"
             @click="activeSector = sector.id"
             class="px-5 py-1.5 transition-all duration-300 relative group"
-            :class="activeSector === sector.id ? 'bg-white text-black' : 'bg-[#111] text-white/70 hover:bg-[#222] hover:text-white'"
+            :class="activeSector === sector.id ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'"
           >
             <span class="text-[8px] uppercase tracking-[0.4em] font-black relative z-10">{{ sector.id === 'fee' && locale === 'ru' ? 'КОМИССИИ' : sector.label }}</span>
           </button>
         </div>
 
-        <div class="flex gap-0.5 bg-black dark:bg-black p-1 border-t border-l border-r border-white/30 shrink-0">
-          <button @click="resultMode = 'auto'" :class="resultMode === 'auto' ? 'bg-white text-black' : 'bg-[#111] text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'АВТО' : 'AUTO' }}</button>
-          <button @click="resultMode = 'manual'" :class="resultMode === 'manual' ? 'bg-white text-black' : 'bg-[#111] text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'РУЧНАЯ' : 'MANUAL' }}</button>
+        <div class="flex gap-0.5 bg-black/60 p-1 border-t border-l border-r border-white/30 shrink-0">
+          <button @click="resultMode = 'auto'" :class="resultMode === 'auto' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'АВТО' : 'AUTO' }}</button>
+          <button @click="resultMode = 'manual'" :class="resultMode === 'manual' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'РУЧНАЯ' : 'MANUAL' }}</button>
         </div>
       </div>
 
       <!-- MAIN CHASSIS -->
-      <div class="relative flex items-center bg-[#0a0a0a] border border-white/30 px-8 h-16 max-w-5xl w-full transition-all duration-500 shadow-[0_32px_64px_rgba(0,0,0,0.5)]">
+      <div class="relative flex items-center bg-[#0a0a0a]/80 border border-white/30 px-8 h-16 max-w-5xl w-full transition-all duration-500 ">
         
         <div class="absolute inset-0 pointer-events-none opacity-[0.08] overflow-hidden">
           <div class="w-full h-px bg-white animate-scan"></div>
@@ -2571,18 +2652,6 @@ const submit = async () => {
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
                   <input v-model="takeProfit" type="number" placeholder="0.00" class="nier-input w-24 font-mono text-emerald-400"/>
                 </div>
-                <div class="flex flex-col gap-0.5 text-left min-w-[120px]">
-                  <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/35">Panel_Risk</span>
-                  <span class="text-[10px] font-mono font-bold tracking-[0.18em] text-white">
-                    {{ activeRiskManagement.riskPerTradeValue ?? '--' }}{{ activeRiskManagement.riskPerTradeUnit }} / {{ activeRiskManagement.riskRewardRatio ? `1:${activeRiskManagement.riskRewardRatio}` : 'RR_--' }}
-                  </span>
-                </div>
-                <div class="flex flex-col gap-0.5 text-left min-w-[115px]">
-                  <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/35">Trade_Style</span>
-                  <span class="text-[10px] font-mono font-bold tracking-[0.18em] text-white truncate">
-                    {{ activeRiskManagement.tradingStyle || 'UNLINKED' }}
-                  </span>
-                </div>
               </div>
 
               <div v-else-if="activeSector === 'time'" :key="'time'" class="flex items-center gap-12">
@@ -2684,10 +2753,10 @@ const submit = async () => {
                   <div class="absolute left-3 w-1.5 h-1.5 bg-black/20 dark:bg-white/20 rotate-45"></div>
                   <input v-model="registrySearchQuery" 
                          placeholder="SEARCH_NODE..." 
-                         class="bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-8 py-1.5 text-[9px] font-mono tracking-widest focus:outline-none focus:border-black/30 dark:focus:border-white/30 w-64 uppercase placeholder:opacity-30" />
+                         class="bg-black/5 dark:bg-white/5 border nier-border-primary px-8 py-1.5 text-[9px] font-mono tracking-widest focus:outline-none focus:border-black/30 dark:focus:border-white/30 w-64 uppercase placeholder:opacity-30" />
                 </div>
 
-                <div class="flex border border-black/10 dark:border-white/10 overflow-hidden">
+                <div class="flex border nier-border-primary overflow-hidden">
                   <button v-for="f in [
                             { id: 'ALL', icon: 'M4 6h16M4 12h16M4 18h16' },
                             { id: 'ENTRY', icon: 'M19 14l-7 7-7-7m7 7V3' },
@@ -2696,7 +2765,7 @@ const submit = async () => {
                           ]" :key="f.id"
                           @click="libraryFilter = f.id"
                           class="flex items-center justify-center w-12 h-9 transition-all"
-                          :class="libraryFilter === f.id ? 'bg-black dark:bg-white text-white dark:text-black' : 'text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5'">
+                          :class="libraryFilter === f.id ? 'nier-bg-inverted nier-text-primary' : 'text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5'">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                       <path :d="f.icon" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -2714,13 +2783,13 @@ const submit = async () => {
                             cond.isMismatched 
                               ? 'bg-red-500/10 border-red-500/30 cursor-not-allowed'
                               : (activeConditions.has(cond.id) 
-                                ? 'bg-black dark:bg-white border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                                : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white'))
+                                ? 'nier-bg-inverted border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                                : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white'))
                           ]">
                         
                         <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
                              :class="[
-                               cond.isMismatched ? 'border-red-500/30' : (activeConditions.has(cond.id) ? 'border-white/40 dark:border-black/40' : 'border-black/10 dark:border-white/10')
+                               cond.isMismatched ? 'border-red-500/30' : (activeConditions.has(cond.id) ? 'border-white/40 dark:border-black/40' : 'nier-border-primary')
                              ]"></div>
 
                         <!-- PRIORITY ACCENT / BADGE -->
@@ -2732,7 +2801,7 @@ const submit = async () => {
 
                         <span class="text-[14px] font-mono font-black tracking-tighter uppercase transition-colors"
                               :class="[
-                                cond.isMismatched ? 'text-red-500/50' : (activeConditions.has(cond.id) ? 'text-white dark:text-black' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white')
+                                cond.isMismatched ? 'text-red-500/50' : (activeConditions.has(cond.id) ? 'nier-text-primary' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white')
                               ]">
                           {{ (cond.name || '').slice(0, 3) }}
                         </span>
@@ -2777,15 +2846,15 @@ const submit = async () => {
                               class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center cursor-pointer transition-all duration-500 group/node"
                               :class="[
                                 selectedEmotions.includes(emotion.label) 
-                                  ? 'bg-black dark:bg-white border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                                  : 'bg-black/[0.02] dark:bg-white/[0.02] border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white'
+                                  ? 'nier-bg-inverted border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                                  : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white'
                               ]">
                             
                             <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
-                                 :class="selectedEmotions.includes(emotion.label) ? 'border-white/40 dark:border-black/40' : 'border-black/10 dark:border-white/10'"></div>
+                                 :class="selectedEmotions.includes(emotion.label) ? 'border-white/40 dark:border-black/40' : 'nier-border-primary'"></div>
 
                             <span class="text-[12px] font-mono font-black tracking-tighter uppercase text-center leading-none"
-                                  :class="selectedEmotions.includes(emotion.label) ? 'text-white dark:text-black' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white'">
+                                  :class="selectedEmotions.includes(emotion.label) ? 'nier-text-primary' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white'">
                               {{ emotion.label.slice(0, 3) }}
                             </span>
 
@@ -2822,13 +2891,13 @@ const submit = async () => {
                             class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center cursor-pointer transition-all duration-500 group/node"
                             :class="[
                               activeConditions.has(cond.id) 
-                                ? 'bg-black dark:bg-white border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                                : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white')
+                                ? 'nier-bg-inverted border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
+                                : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white')
                             ]">
                           
                           <!-- CORNER ACCENT -->
                           <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
-                               :class="activeConditions.has(cond.id) ? 'border-white/40 dark:border-black/40' : 'border-black/10 dark:border-white/10'"></div>
+                               :class="activeConditions.has(cond.id) ? 'border-white/40 dark:border-black/40' : 'nier-border-primary'"></div>
 
                           <!-- PRIORITY ACCENT / BADGE -->
                           <div v-if="cond.priority && cond.priority !== 'NONE'"
@@ -2838,7 +2907,7 @@ const submit = async () => {
                           </div>
 
                           <span class="text-[14px] font-mono font-black tracking-tighter uppercase"
-                                :class="activeConditions.has(cond.id) ? 'text-white dark:text-black' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white'">
+                                :class="activeConditions.has(cond.id) ? 'nier-text-primary' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white'">
                             {{ (cond.name || '').slice(0, 3) }}
                           </span>
 
@@ -2883,11 +2952,11 @@ const submit = async () => {
               </div>
             </template>
             <!-- CONTENT GRID -->
-            <div class="p-10 flex flex-col space-y-10 h-[80vh] min-h-[400px]">
+            <div class="p-10 flex flex-col space-y-10 h-[80vh] min-h-[400px] nier-text-primary">
 
               <!-- PROTOCOL TABS (Fixed top) -->
               <div class="flex-shrink-0">
-                <div class="flex items-center gap-2 border border-black/10 dark:border-white/10 p-1 bg-black/[0.02] dark:bg-white/[0.02]">
+                <div class="flex items-center gap-2 border nier-border-primary p-1 bg-black/[0.02] dark:bg-white/[0.02]">
                   <button @click="activeProtocolTab = 'PYRAMIDING'; entryMethodType = 'PYRAMIDING'"
                           class="flex-1 py-3 text-[9px] font-mono tracking-[0.2em] uppercase font-black transition-all"
                           :class="activeProtocolTab === 'PYRAMIDING' ? 'bg-black text-white dark:bg-white dark:text-black' : 'text-black/40 dark:text-white/40 hover:bg-black/5 dark:hover:bg-white/5'">
@@ -2914,11 +2983,11 @@ const submit = async () => {
                   <div v-for="(ent, idx) in activeMultipleEntries" :key="ent.id" class="flex items-center gap-4">
                      <span class="text-[8px] font-mono opacity-40 font-black tracking-widest w-6">#{{ idx + 1 }}</span>
                      <div class="flex-1 flex flex-col gap-1">
-                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'УРОВЕНЬ_ЦЕНЫ' : 'Price_Lvl' }}</span>
+                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'УРОВЕНЬ_ЦЕНЫ' : 'Price_Lvl' }}</span>
                         <input v-model="ent.price" type="number" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
                      </div>
                      <div class="flex-1 flex flex-col gap-1">
-                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
+                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
                         <input v-model="ent.size" type="number" step="0.01" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
                      </div>
                      <button @click="removeMultipleEntry(ent.id)" class="w-8 h-8 flex items-center justify-center border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-all mt-4">
@@ -2931,7 +3000,7 @@ const submit = async () => {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
                         {{ locale === 'ru' ? 'ДОБАВИТЬ_ПОЗИЦИЮ' : 'Add_Position_Node' }}
                      </button>
-                     <button v-if="hasActiveMethodNode && !showAutoPrompt && activeMultipleEntries.length === 0" @click="toggleAutoPrompt" class="flex-1 py-4 border border-dashed border-black/50 dark:border-white/50 text-black dark:text-white hover:border-black dark:hover:border-white hover:bg-black/5 dark:hover:bg-white/5 text-[9px] font-mono tracking-widest uppercase transition-all flex items-center justify-center gap-2">
+                     <button v-if="hasActiveMethodNode && !showAutoPrompt && activeMultipleEntries.length === 0" @click="toggleAutoPrompt" class="flex-1 py-4 border border-dashed border-black/50 dark:border-white/50 nier-text-primary hover:border-black dark:hover:border-white hover:bg-black/5 dark:hover:bg-white/5 text-[9px] font-mono tracking-widest uppercase transition-all flex items-center justify-center gap-2">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                         {{ locale === 'ru' ? 'АВТО' : 'AUTO' }}
                      </button>
@@ -2941,19 +3010,19 @@ const submit = async () => {
                   <div v-if="showAutoPrompt" class="mt-2 p-3 border border-black/30 dark:border-white/30 bg-black/5 dark:bg-white/5 flex flex-col gap-3">
                     <div class="flex items-center gap-3">
                       <div class="flex-1">
-                        <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 text-black dark:text-white mb-1">{{ locale === 'ru' ? 'Базовая_Цена' : 'Base_Price' }}</span>
+                        <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 nier-text-primary mb-1">{{ locale === 'ru' ? 'Базовая_Цена' : 'Base_Price' }}</span>
                         <input v-model="autoEntryBasePrice" type="number" placeholder="Price..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" />
                       </div>
                       <div class="flex-1">
-                        <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 text-black dark:text-white mb-1">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
+                        <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 nier-text-primary mb-1">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
                         <input v-model="autoEntryBaseLots" type="number" step="0.01" placeholder="Lots..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" />
                       </div>
                     </div>
                     <div class="flex items-center justify-end gap-2">
-                      <button @click="showAutoPrompt = false" class="px-4 py-2 border border-black/30 dark:border-white/30 text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-[9px] font-mono tracking-widest uppercase transition-all font-bold">
+                      <button @click="showAutoPrompt = false" class="px-4 py-2 border border-black/30 dark:border-white/30 nier-text-primary hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-[9px] font-mono tracking-widest uppercase transition-all font-bold">
                          {{ locale === 'ru' ? 'ОТМЕНА' : 'CANCEL' }}
                       </button>
-                      <button @click="confirmAutoGenerate" class="px-4 py-2 bg-black/10 dark:bg-white/10 text-black dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-[9px] font-mono tracking-widest uppercase transition-all font-bold">
+                      <button @click="confirmAutoGenerate" class="px-4 py-2 bg-black/10 dark:bg-white/10 nier-text-primary hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black text-[9px] font-mono tracking-widest uppercase transition-all font-bold">
                          {{ locale === 'ru' ? 'ПОДТВЕРДИТЬ' : 'CONFIRM' }}
                       </button>
                     </div>
@@ -2965,11 +3034,11 @@ const submit = async () => {
                   <div v-for="(ent, idx) in exitEntries" :key="ent.id" class="flex items-center gap-4">
                      <span class="text-[8px] font-mono opacity-40 font-black tracking-widest w-6">#{{ idx + 1 }}</span>
                      <div class="flex-1 flex flex-col gap-1">
-                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'Уровень_Выхода' : 'Exit_Lvl' }}</span>
+                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'Уровень_Выхода' : 'Exit_Lvl' }}</span>
                         <input v-model="ent.price" type="number" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
                      </div>
                      <div class="flex-1 flex flex-col gap-1">
-                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
+                        <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
                         <input v-model="ent.size" type="number" step="0.01" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
                      </div>
                      <button @click="removeExitEntry(ent.id)" class="w-8 h-8 flex items-center justify-center border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-all mt-4">
@@ -2988,28 +3057,28 @@ const submit = async () => {
               </div>
 
               <!-- FOOTER (Fixed bottom) -->
-              <div class="flex-shrink-0 border-t border-black/10 dark:border-white/10 pt-6 transition-all">
+              <div class="flex-shrink-0 border-t nier-border-primary pt-6 transition-all">
                 <!-- ENTRY FOOTER -->
                 <div v-if="activeProtocolTab === 'PYRAMIDING' || activeProtocolTab === 'AVERAGING_DOWN'" class="flex items-center justify-between" :class="{ 'opacity-30 grayscale': !entryMethodEnabled }">
                   <div class="flex flex-col gap-1">
-                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'СРЕДНЯЯ ЦЕНА ВХОДА' : 'Aggregated_Avg_Entry' }}</span>
-                     <span class="text-sm font-mono font-black text-black dark:text-white">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
+                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'СРЕДНЯЯ ЦЕНА ВХОДА' : 'Aggregated_Avg_Entry' }}</span>
+                     <span class="text-sm font-mono font-black nier-text-primary">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
                   </div>
                   <div class="flex flex-col gap-1 items-end">
-                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'ОБЩИЙ ОБЪЕМ' : 'Total_Volume' }}</span>
-                     <span class="text-sm font-mono font-black text-black dark:text-white">{{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
+                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'ОБЩИЙ ОБЪЕМ' : 'Total_Volume' }}</span>
+                     <span class="text-sm font-mono font-black nier-text-primary">{{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
                   </div>
                 </div>
 
                 <!-- EXIT FOOTER -->
                 <div v-if="activeProtocolTab === 'EXIT'" class="flex items-center justify-between">
                   <div class="flex flex-col gap-1">
-                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'СРЕДНЯЯ ЦЕНА ВЫХОДА' : 'Aggregated_Avg_Exit' }}</span>
-                     <span class="text-sm font-mono font-black text-black dark:text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
+                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'СРЕДНЯЯ ЦЕНА ВЫХОДА' : 'Aggregated_Avg_Exit' }}</span>
+                     <span class="text-sm font-mono font-black nier-text-primary">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
                   </div>
                   <div class="flex flex-col gap-1 items-end">
-                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 text-black dark:text-white">{{ locale === 'ru' ? 'ОБЩИЙ ОБЪЕМ ВЫХОДА' : 'Total_Exit_Volume' }}</span>
-                     <span class="text-sm font-mono font-black" :class="(totalExitSize > totalSize) ? 'text-rose-500' : 'text-black dark:text-white'">
+                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'ОБЩИЙ ОБЪЕМ ВЫХОДА' : 'Total_Exit_Volume' }}</span>
+                     <span class="text-sm font-mono font-black" :class="(totalExitSize > totalSize) ? 'text-rose-500' : 'nier-text-primary'">
                         {{ totalExitSize > 0 ? totalExitSize.toFixed(2) : '0.00' }} <span class="opacity-40 text-xs">/ {{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
                      </span>
                   </div>
@@ -3030,10 +3099,10 @@ const submit = async () => {
              class="fixed inset-0 z-[2000] flex items-center justify-center p-20 bg-black/20 dark:bg-black/40 backdrop-blur-md cursor-pointer">
           <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="w-full max-w-4xl !border-black/20 dark:!border-white/20 cursor-auto">
             
-            <div class="flex items-center justify-between px-4 py-2 border-b border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
+            <div class="flex items-center justify-between px-4 py-2 border-b nier-border-primary bg-black/[0.02] dark:bg-white/[0.02]">
             </div>
 
-            <div class="grid grid-cols-2 divide-x divide-black/5 dark:divide-white/5 h-[450px]">
+            <div class="grid grid-cols-2 divide-x divide-black/5 dark:divide-white/5 h-[450px] nier-text-primary">
               <div class="flex flex-col p-10 gap-8">
                 <div class="flex flex-col gap-2">
                   <span class="text-[9px] uppercase tracking-widest text-black/40 dark:text-white/20">Active_Target</span>
@@ -3049,11 +3118,11 @@ const submit = async () => {
 
                 <div class="flex flex-col gap-4 pt-4 border-t border-black/5 dark:border-white/5">
                   <button @click="activeTemporalTarget === 'open' ? openDate = new Date() : exitDate = new Date()" 
-                          class="w-full py-2 border border-black/10 dark:border-white/10 text-[8px] uppercase tracking-widest text-black/60 hover:bg-black/10 dark:text-white/60 dark:hover:bg-white/10">
+                          class="w-full py-2 border nier-border-primary text-[8px] uppercase tracking-widest text-black/60 hover:bg-black/10 dark:text-white/60 dark:hover:bg-white/10">
                     Sync_to_Current_System_Time
                   </button>
                   <button @click="exitDate = new Date(openDate)" 
-                          class="w-full py-2 border border-black/10 dark:border-white/10 text-[8px] uppercase tracking-widest text-black/60 hover:bg-black/10 dark:text-white/60 dark:hover:bg-white/10">
+                          class="w-full py-2 border nier-border-primary text-[8px] uppercase tracking-widest text-black/60 hover:bg-black/10 dark:text-white/60 dark:hover:bg-white/10">
                     Clone_Open_Protocol_to_Exit
                   </button>
                 </div>
@@ -3063,12 +3132,12 @@ const submit = async () => {
                 <div class="flex flex-col items-center gap-10">
                   <div class="flex items-center gap-4">
                     <div v-for="unit in ['day', 'month', 'year']" :key="unit" class="flex flex-col items-center gap-2">
-                      <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                      <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px nier-bg-inverted"></div></button>
                       <input v-model="tempDateParts[unit]"
                              :maxlength="unit === 'year' ? 4 : 2"
                              @input="e => handleManualDate(activeTemporalTarget, unit, e.target.value)"
-                             class="w-24 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-tighter text-black dark:text-white" />
-                      <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                             class="w-24 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-tighter nier-text-primary" />
+                      <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px nier-bg-inverted"></div></button>
                       <span class="text-[7px] uppercase tracking-widest text-black/40 dark:text-white/20">{{ unit }}</span>
                     </div>
                   </div>
@@ -3077,12 +3146,12 @@ const submit = async () => {
 
                   <div class="flex items-center gap-6">
                     <div v-for="unit in ['hour', 'minute']" :key="unit" class="flex flex-col items-center gap-2">
-                      <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                      <button @click="adjustDate(activeTemporalTarget, unit, 1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px nier-bg-inverted"></div></button>
                       <input v-model="tempDateParts[unit]"
                              maxlength="2"
                              @input="e => handleManualDate(activeTemporalTarget, unit, e.target.value)"
-                             class="w-20 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-widest text-black dark:text-white" />
-                      <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px bg-black dark:bg-white"></div></button>
+                             class="w-20 bg-transparent text-center outline-none text-4xl font-mono font-bold tracking-widest nier-text-primary" />
+                      <button @click="adjustDate(activeTemporalTarget, unit, -1); syncTempParts()" class="p-2 opacity-20 hover:opacity-100 transition-opacity"><div class="w-4 h-px nier-bg-inverted"></div></button>
                       <span class="text-[7px] uppercase tracking-widest text-black/40 dark:text-white/20">{{ unit }}</span>
                     </div>
                   </div>
@@ -3166,6 +3235,23 @@ input[type=number] {
 }
 
 /* Transitions */
+.risk-warn-enter-active,
+.risk-warn-leave-active {
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.risk-warn-enter-from,
+.risk-warn-leave-to {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+  filter: blur(4px);
+}
+.risk-warn-enter-to,
+.risk-warn-leave-from {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0px);
+}
+
 .protocol-slide-enter-active, .protocol-slide-leave-active {
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }

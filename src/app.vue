@@ -1,16 +1,17 @@
 <template>
   <div
     class="relative h-full min-h-full bg-center bg-cover transition-colors duration-500"
-    :style="{ backgroundColor: 'var(--content-bg)' }"
+    :style="{ backgroundColor: 'var(--theme-bg)' }"
   >
     <!-- Ambient Background Layer -->
     <div 
       v-if="themeStore.settings.isImageBg && themeStore.settings.bgImage"
       class="fixed inset-0 pointer-events-none transition-all duration-[800ms] ease-in-out bg-center bg-cover"
       :style="{ 
-        backgroundImage: 'var(--bg-image)', 
-        filter: 'blur(var(--bg-image-blur)) brightness(var(--bg-image-brightness))',
-        opacity: 'var(--bg-image-opacity)',
+        backgroundImage: `url('${themeStore.settings.bgImage}')`, 
+        filter: `blur(${themeStore.settings.bgImageBlur}px) brightness(${themeStore.settings.bgImageBrightness / 100})`,
+        opacity: themeStore.settings.bgImageOpacity / 100,
+        transform: `scale(${themeStore.settings.bgImageZoom / 100})`,
         zIndex: 0
       }"
     ></div>
@@ -117,7 +118,24 @@ onUnmounted(() => {
 :root {
   --header-bg: transparent;
   --footer-bg: transparent;
-  --content-bg: #f7f5fa;
+  --content-bg: #FFFFFF;
+  --theme-bg: #FFFFFF;
+  --theme-bg-rgb: 255 255 255;
+  --theme-panel: rgba(255, 255, 255, 0.92);
+  --theme-panel-rgb: 255 255 255;
+  --theme-text: #2c2c2a;
+  --theme-text-rgb: 44 44 42;
+  --theme-muted: rgba(44, 44, 42, 0.58);
+  --theme-border: rgba(44, 44, 42, 0.12);
+  --theme-border-rgb: 44 44 42;
+  --theme-border-strong: rgba(44, 44, 42, 0.28);
+  --theme-accent: #8d7f61;
+  --theme-accent-rgb: 141 127 97;
+  --theme-grid-dot: rgba(44, 44, 42, 0.24);
+  --theme-tooltip-bg: #F9F9F9;
+  --theme-tooltip-text: #2c2c2a;
+  --theme-tooltip-muted: rgba(44, 44, 42, 0.62);
+  --theme-tooltip-border: rgba(44, 44, 42, 0.18);
   --text-heading: #050505;
   --text-description: rgba(18, 18, 18, 0.45);
   --icon-color-mode: black;
@@ -126,7 +144,24 @@ onUnmounted(() => {
 html.dark {
   --header-bg: transparent;
   --footer-bg: transparent;
-  --content-bg: #050505;
+  --content-bg: #000000;
+  --theme-bg: #000000;
+  --theme-bg-rgb: 0 0 0;
+  --theme-panel: rgba(5, 5, 5, 0.92);
+  --theme-panel-rgb: 5 5 5;
+  --theme-text: #F9F6F0;
+  --theme-text-rgb: 249 246 240;
+  --theme-muted: rgba(249, 246, 240, 0.56);
+  --theme-border: rgba(249, 246, 240, 0.12);
+  --theme-border-rgb: 249 246 240;
+  --theme-border-strong: rgba(249, 246, 240, 0.28);
+  --theme-accent: #c7b98f;
+  --theme-accent-rgb: 199 185 143;
+  --theme-grid-dot: rgba(249, 246, 240, 0.16);
+  --theme-tooltip-bg: #0a0a0a;
+  --theme-tooltip-text: #F9F6F0;
+  --theme-tooltip-muted: rgba(249, 246, 240, 0.62);
+  --theme-tooltip-border: rgba(249, 246, 240, 0.18);
   --text-heading: rgba(255, 255, 255, 0.95);
   --text-description: rgba(255, 255, 255, 0.45);
   --icon-color-mode: white;
@@ -193,6 +228,122 @@ html.dark body {
 
 * {
   -ms-overflow-style: none;
+}
+
+.theme-surface,
+.ethereal-void {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease;
+}
+
+.theme-panel,
+.nier-bg-panel {
+  background-color: var(--theme-panel);
+}
+
+.theme-panel-backdrop {
+  background-color: var(--theme-panel);
+}
+
+.theme-grid,
+.grid-light,
+.grid-dark {
+  background-image: radial-gradient(var(--theme-grid-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-position: center;
+}
+
+.bg-theme-bg { background-color: var(--theme-bg); }
+.bg-theme-text { background-color: var(--theme-text); }
+.bg-theme-panel { background-color: var(--theme-panel); }
+.text-theme-text { color: var(--theme-text); }
+.text-theme-accent { color: var(--theme-accent); }
+.border-theme-border { border-color: var(--theme-border); }
+.border-theme-text { border-color: var(--theme-text); }
+.bg-theme-accent { background-color: var(--theme-accent); }
+
+.nier-text-primary {
+  color: var(--theme-text);
+}
+
+.nier-text-secondary {
+  color: var(--theme-muted);
+}
+
+.nier-text-inverted {
+  color: var(--theme-bg);
+}
+
+.nier-bg-primary {
+  background-color: var(--theme-bg);
+}
+
+.nier-bg-inverted {
+  background-color: var(--theme-text);
+}
+
+.nier-border-primary {
+  border-color: var(--theme-border);
+}
+
+.nier-bg-inverted.nier-text-primary,
+.nier-bg-inverted .nier-text-primary {
+  color: var(--theme-bg);
+}
+
+.theme-tooltip-panel {
+  background-color: var(--theme-tooltip-bg);
+  border-color: var(--theme-tooltip-border);
+  color: var(--theme-tooltip-text);
+}
+
+.theme-tooltip-light {
+  --theme-tooltip-bg: #F9F9F9;
+  --theme-tooltip-text: #2c2c2a;
+  --theme-tooltip-muted: rgba(44, 44, 42, 0.62);
+  --theme-tooltip-border: rgba(44, 44, 42, 0.18);
+}
+
+.theme-tooltip-dark {
+  --theme-tooltip-bg: #0a0a0a;
+  --theme-tooltip-text: #F9F6F0;
+  --theme-tooltip-muted: rgba(249, 246, 240, 0.62);
+  --theme-tooltip-border: rgba(249, 246, 240, 0.18);
+}
+
+.theme-tooltip-panel :where(h1, h2, h3, h4, h5, h6),
+.theme-tooltip-panel :where(
+  .nier-text-primary,
+  .text-theme-text,
+  .text-black,
+  .text-white,
+  [class~="dark:text-black"],
+  [class~="dark:text-white"]
+) {
+  color: var(--theme-tooltip-text) !important;
+}
+
+.theme-tooltip-panel :where(
+  .nier-text-secondary,
+  [class*="text-black/"],
+  [class*="text-white/"],
+  [class*="text-theme-text/"]
+) {
+  color: var(--theme-tooltip-muted) !important;
+}
+
+.theme-tooltip-panel :where(.nier-border-primary) {
+  border-color: var(--theme-tooltip-border) !important;
+}
+
+.theme-tooltip-stem {
+  background-color: var(--theme-tooltip-bg);
+  border-color: var(--theme-tooltip-border);
+}
+
+.theme-tooltip-divider {
+  border-color: var(--theme-tooltip-border);
 }
 
 /* Hide Native Number Spinners */

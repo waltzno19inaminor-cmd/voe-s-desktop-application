@@ -1,5 +1,5 @@
 <template>
-  <div class="ex-efficiency-lattice w-full h-full p-8 flex flex-col bg-white dark:bg-[#0a0a0a] border border-black/10 dark:border-white/10 shadow-2xl relative overflow-hidden group">
+  <div class="ex-efficiency-lattice w-full h-full p-8 flex flex-col nier-bg-panel border nier-border-primary shadow-2xl relative overflow-hidden group">
     <!-- SCANNING LINES DECORATION -->
     <div class="absolute inset-0 opacity-[0.03] pointer-events-none" 
          style="background-image: linear-gradient(to right, currentColor 1px, transparent 1px), linear-gradient(to bottom, currentColor 1px, transparent 1px); background-size: 40px 40px;"></div>
@@ -8,18 +8,18 @@
     <div class="flex justify-between items-start mb-12 relative z-10">
       <div class="flex flex-col">
         <div class="flex items-center space-x-3 mb-1">
-          <div class="w-2.5 h-2.5 bg-black dark:bg-white rotate-45"></div>
-          <span class="text-sm font-mono font-black uppercase tracking-[0.4em] text-black dark:text-white">{{ protocolName || 'Protocol_Diagnostic' }}</span>
+          <div class="w-2.5 h-2.5 nier-bg-inverted rotate-45"></div>
+          <span class="text-sm font-mono font-black uppercase tracking-[0.4em] nier-text-primary">{{ protocolName || 'Protocol_Diagnostic' }}</span>
         </div>
-        <span class="text-[8px] font-mono opacity-30 uppercase tracking-[0.2em] text-black dark:text-white">Metric: Rolling_Efficiency_Score // Historical_Performance_Log</span>
+        <span class="text-[8px] font-mono opacity-30 uppercase tracking-[0.2em] nier-text-primary">Metric: Rolling_Efficiency_Score // Historical_Performance_Log</span>
       </div>
       
       <div class="flex items-center space-x-8">
         <div class="flex flex-col items-end">
-          <span class="text-[7px] font-mono opacity-20 uppercase tracking-widest text-black dark:text-white">Current_PF</span>
-          <span class="text-2xl font-mono font-black text-black dark:text-white">{{ currentPF.toFixed(2) }}</span>
+          <span class="text-[7px] font-mono opacity-20 uppercase tracking-widest nier-text-primary">Current_PF</span>
+          <span class="text-2xl font-mono font-black nier-text-primary">{{ currentPF.toFixed(2) }}</span>
         </div>
-        <button @click="$emit('close')" class="w-10 h-10 flex items-center justify-center border border-black/10 dark:border-white/10 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
+        <button @click="$emit('close')" class="w-10 h-10 flex items-center justify-center border nier-border-primary hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-all">
           <span class="text-xs font-mono font-bold">ESC</span>
         </button>
       </div>
@@ -32,7 +32,7 @@
            :viewBox="`0 0 ${width} ${height}`">
         
         <!-- Grid -->
-        <g class="opacity-[0.05] text-black dark:text-white">
+        <g class="opacity-[0.05] nier-text-primary">
           <line v-for="i in 5" :key="'h'+i" x1="0" :y1="(i/5)*height" :x2="width" :y2="(i/5)*height" stroke="currentColor" stroke-width="1" />
           <line v-for="i in 10" :key="'v'+i" :x1="(i/10)*width" y1="0" :x2="(i/10)*width" :y2="height" stroke="currentColor" stroke-width="1" />
         </g>
@@ -41,7 +41,7 @@
         <path :d="pfPathLine" fill="none" class="stroke-black dark:stroke-white transition-all duration-700" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
 
         <!-- Sequence Markers (Small dots at each point) -->
-        <g class="opacity-20 text-black dark:text-white">
+        <g class="opacity-20 nier-text-primary">
           <circle v-for="(p, i) in points" :key="'p'+i" :cx="p.x" :cy="p.y" r="2" fill="currentColor" />
         </g>
 
@@ -86,13 +86,13 @@
     </div>
 
     <!-- LEGEND FOOTER -->
-    <div class="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex justify-between items-center relative z-10">
+    <div class="mt-12 pt-8 border-t nier-border-primary flex justify-between items-center relative z-10">
       <div class="flex items-center space-x-4">
-        <div class="w-8 h-px bg-black dark:bg-white"></div>
-        <span class="text-[9px] font-mono uppercase tracking-[0.3em] opacity-40 text-black dark:text-white font-bold">Diagnostic_Curve: Efficiency_Coefficient</span>
+        <div class="w-8 h-px nier-bg-inverted"></div>
+        <span class="text-[9px] font-mono uppercase tracking-[0.3em] opacity-40 nier-text-primary font-bold">Diagnostic_Curve: Efficiency_Coefficient</span>
       </div>
       <div class="flex items-center space-x-2 opacity-10">
-        <div class="w-2 h-2 bg-black dark:bg-white rotate-45"></div>
+        <div class="w-2 h-2 nier-bg-inverted rotate-45"></div>
         <span class="text-[8px] font-mono uppercase tracking-[0.5em]">GENESIS_ARCHIVAL_v2.1</span>
       </div>
     </div>

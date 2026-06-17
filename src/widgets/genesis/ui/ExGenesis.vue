@@ -220,11 +220,6 @@ const getModeFromRoute = () => {
 const syncModeFromRoute = () => {
   const mode = getModeFromRoute()
   
-  if (mode === 'matrix') {
-    showPaywall.value = true
-    backToOrigin()
-    return
-  }
 
   currentMode.value = mode
   diaryViewMode.value = route.query.view === 'cube' ? 'cube' : 'stats'
@@ -233,10 +228,6 @@ const syncModeFromRoute = () => {
 const navigateToMode = (mode: 'diary' | 'matrix' | 'genesis-diary') => {
   console.log('[ExGenesis] navigateToMode called with mode:', mode)
 
-  if (mode === 'matrix') {
-    showPaywall.value = true
-    return
-  }
 
   console.log('[ExGenesis] Access granted to mode:', mode)
   currentMode.value = mode

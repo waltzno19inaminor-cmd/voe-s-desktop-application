@@ -565,7 +565,7 @@ watch(() => props.isOpen, (newVal) => {
 <template>
   <Transition name="fade-editor">
     <div v-if="isOpen" 
-         class="fixed inset-0 z-[7000] font-mono text-black dark:text-white transition-all duration-500"
+         class="fixed inset-0 z-[7000] font-mono nier-text-primary transition-all duration-500"
          :class="[
            previewMode ? 'bg-black/80 backdrop-blur-md flex items-center justify-center p-4 md:p-8' : 'bg-white/95 dark:bg-[#0a0a0a]/95 backdrop-blur-2xl flex flex-col overflow-hidden',
            isImgLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -574,10 +574,10 @@ watch(() => props.isOpen, (newVal) => {
          @click="previewMode ? emit('close') : null">
       
       <!-- HEADER (Editor Mode Only) -->
-      <header v-if="!previewMode" class="h-20 border-b border-black/10 dark:border-white/10 flex items-center justify-between px-12 bg-white/50 dark:bg-[#0a0a0a]/50" @mousedown.stop>
+      <header v-if="!previewMode" class="h-20 border-b nier-border-primary flex items-center justify-between px-12 bg-white/50 dark:bg-[#0a0a0a]/50" @mousedown.stop>
         <div class="flex items-center space-x-8">
-          <div class="w-5 h-5 bg-black dark:bg-white rotate-45 flex items-center justify-center">
-            <div class="w-2 h-2 bg-white dark:bg-[#0a0a0a] rotate-45"></div>
+          <div class="w-5 h-5 nier-bg-inverted rotate-45 flex items-center justify-center">
+            <div class="w-2 h-2 nier-bg-panel rotate-45"></div>
           </div>
           <div class="flex flex-col">
             <span class="text-[11px] tracking-[0.6em] font-black uppercase">Visual_Reification_Engine</span>
@@ -589,7 +589,7 @@ watch(() => props.isOpen, (newVal) => {
           <ExButton variant="ghost" size="sm" @click="resetView">Reset_View</ExButton>
           <div class="w-px h-8 bg-black/10 dark:border-white/10 opacity-20"></div>
           <button @click="emit('close')" 
-                  class="group relative flex items-center px-8 py-3 overflow-hidden border border-black/10 dark:border-white/10 hover:border-red-500/40 transition-all duration-700 bg-black/[0.02] dark:bg-white/[0.02] backdrop-blur-sm">
+                  class="group relative flex items-center px-8 py-3 overflow-hidden border nier-border-primary hover:border-red-500/40 transition-all duration-700 bg-black/[0.02] dark:bg-white/[0.02] backdrop-blur-sm">
             <!-- Kinetic Background -->
             <div class="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000 ease-in-out"></div>
             
@@ -621,10 +621,10 @@ watch(() => props.isOpen, (newVal) => {
             <div class="flex items-center space-x-6">
               <button @click="emit('close')" 
                       class="group relative flex items-center space-x-2 px-4 py-1.5 border border-black/10 dark:border-white/20 hover:border-black dark:hover:border-white bg-black/5 dark:bg-white/5 transition-all duration-500 overflow-hidden">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5 text-black dark:text-white opacity-40 group-hover:opacity-100 group-hover:rotate-90 transition-all duration-700 shrink-0">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-3.5 h-3.5 nier-text-primary opacity-40 group-hover:opacity-100 group-hover:rotate-90 transition-all duration-700 shrink-0">
                   <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
-                <span class="text-[9px] font-mono font-black uppercase tracking-[0.2em] text-black dark:text-white opacity-80 group-hover:opacity-100 transition-opacity">Close_Preview</span>
+                <span class="text-[9px] font-mono font-black uppercase tracking-[0.2em] nier-text-primary opacity-80 group-hover:opacity-100 transition-opacity">Close_Preview</span>
               </button>
             </div>
           </template>
@@ -727,7 +727,7 @@ watch(() => props.isOpen, (newVal) => {
              @mousemove="handleMouseMove">
           
           <!-- Image Layer -->
-          <div class="relative shadow-[0_0_100px_rgba(0,0,0,0.2)] dark:shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-black/10 dark:border-white/10 bg-white dark:bg-black overflow-hidden"
+          <div class="relative shadow-[0_0_100px_rgba(0,0,0,0.2)] dark:shadow-[0_0_100px_rgba(0,0,0,0.5)] border nier-border-primary nier-bg-panel overflow-hidden"
                :class="{ 'cursor-none': (isDrawing || ['brush', 'eraser'].includes(activeTool)) && isOverImage }">
             <img :src="imageUrl" class="block pointer-events-none" draggable="false" />
             
@@ -837,8 +837,8 @@ watch(() => props.isOpen, (newVal) => {
                    <!-- Remove Handle -->
                    <div class="absolute -top-6 -right-6 w-6 h-6 flex items-center justify-center cursor-pointer pointer-events-auto group/del"
                         @mousedown.stop="removeSelected">
-                      <div class="w-4 h-4 bg-black dark:bg-white border border-white dark:border-black rotate-45 group-hover/del:bg-red-500 group-hover/del:scale-110 transition-all duration-300 flex items-center justify-center">
-                         <span class="rotate-[-45deg] text-[10px] text-white dark:text-black font-black">×</span>
+                      <div class="w-4 h-4 nier-bg-inverted border border-white dark:border-black rotate-45 group-hover/del:bg-red-500 group-hover/del:scale-110 transition-all duration-300 flex items-center justify-center">
+                         <span class="rotate-[-45deg] text-[10px] nier-text-primary font-black">×</span>
                       </div>
                    </div>
                 </template>
@@ -876,7 +876,7 @@ watch(() => props.isOpen, (newVal) => {
         </div>
 
         <div v-if="!previewMode" class="absolute left-12 top-1/2 -translate-y-1/2 flex flex-col space-y-3" @mousedown.stop>
-          <div class="p-3 border border-black/10 dark:border-white/10 bg-white dark:bg-[#0a0a0a] flex flex-col space-y-2 shadow-2xl relative">
+          <div class="p-3 border nier-border-primary nier-bg-panel flex flex-col space-y-2 shadow-2xl relative">
             <!-- Standard corners -->
             <div class="absolute -top-px -left-px w-2 h-2 border-t border-l border-black dark:border-white"></div>
             <div class="absolute -bottom-px -right-px w-2 h-2 border-b border-r border-black dark:border-white"></div>
@@ -885,13 +885,13 @@ watch(() => props.isOpen, (newVal) => {
               :key="tool.id"
               @click="handleToolChange(tool.id)"
               class="w-12 h-12 flex items-center justify-center transition-all duration-300 relative group"
-              :class="activeTool === tool.id ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-40 hover:opacity-100'"
+              :class="activeTool === tool.id ? 'nier-bg-inverted nier-text-primary shadow-lg' : 'hover:bg-black/5 dark:hover:bg-white/5 opacity-40 hover:opacity-100'"
             >
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" :d="tool.icon" />
               </svg>
               <!-- Tooltip -->
-              <div class="absolute left-full ml-4 px-3 py-1 bg-black dark:bg-white text-white dark:text-black text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+              <div class="absolute left-full ml-4 px-3 py-1 nier-bg-inverted nier-text-primary text-[8px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                 {{ tool.label }}
               </div>
             </button>
@@ -906,13 +906,13 @@ watch(() => props.isOpen, (newVal) => {
              <div class="absolute -bottom-2 -right-2 w-4 h-4 border-b-2 border-r-2 border-black dark:border-white z-10"></div>
              
              <ExPanel :title="selectedElement ? `EDIT: [${selectedElementType?.toUpperCase()}]` : `TOOL: [${activeTool.toUpperCase()}]`" :showCorners="false" noPadding>
-            <div class="p-8 space-y-10 bg-white dark:bg-[#0a0a0a]">
+            <div class="p-8 space-y-10 nier-bg-panel">
               
               <!-- Text Config (Only for Text tool or selection) -->
               <div v-if="activeTool === 'text' || selectedElementType === 'text'" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                <div class="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-2">
-                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 text-black dark:text-white">Text_Config</span>
-                  <div class="w-1.5 h-1.5 bg-black dark:bg-white rotate-45"></div>
+                <div class="flex items-center justify-between border-b nier-border-primary pb-2">
+                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 nier-text-primary">Text_Config</span>
+                  <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45"></div>
                 </div>
                 
                 <div class="grid grid-cols-2 gap-4">
@@ -927,7 +927,7 @@ watch(() => props.isOpen, (newVal) => {
 
                 <div class="space-y-4">
                   <div class="space-y-2">
-                    <div class="flex justify-between items-center text-[9px] uppercase tracking-widest text-black dark:text-white">
+                    <div class="flex justify-between items-center text-[9px] uppercase tracking-widest nier-text-primary">
                       <span class="opacity-40">Font_Scale</span>
                       <span class="font-black">{{ textSize }}px</span>
                     </div>
@@ -935,7 +935,7 @@ watch(() => props.isOpen, (newVal) => {
                   </div>
 
                   <div class="space-y-2">
-                    <div class="flex justify-between items-center text-[9px] uppercase tracking-widest text-black dark:text-white">
+                    <div class="flex justify-between items-center text-[9px] uppercase tracking-widest nier-text-primary">
                       <span class="opacity-40">Tracking</span>
                       <span class="font-black">{{ textTracking }}px</span>
                     </div>
@@ -949,10 +949,10 @@ watch(() => props.isOpen, (newVal) => {
                    <div class="flex items-center justify-between">
                       <span class="text-[8px] uppercase tracking-widest opacity-40">Background</span>
                       <div class="flex items-center space-x-2">
-                        <div @click="textBgColor = 'transparent'" class="w-4 h-4 border border-black/10 dark:border-white/10 flex items-center justify-center cursor-pointer opacity-40 hover:opacity-100">
+                        <div @click="textBgColor = 'transparent'" class="w-4 h-4 border nier-border-primary flex items-center justify-center cursor-pointer opacity-40 hover:opacity-100">
                           <div class="w-px h-full bg-red-500 rotate-45"></div>
                         </div>
-                        <div @click="textBgInput?.click()" class="w-8 h-4 border border-black/10 dark:border-white/10 cursor-pointer" :style="{ backgroundColor: textBgColor }"></div>
+                        <div @click="textBgInput?.click()" class="w-8 h-4 border nier-border-primary cursor-pointer" :style="{ backgroundColor: textBgColor }"></div>
                         <input type="color" ref="textBgInput" v-model="textBgColor" class="sr-only" />
                       </div>
                    </div>
@@ -961,10 +961,10 @@ watch(() => props.isOpen, (newVal) => {
                       <div class="flex items-center justify-between">
                          <span class="text-[8px] uppercase tracking-widest opacity-40">Border</span>
                          <div class="flex items-center space-x-2">
-                           <div @click="textBorderColor = 'transparent'; textBorderWidth = 0" class="w-4 h-4 border border-black/10 dark:border-white/10 flex items-center justify-center cursor-pointer opacity-40 hover:opacity-100">
+                           <div @click="textBorderColor = 'transparent'; textBorderWidth = 0" class="w-4 h-4 border nier-border-primary flex items-center justify-center cursor-pointer opacity-40 hover:opacity-100">
                              <div class="w-px h-full bg-red-500 rotate-45"></div>
                            </div>
-                           <div @click="textBorderInput?.click()" class="w-8 h-4 border border-black/10 dark:border-white/10 cursor-pointer" :style="{ backgroundColor: textBorderColor }"></div>
+                           <div @click="textBorderInput?.click()" class="w-8 h-4 border nier-border-primary cursor-pointer" :style="{ backgroundColor: textBorderColor }"></div>
                            <input type="color" ref="textBorderInput" v-model="textBorderColor" class="sr-only" />
                          </div>
                       </div>
@@ -976,11 +976,11 @@ watch(() => props.isOpen, (newVal) => {
               <!-- Stroke Config (For shapes/brush) -->
               <div v-if="['brush', 'square', 'trendline'].includes(activeTool) || (selectedElement && selectedElementType !== 'text')" 
                    class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                <div class="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-2">
-                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 text-black dark:text-white">Stroke_Config</span>
+                <div class="flex items-center justify-between border-b nier-border-primary pb-2">
+                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 nier-text-primary">Stroke_Config</span>
                 </div>
                 <div class="space-y-3">
-                  <div class="flex justify-between items-center text-[9px] uppercase tracking-widest text-black dark:text-white">
+                  <div class="flex justify-between items-center text-[9px] uppercase tracking-widest nier-text-primary">
                     <span class="opacity-40">Weight_px</span>
                     <span class="font-black">{{ strokeWidth }}px</span>
                   </div>
@@ -990,11 +990,11 @@ watch(() => props.isOpen, (newVal) => {
 
               <!-- Eraser Config -->
               <div v-if="activeTool === 'eraser'" class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
-                <div class="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-2">
-                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 text-black dark:text-white">Eraser_Config</span>
+                <div class="flex items-center justify-between border-b nier-border-primary pb-2">
+                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 nier-text-primary">Eraser_Config</span>
                 </div>
                 <div class="space-y-3">
-                  <div class="flex justify-between items-center text-[9px] uppercase tracking-widest text-black dark:text-white">
+                  <div class="flex justify-between items-center text-[9px] uppercase tracking-widest nier-text-primary">
                     <span class="opacity-40">Eraser_Radius</span>
                     <span class="font-black">{{ eraserSize }}px</span>
                   </div>
@@ -1004,8 +1004,8 @@ watch(() => props.isOpen, (newVal) => {
 
               <!-- Color Config (Shown for almost everything) -->
               <div v-if="activeTool !== 'pan' && activeTool !== 'eraser'" class="space-y-6">
-                <div class="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-2">
-                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 text-black dark:text-white">Chromatic_Index</span>
+                <div class="flex items-center justify-between border-b nier-border-primary pb-2">
+                  <span class="text-[9px] font-black uppercase tracking-[0.4em] opacity-40 nier-text-primary">Chromatic_Index</span>
                 </div>
                 <div class="flex flex-wrap gap-2">
                   <button 
@@ -1013,13 +1013,13 @@ watch(() => props.isOpen, (newVal) => {
                     :key="c"
                     @click="selectedColor = c"
                     class="w-8 h-8 border transition-all duration-300 hover:scale-110"
-                    :class="selectedColor === c ? 'border-black dark:border-white scale-110 shadow-lg' : 'border-black/10 dark:border-white/10 opacity-60 hover:opacity-100'"
+                    :class="selectedColor === c ? 'border-black dark:border-white scale-110 shadow-lg' : 'nier-border-primary opacity-60 hover:opacity-100'"
                     :style="{ backgroundColor: c }"
                   ></button>
                   
                   <!-- Custom Color Trigger -->
                   <button @click="colorInput?.click()" 
-                          class="w-8 h-8 border border-black/10 dark:border-white/10 flex items-center justify-center relative overflow-hidden group/color shadow-sm hover:scale-110 transition-transform">
+                          class="w-8 h-8 border nier-border-primary flex items-center justify-center relative overflow-hidden group/color shadow-sm hover:scale-110 transition-transform">
                     <div class="absolute inset-0 bg-gradient-to-tr from-red-500 via-green-500 to-blue-500 opacity-40 group-hover/color:opacity-100 transition-opacity"></div>
                     <span class="relative text-[10px] font-black text-white mix-blend-difference">+</span>
                     <input type="color" ref="colorInput" v-model="selectedColor" class="absolute inset-0 opacity-0 cursor-pointer" />
@@ -1028,10 +1028,10 @@ watch(() => props.isOpen, (newVal) => {
               </div>
 
               <!-- Action Bar (Clear All) -->
-              <div class="pt-6 border-t border-black/10 dark:border-white/10 flex flex-col space-y-3">
+              <div class="pt-6 border-t nier-border-primary flex flex-col space-y-3">
                 <div @click="clearBuffer" class="flex items-center justify-center space-x-3 opacity-20 hover:opacity-60 transition-opacity cursor-pointer">
-                   <div class="w-1 h-1 bg-black dark:bg-white rotate-45"></div>
-                   <span class="text-[8px] uppercase tracking-widest font-black text-black dark:text-white">Wipe_All_Annotations</span>
+                   <div class="w-1 h-1 nier-bg-inverted rotate-45"></div>
+                   <span class="text-[8px] uppercase tracking-widest font-black nier-text-primary">Wipe_All_Annotations</span>
                 </div>
               </div>
             </div>

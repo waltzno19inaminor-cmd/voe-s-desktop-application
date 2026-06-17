@@ -198,14 +198,14 @@
                          <input type="color" v-model="selectedElement.item.color" class="w-8 h-8 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10 transition-transform active:scale-95" title="Font Color" />
                      </div>
                      <div class="flex items-center gap-2">
-                         <button @click="selectedElement.item.bold = !selectedElement.item.bold" :class="selectedElement.item.bold ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-white/60'" class="flex-1 h-8 rounded-xl font-black text-[10px] transition active:scale-95">BOLD</button>
-                         <button @click="selectedElement.item.italic = !selectedElement.item.italic" :class="selectedElement.item.italic ? 'bg-zinc-900 dark:bg-white text-white dark:text-black shadow-lg' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-white/60'" class="flex-1 h-8 rounded-xl italic text-[10px] transition font-serif active:scale-95">ITALIC</button>
+                         <button @click="selectedElement.item.bold = !selectedElement.item.bold" :class="selectedElement.item.bold ? 'bg-zinc-900 dark:bg-white nier-text-primary shadow-lg' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-white/60'" class="flex-1 h-8 rounded-xl font-black text-[10px] transition active:scale-95">BOLD</button>
+                         <button @click="selectedElement.item.italic = !selectedElement.item.italic" :class="selectedElement.item.italic ? 'bg-zinc-900 dark:bg-white nier-text-primary shadow-lg' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-white/60'" class="flex-1 h-8 rounded-xl italic text-[10px] transition font-serif active:scale-95">ITALIC</button>
                      </div>
                      <div class="h-px w-full bg-zinc-100 dark:bg-white/5 my-0.5"></div>
                      <div class="flex items-center justify-between gap-4">
                          <label class="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-white/70 font-bold cursor-pointer select-none">
                              <div class="relative w-8 h-4 bg-zinc-200 dark:bg-white/10 rounded-full transition-colors" :class="{ 'bg-zinc-900 dark:bg-white': selectedElement.item.bgEnabled }">
-                                 <div class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform" :class="[selectedElement.item.bgEnabled ? 'translate-x-4 bg-white dark:bg-black shadow-sm' : 'bg-white dark:bg-white/40']"></div>
+                                 <div class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform" :class="[selectedElement.item.bgEnabled ? 'translate-x-4 nier-bg-panel shadow-sm' : 'bg-white dark:bg-white/40']"></div>
                                  <input type="checkbox" v-model="selectedElement.item.bgEnabled" class="sr-only" /> 
                              </div>
                              Background
@@ -215,7 +215,7 @@
                      <div class="flex items-center justify-between gap-4">
                          <label class="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-white/70 font-bold cursor-pointer select-none">
                              <div class="relative w-8 h-4 bg-zinc-200 dark:bg-white/10 rounded-full transition-colors" :class="{ 'bg-zinc-900 dark:bg-white': selectedElement.item.borderEnabled }">
-                                 <div class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform" :class="[selectedElement.item.borderEnabled ? 'translate-x-4 bg-white dark:bg-black shadow-sm' : 'bg-white dark:bg-white/40']"></div>
+                                 <div class="absolute top-0.5 left-0.5 w-3 h-3 rounded-full transition-transform" :class="[selectedElement.item.borderEnabled ? 'translate-x-4 nier-bg-panel shadow-sm' : 'bg-white dark:bg-white/40']"></div>
                                  <input type="checkbox" v-model="selectedElement.item.borderEnabled" class="sr-only" /> 
                              </div>
                              Border
@@ -250,7 +250,7 @@
                   
                   <div class="flex items-center gap-2 px-1">
                       <button @click.stop="cancelEdit" class="flex-1 py-2 text-zinc-500 dark:text-white/50 hover:bg-zinc-100 dark:hover:bg-white/5 rounded-xl transition text-[10px] font-black uppercase tracking-widest active:scale-95">Cancel</button>
-                      <button @click.stop="saveEdit" class="flex-1 py-2 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-xl transition text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95">Save</button>
+                      <button @click.stop="saveEdit" class="flex-1 py-2 bg-zinc-900 dark:bg-white nier-text-primary rounded-xl transition text-[10px] font-black uppercase tracking-widest shadow-md active:scale-95">Save</button>
                   </div>
 
                   <div class="h-px w-full bg-zinc-100 dark:bg-white/10 my-1"></div>
@@ -289,19 +289,19 @@
 
           <!-- Tool Icons (Always Visible) -->
           <div class="flex items-center gap-1">
-              <button @click="activeTool = 'pencil'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'pencil' ? 'bg-[#050505] dark:bg-white text-white dark:text-black shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white' " title="Brush (B)">
+              <button @click="activeTool = 'pencil'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'pencil' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white' " title="Brush (B)">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
-              <button @click="activeTool = 'h-line'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'h-line' ? 'bg-[#050505] dark:bg-white text-white dark:text-black shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Horizontal Line (H)">
+              <button @click="activeTool = 'h-line'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'h-line' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Horizontal Line (H)">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16" /></svg>
               </button>
-              <button @click="activeTool = 'trendline'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'trendline' ? 'bg-[#050505] dark:bg-white text-white dark:text-black shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Trend Line (L)">
+              <button @click="activeTool = 'trendline'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'trendline' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Trend Line (L)">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19L20 5" /></svg>
               </button>
-              <button @click="activeTool = 'rect'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'rect' ? 'bg-[#050505] dark:bg-white text-white dark:text-black shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Rectangle (S)">
+              <button @click="activeTool = 'rect'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'rect' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Rectangle (S)">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" /></svg>
               </button>
-              <button @click="activeTool = 'text'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'text' ? 'bg-[#050505] dark:bg-white text-white dark:text-black shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Text (T)">
+              <button @click="activeTool = 'text'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'text' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Text (T)">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 7V4h16v3M9 20h6M12 4v16" /></svg>
               </button>
           </div>
@@ -330,7 +330,7 @@
               <!-- Main Actions -->
               <div class="flex items-center gap-2">
                   <button @click="clearAll" class="px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10 text-[#050505]/60 dark:text-white/60 hover:text-[#050505] dark:hover:text-white rounded-full transition text-[10px] uppercase font-bold tracking-widest" title="Clear All Layer">Clear</button>
-                  <button @click="save" class="px-6 py-2 bg-[#050505] dark:bg-white text-white dark:text-black rounded-full hover:shadow-lg transition-all duration-300 text-[10px] uppercase font-bold tracking-widest" title="Save & Close">Done</button>
+                  <button @click="save" class="px-6 py-2 bg-[#050505] dark:bg-white nier-text-primary rounded-full hover:shadow-lg transition-all duration-300 text-[10px] uppercase font-bold tracking-widest" title="Save & Close">Done</button>
               </div>
           </template>
 

@@ -46,8 +46,8 @@ const bottomRightClasses = computed(() =>
 <template>
   <div 
     :class="[
-      'relative isolate w-full border border-black/10 dark:border-white/10 flex flex-col',
-      variant === 'light' ? 'bg-transparent' : 'bg-white dark:bg-[#0a0a0a]',
+      'relative isolate w-full border nier-border-primary flex flex-col',
+      variant === 'light' ? 'bg-transparent' : 'nier-bg-panel',
       { 'p-0': noPadding },
       noShadow ? 'shadow-none dark:shadow-none' : 'shadow-[0_20px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_40px_rgba(0,0,0,0.4)]'
     ]"
@@ -55,7 +55,7 @@ const bottomRightClasses = computed(() =>
   >
     <div v-if="variant === 'light'" class="absolute inset-0 z-0 pointer-events-none overflow-hidden">
       <div
-        class="ex-panel-backdrop absolute -inset-4 bg-black/60"
+        class="ex-panel-backdrop absolute -inset-4 theme-panel-backdrop"
         style="backdrop-filter: blur(12px) saturate(140%); -webkit-backdrop-filter: blur(12px) saturate(140%); transform: translateZ(0); backface-visibility: hidden;"
       ></div>
     </div>
@@ -69,9 +69,9 @@ const bottomRightClasses = computed(() =>
       variant === 'light' ? 'px-3 py-1.5' : 'px-6 py-3'
     ]">
       <div v-if="variant !== 'light'" :class="['flex items-center', variant === 'light' ? 'space-x-2' : 'space-x-4']">
-        <div :class="['bg-black dark:bg-white rotate-45', variant === 'light' ? 'w-[3px] h-[3px]' : 'w-1.5 h-1.5']"></div>
+        <div :class="['nier-bg-inverted rotate-45', variant === 'light' ? 'w-[3px] h-[3px]' : 'w-1.5 h-1.5']"></div>
         <span :class="[
-          'font-mono tracking-[0.4em] uppercase font-black text-black dark:text-white',
+          'font-mono tracking-[0.4em] uppercase font-black nier-text-primary',
           variant === 'light' ? 'text-[6px]' : 'text-[9px]'
         ]">
           <slot name="header">{{ title }}</slot>
@@ -80,7 +80,7 @@ const bottomRightClasses = computed(() =>
       <div class="flex items-center gap-4">
         <slot name="telemetry">
           <span v-if="telemetry" :class="[
-            'font-mono tracking-[0.2em] opacity-40 uppercase text-black dark:text-white',
+            'font-mono tracking-[0.2em] opacity-40 uppercase nier-text-primary',
             variant === 'light' ? 'text-[5px]' : 'text-[8px]'
           ]">
             {{ telemetry }}

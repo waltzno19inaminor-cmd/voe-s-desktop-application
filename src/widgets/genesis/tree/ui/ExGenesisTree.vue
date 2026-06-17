@@ -6,42 +6,42 @@
        @pointerup="endPan"
        @pointercancel="endPan">
     <div class="absolute inset-0" :style="panLayerStyle">
-    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[1]">
       <svg class="overflow-visible" width="2" height="2">
         <path :d="emotionConnectorPath"
               fill="none"
-              stroke="#333333"
+              :stroke="isDark ? '#333333' : '#d1cfc9'"
               stroke-width="1" />
         <path :d="highlightedEmotionConnectorPath"
               fill="none"
-              stroke="#ffffff"
+              :stroke="isDark ? '#ffffff' : '#000000'"
               stroke-width="1.3" />
         <path :d="connectorPath(1, 1, strategyNodePositions, 'x', 'y')"
               fill="none"
-              stroke="#333333"
+              :stroke="isDark ? '#333333' : '#d1cfc9'"
               stroke-width="1" />
         <path :d="connectorPath(1, 1, highlightedStrategies, 'x', 'y')"
               fill="none"
-              stroke="#ffffff"
+              :stroke="isDark ? '#ffffff' : '#000000'"
               stroke-width="1.3" />
         <template v-for="node in strategyNodePositions" :key="'line-group-'+(node.treeKey || node.id)">
           <path :d="connectorPath(node.x + 1, node.y + 1, node.scenarios, 'globalX', 'globalY')"
                 fill="none"
-                stroke="#333333"
+                :stroke="isDark ? '#333333' : '#d1cfc9'"
                 stroke-dasharray="2 2"
                 stroke-width="1" />
           <path :d="connectorPath(node.x + 1, node.y + 1, highlightedScenarios(node), 'globalX', 'globalY')"
                 fill="none"
-                stroke="#ffffff"
+                :stroke="isDark ? '#ffffff' : '#000000'"
                 stroke-width="1.3" />
           <template v-for="sc in node.scenarios" :key="'line-content-group-'+(sc.treeKey || sc.id)">
             <path :d="conditionRowsPath(sc.globalX + 1, sc.globalY + 1, sc.contents || [])"
                   fill="none"
-                  stroke="#2e2e2e"
+                  :stroke="isDark ? '#2e2e2e' : '#b2b0a9'"
                   stroke-width="1" />
             <path :d="conditionRowsPath(sc.globalX + 1, sc.globalY + 1, highlightedContents(sc))"
                   fill="none"
-                  stroke="#ffffff"
+                  :stroke="isDark ? '#ffffff' : '#000000'"
                   stroke-width="1.3" />
           </template>
         </template>
@@ -51,8 +51,8 @@
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
       <ExNTtooltip>
         <template #trigger>
-          <div class="relative w-16 h-16 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white shadow-[0_0_40px_rgba(0,0,0,0.05)] backdrop-blur-md"
-               :class="isRootHighlighted ? 'bg-white border-white shadow-[0_0_18px_rgba(255,255,255,0.35)]' : 'bg-zinc-100 dark:bg-[#0a0a0a]'"
+          <div class="relative w-16 h-16 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node nier-border-primary hover:border-black dark:hover:border-white shadow-[0_0_40px_rgba(0,0,0,0.05)] backdrop-blur-md"
+               :class="isRootHighlighted ? 'bg-white border-white shadow-[0_0_18px_rgba(255,255,255,0.35)]' : 'bg-[#ffffff] dark:bg-[#0a0a0a]'"
                @pointerdown.stop>
             <div v-if="!isHeatmapActive" class="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45 border border-white/70 bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.35)]"></div>
             <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
@@ -65,7 +65,7 @@
           </div>
         </template>
         <div class="flex flex-col gap-1 min-w-[120px] p-1">
-          <div class="flex flex-col space-y-1 font-mono leading-relaxed uppercase text-black dark:text-white">
+          <div class="flex flex-col space-y-1 font-mono leading-relaxed uppercase nier-text-primary">
             <span class="font-black text-[14px] tracking-widest pb-0.5">{{ authStore.user?.displayName || authStore.user?.email || 'Operator_0x4F' }}</span>
             <div class="w-full h-[1px] bg-black/10 dark:bg-white/10 mb-1"></div>
             <span class="text-[9px] opacity-60">ID. {{ authStore.user?.uid?.slice(0, 10) || 'UNKNOWN' }}</span>
@@ -105,22 +105,22 @@
                    class="absolute -bottom-1 -right-1 h-2 w-2 rotate-45 border border-white/70 shadow-[0_0_8px_rgba(255,255,255,0.2)]"
                    :class="block.accentClass"></div>
               <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
-                   :class="isNodeHighlighted(emotion) ? 'border-black' : 'border-black/10 dark:border-white/10 group-hover/node:border-black dark:group-hover/node:border-white'"></div>
+                   :class="isNodeHighlighted(emotion) ? 'border-black' : 'nier-border-primary group-hover/node:border-black dark:group-hover/node:border-white'"></div>
               {{ isHeatmapActive ? heatmapMetricLabel(emotion) : (emotion.shortName || emotion.label.slice(0, 3)) }}
             </div>
           </template>
           <div class="flex max-w-[220px] flex-col gap-2">
-            <p class="font-mono text-[13px] font-black uppercase tracking-wide text-black dark:text-white">
+            <p class="font-mono text-[13px] font-black uppercase tracking-wide nier-text-primary">
               {{ emotion.label }}
             </p>
-            <div class="h-px w-full bg-white/20"></div>
+            <div class="h-px w-full bg-black/15 dark:bg-white/20"></div>
             <p class="font-mono text-[9px] font-bold uppercase leading-relaxed text-black/55 dark:text-white/55">
               {{ emotion.description }}
             </p>
-            <div class="grid grid-cols-4 gap-2 border-t border-white/10 pt-2 font-mono uppercase">
+            <div class="grid grid-cols-4 gap-2 border-t nier-border-primary pt-2 font-mono uppercase">
               <div class="flex flex-col gap-0.5">
                 <span class="text-[7px] font-bold tracking-wide text-black/35 dark:text-white/35">{{ t('genesis.tree.tooltip.trades') }}</span>
-                <span class="text-[12px] font-black tracking-wide text-black dark:text-white">{{ emotion.tradeCountLabel || '0' }}</span>
+                <span class="text-[12px] font-black tracking-wide nier-text-primary">{{ emotion.tradeCountLabel || '0' }}</span>
               </div>
               <div class="flex flex-col gap-0.5">
                 <span class="text-[7px] font-bold tracking-wide text-black/35 dark:text-white/35">{{ t('genesis.tree.tooltip.winrate') }}</span>
@@ -145,13 +145,13 @@
            :style="{ transform: `translate(calc(-50% + ${node.x}px), calc(-50% + ${node.y}px))` }">
         <ExNTtooltip>
           <template #trigger>
-            <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white"
+            <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md nier-border-primary hover:border-black dark:hover:border-white"
                :class="nodeSurfaceClass(node)"
                @pointerdown.stop
                @click.stop="selectTreeNode(node, 'strategy')">
               <div v-if="!isHeatmapActive" class="absolute -bottom-1 -right-1 w-2 h-2 rotate-45 border border-white/70 bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.35)]"></div>
               <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
-                   :class="isNodeHighlighted(node) ? 'border-black' : 'border-black/10 dark:border-white/10 group-hover/node:border-black dark:group-hover/node:border-white'"></div>
+                   :class="isNodeHighlighted(node) ? 'border-black' : 'nier-border-primary group-hover/node:border-black dark:group-hover/node:border-white'"></div>
 
               <span class="font-mono font-black uppercase leading-none transition-colors"
                     :class="isHeatmapActive
@@ -162,10 +162,10 @@
             </div>
           </template>
           <div class="flex min-w-[140px] flex-col gap-2">
-            <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide text-black dark:text-white">
+            <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide nier-text-primary">
               {{ node.name }}
             </p>
-            <div class="h-px w-full bg-white/25"></div>
+            <div class="h-px w-full bg-black/15 dark:bg-white/25"></div>
             <div class="grid grid-cols-3 gap-3 pt-1 font-mono uppercase">
               <div class="flex flex-col gap-0.5">
                 <span class="text-[8px] font-bold tracking-wide text-black/35 dark:text-white/35">{{ t('genesis.tree.tooltip.frequency') }}</span>
@@ -180,7 +180,7 @@
                 <span class="text-[13px] font-black tracking-wide" :class="node.winrateColorClass || 'text-rose-400'">{{ node.winrateLabel || '0%' }}</span>
               </div>
             </div>
-            <div class="border-t border-white/10 pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
+            <div class="border-t nier-border-primary pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
               {{ t('genesis.tree.tooltip.trades') }}: {{ node.tradeCountLabel || '0' }}
             </div>
           </div>
@@ -192,13 +192,13 @@
            :style="{ transform: `translate(calc(-50% + ${sc.globalX}px), calc(-50% + ${sc.globalY}px))` }">
         <ExNTtooltip>
           <template #trigger>
-            <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white"
+            <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md nier-border-primary hover:border-black dark:hover:border-white"
                  :class="nodeSurfaceClass(sc)"
                  @pointerdown.stop
                  @click.stop="selectTreeNode(sc, 'scenario')">
               <div v-if="!isHeatmapActive" class="absolute -bottom-1 -right-1 w-2 h-2 rotate-45 border border-white/70 bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.35)]"></div>
               <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
-                   :class="isNodeHighlighted(sc) ? 'border-black' : 'border-black/10 dark:border-white/10 group-hover/node:border-black dark:group-hover/node:border-white'"></div>
+                   :class="isNodeHighlighted(sc) ? 'border-black' : 'nier-border-primary group-hover/node:border-black dark:group-hover/node:border-white'"></div>
               <span class="px-1 font-mono font-black uppercase leading-tight text-center transition-colors break-words"
                     :class="isHeatmapActive
                       ? [heatmapMetricSizeClass(sc), 'tracking-tight', isNodeHighlighted(sc) ? 'text-black' : heatmapMetricColorClass(sc)]
@@ -208,10 +208,10 @@
             </div>
           </template>
           <div class="flex min-w-[150px] flex-col gap-2">
-            <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide text-black dark:text-white">
+            <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide nier-text-primary">
               {{ sc.displayName || sc.label || sc.name || t('genesis.tree.tooltip.scenario') }}
             </p>
-            <div class="h-px w-full bg-white/25"></div>
+            <div class="h-px w-full bg-black/15 dark:bg-white/25"></div>
             <p class="text-[9px] font-mono font-bold uppercase tracking-wide text-black/60 dark:text-white/60">
               {{ t('genesis.tree.tooltip.type') }}: {{ translateTooltipType(sc.typeLabel || 'ENTRY SCENARIO') }}
             </p>
@@ -229,7 +229,7 @@
                 <span class="text-[13px] font-black tracking-wide" :class="sc.winrateColorClass || 'text-rose-400'">{{ sc.winrateLabel || '0%' }}</span>
               </div>
             </div>
-            <div class="border-t border-white/10 pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
+            <div class="border-t nier-border-primary pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
               {{ t('genesis.tree.tooltip.trades') }}: {{ sc.tradeCountLabel || '0' }}
             </div>
           </div>
@@ -242,13 +242,13 @@
              :style="{ transform: `translate(calc(-50% + ${content.globalX}px), calc(-50% + ${content.globalY}px))` }">
           <ExNTtooltip>
             <template #trigger>
-              <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md border-black/10 dark:border-white/10 hover:border-black dark:hover:border-white"
+              <div class="relative w-12 h-12 border flex items-center justify-center cursor-pointer transition-all duration-500 group/node backdrop-blur-md nier-border-primary hover:border-black dark:hover:border-white"
                    :class="nodeSurfaceClass(content)"
                    @pointerdown.stop
                    @click.stop="selectTreeNode(content, 'condition')">
                 <div v-if="!isHeatmapActive" class="absolute -bottom-1 -right-1 w-2 h-2 rotate-45 border border-white/70 bg-rose-400 shadow-[0_0_8px_rgba(251,113,133,0.35)]"></div>
                 <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
-                     :class="isNodeHighlighted(content) ? 'border-black' : 'border-black/10 dark:border-white/10 group-hover/node:border-black dark:group-hover/node:border-white'"></div>
+                     :class="isNodeHighlighted(content) ? 'border-black' : 'nier-border-primary group-hover/node:border-black dark:group-hover/node:border-white'"></div>
                 <span class="px-1 font-mono font-black uppercase leading-tight text-center transition-colors break-words"
                       :class="isHeatmapActive
                         ? [heatmapMetricSizeClass(content), 'tracking-tight', isNodeHighlighted(content) ? 'text-black' : heatmapMetricColorClass(content)]
@@ -258,10 +258,10 @@
               </div>
             </template>
             <div class="flex min-w-[140px] flex-col gap-2">
-              <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide text-black dark:text-white">
+              <p class="text-[13px] font-mono font-black leading-snug uppercase tracking-wide nier-text-primary">
                 {{ content.displayName || content.label || content.name || t('genesis.tree.tooltip.condition') }}
               </p>
-              <div class="h-px w-full bg-white/25"></div>
+              <div class="h-px w-full bg-black/15 dark:bg-white/25"></div>
               <p class="text-[9px] font-mono font-bold uppercase tracking-wide text-black/60 dark:text-white/60">
                 {{ t('genesis.tree.tooltip.type') }}: {{ translateTooltipType(content.typeLabel || 'CONDITION') }}
               </p>
@@ -279,7 +279,7 @@
                   <span class="text-[13px] font-black tracking-wide" :class="content.winrateColorClass || 'text-rose-400'">{{ content.winrateLabel || '0%' }}</span>
                 </div>
               </div>
-              <div class="border-t border-white/10 pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
+              <div class="border-t nier-border-primary pt-2 font-mono text-[9px] font-bold uppercase tracking-widest text-black/45 dark:text-white/45">
                 {{ t('genesis.tree.tooltip.trades') }}: {{ content.tradeCountLabel || '0' }}
               </div>
             </div>
@@ -287,7 +287,7 @@
         </div>
       </template>
     </template>
-    </div>
+    </div> <!-- Close panLayerStyle -->
 
     <div class="absolute left-8 top-8 z-[90] pointer-events-auto"
          @pointerdown.stop
@@ -317,7 +317,7 @@
              class="absolute left-0 top-0 h-[620px] w-80 transition-all duration-500"
              :class="isPresetPanelCollapsed ? '-translate-x-full opacity-0 pointer-events-none' : 'translate-x-0 opacity-100'">
         <div class="h-full w-full p-4 flex flex-col">
-        <div class="mb-4 flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-3">
+        <div class="mb-4 flex items-center justify-between border-b nier-border-primary pb-3">
           <span class="font-mono text-[10px] font-black uppercase tracking-[0.32em] text-black/80 dark:text-white/80">{{ t('genesis.tree.re.title') }}</span>
           <button class="font-mono text-[9px] font-bold uppercase tracking-widest text-black/35 dark:text-white/35 transition-colors hover:text-black dark:hover:text-white"
                   @click="activePresetId = null">
@@ -325,10 +325,10 @@
           </button>
         </div>
         <input v-model="presetSearch"
-               class="mb-3 h-10 w-full border border-black/10 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.03] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-black dark:text-white outline-none transition-colors placeholder:text-black/25 dark:placeholder:text-white/25 focus:border-black/45 dark:focus:border-white/45"
+               class="mb-3 h-10 w-full border nier-border-primary bg-black/[0.03] dark:bg-white/[0.03] px-3 font-mono text-[10px] font-bold uppercase tracking-[0.16em] nier-text-primary outline-none transition-colors placeholder:text-black/25 dark:placeholder:text-white/25 focus:border-black/45 dark:focus:border-white/45"
                :placeholder="t('genesis.tree.presets.searchPlaceholder')"
                @keydown.stop />
-        <div class="mb-3 border border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02] p-3">
+        <div class="mb-3 border nier-border-primary bg-black/[0.02] dark:bg-white/[0.02] p-3">
           <div class="mb-2 font-mono text-[7px] font-black uppercase tracking-[0.3em] text-black/35 dark:text-white/35">
             {{ t('genesis.tree.controls.heatmap') }}
           </div>
@@ -336,16 +336,16 @@
             <button v-for="mode in heatmapModes"
                     :key="mode.id"
                     class="relative overflow-hidden border px-2 py-2 font-mono text-[7px] font-black uppercase tracking-[0.12em] transition-all duration-300"
-                    :class="heatmapMode === mode.id ? heatmapButtonClass(mode.id) : 'border-black/10 dark:border-white/10 bg-black/[0.02] dark:bg-[#050505] text-black/35 dark:text-white/35 hover:border-black/30 dark:hover:border-white/30 hover:text-black dark:hover:text-white'"
+                    :class="heatmapMode === mode.id ? heatmapButtonClass(mode.id) : 'nier-border-primary bg-black/[0.02] dark:bg-[#050505] text-black/35 dark:text-white/35 hover:border-black/30 dark:hover:border-white/30 hover:text-black dark:hover:text-white'"
                     @click="heatmapMode = mode.id">
               <span class="relative z-10">{{ t(mode.labelKey) }}</span>
             </button>
           </div>
         </div>
-        <div class="mb-3 grid grid-cols-4 border border-black/10 dark:border-white/10">
+        <div class="mb-3 grid grid-cols-4 border nier-border-primary">
           <button v-for="tab in presetTabs"
                   :key="tab.id"
-                  class="border-r border-black/10 dark:border-white/10 px-2 py-2 font-mono text-[8px] font-black uppercase tracking-[0.14em] transition-colors last:border-r-0"
+                  class="border-r nier-border-primary px-2 py-2 font-mono text-[8px] font-black uppercase tracking-[0.14em] transition-colors last:border-r-0"
                   :class="activePresetTab === tab.id ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/[0.02] dark:bg-white/[0.02] text-black/35 dark:text-white/35 hover:text-black dark:hover:text-white'"
                   @click="activePresetTab = tab.id">
             {{ t(tab.labelKey) }}
@@ -355,7 +355,7 @@
           <button v-for="preset in filteredPresetOptions"
                   :key="preset.id"
                   class="group relative border px-4 py-3 text-left transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-30"
-                  :class="activePresetId === preset.id ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black' : 'border-black/10 dark:border-white/10 text-black/50 dark:text-white/50 hover:border-black/35 dark:hover:border-white/35 hover:text-black dark:hover:text-white'"
+                  :class="activePresetId === preset.id ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black' : 'nier-border-primary text-black/50 dark:text-white/50 hover:border-black/35 dark:hover:border-white/35 hover:text-black dark:hover:text-white'"
                   :disabled="preset.empty"
                   @click="activePresetId = activePresetId === preset.id ? null : preset.id">
             <span class="block font-mono text-[10px] font-black uppercase tracking-[0.16em]">{{ translatePresetLabel(preset.label) }}</span>
@@ -364,13 +364,13 @@
             </span>
           </button>
           <div v-if="filteredPresetOptions.length === 0"
-               class="border border-black/10 dark:border-white/10 px-4 py-5 text-center font-mono text-[9px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
+               class="border nier-border-primary px-4 py-5 text-center font-mono text-[9px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">
             {{ t('genesis.tree.presets.noPresetsFound') }}
           </div>
         </div>
         </div>
       </ExPanel>
-      <button class="absolute top-1/2 z-[100] flex h-40 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-t border-r border-b border-black/20 dark:border-white/20 bg-white dark:bg-[#070707] transition-colors hover:bg-black/5 dark:hover:bg-[#111] group/preset-tab"
+      <button class="absolute top-1/2 z-[100] flex h-40 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-t border-r border-b border-black/20 dark:border-white/20 nier-bg-panel transition-colors hover:bg-black/5 dark:hover:bg-[#111] group/preset-tab"
               :class="isPresetPanelCollapsed ? 'right-0' : '-right-6'"
               @click="isPresetPanelCollapsed = !isPresetPanelCollapsed">
         <div class="h-16 w-[1px] bg-black/10 dark:bg-white/10 transition-all duration-300 group-hover/preset-tab:bg-black/40 dark:group-hover/preset-tab:bg-white/40"></div>
@@ -383,98 +383,98 @@
 
     <Transition name="tree-detail-panel">
       <div v-if="selectedTreeNode"
-           class="absolute right-8 top-1/2 z-[90] w-[360px] -translate-y-1/2 text-white pointer-events-auto"
+           class="absolute right-8 top-1/2 z-[90] w-[360px] -translate-y-1/2 nier-text-primary pointer-events-auto"
            @pointerdown.stop
            @pointermove.stop
            @click.stop>
-        <button class="absolute -left-6 top-1/2 flex h-40 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-t border-l border-b border-white/20 bg-[#070707] transition-colors hover:bg-[#111] group/node-detail"
+        <button class="absolute -left-6 top-1/2 flex h-40 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-t border-l border-b border-black/20 dark:border-white/20 bg-[#FFFFFF] dark:bg-[#070707] transition-colors hover:bg-black/5 dark:hover:bg-[#111] group/node-detail"
                 @click="closeSelectedTreeNode">
-          <div class="h-16 w-[1px] bg-white/10 transition-all duration-300 group-hover/node-detail:bg-white/40"></div>
-          <span class="absolute -rotate-90 whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.4em] text-white/10 transition-colors group-hover/node-detail:text-white/40">
+          <div class="h-16 w-[1px] bg-black/10 dark:bg-white/10 transition-all duration-300 group-hover/node-detail:bg-black/40 dark:group-hover/node-detail:bg-white/40"></div>
+          <span class="absolute -rotate-90 whitespace-nowrap font-mono text-[7px] uppercase tracking-[0.4em] text-black/10 dark:text-white/10 transition-colors group-hover/node-detail:text-black/40 dark:group-hover/node-detail:text-white/40">
             {{ t('genesis.tree.details.close') }}
           </span>
         </button>
 
-        <ExPanel no-padding>
-        <div class="p-5 text-white">
-          <div class="mb-5 border-b border-white/10 pb-4">
+        <ExPanel variant="light" no-padding class="!border-black/20 dark:!border-white/20">
+        <div class="p-5 nier-text-primary">
+          <div class="mb-5 border-b nier-border-primary pb-4">
             <div class="mb-2 flex items-center justify-between">
-              <span class="font-mono text-[8px] font-black uppercase tracking-[0.32em] text-white/35">
+              <span class="font-mono text-[8px] font-black uppercase tracking-[0.32em] text-black/35 dark:text-white/35">
                 {{ selectedTreeNodeTypeLabel }}
               </span>
               <span class="font-mono text-[8px] font-black uppercase tracking-[0.22em]"
-                    :class="Number(selectedTreeNode.netPnlValue || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                    :class="Number(selectedTreeNode.netPnlValue || 0) >= 0 ? 'text-emerald-500' : 'text-rose-500'">
                 {{ selectedTreeNode.netPnlLabel || '$0.00' }}
               </span>
             </div>
-            <h3 class="font-mono text-[18px] font-black uppercase leading-tight tracking-wide text-white">
+            <h3 class="font-mono text-[18px] font-black uppercase leading-tight tracking-wide nier-text-primary">
               {{ selectedTreeNodeTitle }}
             </h3>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
-            <div class="border border-white/10 bg-white/[0.025] p-3">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.trades') }}</span>
-              <p class="mt-2 font-mono text-[20px] font-black text-white">{{ selectedTreeNode.tradeCountLabel || '0' }}</p>
+            <div class="border nier-border-primary bg-black/[0.015] dark:bg-white/[0.025] p-3">
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.trades') }}</span>
+              <p class="mt-2 font-mono text-[20px] font-black nier-text-primary">{{ selectedTreeNode.tradeCountLabel || '0' }}</p>
             </div>
-            <div class="border border-white/10 bg-white/[0.025] p-3">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.winrate') }}</span>
+            <div class="border nier-border-primary bg-black/[0.015] dark:bg-white/[0.025] p-3">
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.winrate') }}</span>
               <p class="mt-2 font-mono text-[20px] font-black" :class="selectedTreeNode.winrateColorClass || 'text-rose-400'">{{ selectedTreeNode.winrateLabel || '0%' }}</p>
             </div>
-            <div class="border border-white/10 bg-white/[0.025] p-3">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.pf') }}</span>
+            <div class="border nier-border-primary bg-black/[0.015] dark:bg-white/[0.025] p-3">
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.pf') }}</span>
               <p class="mt-2 font-mono text-[20px] font-black" :class="selectedTreeNode.profitFactorRatioColorClass || 'text-amber-400'">{{ selectedTreeNode.profitFactorRatioLabel || '0.00' }}</p>
             </div>
-            <div class="border border-white/10 bg-white/[0.025] p-3">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.netPnl') }}</span>
+            <div class="border nier-border-primary bg-black/[0.015] dark:bg-white/[0.025] p-3">
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.netPnl') }}</span>
               <p class="mt-2 font-mono text-[20px] font-black" :class="Number(selectedTreeNode.netPnlValue || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'">{{ selectedTreeNode.netPnlLabel || '$0.00' }}</p>
             </div>
           </div>
 
           <div class="mt-4 grid grid-cols-2 gap-3">
-            <button class="border border-white/10 p-3 text-left transition-colors hover:border-white/35 disabled:cursor-default disabled:hover:border-white/10"
+            <button class="border nier-border-primary p-3 text-left transition-colors hover:border-black/35 dark:hover:border-white/35 disabled:cursor-default disabled:hover:border-black/10 dark:disabled:hover:border-white/10"
                     :disabled="!selectedTreeNode.bestTrade?.id"
                     @click="openTradeArchive(selectedTreeNode.bestTrade)">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.bestTrade') }}</span>
-              <p class="mt-2 font-mono text-[11px] font-black uppercase text-white">{{ selectedTreeNode.bestTrade?.asset || 'N/A' }}</p>
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.bestTrade') }}</span>
+              <p class="mt-2 font-mono text-[11px] font-black uppercase nier-text-primary">{{ selectedTreeNode.bestTrade?.asset || 'N/A' }}</p>
               <p class="mt-1 font-mono text-[10px] font-bold" :class="tradePnlClass(selectedTreeNode.bestTrade)">{{ selectedTreeNode.bestTrade?.pnlLabel || '$0.00' }}</p>
             </button>
-            <button class="border border-white/10 p-3 text-left transition-colors hover:border-white/35 disabled:cursor-default disabled:hover:border-white/10"
+            <button class="border nier-border-primary p-3 text-left transition-colors hover:border-black/35 dark:hover:border-white/35 disabled:cursor-default disabled:hover:border-black/10 dark:disabled:hover:border-white/10"
                     :disabled="!selectedTreeNode.worstTrade?.id"
                     @click="openTradeArchive(selectedTreeNode.worstTrade)">
-              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-white/30">{{ t('genesis.tree.details.worstTrade') }}</span>
-              <p class="mt-2 font-mono text-[11px] font-black uppercase text-white">{{ selectedTreeNode.worstTrade?.asset || 'N/A' }}</p>
+              <span class="font-mono text-[7px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ t('genesis.tree.details.worstTrade') }}</span>
+              <p class="mt-2 font-mono text-[11px] font-black uppercase nier-text-primary">{{ selectedTreeNode.worstTrade?.asset || 'N/A' }}</p>
               <p class="mt-1 font-mono text-[10px] font-bold" :class="tradePnlClass(selectedTreeNode.worstTrade)">{{ selectedTreeNode.worstTrade?.pnlLabel || '$0.00' }}</p>
             </button>
           </div>
 
-          <div class="mt-5 border-t border-white/10 pt-4">
-            <div class="mb-3 font-mono text-[8px] font-black uppercase tracking-[0.3em] text-white/45">
+          <div class="mt-5 border-t nier-border-primary pt-4">
+            <div class="mb-3 font-mono text-[8px] font-black uppercase tracking-[0.3em] text-black/45 dark:text-white/45">
               {{ t('genesis.tree.details.recentTrades') }}
             </div>
             <div class="flex flex-col gap-2">
               <button v-for="trade in (selectedTreeNode.recentTrades || [])"
                       :key="trade.id || `${trade.asset}-${trade.date}-${trade.pnl}`"
-                      class="flex items-center justify-between border border-white/10 bg-white/[0.02] px-3 py-2 text-left transition-colors hover:border-white/35 disabled:cursor-default disabled:hover:border-white/10"
+                      class="flex items-center justify-between border nier-border-primary bg-black/[0.01] dark:bg-white/[0.02] px-3 py-2 text-left transition-colors hover:border-black/35 dark:hover:border-white/35 disabled:cursor-default disabled:hover:border-black/10 dark:disabled:hover:border-white/10"
                       :disabled="!trade.id"
                       @click="openTradeArchive(trade)">
                 <div>
-                  <p class="font-mono text-[10px] font-black uppercase tracking-wide text-white">{{ trade.asset }}</p>
-                  <p class="font-mono text-[8px] font-bold uppercase tracking-widest text-white/30">{{ trade.date }}</p>
+                  <p class="font-mono text-[10px] font-black uppercase tracking-wide nier-text-primary">{{ trade.asset }}</p>
+                  <p class="font-mono text-[8px] font-bold uppercase tracking-widest text-black/30 dark:text-white/30">{{ trade.date }}</p>
                 </div>
                 <span class="font-mono text-[10px] font-black" :class="tradePnlClass(trade)">{{ trade.pnlLabel }}</span>
               </button>
               <div v-if="!(selectedTreeNode.recentTrades || []).length"
-                   class="border border-white/10 px-3 py-4 text-center font-mono text-[9px] font-bold uppercase tracking-widest text-white/25">
+                   class="border nier-border-primary px-3 py-4 text-center font-mono text-[9px] font-bold uppercase tracking-widest text-black/25 dark:text-white/25">
                 {{ t('genesis.tree.details.noTrades') }}
               </div>
             </div>
           </div>
         </div>
-        </ExPanel>
-      </div>
-    </Transition>
-  </div>
+      </ExPanel>
+    </div>
+  </Transition>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -483,6 +483,10 @@ import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import { useGenesisTree } from '../model/useGenesisTree'
 import { useI18n } from '~/shared/i18n/useI18n'
+import { useThemeStore } from '~/features/store/useTheme'
+
+const themeStore = useThemeStore()
+const isDark = computed(() => themeStore.settings.isDark)
 
 const {
   authStore,
@@ -647,17 +651,17 @@ const heatmapButtonClass = (_mode: string) => {
 const nodeSurfaceClass = (node: any) => {
   if (isNodeHighlighted(node)) return 'bg-white border-white shadow-[0_0_18px_rgba(255,255,255,0.35)]'
   if ((node?.treeKey || node?.id) === selectedTreeNodeKey.value) {
-    return `${getHeatmapClass(node) || 'bg-zinc-100 dark:bg-[#0a0a0a]'} !border-white`
+    return `${getHeatmapClass(node) || 'bg-[#ffffff] dark:bg-[#0a0a0a]'} !border-white`
   }
 
-  return getHeatmapClass(node) || 'bg-zinc-100 dark:bg-[#0a0a0a]'
+  return getHeatmapClass(node) || 'bg-[#ffffff] dark:bg-[#0a0a0a]'
 }
 
 const tradePnlClass = (trade: any) => {
   const pnl = Number(trade?.pnl || 0)
-  if (pnl > 0) return 'text-emerald-400'
-  if (pnl < 0) return 'text-rose-400'
-  return 'text-white/45'
+  if (pnl > 0) return 'text-emerald-600 dark:text-emerald-400'
+  if (pnl < 0) return 'text-rose-600 dark:text-rose-400'
+  return 'text-black/45 dark:text-white/45'
 }
 
 const activePreset = computed(() => {

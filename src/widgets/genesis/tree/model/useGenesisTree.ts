@@ -166,7 +166,7 @@ export const useGenesisTree = () => {
   const selectedStrategyId = computed<string | null>({
     get: () => tradeStore.selectedStrategyId,
     set: (val) => {
-      tradeStore.selectedStrategyId = val
+      tradeStore.selectedStrategyId = val as string
     }
   })
 
@@ -194,7 +194,7 @@ export const useGenesisTree = () => {
   const emotionBlocks = computed<GenesisTreeEmotionBlock[]>(() => {
     const blockConfig = [
       { id: 'positive' as const, label: 'POSITIVE', x: -230, y: -220, colorClass: 'text-emerald-300', accentClass: 'bg-emerald-400' },
-      { id: 'neutral' as const, label: 'NEUTRAL', x: 0, y: -220, colorClass: 'text-white/70', accentClass: 'bg-white/45' },
+      { id: 'neutral' as const, label: 'NEUTRAL', x: 0, y: -220, colorClass: 'text-black dark:text-white/70', accentClass: 'bg-black/20 dark:bg-white/45' },
       { id: 'negative' as const, label: 'NEGATIVE', x: 230, y: -220, colorClass: 'text-rose-300', accentClass: 'bg-rose-400' }
     ]
 
@@ -580,7 +580,7 @@ export const useGenesisTree = () => {
 
     const pushNode = (node: any) => {
       if (!node || !node.id) return
-      if (node.type === 'placeholder' || node.params?.needsConfig) return
+      if (node.type === 'placeholder') return
       if (node.id === conditionId) return
       collected.push(node)
     }
@@ -747,11 +747,11 @@ export const useGenesisTree = () => {
       node.scenarios.forEach((scenario) => {
         scenario.globalX -= centerOffset
 
-        ;(scenario.conditions || []).forEach((condition) => {
+        ;(scenario.conditions || []).forEach((condition: any) => {
           condition.globalX = scenario.globalX
         })
 
-        ;(scenario.contents || []).forEach((content) => {
+        ;(scenario.contents || []).forEach((content: any) => {
           content.globalX -= centerOffset
         })
       })
