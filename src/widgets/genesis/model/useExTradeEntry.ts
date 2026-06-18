@@ -159,19 +159,7 @@ const loadMatrixData = async () => {
   }
 }
 
-// Default to Main Diary only unless cores are provided
 const tradeStore = useStrategyTradesStore()
-
-const strategies = computed(() => tradeStore.strategies)
-
-const selectedStrategyId = computed({
-  get: () => tradeStore.selectedStrategyId,
-  set: (val) => { tradeStore.selectedStrategyId = val }
-})
-const selectedStrategy = computed(() => {
-  const s = tradeStore.strategies.find(s => s.id === selectedStrategyId.value)
-  return s || tradeStore.strategies[0] || { id: 'MAIN_DIARY', name: 'MAIN_DIARY' }
-})
 
 const findAllNodes = (nodes) => {
   let list = []
@@ -208,6 +196,30 @@ const findNodeById = (list, id) => {
   }
   return null
 }
+
+const isGhostStrategy = (strategy) => {
+  const id = String(strategy?.id || '').trim().toLowerCase()
+  const name = String(strategy?.name || '').trim().toLowerCase()
+  return id === 'strategy' || name === 'strategy'
+}
+
+const strategies = computed(() => tradeStore.strategies.filter(s => !isGhostStrategy(s)))
+
+const selectedStrategyId = computed({
+  get: () => {
+    const available = strategies.value
+    const current = tradeStore.selectedStrategyId
+    if (available.some(s => s.id === current)) return current
+    return available[0]?.id || 'MAIN_DIARY'
+  },
+  set: (val) => {
+    if (val) tradeStore.selectedStrategyId = val
+  }
+})
+
+const selectedStrategy = computed(() => {
+  return strategies.value.find(s => s.id === selectedStrategyId.value) || strategies.value[0] || { id: 'MAIN_DIARY', name: 'Main Diary' }
+})
 
 const activeRiskManagement = computed(() => {
   const allNodes = findAllNodes(matrixNodes.value)
@@ -326,18 +338,6 @@ const getNodeZoneType = (targetId, currentNodes, currentZones) => {
   return null
 }
 
-// Sync strategies when matrix nodes change
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const allNodes = findAllNodes(nodes)
-  const cores = allNodes
-    .filter(n => n.type === 'strategy' || n.type === 'system')
-    .map(n => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
 const showStrategyMenu = ref(false)
 
 const failedIcons = ref(new Set())
@@ -670,83 +670,8 @@ const toggleCondition = (id, scenarioId = null) => {
   }
 }
 
-const showConditionLibrary = ref(false)
 const showEmotionSelector = ref(false)
 const registrySearchQuery = ref('')
-const libraryFilter = ref('ALL') // 'ALL', 'ENTRY', 'EXIT'
-
-const filteredLibraryScenarios = computed(() => {
-  const all = [...entryScenarios.value, ...exitScenarios.value]
-  return all.filter(s => {
-    const isTypeMatch = libraryFilter.value === 'ALL' || 
-                        (libraryFilter.value === 'ENTRY' && entryScenarios.value.some(e => e.id === s.id)) || 
-                        (libraryFilter.value === 'EXIT' && exitScenarios.value.some(e => e.id === s.id));
-    const isSearchMatch = !registrySearchQuery.value || 
-                          (s.params?.customName || s.label).toLowerCase().includes(registrySearchQuery.value.toLowerCase());
-    
-    if (!isTypeMatch || !isSearchMatch) return false;
-    if (libraryFilter.value === 'ALL') return true;
-
-    // Filter by direction for Entry/Exit tabs
-    const tradeSide = side.value.toLowerCase();
-    const nodeDir = (s.params?.direction || 'NONE').toLowerCase();
-    return nodeDir === 'none' || nodeDir === tradeSide;
-  })
-})
-
-const flatLibraryConditions = computed(() => {
-  const allScenarios = [...entryScenarios.value, ...exitScenarios.value]
-  const allConds = []
-  const seenIds = new Set()
-  
-  allScenarios.forEach(scen => {
-    const nodeDir = (scen.params?.direction || 'NONE').toUpperCase();
-    const tradeSide = side.value.toUpperCase();
-    const isMismatched = nodeDir !== 'NONE' && nodeDir !== tradeSide;
-
-    getScenarioConditions(scen.id).forEach(c => {
-      if (c.indicatorUnits) {
-        c.indicatorUnits.forEach(unit => {
-          const items = unit.type === 'bundle' ? unit.items : [unit.item];
-          items.forEach(item => {
-            if (!item || !item.id) return;
-            if (!seenIds.has(item.id)) {
-              const isSearchMatch = !registrySearchQuery.value || 
-                                    item.label.toLowerCase().includes(registrySearchQuery.value.toLowerCase());
-              if (isSearchMatch) {
-                allConds.push({ 
-                  ...item, 
-                  id: item.id,
-                  name: item.label,
-                  isMismatched, 
-                  scenarioId: scen.id 
-                })
-                seenIds.add(item.id)
-              }
-            }
-          })
-        })
-      } else {
-        if (!c.id) return;
-        if (!seenIds.has(c.id)) {
-          const isSearchMatch = !registrySearchQuery.value || 
-                                (c.name || '').toLowerCase().includes(registrySearchQuery.value.toLowerCase());
-          if (isSearchMatch) {
-            allConds.push({ 
-              ...c, 
-              id: c.id,
-              name: c.name,
-              isMismatched, 
-              scenarioId: scen.id 
-            })
-            seenIds.add(c.id)
-          }
-        }
-      }
-    })
-  })
-  return allConds
-})
 const selectedRegistryScenarioId = ref(null)
 let hoverTimeout = null
 
@@ -1579,7 +1504,6 @@ const resetForm = () => {
   exitDate.value = new Date()
   overridePnl.value = null
   selectedRegistryScenarioId.value = null
-  showConditionLibrary.value = false
   showEntryMethod.value = false
   activeProtocolTab.value = 'PYRAMIDING'
   entryMethodType.value = 'PYRAMIDING'
@@ -1924,12 +1848,8 @@ const submit = async () => {
     hasVectorMismatch,
     activeConditions,
     toggleCondition,
-    showConditionLibrary,
     showEmotionSelector,
     registrySearchQuery,
-    libraryFilter,
-    filteredLibraryScenarios,
-    flatLibraryConditions,
     selectedRegistryScenarioId,
     hoverTimeout,
     hoveredScenarioId,

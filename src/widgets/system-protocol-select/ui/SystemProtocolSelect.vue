@@ -29,7 +29,7 @@
          </div>
 
          <div class="max-h-80 overflow-y-auto custom-scrollbar py-2">
-            <div v-for="s in strategies" :key="s.id" 
+            <div v-for="s in visibleStrategies" :key="s.id"
                  @click.stop="selectStrategy(s)" 
                  class="group/item relative px-8 py-4 cursor-pointer transition-all duration-300"
                  :class="modelValue === s.id ? 'nier-bg-inverted' : 'hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'">
@@ -73,9 +73,19 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const showStrategyMenu = ref(false)
 
+const isGhostStrategy = (strategy: Strategy) => {
+  const id = String(strategy?.id || '').trim().toLowerCase()
+  const name = String(strategy?.name || '').trim().toLowerCase()
+  return id === 'strategy' || name === 'strategy'
+}
+
+const visibleStrategies = computed(() => {
+  return props.strategies.filter(s => !isGhostStrategy(s))
+})
+
 const selectedStrategyName = computed(() => {
-  const strat = props.strategies.find(s => s.id === props.modelValue)
-  return strat ? strat.name : null
+  const strat = visibleStrategies.value.find(s => s.id === props.modelValue)
+  return strat?.name || visibleStrategies.value[0]?.name || 'MAIN_DIARY'
 })
 
 const menuPositionClass = computed(() => {

@@ -9,7 +9,6 @@ import ExTradeEntryMiddleSection from './components/ExTradeEntryMiddleSection.vu
 import ExTradeEntryRightToggle from './components/ExTradeEntryRightToggle.vue'
 import ExTradeEntryEmotionMatrix from './components/ExTradeEntryEmotionMatrix.vue'
 import ExTradeEntryActionFooter from './components/ExTradeEntryActionFooter.vue'
-import ExTradeEntryConditionLibrary from './components/ExTradeEntryConditionLibrary.vue'
 import ExTradeEntryMethodMatrix from './components/ExTradeEntryMethodMatrix.vue'
 
 const emit = defineEmits(['addTrade', 'updateTrade', 'close'])
@@ -38,7 +37,6 @@ const { isDark, scrollContainer } = state
      <ExTradeEntryRightToggle />
      <ExTradeEntryEmotionMatrix />
      <ExTradeEntryActionFooter />
-     <ExTradeEntryConditionLibrary />
      <ExTradeEntryMethodMatrix />
   </div>
 </template>

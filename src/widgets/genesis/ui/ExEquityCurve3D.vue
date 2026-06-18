@@ -28,7 +28,7 @@
 
     <!-- CANVAS LAYER -->
     <canvas ref="canvasRef"
-            v-show="!showRobustnessExplanations && !showCalendarMode"
+            v-show="!showCalendarMode"
             class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-10"
             @mousedown="handleMouseDown"
             @mousemove="handleMouseMove"
@@ -37,21 +37,8 @@
             @wheel="handleWheel">
     </canvas>
 
-    <Transition name="explanation-takeover">
-      <ExRobustnessDiagnostic
-        v-if="showRobustnessExplanations"
-        :diagnostic-stats="diagnosticStats"
-        :strategy-metrics="strategyMetrics"
-        :filtered-trades="getFilteredTrades()"
-        :format-sentence-case="formatSentenceCase"
-      />
-    </Transition>
-
-
-
-
     <Transition name="protocol-slide">
-      <div v-if="showDistribution3D && !showRobustnessExplanations"
+      <div v-if="showDistribution3D"
            class="absolute top-12 left-1/2 z-30 w-[min(560px,calc(100vw-320px))] -translate-x-1/2 pointer-events-none">
         <div class="relative border border-black/15 dark:border-white/15 bg-white/95 dark:bg-[#0a0a0a]/95 px-7 py-4 nier-text-primary shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
           <div class="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-black dark:border-white nier-bg-panel"></div>
@@ -195,7 +182,7 @@
     <!-- OVERLAY UI -->
     <div class="absolute top-32 left-12 z-20 pointer-events-none flex flex-col space-y-12">
       <Transition name="protocol-slide">
-        <div v-if="!showMetricsPanel && !showRobustnessExplanations && !showDistribution3D">
+        <div v-if="!showMetricsPanel && !showDistribution3D">
           <div class="flex flex-col relative">
             <div class="flex items-center space-x-3 mb-2 cursor-pointer group/strat pointer-events-auto" @click="showStrategyMenu = !showStrategyMenu">
               <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45 transition-all duration-500" :class="showStrategyMenu ? 'scale-150 rotate-[225deg]' : 'animate-pulse'"></div>
@@ -234,7 +221,7 @@
               <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
                 {{ showQQPlot ? 'QUANTILE_ALIGNMENT_PROJECTION' : 'ROBUSTNESS_FITTING_VERDICT' }}
               </span>
-              <button v-if="!showQQPlot && !showRobustnessExplanations"
+              <button v-if="!showQQPlot"
                       @click="toggleRobustnessHistogram"
                       class="mt-4 pointer-events-auto self-start px-4 py-2 border font-mono text-[8px] tracking-[0.35em] uppercase transition-all duration-300"
                       :class="showRobustnessHistogram ? 'nier-bg-inverted text-white dark:!text-black border-black dark:border-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]' : 'nier-text-primary nier-border-primary opacity-50 hover:opacity-100 hover:border-black/30 dark:hover:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'">
@@ -247,28 +234,9 @@
               <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
                 {{ displayBalance }}
               </span>
-              <button class="pointer-events-auto flex h-10 w-10 items-center justify-center border border-white/20 bg-[#0a0a0a]/80 backdrop-blur-xl text-white/45 transition-all hover:border-white/40 hover:text-white disabled:cursor-not-allowed disabled:opacity-25"
-                      :class="isApiSyncing ? 'border-white/40 text-white' : ''"
-                      :disabled="isApiSyncing"
-                      :title="apiSyncButtonTitle"
-                      @click="syncCurrentStrategyApi">
-                <svg viewBox="0 0 24 24"
-                     fill="none"
-                     stroke="currentColor"
-                     stroke-width="2"
-                     stroke-linecap="round"
-                     stroke-linejoin="round"
-                     class="h-4 w-4"
-                     :class="isApiSyncing ? 'animate-spin' : ''">
-                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-                  <path d="M3 21v-5h5" />
-                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-                  <path d="M16 8h5V3" />
-                </svg>
-              </button>
             </div>
             <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-              {{ apiSyncStatusMessage || 'REIFIED_BALANCE_SNAPSHOT' }}
+              REIFIED_BALANCE_SNAPSHOT
             </span>
           </div>
         </div>
@@ -654,7 +622,7 @@
 
         <!-- QQ PLOT TOGGLE (Only when Robustness Diagnostics is active) -->
         <button v-if="showDistribution3D && !showWinrateCurve"
-                @click="showQQPlot = !showQQPlot; if (showQQPlot) { showRobustnessExplanations = false; showRobustnessHistogram = false }"
+                @click="showQQPlot = !showQQPlot; if (showQQPlot) { showRobustnessHistogram = false }"
                 class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
                 :class="showQQPlot ? 'bg-white/10 opacity-100 border-white/20' : ''">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
@@ -666,21 +634,6 @@
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
             {{ showQQPlot ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_QQ_PLOT ]' }}
-          </div>
-        </button>
-
-        <!-- EXPLANATIONS & SIMULATIONS -->
-        <button v-if="showDistribution3D && !showWinrateCurve"
-                @click="showRobustnessExplanations = !showRobustnessExplanations; if (showRobustnessExplanations) { showQQPlot = false; showRobustnessHistogram = false }"
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
-                :class="showRobustnessExplanations ? 'bg-white/10 opacity-100 border-white/20' : ''">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-            {{ showRobustnessExplanations ? '[ HIDE_EXPLANATIONS ]' : '[ VIEW_EXPLANATIONS ]' }}
           </div>
         </button>
 
@@ -742,19 +695,6 @@
           </div>
         </button>
 
-        <!-- BROKER / EXCHANGE CONNECTORS -->
-        <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showBrokerConnectPanel = true"
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ isRu ? '[ ПОДКЛЮЧИТЬ_БРОКЕР_API ]' : '[ CONNECT_BROKER_API ]' }}
-          </div>
-        </button>
-
         <!-- PURGE DIARY RECORDS -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
                 @click="showClearConfirmation = true" 
@@ -771,7 +711,7 @@
     </div>
 
     <!-- RIGHT PANEL -->
-    <div v-if="!showMetricsPanel && !showRobustnessExplanations"
+    <div v-if="!showMetricsPanel"
          class="absolute right-12 top-1/2 -translate-y-1/2 z-[110] flex flex-col items-center justify-center pointer-events-none">
       <div class="pointer-events-auto flex flex-col items-center space-y-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/20 p-2 relative">
         <!-- Corner Accents -->
@@ -878,14 +818,6 @@
 
     <Teleport to="body">
       <Transition name="page-reify">
-        <ExBrokerConnectPanel v-if="showBrokerConnectPanel"
-                              :strategy-id="selectedStrategyId"
-                              @close="showBrokerConnectPanel = false" />
-      </Transition>
-    </Teleport>
-
-    <Teleport to="body">
-      <Transition name="page-reify">
         <ExEquityCurveSimulator 
           v-if="showSimulator" 
           @close="showSimulator = false"
@@ -917,7 +849,6 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from './ExPaywallOverlay.vue'
-import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
 import ExCalendarMode from './components/ExCalendarMode.vue'
 import ExEquityCurveMetricsPanel from './components/ExEquityCurveMetricsPanel.vue'
 import { useEquityCurveMetricsPanel } from '../model/useEquityCurveMetricsPanel'
@@ -925,11 +856,6 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { SP500_BENCHMARK_RATE } from '~/shared/constants'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
-import {
-  isSyncableBrokerConnection,
-  syncBrokerConnectionTrades,
-  type StoredBrokerConnection
-} from '~/utils/brokerTradeSync'
 
 const authStore = useAuthStore()
 const sp500BenchmarkRate = ref(SP500_BENCHMARK_RATE)
@@ -945,7 +871,6 @@ interface StrategyBenchmarkMetrics {
 }
 
 const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v1'
-const BROKER_CONNECTIONS_STORAGE_KEY = 'broker_connections_v1'
 const benchmarkMetricsByStrategy = ref<Record<string, StrategyBenchmarkMetrics>>({})
 
 const themeStore = useThemeStore()
@@ -1039,20 +964,11 @@ const loadMatrixData = async () => {
   }
 }
 
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const cores = (nodes as any[])
-    .filter((n: any) => n.type === 'strategy' || n.type === 'system')
-    .map((n: any) => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
-
 const selectedStrategyId = computed({
-  get: () => tradeStore.selectedStrategyId,
-  set: (val) => { tradeStore.selectedStrategyId = val }
+  get: () => tradeStore.selectedStrategyId === 'strategy' ? 'MAIN_DIARY' : tradeStore.selectedStrategyId,
+  set: (val) => {
+    if (val && val !== 'strategy') tradeStore.selectedStrategyId = val
+  }
 })
 
 const flattenMatrixNodes = (nodes: any[] = []) => {
@@ -1115,14 +1031,12 @@ const showMetricsPanel = ref(false)
 const showDistribution3D = ref(false)
 const showBenchmarkCurves = ref(false)
 const showQQPlot = ref(false)
-const showRobustnessExplanations = ref(false)
 const showRobustnessNormalDist = ref(false)
 const showRobustnessTDist = ref(true)
 const showRobustnessHistogram = ref(false)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
-const showBrokerConnectPanel = ref(false)
 
 const openSimulator = () => {
   showSimulator.value = true
@@ -1287,7 +1201,6 @@ const toggleRobustnessHistogram = () => {
   showRobustnessHistogram.value = nextValue
   if (nextValue) {
     showQQPlot.value = false
-    showRobustnessExplanations.value = false
   }
 }
 
@@ -1297,9 +1210,15 @@ const { isEditMode } = metricsPanel
 const depositInput = ref(1000)
 const benchmarkInput = ref(sp500BenchmarkRate.value)
 
-const strategies = computed(() => tradeStore.strategies)
+const isGhostStrategy = (strategy: any) => {
+  const id = String(strategy?.id || '').trim().toLowerCase()
+  const name = String(strategy?.name || '').trim().toLowerCase()
+  return id === 'strategy' || name === 'strategy'
+}
+
+const strategies = computed(() => tradeStore.strategies.filter(s => !isGhostStrategy(s)))
 const selectedStrategy = computed(() => {
-  return tradeStore.strategies.find(s => s.id === selectedStrategyId.value) || tradeStore.strategies[0]
+  return strategies.value.find(s => s.id === selectedStrategyId.value) || strategies.value[0]
 })
 
 const getBenchmarkStrategyIds = () => {
@@ -2473,7 +2392,6 @@ const computeQQPlotPositions = (qqPoints: { theoretical: number; actual: number 
 
 // --- 3D MATH TYPES --- //
 import { useExRobustness } from '../model/useExRobustness'
-import ExRobustnessDiagnostic from './components/ExRobustnessDiagnostic.vue'
 
 interface Point3D { x: number; y: number; z: number }
 interface Point2D { x: number; y: number; opacity: number; depth: number }
@@ -2591,22 +2509,6 @@ const equityPoints3D = ref<CurvePoint[]>([])
 const benchmarkPoints3D = ref<CurvePoint[]>([])
 const riskFreePoints3D = ref<CurvePoint[]>([])
 const winratePoints3D = ref<CurvePoint[]>([])
-const isApiSyncing = ref(false)
-const apiSyncStatusMessage = ref('')
-
-const findAllActiveApiConnections = async () => {
-  const connections = await loadFromDisk<Record<string, StoredBrokerConnection>>(BROKER_CONNECTIONS_STORAGE_KEY)
-  if (!connections) return []
-
-  return Object.values(connections).filter((connection) => {
-    return isSyncableBrokerConnection(connection)
-  })
-}
-
-const apiSyncButtonTitle = computed(() => {
-  if (isApiSyncing.value) return isRu.value ? 'Синхронизация сделок...' : 'Syncing trades...'
-  return isRu.value ? 'Синхронизировать сделки из API' : 'Sync trades from API'
-})
 
 const displayBalance = computed(() => {
   if (showWinrateCurve.value) {
@@ -2618,44 +2520,6 @@ const displayBalance = computed(() => {
   const val = (lastPoint?.value ?? 0) * revealProgress.value
   return val.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 })
-
-const syncCurrentStrategyApi = async () => {
-  if (isApiSyncing.value) return
-
-  isApiSyncing.value = true
-  apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_STARTING' : 'API_SYNC_STARTING'
-
-  try {
-    const connections = await findAllActiveApiConnections()
-    if (connections.length === 0) {
-      apiSyncStatusMessage.value = isRu.value ? 'НЕТ_АКТИВНЫХ_API_КЛЮЧЕЙ' : 'NO_ACTIVE_API_CONNECTIONS'
-      return
-    }
-
-    apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_IN_PROGRESS' : 'API_SYNC_IN_PROGRESS'
-    
-    let totalImported = 0
-    let totalDuplicates = 0
-    let sources: string[] = []
-    
-    for (const connection of connections) {
-      const targetId = connection.credentials?.targetStrategyId || 'MAIN_DIARY'
-      const result = await syncBrokerConnectionTrades(connection, targetId, tradeStore)
-      totalImported += result.importedCount
-      totalDuplicates += result.duplicateCount
-      sources.push(result.sourceLabel)
-    }
-    
-    initData()
-    apiSyncStatusMessage.value = totalImported > 0
-      ? `${sources.join(', ')}: +${totalImported}_TRADES`
-      : `${sources.join(', ')}: 0_NEW / ${totalDuplicates}_DUP`
-  } catch (error: any) {
-    apiSyncStatusMessage.value = error?.message || 'API_SYNC_FAILED'
-  } finally {
-    isApiSyncing.value = false
-  }
-}
 
 // --- THEME COLORS --- //
 const colors = ref({
@@ -2929,7 +2793,6 @@ watch([() => props.trades, () => tradeStore.tradesByStrategy[selectedStrategyId.
 watch(showMetricsPanel, (val) => {
   if (val) {
     showDistribution3D.value = false
-    showRobustnessExplanations.value = false
     showRobustnessHistogram.value = false
     resetView()
   } else {
@@ -2943,7 +2806,6 @@ watch(showDistribution3D, (val) => {
     showMetricsPanel.value = false
   } else {
     showQQPlot.value = false
-    showRobustnessExplanations.value = false
     showRobustnessHistogram.value = false
   }
 })
@@ -4141,23 +4003,7 @@ canvas {
   transform: translateY(-100%) translateY(-24px) translateX(-50%);
 }
 
-/* ROBUSTNESS WARNING FLASH — slides straight down from top */
-/* EXPLANATION FULL-SCREEN TAKEOVER */
-.explanation-takeover-enter-active {
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.explanation-takeover-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.explanation-takeover-enter-from {
-  opacity: 0;
-  transform: translateY(12px);
-}
-.explanation-takeover-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
+/* ROBUSTNESS WARNING FLASH - slides straight down from top */
 .robustness-warn-enter-active {
   transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
