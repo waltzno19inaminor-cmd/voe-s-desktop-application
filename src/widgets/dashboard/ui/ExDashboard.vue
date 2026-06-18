@@ -66,6 +66,9 @@
         <ExHeading level="h1" variant="cinematic" class="!text-3xl">{{ t('dashboard.title') }}</ExHeading>
         <div class="flex items-center space-x-4">
            <ExTag>v{{ pkg.version.toUpperCase().replace('-', '_') }}</ExTag>
+           <span class="text-[9px] font-mono uppercase tracking-[0.45em] px-3 py-1 border-l border-theme-border/70 text-theme-text/45 bg-transparent">
+             {{ demoBadgeLabel }}
+           </span>
            <ExTag v-if="patchBadge">HOTFIX_{{ patchBadge }}</ExTag>
          
         </div>
@@ -345,6 +348,7 @@ const handleOutsideClick = (e: MouseEvent) => {
 const updateNotification = ref({ showUpdate: false, downloadLink: '', version: '' })
 const patchState = ref<{ patchLevel?: string | null; patchId?: string | null } | null>(null)
 const patchBadge = computed(() => patchState.value?.patchLevel?.replace(/^hotfix\./i, '') || '')
+const demoBadgeLabel = computed(() => locale.value === 'ru' ? 'ДЕМО' : 'DEMO')
 let unsubUpdate: any = null
 let unsubUser: any = null
 const showPremiumUnlocked = ref(false)
