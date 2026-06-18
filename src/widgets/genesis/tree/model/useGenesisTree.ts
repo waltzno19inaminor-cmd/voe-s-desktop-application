@@ -1058,7 +1058,6 @@ export const useGenesisTree = () => {
     selectedStrategyId.value = id
 
     const riskManagement = resolveRiskManagementForStrategy(matrixNodes.value, matrixConnections.value, id)
-    console.log(`[GENESIS_TREE] Protocol Selection: ${id} | Resolved Trading Style: ${riskManagement.tradingStyle || 'UNDEFINED'}`)
   }
 
   const formatCreationDate = (d: string | null | undefined) => {

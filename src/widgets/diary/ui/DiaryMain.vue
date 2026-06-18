@@ -1192,7 +1192,6 @@ function addMockData(entry: DiaryEntry) {
 }
 
 const injectMockData = () => {
-    console.log('[MockData] Adding 40 demo trades...');
     for (let i = 0; i < 40; i++) {
         const date = new Date(Date.now() - (i * 12 * 60 * 60 * 1000));
         forum.addDiaryEntry(route.query.uid as string, {

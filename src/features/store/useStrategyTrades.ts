@@ -42,16 +42,13 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
       
       // If main is empty or null, try loading from backup
       if (!data || !data.tradesByStrategy || Object.values(data.tradesByStrategy).every(t => t.length === 0)) {
-        console.log('StrategyTradesStore: Main diary empty, checking backup registry...')
         const backup = await loadFromDisk<StrategyTradesData>('strategy_trades_v1_backup')
         if (backup && backup.tradesByStrategy && Object.values(backup.tradesByStrategy).some(t => t.length > 0)) {
           data = backup
-          console.log('StrategyTradesStore: Successfully restored from backup registry.')
         } else {
           // Final legacy fallback
           const legacy = await loadFromDisk<any>('genesis_diary_v2')
           if (legacy && (legacy.trades || legacy.tradesByStrategy)) {
-            console.log('StrategyTradesStore: Found legacy data in genesis_diary_v2. Mapping...')
             data = {
               strategies: legacy.strategies || [],
               tradesByStrategy: legacy.tradesByStrategy || { 'MAIN_DIARY': legacy.trades || [] },

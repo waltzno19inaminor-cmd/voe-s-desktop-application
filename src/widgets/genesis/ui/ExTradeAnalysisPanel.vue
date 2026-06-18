@@ -351,7 +351,6 @@ const formatImageSlotDate = (dateStr?: string | Date | null) => {
 };
 
 const showImageFullscreen = (idx: number) => {
-  console.log("[Visuals] Show Fullscreen triggered for idx:", idx);
   const img = enrichedTrade.value?.images?.[idx];
   if (img?.url) {
     currentEditIdx.value = idx;
@@ -363,27 +362,23 @@ const showImageFullscreen = (idx: number) => {
     }
     editorMode.value = 'preview';
     isEditorOpen.value = true;
-    console.log("[Visuals] Preview modal activated.");
   } else {
     console.warn("[Visuals] No image URL found for slot", idx);
   }
 };
 
 const editImage = (idx: number) => {
-  console.log("[Visuals] Edit Visuals triggered for idx:", idx);
   const img = enrichedTrade.value?.images?.[idx];
   if (img?.url) {
     currentEditIdx.value = idx;
     editorImageSrc.value = img.url;
     try {
        currentAnnotations.value = img.context ? JSON.parse(img.context) : null;
-       console.log("[Visuals] Loaded annotations:", currentAnnotations.value);
     } catch {
        currentAnnotations.value = null;
     }
     editorMode.value = 'edit';
     isEditorOpen.value = true;
-    console.log("[Visuals] Drawing modal activated.");
   } else {
     console.warn("[Visuals] No image URL found for slot", idx);
   }

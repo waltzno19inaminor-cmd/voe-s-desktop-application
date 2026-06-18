@@ -1399,9 +1399,7 @@ const fetchRealtimeMetrics = async (strategyIds = getBenchmarkStrategyIds()) => 
         }
         
         if (res.is_fallback) {
-          console.log(`[ExEquityCurve] ⚠️ Rust worker used FALLBACK benchmark data for ${strategyId} -> benchmark: ${res.benchmark_rate.toFixed(2)}%, beta: ${res.beta.toFixed(2)}, risk_free: ${res.risk_free_rate?.toFixed(2)}%`)
         } else {
-          console.log(`[ExEquityCurve] ✅ Rust worker synced benchmark data for ${strategyId} -> benchmark: ${res.benchmark_rate.toFixed(2)}%, beta: ${res.beta.toFixed(2)}, risk_free: ${res.risk_free_rate?.toFixed(2)}%`)
         }
       }
     } catch (err) {
@@ -4043,7 +4041,6 @@ onMounted(() => {
   requestAnimationFrame(revealInitialFrame)
 
   const hydrateData = async () => {
-    console.log('[ExEquityCurve] S&P 500 Benchmark Yield:', sp500BenchmarkRate.value + '%')
     await loadBenchmarkMetricsCache()
     await tradeStore.init()
     await loadMatrixData()

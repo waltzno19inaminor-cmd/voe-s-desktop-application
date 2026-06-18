@@ -11,5 +11,4 @@ export async function seedThreadLinks() {
     )
   }
 
-  console.log('Thread links seeded successfully')
 }

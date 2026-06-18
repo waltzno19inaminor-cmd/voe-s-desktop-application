@@ -785,7 +785,6 @@ const importKrakenTrades = async (credentials: KrakenCredentials) => {
     ...trade,
     tradeId
   }))
-  console.log('[ManualSync][Kraken] Raw trades (fills) from API:', krakenTrades)
 
   let importedCount = 0
   let duplicateCount = 0
@@ -802,14 +801,12 @@ const importKrakenTrades = async (credentials: KrakenCredentials) => {
   try {
     if (orderIds.length > 0) {
       ordersMap = await getKrakenQueryOrders(credentials, orderIds)
-      console.log('[ManualSync][Kraken] Orders details queried:', ordersMap)
     }
   } catch (err) {
     console.error('Failed to query orders details during import:', err)
   }
 
   const roundTrips = buildKrakenSpotRoundTrips(krakenTrades, ordersMap)
-  console.log('[ManualSync][Kraken] Formed round trips:', roundTrips)
   for (const trade of roundTrips) {
     const existingTrade = existingBySourceId.get(trade.sourceExternalId)
     if (existingTrade?.id) {

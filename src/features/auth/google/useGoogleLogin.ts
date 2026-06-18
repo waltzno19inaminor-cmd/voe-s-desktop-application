@@ -17,7 +17,6 @@ export const googleLogin = async () => {
     if (isTauri) {
       try {
         auth.setError("Debug: Initializing Deep Link Login...")
-        console.log("Starting Google Deep Link Login...")
         
         // 1. Configuration
         // IMPORTANT: You must add this redirect URI to Google Console: com.voe.app://google-auth
@@ -26,7 +25,6 @@ export const googleLogin = async () => {
         const reversedClientId = "com.googleusercontent.apps.79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22";
         const redirectUri = `${reversedClientId}:/oauth2callback`; 
         
-        console.log("Using Redirect URI:", redirectUri);
 
         const scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid";
         const responseType = "code"; 
@@ -88,7 +86,6 @@ export const googleLogin = async () => {
 
             // @ts-ignore
             const unlistenPromise = onOpenUrl((urls) => {
-                console.log("Deep Link received:", urls);
                 auth.setError("Debug: Deep link received! Processing...");
                 for (const url of urls) {
                     handleDeepLinkUrl(url);
@@ -101,7 +98,6 @@ export const googleLogin = async () => {
                     const { payload } = event;
                     // payload is [args, cwd]
                     const args = payload[0] as string[];
-                    console.log("Single instance deep link received:", args);
                     auth.setError("Debug: Single instance deep link received! Processing...");
                     
                     // The deep link URL is usually the second argument on Windows
@@ -125,7 +121,6 @@ export const googleLogin = async () => {
         // 3. Open Browser & Add PKCE params
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
         
-        console.log("Opening URL:", authUrl);
         auth.setError("Debug: Opening Browser...")
         await open(authUrl);
         

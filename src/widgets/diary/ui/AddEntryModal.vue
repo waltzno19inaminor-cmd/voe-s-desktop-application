@@ -719,7 +719,6 @@ const updateRate = async () => {
         const date = newEntry.value.dateExit ? new Date(newEntry.value.dateExit as any) : undefined;
         const rate = await getExchangeRate(assetBase, accountBase, date);
         if (rate > 0) {
-            console.log(`[AddEntryModal] Established rate for ${assetBase}->${accountBase}: ${rate}`);
             currentExchangeRate.value = rate;
         }
     } catch (e) {

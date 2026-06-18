@@ -25,7 +25,6 @@ export async function loadThoughtsFromDisk(uid: string) {
     const thoughtsData = await loadFromDisk<ThoughtEntry[]>(`diary_thoughts_${uid}`);
     if (thoughtsData) {
         thoughts.value = thoughtsData;
-        console.log(`[Thoughts] Loaded data for ${uid} from disk. Count: ${thoughtsData.length}`);
         return true;
     } else {
         thoughts.value = [];

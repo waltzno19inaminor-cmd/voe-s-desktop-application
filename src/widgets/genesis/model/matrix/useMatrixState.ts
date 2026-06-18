@@ -529,7 +529,6 @@ export function useMatrixState() {
         if (saved.personalIndicators) {
           personalIndicators.value = saved.personalIndicators
         }
-        console.log('[GenesisPersistence] Data restored.')
       } else {
         throw new Error('No saved nodes found')
       }

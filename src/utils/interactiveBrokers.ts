@@ -21,7 +21,6 @@ export const getIbkrFlexStatement = async (token: string, queryId: string): Prom
     v: '3'
   })
 
-  console.log('[IBKR Flex] SendRequest Raw XML Response:', sendResponseXml)
 
   const parser = new DOMParser()
   const sendDoc = parser.parseFromString(sendResponseXml, 'application/xml')
@@ -56,7 +55,6 @@ export const getIbkrFlexStatement = async (token: string, queryId: string): Prom
         v: '3'
       })
 
-      console.log(`[IBKR Flex] GetStatement Raw XML Response (Attempt ${attempts}):`, statementXml)
 
       const statementDoc = parser.parseFromString(statementXml, 'application/xml')
       

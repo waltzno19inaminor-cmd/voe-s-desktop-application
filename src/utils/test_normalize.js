@@ -14,7 +14,3 @@ const normalizeDateStr = (val) => {
   return str
 }
 
-console.log(normalizeDateStr("2026-06-08 00:49:24.196"))
-console.log(normalizeDateStr("2026-06-08T00:49:24.196000Z"))
-console.log(normalizeDateStr("2026-06-08T00:49:24.196Z"))
-console.log(normalizeDateStr("2026-06-08T00:49:24"))

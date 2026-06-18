@@ -1047,7 +1047,6 @@ const showNodeMap = ref(false)
 const demoImageUrl = '/assets/ui/tactical_chart_preview.png'
 
 const handleEditMetrics = () => {
-  console.log('Edit metrics triggered in design preview')
 }
 
 import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'

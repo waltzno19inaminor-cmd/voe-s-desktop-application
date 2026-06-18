@@ -10,7 +10,6 @@ let memoryCache: number | null = null;
 export async function getSP500Benchmark(): Promise<number> {
     if (memoryCache !== null) return memoryCache;
 
-    console.log(`[BenchmarkService] Using stable S&P 500 benchmark proxy: ${SP500_BENCHMARK_RATE.toFixed(2)}%`);
     memoryCache = SP500_BENCHMARK_RATE;
     return SP500_BENCHMARK_RATE;
 }

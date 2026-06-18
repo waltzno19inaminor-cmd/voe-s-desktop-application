@@ -25,7 +25,6 @@ export const ensureDataDir = async (): Promise<string> => {
         
         const dirExists = await exists(dataPath);
         if (!dirExists) {
-            console.log(`[DiskStorage] Creating directory: ${dataPath}`);
             await mkdir(dataPath, { recursive: true });
         }
         
@@ -49,7 +48,6 @@ export const saveToDisk = async (fileName: string, data: any): Promise<void> => 
         const path = await join(dataPath, `${fileName}.json`);
         const content = JSON.stringify(data, null, 2);
         await writeTextFile(path, content);
-        console.log(`[DiskStorage] Saved successfully to: ${path}`);
     } catch (error: any) {
         console.error(`[DiskStorage] Error saving ${fileName}:`, error);
         await message(`Failed to save ${fileName}: ${error.message || error}`, { title: 'Save Error', kind: 'error' });
@@ -86,7 +84,6 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
         const fileExists = await exists(path);
         if (fileExists) {
             await remove(path);
-            console.log(`[DiskStorage] Removed: ${path}`);
         }
     } catch (error: any) {
         console.error(`Error removing ${fileName} from disk:`, error);
@@ -100,7 +97,6 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
  */
 export const migrateLocalStorageToDisk = async (keys: string[]): Promise<void> => {
     if (typeof window === 'undefined') return;
-    console.log('[DiskStorage] Starting migration from localStorage...', keys);
     
     for (const key of keys) {
         const localData = localStorage.getItem(key);
@@ -113,12 +109,10 @@ export const migrateLocalStorageToDisk = async (keys: string[]): Promise<void> =
                     await saveToDisk(key, parsedData);
                     console.info(`[DiskStorage] Migrated ${key} to disk storage.`);
                 } else {
-                    console.log(`[DiskStorage] ${key} already exists on disk, skipping migration.`);
                 }
             } catch (error) {
                 console.error(`[DiskStorage] Migration failed for ${key}:`, error);
             }
         }
     }
-    console.log('[DiskStorage] Migration check finished.');
 };

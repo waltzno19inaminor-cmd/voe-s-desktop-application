@@ -226,10 +226,8 @@ const syncModeFromRoute = () => {
 }
 
 const navigateToMode = (mode: 'diary' | 'matrix' | 'genesis-diary') => {
-  console.log('[ExGenesis] navigateToMode called with mode:', mode)
 
 
-  console.log('[ExGenesis] Access granted to mode:', mode)
   currentMode.value = mode
   const query = {
     ...route.query,

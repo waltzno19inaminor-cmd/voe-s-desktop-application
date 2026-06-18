@@ -190,7 +190,6 @@ export async function loadDiaryFromDisk(uid: string) {
             entries.value = diaryData;
         }
         
-        console.log(`[Diary] Loaded data for ${uid} from disk.`);
         return true;
     }
     return false;

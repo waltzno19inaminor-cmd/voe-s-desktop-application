@@ -1476,7 +1476,6 @@ const hasValidProjection = computed(() => {
 
 const equityCurveTrades = computed(() => {
   let historical = tradeStore.getTradesForStrategy(selectedStrategyId.value)
-  console.log('[DEBUG equityCurveTrades] Strat:', selectedStrategyId.value, 'Total historical:', historical.length)
   
   if (props.initialTrade) {
     const initialDateStr = props.initialTrade.dateExit || props.initialTrade.date

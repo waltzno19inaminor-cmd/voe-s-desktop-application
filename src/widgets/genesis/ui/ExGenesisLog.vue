@@ -1428,7 +1428,6 @@ const selectStrategy = (id: string) => {
   selectedStrategyId.value = id
   showStrategyMenu.value = false
   const riskManagement = resolveRiskManagementForStrategy(matrixNodes.value, matrixConnections.value, id)
-  console.log(`[GENESIS_LOG] Protocol Selection: ${id} | Resolved Trading Style: ${riskManagement.tradingStyle || 'UNDEFINED'}`)
 }
 
 const strategies = computed(() => tradeStore.strategies)

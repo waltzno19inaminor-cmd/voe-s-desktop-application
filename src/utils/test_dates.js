@@ -17,8 +17,4 @@ const parseKrakenFuturesTimestamp = (value) => {
   return numeric > 1_000_000_000_000 ? numeric : numeric * 1000
 }
 
-console.log("Spot 1:", parseKrakenSpotTimestamp("2026-06-08T00:48:56.734Z"))
-console.log("Spot 2:", parseKrakenSpotTimestamp("2026-06-08T00:49:24.196"))
 
-console.log("Futures 1:", parseKrakenFuturesTimestamp("2026-06-08T00:48:56.734Z"))
-console.log("Futures 2:", parseKrakenFuturesTimestamp("2026-06-08T00:49:24.196"))

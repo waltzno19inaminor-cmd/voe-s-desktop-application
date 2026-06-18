@@ -148,24 +148,19 @@ const syncKrakenSpot = async (
 
   const response = await getKrakenTradesHistory(credentials, { type: 'all', trades: true })
   const fills = Object.entries(response.trades || {}).map(([tradeId, trade]) => ({ ...trade, tradeId }))
-  console.log('[BrokerSync][Kraken][Spot] Raw response:', response)
-  console.log('[BrokerSync][Kraken][Spot] Parsed fills:', fills)
 
   const orderIds = Array.from(new Set(fills.map(f => f.ordertxid).filter(Boolean)))
   let ordersMap: Record<string, any> = {}
   try {
     if (orderIds.length > 0) {
       ordersMap = await getKrakenQueryOrders(credentials, orderIds)
-      console.log('[BrokerSync][Kraken][Spot] Orders details map:', ordersMap)
     }
   } catch (err) {
     console.error('[BrokerSync][Kraken][Spot] Failed to query orders details:', err)
   }
 
   const roundTrips = buildKrakenSpotRoundTrips(fills, ordersMap)
-  console.log('[BrokerSync][Kraken][Spot] Formed round trips:', roundTrips)
   const result = await importDedupedTrades(roundTrips, strategyId, tradeStore)
-  console.log('[BrokerSync][Kraken][Spot] Imported round trips result:', result)
 
   return {
     ...result,
@@ -185,18 +180,8 @@ const syncKrakenFutures = async (
     apiSecret: connection.credentials.apiSecret || ''
   }, environment))
   const fills = response.fills || []
-  console.log('[BrokerSync][Kraken][Futures] Raw response:', response)
-  console.log('[BrokerSync][Kraken][Futures] Parsed fills:', fills)
   const roundTrips = buildKrakenFuturesRoundTrips(fills)
-  console.log('[BrokerSync][Kraken][Futures] Prepared round trips:', roundTrips.map(trade => ({
-    id: trade.id,
-    sourceExternalId: trade.sourceExternalId,
-    date: trade.date instanceof Date ? trade.date.toISOString() : trade.date,
-    dateExit: trade.dateExit instanceof Date ? trade.dateExit.toISOString() : trade.dateExit,
-    localDateExit: trade.dateExit instanceof Date ? trade.dateExit.toLocaleString() : String(trade.dateExit)
-  })))
   const result = await importDedupedTrades(roundTrips, strategyId, tradeStore)
-  console.log('[BrokerSync][Kraken][Futures] Imported round trips:', result)
 
   return {
     ...result,
@@ -1006,12 +991,9 @@ const syncBinance = async (
   const scopedCredentials = withBinanceEnvironment(credentials, environment)
 
   const response = await getBinanceUsdMFuturesTrades(scopedCredentials)
-  console.log('[BrokerSync][Binance] Raw response:', response)
   const roundTrips = buildBinanceFuturesRoundTrips(response)
-  console.log('[BrokerSync][Binance] Formed round trips:', roundTrips)
 
   const result = await importDedupedTrades(roundTrips, strategyId, tradeStore)
-  console.log('[BrokerSync][Binance] Import result:', result)
 
   return {
     ...result,
@@ -1223,17 +1205,12 @@ const syncInteractiveBrokers = async (
   const openPositions = statementDoc.querySelector('OpenPositions')
   const tradesNode = statementDoc.querySelector('Trades')
 
-  console.log('[IBKR Flex] --- REPORT SECTIONS ---')
-  if (accountInfo) console.log('AccountInformation:', accountInfo.outerHTML)
-  if (cashReport) console.log('CashReport:', cashReport.outerHTML)
-  if (openPositions) console.log('OpenPositions:', openPositions.outerHTML)
+  if (accountInfo) 
+  if (cashReport) 
+  if (openPositions) 
   if (tradesNode) {
-    console.log(`Trades XML snippet (first 1000 chars):`, tradesNode.outerHTML.slice(0, 1000))
-    console.log(`Trades: found ${statementDoc.querySelectorAll('Trade').length} trade(s) using 'Trade' selector`)
   } else {
-    console.log('Trades: NOT FOUND (Check IBKR Flex Query configuration!)')
   }
-  console.log('-----------------------------------')
 
   const trades = Array.from(statementDoc.querySelectorAll('Trade'))
   
