@@ -12,10 +12,6 @@
       <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.5)_100%)]"></div>
     </div> -->
     <DesignVignette :is-dark="isDark" />
-    <!-- Scan line -->
-    <div class="absolute inset-0 pointer-events-none opacity-[0.23] overflow-hidden">
-      <div class="w-full h-px nier-bg-inverted animate-scan"></div>
-    </div>
 
     <!-- ── SIGN OUT (top-right, only when authenticated) ── -->
     <Transition name="fade-quick">
