@@ -647,7 +647,6 @@
                top: Math.round(1000 + comment.y * scale) + 'px',
                zIndex: 1000 + Number(idx)
              }"
-             @mousedown.stop="startCommentDrag($event, comment)"
              @click.stop>
 
           <Transition name="callout-pop" appear>
@@ -666,7 +665,8 @@
                <div class="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-nier-text-light dark:border-nier-text-dark opacity-30 pointer-events-none"></div>
 
                <!-- Tactical Header -->
-               <div class="flex-shrink-0 flex items-center justify-between bg-nier-black dark:bg-nier-white text-nier-white dark:text-nier-black px-4 py-2 cursor-move border-b border-nier-white/10">
+               <div class="flex-shrink-0 flex items-center justify-between bg-nier-black dark:bg-nier-white text-nier-white dark:text-nier-black px-4 py-2 cursor-move border-b border-nier-white/10"
+                    @mousedown.stop="startCommentDrag($event, comment)">
                   <div class="flex items-center space-x-3">
                      <span class="font-black tracking-[0.4em] uppercase font-sans" :style="{ fontSize: '13px' }">Comment {{ Number(idx) + 1 }}</span>
                   </div>

@@ -4,6 +4,23 @@ import type { useMatrixState, Connection, Point, Node } from './useMatrixState'
 export function usePathMath(state: ReturnType<typeof useMatrixState>) {
   const { locale, t } = useI18n()
 
+  function getNodePortPoint(node: Node, port: string = 'left') {
+    const radius = (node.type === 'scaling-entry' || node.type === 'step') ? 28 : 56
+    const gap = (node.type === 'scaling-entry' || node.type === 'step') ? 2 : 6
+    const offset = radius + gap
+
+    if (port === 'top') return { x: node.x, y: node.y - offset }
+    if (port === 'bottom') return { x: node.x, y: node.y + offset }
+    if (port === 'right') return { x: node.x + offset, y: node.y }
+    return { x: node.x - offset, y: node.y }
+  }
+
+  function getConnectionEndPoint(line: Connection) {
+    const to = state.getNode(line.toId)
+    if (!to) return { x: 0, y: 0 }
+    return getNodePortPoint(to, line.toPort || 'left')
+  }
+
   function getMinChildX(fromId: string) {
     const from = state.getNode(fromId)
     if (!from) return 0
@@ -86,9 +103,7 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const j2x = startX + mainStemLen + bundleStemLen
     const j2y = from.y + bundleYOffset
 
-    const toRadius = (to.type === 'scaling-entry' || to.type === 'step') ? 28 : 56
-    const toGap = (to.type === 'scaling-entry' || to.type === 'step') ? 2 : 6
-    const endPoint = { x: to.x - (toRadius + toGap), y: to.y }
+    const endPoint = getNodePortPoint(to, line.toPort || 'left')
 
     const dx3 = endPoint.x - j2x
     const cp3 = { x: j2x + dx3 * 0.5, y: j2y }
@@ -147,20 +162,8 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
 
     const conn = state.connections.value.find(c => c.fromId === fromId && c.toId === toId)
 
-    const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
-    const toRadius = (to.type === 'scaling-entry' || to.type === 'step') ? 28 : 56
-    const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
-    const toGap = (to.type === 'scaling-entry' || to.type === 'step') ? 2 : 6
-
-    let startPoint = { x: from.x + (fromRadius + fromGap), y: from.y }
-    if (conn?.fromPort === 'top') startPoint = { x: from.x, y: from.y - fromRadius - fromGap }
-    else if (conn?.fromPort === 'bottom') startPoint = { x: from.x, y: from.y + fromRadius + fromGap }
-    else if (conn?.fromPort === 'left') startPoint = { x: from.x - fromRadius - fromGap, y: from.y }
-
-    let endPoint = { x: to.x - (toRadius + toGap), y: to.y }
-    if (conn?.toPort === 'top') endPoint = { x: to.x, y: to.y - toRadius - toGap }
-    else if (conn?.toPort === 'bottom') endPoint = { x: to.x, y: to.y + toRadius + toGap }
-    else if (conn?.toPort === 'right') endPoint = { x: to.x + toRadius + toGap, y: to.y }
+    const startPoint = getNodePortPoint(from, conn?.fromPort || 'right')
+    const endPoint = getNodePortPoint(to, conn?.toPort || 'left')
 
     if (conn?.bundleId) {
        const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === fromId && c.bundleId).map(c => c.bundleId))]
@@ -294,6 +297,7 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     getMainStemPath,
     getBundleStemPath,
     getBranchPath,
+    getConnectionEndPoint,
     createRootPath,
     getConnectionMidpoint,
     shouldShowLabel,

@@ -47,8 +47,8 @@
                 :class="{ 'nier-conn-neon': pathMath.isNeonHighlight(line) }" />
 
           <circle v-if="state.getNode(line.toId)"
-                  :cx="state.getNode(line.toId)!.x - (['scaling-entry', 'step'].includes(state.getNode(line.toId)!.type) ? 30 : 62)"
-                  :cy="state.getNode(line.toId)!.y"
+                  :cx="pathMath.getConnectionEndPoint(line).x"
+                  :cy="pathMath.getConnectionEndPoint(line).y"
                   :r="2 / state.viewState.value.scale" fill="currentColor" class="opacity-40" />
         </g>
       </g>
