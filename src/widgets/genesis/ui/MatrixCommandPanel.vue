@@ -22,9 +22,23 @@
       </div>
 
       <!-- Tier 2: Expansion Layer -->
-      <div class="relative w-full flex px-6 transition-all duration-500"
-           :class="[state.activeMenuCategory.value ? 'pt-6 pb-6' : 'pt-0 pb-0', state.isScenarioContext.value ? 'overflow-visible' : 'overflow-hidden']">
-        <div v-if="state.activeMenuCategory.value" class="w-full flex justify-center">
+      <div
+        ref="menuExpansionElement"
+        class="command-menu-expansion relative w-full px-6"
+        :class="{
+          'is-open': state.activeMenuCategory.value,
+          'allows-overflow': state.isScenarioContext.value && isMenuExpansionSettled
+        }"
+        :style="{ height: menuExpansionHeight }">
+        <div
+          v-if="state.activeMenuCategory.value"
+          ref="menuContentElement"
+          class="command-menu-content w-full flex justify-center"
+          :class="[
+            { 'is-visible': isMenuContentVisible },
+            state.isScenarioContext.value && isMenuContentVisible ? 'overflow-visible' : 'overflow-hidden'
+          ]"
+          :aria-hidden="!isMenuContentVisible">
 
           <!-- TEXT FORMAT TOOLS -->
           <div v-if="state.activeMenuCategory.value === 'TEXT_FORMAT' && state.activeTextNode.value" class="flex flex-wrap items-center justify-center gap-4 pointer-events-auto px-4 w-full">
@@ -668,7 +682,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, onBeforeUnmount, watch } from 'vue'
 import type { useMatrixState, MenuCategory } from '../model/matrix/useMatrixState'
 import type { useMatrixMenu } from '../model/matrix/useMatrixMenu'
 import type { useMatrixAudio } from '../model/matrix/useMatrixAudio'
@@ -699,6 +713,57 @@ const { locale, t } = useI18n()
 
 const customStepInput = ref('')
 const isClearPanelOpen = ref(false)
+const isMenuContentVisible = ref(false)
+const isMenuExpansionSettled = ref(false)
+const menuExpansionElement = ref<HTMLElement | null>(null)
+const menuContentElement = ref<HTMLElement | null>(null)
+const menuExpansionHeight = ref('0px')
+let menuContentTimer: ReturnType<typeof setTimeout> | null = null
+let menuAnimationFrame: number | null = null
+let menuAnimationSequence = 0
+
+watch(
+  () => props.state.activeMenuCategory.value,
+  async category => {
+    const sequence = ++menuAnimationSequence
+    if (menuContentTimer) clearTimeout(menuContentTimer)
+    if (menuAnimationFrame !== null) cancelAnimationFrame(menuAnimationFrame)
+
+    const currentHeight = menuExpansionElement.value?.getBoundingClientRect().height || 0
+    isMenuContentVisible.value = false
+    isMenuExpansionSettled.value = false
+    menuExpansionHeight.value = `${currentHeight}px`
+
+    await nextTick()
+    if (sequence !== menuAnimationSequence) return
+
+    const contentHeight = category ? (menuContentElement.value?.scrollHeight || 0) : 0
+    const targetHeight = category ? contentHeight + 48 : 0
+    menuExpansionElement.value?.getBoundingClientRect()
+
+    menuAnimationFrame = requestAnimationFrame(() => {
+      if (sequence !== menuAnimationSequence) return
+      menuExpansionHeight.value = `${targetHeight}px`
+      menuAnimationFrame = null
+
+      menuContentTimer = setTimeout(() => {
+        if (sequence !== menuAnimationSequence) return
+        if (category && props.state.activeMenuCategory.value === category) {
+          menuExpansionHeight.value = 'auto'
+          isMenuExpansionSettled.value = true
+          isMenuContentVisible.value = true
+        }
+        menuContentTimer = null
+      }, 380)
+    })
+  },
+  { immediate: true }
+)
+
+onBeforeUnmount(() => {
+  if (menuContentTimer) clearTimeout(menuContentTimer)
+  if (menuAnimationFrame !== null) cancelAnimationFrame(menuAnimationFrame)
+})
 
 const indicatorCategories = indicatorData.categories
 
@@ -903,6 +968,42 @@ const skillTypes = computed(() => {
 </script>
 
 <style scoped>
+.command-menu-expansion {
+  height: 0;
+  overflow: hidden;
+  padding-bottom: 0;
+  padding-top: 0;
+  transition:
+    height 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding-bottom 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding-top 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.command-menu-expansion.is-open {
+  padding-bottom: 1.5rem;
+  padding-top: 1.5rem;
+}
+
+.command-menu-expansion.allows-overflow {
+  overflow: visible;
+}
+
+.command-menu-content {
+  min-height: 0;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(5px);
+  visibility: hidden;
+  transition: opacity 180ms ease-out, transform 180ms ease-out;
+}
+
+.command-menu-content.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
 .fade-enter-active, .fade-leave-active {
   transition: opacity 0.3s ease;
 }
