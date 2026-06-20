@@ -27,7 +27,7 @@
         class="command-menu-expansion relative w-full px-6"
         :class="{
           'is-open': state.activeMenuCategory.value,
-          'allows-overflow': state.isScenarioContext.value && isMenuExpansionSettled
+          'allows-overflow': isMenuExpansionSettled
         }"
         :style="{ height: menuExpansionHeight }">
         <div
@@ -36,7 +36,7 @@
           class="command-menu-content w-full flex justify-center"
           :class="[
             { 'is-visible': isMenuContentVisible },
-            state.isScenarioContext.value && isMenuContentVisible ? 'overflow-visible' : 'overflow-hidden'
+            isMenuContentVisible ? 'overflow-visible' : 'overflow-hidden'
           ]"
           :aria-hidden="!isMenuContentVisible">
 
