@@ -773,7 +773,7 @@ const executePurge = () => {
 }
 
 // Category lists
-const defaultCommandCategories: MenuCategory[] = ['LOGIC', 'METHODS', 'DATA', 'DOMAINS', 'INDICATORS', 'EMOTIONS', 'STEPS', 'SCALING', 'RISK', 'LABELS', 'CONFIG', 'SYSTEM']
+const defaultCommandCategories: MenuCategory[] = ['LOGIC', 'METHODS', 'DATA', 'DOMAINS', 'INDICATORS', 'EMOTIONS', 'STEPS', 'SCALING', 'RISK', 'LABELS', 'SYSTEM']
 const scenarioCommandCategories: MenuCategory[] = ['SCENARIO_DOCS', 'SCENARIO_VISUALS', 'SCENARIO_AUDIO', 'TEXT_FORMAT', 'LABELS']
 const commandCategoryLabels: Partial<Record<MenuCategory, string>> = {
   SCENARIO_DOCS: 'DOCS',
@@ -797,6 +797,11 @@ function getCommandCategoryLabel(category: MenuCategory) {
 function shouldShowCommandCategory(category: MenuCategory) {
   if (category === 'TEXT_FORMAT') return !!props.state.activeTextNode.value
   if (props.state.isScenarioContext.value) return scenarioCommandCategories.includes(category)
+
+  if (props.state.activeMenuCategory.value === 'INDICATORS' && (category === 'LABELS' || category === 'SYSTEM')) {
+    return false
+  }
+
   const selected = props.state.effectiveSelectedNode.value
   return (
     (category !== 'INDICATORS' && category !== 'EMOTIONS' && category !== 'SCALING' && category !== 'RISK') ||
