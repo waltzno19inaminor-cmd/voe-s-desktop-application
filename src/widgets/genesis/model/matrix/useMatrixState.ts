@@ -251,6 +251,8 @@ export function useMatrixState() {
     } else {
       viewState.value.scale = 1
     }
+    
+    selectNode(null)
   }
 
   function goBack() {
