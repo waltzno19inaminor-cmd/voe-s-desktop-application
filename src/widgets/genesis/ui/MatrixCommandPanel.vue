@@ -626,7 +626,7 @@
                  class="group relative flex flex-col items-center transition-all duration-300"
                  :class="state.activeMenuCategory.value === cat ? 'opacity-100' : 'opacity-30 hover:opacity-100'">
 
-            <span class="text-[10px] font-mono tracking-[0.4em] uppercase font-black transition-all group-hover:tracking-[0.6em]"
+            <span class="text-[10px] font-mono tracking-[0.4em] uppercase font-black transition-all"
                   :class="{ 'text-nier-text-light dark:text-nier-text-dark': state.activeMenuCategory.value === cat }">
               {{ getCommandCategoryLabel(cat) }}
             </span>
