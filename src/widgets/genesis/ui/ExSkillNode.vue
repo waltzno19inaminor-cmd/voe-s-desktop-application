@@ -107,7 +107,7 @@
                   no-padding
                   no-shadow
                   class="w-[360px] min-h-[320px] !border-red-500/30 dark:!border-red-400/30"
-                  :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden }">
+                  :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden, 'risk-panel-theme-light': !themeStore.settings.isDark }">
                   <div v-if="isRiskPanelContentHidden" class="risk-panel-hatch"></div>
                   <div class="relative z-10 flex items-center justify-between border-b nier-border-primary px-4 py-2 bg-red-500/[0.03]">
                     <div class="flex items-center gap-3">
@@ -729,6 +729,9 @@ import ExButton from '~/shared/ui/ExButton.vue'
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
+import { useThemeStore } from '~/features/store/useTheme'
+
+const themeStore = useThemeStore()
 
 const { locale, t } = useI18n()
 
@@ -1618,6 +1621,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   position: relative;
 }
 
+.risk-panel-theme-light.risk-panel-collapsed {
+  background: rgb(255 255 255);
+}
 :deep(.risk-panel-collapsed > div:first-child) {
   display: none;
 }
