@@ -1612,7 +1612,27 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .matrix-text-rich :deep(ol) {
   list-style-position: inside;
   margin: 0.25em 0;
-  padding-left: 0.35em;
+  padding-left: 0.55em;
+}
+
+.matrix-text-rich :deep(ul) {
+  list-style-type: disc !important;
+}
+
+.matrix-text-rich :deep(ol) {
+  list-style-type: decimal !important;
+}
+
+.matrix-text-rich :deep(li) {
+  display: list-item;
+  margin: 0.18em 0;
+  padding-left: 0.2em;
+}
+
+.matrix-text-rich :deep(li::marker) {
+  color: var(--matrix-text-default-color);
+  font-size: 0.95em;
+  opacity: 0.85;
 }
 
 .table-stepper {
