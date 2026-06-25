@@ -36,8 +36,17 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
   }
 
   function handleGenericFileUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0]
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
     if (!file || !uploadingFileNodeId.value) return
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      window.alert('Only PDF files can be attached to FILE nodes.')
+      uploadingFileNodeId.value = null
+      input.value = ''
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -46,7 +55,7 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
         if (!node.params) node.params = {}
         node.params.fileName = file.name
         node.params.fileSize = file.size
-        node.params.fileType = file.type || 'application/octet-stream'
+        node.params.fileType = 'application/pdf'
         node.params.fileDataUrl = event.target?.result as string
       }
       uploadingFileNodeId.value = null

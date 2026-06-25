@@ -56,7 +56,7 @@
               </div>
            </div>
            <input type="file" :ref="(el) => { uploads.imageInput.value = el as HTMLInputElement }" class="hidden" accept="image/*" @change="uploads.handleImageUpload" />
-           <input type="file" :ref="(el) => { uploads.fileInput.value = el as HTMLInputElement }" class="hidden" @change="uploads.handleGenericFileUpload" />
+           <input type="file" :ref="(el) => { uploads.fileInput.value = el as HTMLInputElement }" class="hidden" accept="application/pdf,.pdf" @change="uploads.handleGenericFileUpload" />
         </div>
 
         <!-- SVG CONNECTIONS (THE ROOTS) -->
@@ -83,6 +83,7 @@
                        @clear-output="state.clearNodeOutputConnections"
                        @contextmenu="menu.handleNodeContextMenu"
                        @merge="state.mergeNodes($event.fromId, $event.toId)"
+                       @open-file="openFilePreview"
                        @moved="state.handleNodeMoved" />
         </div>
         </div>
@@ -194,6 +195,55 @@
         </Transition>
       </Teleport>
 
+      <Teleport to="body">
+        <Transition name="panel-slide">
+          <div
+            v-if="activeFilePreviewNode"
+            class="fixed inset-0 z-[2147483000] flex items-center justify-center bg-black/45 backdrop-blur-sm p-8"
+            @click.self="closeFilePreview">
+            <div
+              class="relative"
+              :style="{ width: 'min(1180px, calc(100vw - 96px))', height: 'min(820px, calc(100vh - 96px))' }">
+              <button
+                type="button"
+                @click="closeFilePreview"
+                class="absolute -right-6 top-1/2 z-[100] flex h-40 w-6 -translate-y-1/2 cursor-pointer items-center justify-center border-r border-t border-b border-black/20 bg-[#ffffff] transition-colors hover:bg-black/5 dark:border-white/20 dark:bg-[#070707] dark:hover:bg-[#111] group/close-tab">
+                <div class="h-16 w-px bg-black/10 transition-all duration-300 group-hover/close-tab:bg-black/40 dark:bg-white/10 dark:group-hover/close-tab:bg-white/40"></div>
+                <span class="absolute rotate-90 whitespace-nowrap text-[7px] font-mono uppercase tracking-[0.4em] text-black/10 transition-colors group-hover/close-tab:text-black/40 dark:text-white/10 dark:group-hover/close-tab:text-white/40">Close_File</span>
+              </button>
+
+              <ExPanel
+                variant="light"
+                no-padding
+                no-shadow
+                :show-corners="true"
+                class="h-full w-full !border-black/20 !bg-white/85 dark:!border-white/20 dark:!bg-[#070707]/85">
+                <div class="flex h-full min-h-0 flex-col bg-white/80 dark:bg-black/30">
+                  <div class="flex items-center justify-between gap-6 border-b border-black/10 px-4 py-2 dark:border-white/10">
+                    <div class="flex min-w-0 items-center gap-4">
+                      <span class="shrink-0 text-[9px] font-mono font-black uppercase tracking-[0.4em] nier-text-primary">FILE_PDF_VIEWER</span>
+                      <span class="truncate text-[8px] font-mono uppercase tracking-[0.24em] opacity-45 nier-text-primary">{{ activeFilePreviewNode.params?.fileName }}</span>
+                    </div>
+                    <a
+                      :href="activeFilePreviewNode.params?.fileDataUrl"
+                      :download="activeFilePreviewNode.params?.fileName || 'matrix-file.pdf'"
+                      class="shrink-0 text-[8px] font-mono uppercase tracking-[0.24em] opacity-40 underline transition-opacity hover:opacity-100 nier-text-primary"
+                      @click.stop>
+                      Download
+                    </a>
+                  </div>
+                  <iframe
+                    :src="activeFilePreviewNode.params?.fileDataUrl"
+                    :title="activeFilePreviewNode.params?.fileName || 'PDF preview'"
+                    class="h-full min-h-0 w-full flex-1 bg-white"
+                  ></iframe>
+                </div>
+              </ExPanel>
+            </div>
+          </div>
+        </Transition>
+      </Teleport>
+
     </div>
   </div>
 </template>
@@ -201,6 +251,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, computed } from 'vue'
 
+import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExSkillNode from './ExSkillNode.vue'
 import ExZone from './ExZone.vue'
 import MatrixBootOverlay from './MatrixBootOverlay.vue'
@@ -231,6 +282,7 @@ const boot = useMatrixBoot()
 const zoneTools = useMatrixZones(state)
 const uploads = useMatrixUploads(state)
 const pathMath = usePathMath(state)
+const activeFilePreviewNode = ref<any | null>(null)
 
 const windowSize = ref({ width: typeof window !== 'undefined' ? window.innerWidth : 1000, height: typeof window !== 'undefined' ? window.innerHeight : 1000 })
 const updateWindowSize = () => {
@@ -315,6 +367,12 @@ onUnmounted(() => {
 })
 
 function handleGlobalKeydown(e: KeyboardEvent) {
+  if (activeFilePreviewNode.value && e.key === 'Escape') {
+    e.preventDefault()
+    closeFilePreview()
+    return
+  }
+
   if (state.pendingNodeConfig.value) {
     if (e.key === 'Escape') {
       e.preventDefault()
@@ -370,6 +428,15 @@ function handleNodeDive(node: any) {
   } else if (node.type === 'file-attachment') {
     uploads.triggerGenericFileUpload(node.id)
   }
+}
+
+function openFilePreview(node: any) {
+  if (node?.type !== 'file-attachment' || !node.params?.fileDataUrl) return
+  activeFilePreviewNode.value = node
+}
+
+function closeFilePreview() {
+  activeFilePreviewNode.value = null
 }
 
 // Props & Emits
