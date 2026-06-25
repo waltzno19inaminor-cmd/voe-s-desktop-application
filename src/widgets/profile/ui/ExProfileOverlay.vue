@@ -163,18 +163,7 @@
                   </button>
                 </div>
 
-                <div class="space-y-4">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[9px] font-mono uppercase tracking-[0.35em] opacity-40">{{ locale === 'ru' ? 'Акцент' : 'Accent' }}</span>
-                    <span class="text-[8px] font-mono uppercase tracking-[0.25em] opacity-30">{{ locale === 'ru' ? 'Пресеты' : 'Presets' }}</span>
-                  </div>
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div v-for="tone in appearanceTones" :key="tone.name" class="flex flex-col gap-2">
-                      <div class="h-12 border nier-border-primary bg-[#0a0a0a]" :style="{ backgroundColor: tone.value }"></div>
-                      <span class="text-[8px] font-mono uppercase tracking-[0.18em] text-black/55 dark:text-white/55">{{ tone.name }}</span>
-                    </div>
-                  </div>
-                </div>
+
 
               </div>
             </main>
@@ -265,12 +254,7 @@ function setAppearanceMode(mode: 'light' | 'dark' | 'system') {
   themeStore.setTheme({ themeMode: mode })
 }
 
-const appearanceTones = computed(() => [
-  { name: locale.value === 'ru' ? 'Чернила' : 'Ink', value: '#ffffff' },
-  { name: locale.value === 'ru' ? 'Бумага' : 'Paper', value: '#111111' },
-  { name: locale.value === 'ru' ? 'Небо' : 'Sky', value: '#7dd3fc' },
-  { name: locale.value === 'ru' ? 'Мята' : 'Mint', value: '#6ee7b7' }
-])
+
 
 
 
