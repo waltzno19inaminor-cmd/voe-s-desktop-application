@@ -977,6 +977,166 @@
           "description": "Equilibrium - The 50% fair value level of a range."
         }
       ]
+    },
+    {
+      "id": "FUNDAMENTAL",
+      "name": "Fundamental & Macro Indicators",
+      "indicators": [
+        {
+          "label": "EPS",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Earnings Per Share - Tracks company profitability per share and earnings quality.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "REV",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Revenue Growth - Measures top-line expansion or contraction across reporting periods.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "GM",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Gross Margin - Evaluates pricing power and cost pressure inside the business model.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "FCF",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Free Cash Flow - Measures operational cash generation after capital expenditures.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "DEBT",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Debt Load - Tracks leverage, balance-sheet stress, and refinancing sensitivity.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "PE",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Price to Earnings - Compares valuation against company earnings power.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "GUID",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Guidance Revision - Captures management upgrades, downgrades, and forecast risk.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "ERN",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Earnings Event - Company reporting window with elevated repricing risk.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "RATE",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Interest Rate Decision - Central-bank policy event affecting discount rates and liquidity.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "CPI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Consumer Price Index - Inflation print that can shift rate expectations and risk appetite.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "NFP",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Nonfarm Payrolls - Labor-market release that can trigger macro volatility.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "GDP",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Gross Domestic Product - Growth regime marker for macro and sector exposure.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "PMI",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Purchasing Managers Index - Forward-looking activity signal for expansion or contraction.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        },
+        {
+          "label": "INV",
+          "type": "indicator",
+          "color": "#FFF",
+          "description": "Inventory Data - Supply-demand pressure signal for commodities, energy, and cyclicals.",
+          "params": {
+            "fundamental": true,
+            "source": "fallback",
+            "needsConfig": true
+          }
+        }
+      ]
     }
   ]
 }
