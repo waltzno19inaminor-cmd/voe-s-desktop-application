@@ -44,14 +44,37 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     const startY = e.clientY
     const initialPanX = state.viewState.value.panX
     const initialPanY = state.viewState.value.panY
+    let panFrame: number | null = null
+    let pendingPan: { x: number, y: number } | null = null
 
     const moveWindow = (mE: MouseEvent) => {
       if (!state.viewState.value.isPanning) return
-      state.viewState.value.panX = initialPanX + (mE.clientX - startX)
-      state.viewState.value.panY = initialPanY + (mE.clientY - startY)
+      pendingPan = {
+        x: initialPanX + (mE.clientX - startX),
+        y: initialPanY + (mE.clientY - startY)
+      }
+      if (panFrame !== null) return
+      panFrame = requestAnimationFrame(() => {
+        if (pendingPan) {
+          state.viewState.value.panX = pendingPan.x
+          state.viewState.value.panY = pendingPan.y
+          pendingPan = null
+        }
+        panFrame = null
+      })
     }
     const stopPan = () => {
       state.viewState.value.isPanning = false
+      if (panFrame !== null) {
+        cancelAnimationFrame(panFrame)
+        panFrame = null
+      }
+      if (pendingPan) {
+        state.viewState.value.panX = pendingPan.x
+        state.viewState.value.panY = pendingPan.y
+        pendingPan = null
+      }
+      state.saveMatrixData()
       window.removeEventListener('mousemove', moveWindow)
       window.removeEventListener('mouseup', stopPan)
     }

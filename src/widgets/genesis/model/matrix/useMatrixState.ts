@@ -193,7 +193,8 @@ export function useMatrixState() {
   })
 
   const contentTransform = computed(() => ({
-    transform: `translate(${viewState.value.panX}px, ${viewState.value.panY}px)`
+    transform: `translate3d(${viewState.value.panX}px, ${viewState.value.panY}px, 0)`,
+    willChange: viewState.value.isPanning ? 'transform' : 'auto'
   }))
 
   const effectiveSelectedNode = computed(() => {
@@ -552,6 +553,7 @@ export function useMatrixState() {
       viewState.value.scale = 1
       return
     }
+    if (viewState.value.isPanning) return
     saveMatrixData()
   })
 

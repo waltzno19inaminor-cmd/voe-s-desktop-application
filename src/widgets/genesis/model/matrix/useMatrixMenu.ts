@@ -36,6 +36,8 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   const indicatorSearchQuery = ref('')
   const hoveredDescription = ref('')
   const mousePos = ref({ x: 0, y: 0 })
+  let mousePosFrame: number | null = null
+  let pendingMousePos: { x: number, y: number } | null = null
 
   const activeTextColor = ref('#2c2c2a')
   const savedTextSelection = ref<Range | null>(null)
@@ -70,7 +72,18 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   })
 
   const updateMousePos = (e: MouseEvent) => {
-    mousePos.value = { x: e.clientX, y: e.clientY }
+    if (!hoveredDescription.value) return
+
+    pendingMousePos = { x: e.clientX, y: e.clientY }
+    if (mousePosFrame !== null) return
+
+    mousePosFrame = requestAnimationFrame(() => {
+      if (pendingMousePos) {
+        mousePos.value = pendingMousePos
+        pendingMousePos = null
+      }
+      mousePosFrame = null
+    })
   }
 
   const tooltipStyles = computed(() => {
