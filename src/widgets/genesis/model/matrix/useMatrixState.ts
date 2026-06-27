@@ -4,6 +4,9 @@ import { useStrategyTradesStore } from '@/features/store/useStrategyTrades'
 import { useAppBootStore } from '~/features/store/useAppBoot'
 
 export const STORAGE_KEY = 'genesis_matrix_v2'
+const MATRIX_LEGACY_HEAVY_BACKUP_KEY = `${STORAGE_KEY}_legacy_heavy_backup`
+const MAX_RESTORED_MATRIX_BYTES = 80 * 1024 * 1024
+const MAX_RESTORED_MATRIX_NODES = 2500
 
 export interface Point { x: number; y: number }
 export interface Node {
@@ -39,6 +42,231 @@ export interface Zone {
   width: number
   height: number
   label: string
+}
+
+interface MatrixSnapshot {
+  nodes: Node[]
+  connections: Connection[]
+  zones: Zone[]
+  view: {
+    panX: number
+    panY: number
+    scale: number
+  }
+  personalIndicators: any[]
+}
+
+const VALID_ZONE_TYPES = new Set(['entry', 'in-trade', 'exit', 'session'])
+const VALID_PORTS = new Set(['left', 'right', 'top', 'bottom'])
+
+const toFiniteNumber = (value: any, fallback: number) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : fallback
+}
+
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+
+const estimateJsonBytes = (value: any) => {
+  try {
+    return new Blob([JSON.stringify(value)]).size
+  } catch {
+    try {
+      return JSON.stringify(value).length
+    } catch {
+      return Number.MAX_SAFE_INTEGER
+    }
+  }
+}
+
+const sanitizeNodeParams = (params: any) => {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return {}
+
+  const cleanParams = { ...params }
+  delete cleanParams.logicalStructure
+  return cleanParams
+}
+
+const repairZones = (zones: any[]): Zone[] => {
+  if (!Array.isArray(zones)) return []
+
+  return zones
+    .filter(zone => zone && typeof zone === 'object')
+    .map((zone, index) => ({
+      id: typeof zone.id === 'string' && zone.id.trim() ? zone.id : `zone-${Date.now()}-${index}`,
+      type: VALID_ZONE_TYPES.has(zone.type) ? zone.type : 'entry',
+      x: toFiniteNumber(zone.x, 0),
+      y: toFiniteNumber(zone.y, 0),
+      width: Math.max(20, toFiniteNumber(zone.width, 240)),
+      height: Math.max(20, toFiniteNumber(zone.height, 160)),
+      label: typeof zone.label === 'string' ? zone.label : ''
+    }))
+}
+
+const repairConnections = (connections: any[], nodes: Node[]): Connection[] => {
+  if (!Array.isArray(connections)) return []
+
+  const nodeIds = new Set(nodes.map(node => node.id))
+  const seen = new Set<string>()
+
+  return connections.reduce<Connection[]>((result, connection) => {
+    if (!connection || typeof connection !== 'object') return result
+    if (!nodeIds.has(connection.fromId) || !nodeIds.has(connection.toId)) return result
+
+    const key = [
+      connection.fromId,
+      connection.toId,
+      connection.fromPort || '',
+      connection.toPort || '',
+      connection.bundleId || '',
+      connection.label || ''
+    ].join('::')
+
+    if (seen.has(key)) return result
+    seen.add(key)
+
+    const repaired: Connection = {
+      fromId: connection.fromId,
+      toId: connection.toId
+    }
+
+    if (VALID_PORTS.has(connection.fromPort)) repaired.fromPort = connection.fromPort
+    if (VALID_PORTS.has(connection.toPort)) repaired.toPort = connection.toPort
+    if (typeof connection.label === 'string' && connection.label.trim()) repaired.label = connection.label
+    if (typeof connection.bundleId === 'string' && connection.bundleId.trim()) repaired.bundleId = connection.bundleId
+    if (Number.isFinite(Number(connection.bundleStemX))) repaired.bundleStemX = Number(connection.bundleStemX)
+    if (Number.isFinite(Number(connection.bundleStemY))) repaired.bundleStemY = Number(connection.bundleStemY)
+
+    result.push(repaired)
+    return result
+  }, [])
+}
+
+const repairMatrixNode = (node: any): Node | null => {
+  if (!node || typeof node !== 'object' || node.type === 'placeholder') return null
+
+  const id = typeof node.id === 'string' && node.id.trim() ? node.id : ''
+  if (!id) return null
+
+  const repaired: Node = {
+    id,
+    label: typeof node.label === 'string' ? node.label : 'Node',
+    type: node.type === 'system' ? 'strategy' : (typeof node.type === 'string' ? node.type : 'unknown'),
+    x: toFiniteNumber(node.x, 0),
+    y: toFiniteNumber(node.y, 0),
+    color: typeof node.color === 'string' ? node.color : '#8b8b8b',
+    params: sanitizeNodeParams(node.params)
+  }
+
+  if (node.isRoot === true) repaired.isRoot = true
+
+  if (node.subGraph && typeof node.subGraph === 'object') {
+    const subNodes = Array.isArray(node.subGraph.nodes)
+      ? node.subGraph.nodes.map(repairMatrixNode).filter(Boolean) as Node[]
+      : []
+
+    repaired.subGraph = {
+      nodes: subNodes,
+      connections: repairConnections(node.subGraph.connections, subNodes),
+      zones: repairZones(node.subGraph.zones)
+    }
+  }
+
+  return repaired
+}
+
+const buildLogicalStructureForSave = (parentId: string, allNodes: any[], allConnections: any[]) => {
+  const conns = Array.isArray(allConnections) ? allConnections.filter(c => c.fromId === parentId) : []
+  const bundles: Record<string, any> = {}
+  const structure: any[] = []
+
+  conns.forEach(c => {
+    const toNode = allNodes.find(n => n.id === c.toId)
+    if (!toNode || toNode.type === 'placeholder') return
+
+    if (c.bundleId) {
+      if (!bundles[c.bundleId]) {
+        bundles[c.bundleId] = {
+          id: c.bundleId,
+          type: 'bundle',
+          logic: (c.label || 'AND').toUpperCase(),
+          nodeIds: []
+        }
+        structure.push(bundles[c.bundleId])
+      }
+      bundles[c.bundleId].nodeIds.push(toNode.id)
+    } else {
+      structure.push({
+        id: toNode.id,
+        type: 'single'
+      })
+    }
+  })
+
+  return structure
+}
+
+const processMatrixNodeForSave = (node: any, allNodes: any[], allConnections: any[]): any => {
+  const structure = buildLogicalStructureForSave(node.id, allNodes, allConnections)
+  const newNode = {
+    ...node,
+    params: {
+      ...sanitizeNodeParams(node.params),
+      logicalStructure: structure
+    }
+  }
+
+  if (newNode.subGraph && Array.isArray(newNode.subGraph.nodes)) {
+    newNode.subGraph = {
+      ...newNode.subGraph,
+      nodes: newNode.subGraph.nodes
+        .map((n: any) => processMatrixNodeForSave(n, newNode.subGraph!.nodes, newNode.subGraph!.connections || []))
+        .filter((n: any) => n.type !== 'placeholder')
+    }
+  }
+
+  return newNode
+}
+
+const createMatrixPayload = (
+  nodes: Node[],
+  connections: Connection[],
+  zones: Zone[],
+  view: MatrixSnapshot['view'],
+  indicators: any[]
+): MatrixSnapshot => {
+  const repairedConnections = repairConnections(connections, nodes)
+
+  return {
+    nodes: nodes
+      .map(node => processMatrixNodeForSave(node, nodes, repairedConnections))
+      .filter(node => node.type !== 'placeholder'),
+    connections: repairedConnections,
+    zones: repairZones(zones),
+    view: {
+      panX: toFiniteNumber(view.panX, typeof window !== 'undefined' ? window.innerWidth / 2 : 400),
+      panY: toFiniteNumber(view.panY, typeof window !== 'undefined' ? window.innerHeight / 2 : 300),
+      scale: clamp(toFiniteNumber(view.scale, 0.5), 0.1, 3)
+    },
+    personalIndicators: Array.isArray(indicators) ? indicators : []
+  }
+}
+
+const repairMatrixSnapshot = (saved: any, fallbackView: MatrixSnapshot['view']): MatrixSnapshot | null => {
+  if (!saved || !Array.isArray(saved.nodes) || saved.nodes.length === 0) return null
+
+  const repairedNodes = saved.nodes
+    .map(repairMatrixNode)
+    .filter(Boolean) as Node[]
+
+  if (repairedNodes.length === 0) return null
+
+  return createMatrixPayload(
+    repairedNodes,
+    saved.connections || [],
+    saved.zones || [],
+    saved.view || fallbackView,
+    saved.personalIndicators || []
+  )
 }
 
 export type MenuCategory =
@@ -438,74 +666,16 @@ export function useMatrixState() {
     // Config logic removed
   }
 
-  const buildLogicalStructure = (parentId: string, allNodes: any[], allConnections: any[]) => {
-    const conns = allConnections.filter(c => c.fromId === parentId)
-    const bundles: Record<string, any> = {}
-    const structure: any[] = []
-
-    conns.forEach(c => {
-      const toNode = allNodes.find(n => n.id === c.toId)
-      if (!toNode || toNode.type === 'placeholder') return
-
-      if (c.bundleId) {
-        if (!bundles[c.bundleId]) {
-          bundles[c.bundleId] = {
-            id: c.bundleId,
-            type: 'bundle',
-            logic: (c.label || 'AND').toUpperCase(),
-            nodeIds: []
-          }
-          structure.push(bundles[c.bundleId])
-        }
-        bundles[c.bundleId].nodeIds.push(toNode.id)
-      } else {
-        structure.push({
-          id: toNode.id,
-          type: 'single'
-        })
-      }
-    })
-    return structure
-  }
-
-  const processNodeTree = (node: any, allNodes: any[], allConnections: any[]): any => {
-    const structure = buildLogicalStructure(node.id, allNodes, allConnections)
-    const newNode = {
-      ...node,
-      params: {
-        ...node.params,
-        logicalStructure: structure
-      }
-    }
-
-    if (newNode.subGraph && newNode.subGraph.nodes) {
-      newNode.subGraph.nodes = newNode.subGraph.nodes
-        .map((n: any) => processNodeTree(n, newNode.subGraph!.nodes, newNode.subGraph!.connections))
-        .filter((n: any) => n.type !== 'placeholder')
-    }
-
-    return newNode
-  }
-
   let saveTimeout: any = null
   const saveMatrixData = async () => {
     if (saveTimeout) clearTimeout(saveTimeout)
     saveTimeout = setTimeout(async () => {
-      const processedNodes = rootNodes.value
-        .map(n => processNodeTree(n, rootNodes.value, rootConnections.value))
-        .filter(n => n.type !== 'placeholder')
+      const data = createMatrixPayload(rootNodes.value, rootConnections.value, rootZones.value, {
+        panX: viewState.value.panX,
+        panY: viewState.value.panY,
+        scale: viewState.value.scale
+      }, personalIndicators.value)
 
-      const data = {
-        nodes: processedNodes,
-        connections: rootConnections.value,
-        zones: rootZones.value,
-        view: {
-          panX: viewState.value.panX,
-          panY: viewState.value.panY,
-          scale: viewState.value.scale
-        },
-        personalIndicators: personalIndicators.value
-      }
       const appBootStore = useAppBootStore()
       appBootStore.genesisMatrixCache = data
       await saveToDisk(STORAGE_KEY, data)
@@ -516,21 +686,56 @@ export function useMatrixState() {
     try {
       const appBootStore = useAppBootStore()
       const saved = appBootStore.genesisMatrixCache || await loadFromDisk<any>(STORAGE_KEY)
-      if (saved && saved.nodes?.length > 0) {
-        rootNodes.value = saved.nodes.map((n: any) => {
-          if (n.type === 'system') return { ...n, type: 'strategy' }
-          return n
-        })
 
-        if (saved.connections) rootConnections.value = saved.connections
-        if (saved.zones) rootZones.value = saved.zones
-        if (saved.view) {
-          viewState.value.panX = saved.view.panX ?? viewState.value.panX
-          viewState.value.panY = saved.view.panY ?? viewState.value.panY
-          viewState.value.scale = saved.view.scale ?? viewState.value.scale
+      const repaired = repairMatrixSnapshot(saved, {
+        panX: viewState.value.panX,
+        panY: viewState.value.panY,
+        scale: viewState.value.scale
+      })
+
+      if (repaired && repaired.nodes.length > 0) {
+        const originalBytes = estimateJsonBytes(saved)
+        const repairedBytes = estimateJsonBytes(repaired)
+        const shouldQuarantine = repaired.nodes.length > MAX_RESTORED_MATRIX_NODES || repairedBytes > MAX_RESTORED_MATRIX_BYTES
+
+        if (shouldQuarantine) {
+          console.warn('[GenesisPersistence] legacy matrix payload is too large; preserving it in a legacy backup and loading an empty board.', {
+            nodes: repaired.nodes.length,
+            bytes: repairedBytes
+          })
+
+          await saveToDisk(MATRIX_LEGACY_HEAVY_BACKUP_KEY, saved)
+
+          const emptyPayload = createMatrixPayload([], [], [], {
+            panX: viewState.value.panX,
+            panY: viewState.value.panY,
+            scale: viewState.value.scale
+          }, [])
+
+          rootNodes.value = []
+          rootConnections.value = []
+          rootZones.value = []
+          personalIndicators.value = []
+          appBootStore.genesisMatrixCache = emptyPayload
+          await saveToDisk(STORAGE_KEY, emptyPayload)
+          return
         }
-        if (saved.personalIndicators) {
-          personalIndicators.value = saved.personalIndicators
+
+        rootNodes.value = repaired.nodes
+        rootConnections.value = repaired.connections
+        rootZones.value = repaired.zones
+        viewState.value.panX = repaired.view.panX
+        viewState.value.panY = repaired.view.panY
+        viewState.value.scale = repaired.view.scale
+        personalIndicators.value = repaired.personalIndicators
+
+        appBootStore.genesisMatrixCache = repaired
+
+        if (originalBytes !== repairedBytes) {
+          if (originalBytes > repairedBytes * 1.5 || originalBytes > MAX_RESTORED_MATRIX_BYTES) {
+            await saveToDisk(MATRIX_LEGACY_HEAVY_BACKUP_KEY, saved)
+          }
+          await saveToDisk(STORAGE_KEY, repaired)
         }
       } else {
         throw new Error('No saved nodes found')
