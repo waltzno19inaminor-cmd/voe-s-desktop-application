@@ -383,150 +383,6 @@
       :risk-free-rate="riskFreeRate"
     />
 
-    <!-- WINRATE TARGET MENU MODAL -->
-    <Teleport to="body">
-      <Transition name="protocol-slide">
-        <div v-if="showWinrateMenu" 
-             @click.self="showWinrateMenu = false"
-             class="fixed inset-0 z-[10005] flex items-center justify-center p-20 backdrop-blur-md bg-black/60">
-          
-            <div class="w-full max-w-4xl relative">
-              <!-- SIDE-MOUNTED CLOSE TAB -->
-              <button @click="showWinrateMenu = false"
-                      class="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-40 bg-[#ffffff] dark:bg-[#070707] border-t border-r border-b border-black/20 dark:border-white/20 flex items-center justify-center group/close-tab cursor-pointer hover:bg-black/5 dark:hover:bg-[#111] transition-colors z-[100]">
-                 <div class="w-[1px] h-16 bg-black/10 dark:bg-white/10 group-hover/close-tab:bg-black/40 dark:group-hover/close-tab:bg-white/40 transition-all duration-300"></div>
-                 <span class="absolute text-[7px] font-mono tracking-[0.4em] uppercase text-black/10 dark:text-white/10 group-hover/close-tab:text-black/40 dark:group-hover/close-tab:text-white/40 rotate-90 whitespace-nowrap">Close_Menu</span>
-              </button>
-              
-              <ExPanel class="w-full h-full" noPadding variant="light">
-                <template #header>
-                  <div class="flex items-center justify-between w-full">
-                    <span class="text-[9px] font-mono tracking-[0.4em] uppercase font-black nier-text-primary">{{ isRu ? 'ПРОТОКОЛ_ЦЕЛЕЙ_СИСТЕМЫ_V4.0' : 'SYSTEM_TARGET_PROTOCOL_V4.0' }}</span>
-                  </div>
-                </template>
-
-              <!-- CONTENT GRID -->
-              <div class="p-10 flex flex-col space-y-10 max-h-[60vh] overflow-y-auto custom-scrollbar nier-text-primary">
-                
-                <!-- SEARCH & FILTERS -->
-                <div class="flex items-center justify-between border-b nier-border-primary pb-6">
-                  <div class="relative flex items-center">
-                    <div class="absolute left-3 w-1.5 h-1.5 bg-black/20 dark:bg-white/20 rotate-45"></div>
-                    <input v-model="winrateTargetSearch" 
-                           :placeholder="isRu ? 'ПОИСК_ЦЕЛИ...' : 'SEARCH_TARGET...'" 
-                           class="bg-black/5 dark:bg-white/5 border nier-border-primary px-8 py-1.5 text-[9px] font-mono tracking-widest focus:outline-none focus:border-black/30 dark:focus:border-white/30 w-64 uppercase placeholder:opacity-30 nier-text-primary" />
-                  </div>
-
-                  <div class="flex border nier-border-primary overflow-hidden">
-                    <button v-for="filter in winrateTargetFilters" :key="filter.id"
-                            @click="winrateTargetFilter = filter.id"
-                            class="flex items-center justify-center h-9 px-4 transition-all"
-                            :class="winrateTargetFilter === filter.id ? 'nier-bg-inverted nier-text-primary' : 'text-black/60 dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5'">
-                      <span class="text-[9px] font-mono font-black uppercase tracking-[0.2em]">{{ filter.label }}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <!-- TARGET LIST -->
-                <div v-if="winrateMenuNodes.length > 0" class="flex flex-col gap-6">
-                  <template v-if="winrateTargetFilter === 'condition'">
-                    <div v-for="group in groupedWinrateMenuNodes" :key="group.groupName" class="flex flex-col gap-4 mb-6">
-                      <div class="flex items-center gap-4">
-                        <div class="w-1.5 h-1.5 bg-theme-text/40 rotate-45"></div>
-                        <span class="text-[9px] font-mono tracking-[0.2em] text-black/60 dark:text-white/60 uppercase">{{ group.groupName }}</span>
-                        <div class="flex-1 h-px bg-black/5 dark:bg-white/5"></div>
-                        <span class="text-[7px] font-mono opacity-20 uppercase tracking-[0.4em]">Scenario_Node</span>
-                      </div>
-                      <div class="flex flex-wrap gap-4">
-                        <ExNTtooltip v-for="node in group.nodes" :key="node.id" :title="node.name">
-                          <template #trigger>
-                            <div @click="selectedWinrateNodeId = selectedWinrateNodeId === node.id ? null : node.id; initData()"
-                                 class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center cursor-pointer transition-all duration-500 group/node"
-                                 :class="[
-                                   selectedWinrateNodeId === node.id 
-                                     ? 'nier-bg-inverted border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                                     : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white'
-                                 ]">
-                              
-                              <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
-                                   :class="selectedWinrateNodeId === node.id ? 'border-white/40 dark:border-black/40' : 'nier-border-primary'"></div>
-
-                              <div class="absolute top-1 right-1 px-1 py-[0.5px] text-[5px] font-mono font-bold tracking-tighter uppercase border"
-                                   :class="node.type === 'scenario' ? 'border-blue-500/50 text-blue-500 bg-blue-500/10' : 'border-purple-500/50 text-purple-500 bg-purple-500/10'">
-                                {{ node.type === 'scenario' ? 'SCN' : 'CND' }}
-                              </div>
-
-                              <span class="text-[14px] font-mono font-black tracking-tighter uppercase transition-colors"
-                                    :class="selectedWinrateNodeId === node.id ? 'nier-text-primary' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white'">
-                                {{ (node.name || '').slice(0, 3) }}
-                              </span>
-
-                              <div v-if="selectedWinrateNodeId === node.id" 
-                                   class="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45 border-2 border-white dark:border-black shadow-sm transition-colors duration-500 bg-blue-500"></div>
-                            </div>
-                          </template>
-                          <div class="flex flex-col gap-1">
-                            <div class="flex items-center justify-between">
-                              <span class="text-[8px] font-mono opacity-40 uppercase">Target_Description</span>
-                            </div>
-                            <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO_METADATA_AVAILABLE') : node.name }}</p>
-                          </div>
-                        </ExNTtooltip>
-                      </div>
-                    </div>
-                  </template>
-
-                  <template v-else>
-                    <div class="flex flex-wrap gap-4">
-                      <ExNTtooltip v-for="node in winrateMenuNodes" :key="node.id" :title="node.name">
-                        <template #trigger>
-                          <div @click="selectedWinrateNodeId = selectedWinrateNodeId === node.id ? null : node.id; initData()"
-                               class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center cursor-pointer transition-all duration-500 group/node"
-                               :class="[
-                                 selectedWinrateNodeId === node.id 
-                                   ? 'nier-bg-inverted border-black dark:border-white shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.1)]' 
-                                   : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white'
-                               ]">
-                            
-                            <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
-                                 :class="selectedWinrateNodeId === node.id ? 'border-white/40 dark:border-black/40' : 'nier-border-primary'"></div>
-
-                            <div class="absolute top-1 right-1 px-1 py-[0.5px] text-[5px] font-mono font-bold tracking-tighter uppercase border"
-                                 :class="node.type === 'scenario' ? 'border-blue-500/50 text-blue-500 bg-blue-500/10' : 'border-purple-500/50 text-purple-500 bg-purple-500/10'">
-                              {{ node.type === 'scenario' ? 'SCN' : 'CND' }}
-                            </div>
-
-                            <span class="text-[14px] font-mono font-black tracking-tighter uppercase transition-colors"
-                                  :class="selectedWinrateNodeId === node.id ? 'nier-text-primary' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white'">
-                              {{ (node.name || '').slice(0, 3) }}
-                            </span>
-
-                            <div v-if="selectedWinrateNodeId === node.id" 
-                                 class="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45 border-2 border-white dark:border-black shadow-sm transition-colors duration-500 bg-blue-500"></div>
-                          </div>
-                        </template>
-                        <div class="flex flex-col gap-1">
-                          <div class="flex items-center justify-between">
-                            <span class="text-[8px] font-mono opacity-40 uppercase">Target_Description</span>
-                          </div>
-                          <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO_METADATA_AVAILABLE') : node.name }}</p>
-                        </div>
-                      </ExNTtooltip>
-                    </div>
-                  </template>
-                </div>
-
-                <div v-else
-                       class="w-full p-8 border border-dashed nier-border-primary text-center text-[10px] font-mono font-black uppercase tracking-[0.35em] text-black/30 dark:text-white/30">
-                    {{ isRu ? 'ЦЕЛИ НЕ НАЙДЕНЫ' : 'NO_TARGETS_FOUND' }}
-                  </div>
-                </div>
-              </ExPanel>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
 
 
     <!-- BOTTOM TACTICAL CONTROL PANEL -->
@@ -674,24 +530,6 @@
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
             [ EQUITY_CURVE_SIMULATOR ]
-          </div>
-        </button>
-
-        <!-- WINRATE TARGET MENU BUTTON -->
-        <button v-if="!showMetricsPanel && !showDistribution3D && !showCalendarMode"
-                @click="showWinrateMenu = true" 
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
-                :class="showWinrateMenu ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white opacity-60 hover:opacity-100'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ isRu ? '[ ВЫБОР_ЦЕЛИ_СИСТЕМЫ ]' : '[ SELECT_SYSTEM_TARGET ]' }}
           </div>
         </button>
 
@@ -844,7 +682,6 @@ import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
-import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
@@ -1044,137 +881,11 @@ const openSimulator = () => {
 
 const showCalendarMode = ref(false)
 const showWinrateCurve = ref(false)
-const showWinrateMenu = ref(false)
-const selectedWinrateNodeId = ref<string | null>(null)
-const winrateTargetSearch = ref('')
-const winrateTargetFilter = ref<'all' | 'scenario' | 'condition'>('all')
-const winrateTargetFilters: { id: 'all' | 'scenario' | 'condition', label: string }[] = [
-  { id: 'all', label: 'ALL' },
-  { id: 'scenario', label: 'SCENARIO' },
-  { id: 'condition', label: 'CONDITION' }
-]
-
-interface WinrateTargetNode {
-  id: string
-  name: string
-  description?: string
-  type: 'scenario' | 'condition'
-  typeLabel: string
-  parentScenarioName?: string
-}
-
-const tradeMatchesWinrateTarget = (trade: any, targetId: string) => {
-  return trade.boardScenarioEntry?.id === targetId ||
-    trade.boardScenarioExit?.id === targetId ||
-    trade.boardScenarioEntryId === targetId ||
-    trade.boardScenarioExitId === targetId ||
-    trade.boardConditions?.some((condition: any) => (typeof condition === 'string' ? condition === targetId : condition?.id === targetId)) ||
-    trade.boardScenarioEntry?.info?.conditions?.some((condition: any) => condition?.id === targetId) ||
-    trade.boardScenarioExit?.info?.conditions?.some((condition: any) => condition?.id === targetId) ||
-    trade.scenarios?.some((scenario: any) => scenario?.id === targetId || scenario?.conditions?.some((condition: any) => condition?.id === targetId))
-}
 
 const getFilteredTrades = (strategyId?: string) => {
   const sId = strategyId || selectedStrategyId.value
-  const baseTrades = props.trades || tradeStore.getTradesForStrategy(sId) || []
-  if (selectedWinrateNodeId.value && sId === selectedStrategyId.value) {
-    return baseTrades.filter((t: any) => tradeMatchesWinrateTarget(t, selectedWinrateNodeId.value!))
-  }
-  return baseTrades
+  return props.trades || tradeStore.getTradesForStrategy(sId) || []
 }
-
-const getCurrentWinrateTrades = () => props.trades || tradeStore.getTradesForStrategy(selectedStrategyId.value) || []
-
-const addWinrateTarget = (targets: Map<string, WinrateTargetNode>, target: Partial<WinrateTargetNode> | null | undefined) => {
-  if (!target?.id) return
-  const name = String(target.name || target.id).trim()
-  if (!name) return
-  const key = target.type === 'condition' && target.parentScenarioName ? `${target.parentScenarioName}_${target.id}` : target.id;
-  targets.set(key, {
-    id: target.id,
-    name,
-    description: target.description,
-    type: target.type || 'condition',
-    typeLabel: (target.type || 'condition').toUpperCase(),
-    parentScenarioName: target.parentScenarioName
-  })
-}
-
-const getConditionDesc = (condition: any) => {
-  if (typeof condition === 'string') {
-    const matrixNode = matrixNodes.value.find(n => n.id === condition)
-    return matrixNode?.params?.description || matrixNode?.params?.value || matrixNode?.params?.info || ''
-  }
-  return condition?.info?.description || condition?.description || ''
-}
-
-const getScenarioName = (scenario: any) => {
-  return scenario?.info?.name || scenario?.name || scenario?.label || scenario?.id
-}
-
-const getConditionName = (condition: any) => {
-  if (typeof condition === 'string') {
-    const matrixNode = matrixNodes.value.find(n => n.id === condition)
-    return matrixNode?.params?.customName || matrixNode?.label || condition
-  }
-  return condition?.info?.name || condition?.name || condition?.label || condition?.id
-}
-
-const winrateMenuNodes = computed(() => {
-  const targets = new Map<string, WinrateTargetNode>()
-  getCurrentWinrateTrades().forEach((trade: any) => {
-    ;[trade.boardScenarioEntry, trade.boardScenarioExit].forEach((scenario: any) => {
-      if (!scenario?.id) return
-      const sName = getScenarioName(scenario)
-      addWinrateTarget(targets, {
-        id: scenario.id,
-        name: sName,
-        type: 'scenario'
-      })
-      ;(scenario.info?.conditions || []).forEach((condition: any) => {
-        const id = typeof condition === 'string' ? condition : condition?.id
-        addWinrateTarget(targets, {
-          id,
-          name: getConditionName(condition),
-          description: getConditionDesc(condition),
-          type: 'condition',
-          parentScenarioName: sName
-        })
-      })
-    })
-  })
-
-  const query = winrateTargetSearch.value.trim().toLowerCase()
-  const activeFilter = winrateTargetFilter.value
-
-  return Array.from(targets.values()).filter(node => {
-    const matchesFilter = activeFilter === 'all' || node.type === activeFilter
-    const matchesSearch = !query || node.name.toLowerCase().includes(query) || node.typeLabel.toLowerCase().includes(query)
-    return matchesFilter && matchesSearch
-  }).sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'scenario' ? -1 : 1
-    return a.name.localeCompare(b.name)
-  })
-})
-
-const groupedWinrateMenuNodes = computed(() => {
-  const groups = new Map<string, WinrateTargetNode[]>()
-  winrateMenuNodes.value.forEach(node => {
-    if (node.type !== 'condition') return
-    if (!node.parentScenarioName) return // Skip if no parent scenario
-    const groupName = node.parentScenarioName
-    if (!groups.has(groupName)) groups.set(groupName, [])
-    groups.get(groupName)!.push(node)
-  })
-  return Array.from(groups.entries())
-    .map(([groupName, nodes]) => ({ groupName, nodes }))
-    .sort((a, b) => a.groupName.localeCompare(b.groupName))
-})
-
-const selectedWinrateTarget = computed(() => {
-  if (!selectedWinrateNodeId.value) return null
-  return winrateMenuNodes.value.find(node => node.id === selectedWinrateNodeId.value) || null
-})
 const calendarValueMode = ref<'currency' | 'percentage'>('currency')
 
 const hasEnoughTradesForDiagnostics = computed(() => diagnosticStats.value.pnls.length >= 20)
@@ -2583,17 +2294,12 @@ const initData = () => {
   })
 
   let wins = 0
-  let targetWins = 0
-  let targetCount = 0
   winratePoints3D.value = []
-  
-  const targetNode = selectedWinrateTarget.value
-  const useTargetWinrate = !!targetNode
 
   winratePoints3D.value.push({
     x: -200, y: 95, z: 0, // starts at 0%
     value: 0,
-    dateLabel: targetNode ? `${targetNode.name} // START` : 'DEPOSIT'
+    dateLabel: 'DEPOSIT'
   })
 
   sortedTrades.forEach((trade, i) => {
@@ -2613,33 +2319,16 @@ const initData = () => {
       isProjection: !!trade.isProjection
     })
 
-    if (useTargetWinrate && selectedWinrateNodeId.value) {
-      const isTargetTrade = tradeMatchesWinrateTarget(trade, selectedWinrateNodeId.value)
-      if (isTargetTrade) {
-        targetCount++
-        if ((trade.profitInCurrency ?? 0) > 0) targetWins++
-      }
-      const targetWinrate = targetCount > 0 ? (targetWins / targetCount) * 100 : 0
-      const winrateY = 95 - (targetWinrate / 100) * 135
-      
-      winratePoints3D.value.push({
-        x, y: winrateY, z,
-        value: targetWinrate,
-        dateLabel: `${dateLabel} // ${targetNode?.name || 'TARGET'}`,
-        isProjection: !!trade.isProjection
-      })
-    } else {
-      if ((trade.profitInCurrency ?? 0) > 0) wins++
-      const winrate = (wins / (i + 1)) * 100
-      const winrateY = 95 - (winrate / 100) * 135
-      
-      winratePoints3D.value.push({
-        x, y: winrateY, z,
-        value: winrate,
-        dateLabel,
-        isProjection: !!trade.isProjection
-      })
-    }
+    if ((trade.profitInCurrency ?? 0) > 0) wins++
+    const winrate = (wins / (i + 1)) * 100
+    const winrateY = 95 - (winrate / 100) * 135
+
+    winratePoints3D.value.push({
+      x, y: winrateY, z,
+      value: winrate,
+      dateLabel,
+      isProjection: !!trade.isProjection
+    })
   })
 
   // Compute Benchmark & Risk-Free Daily Curves

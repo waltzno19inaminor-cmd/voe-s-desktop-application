@@ -86,11 +86,25 @@ export default defineNuxtConfig({
     }
 
   },
-  ignore: ['**/src-tauri/**'],
+  ignore: [
+    '**/src-tauri/**',
+    '**/.output/**',
+    '**/.nuxt/**',
+    '**/.hotfix-work/**',
+    '**/.secrets/**',
+    '**/dist/**'
+  ],
   vite: {
     server: {
       watch: {
-        ignored: ['**/src-tauri/**']
+        ignored: [
+          '**/src-tauri/**',
+          '**/.output/**',
+          '**/.nuxt/**',
+          '**/.hotfix-work/**',
+          '**/.secrets/**',
+          '**/dist/**'
+        ]
       }
     }
   }
