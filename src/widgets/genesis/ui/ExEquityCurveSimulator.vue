@@ -1,6 +1,6 @@
 <template>
-  <div class="fixed inset-0 z-[5000] nier-text-primary font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
-       :class="hasRun ? 'nier-bg-panel' : 'bg-transparent'">
+  <div class="fixed inset-0 z-[5000] bg-white dark:bg-[#050505] nier-text-primary font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
+       :class="hasRun ? 'nier-bg-panel' : ''">
     
     <!-- ETHEREAL VIGNETTE (From main app) -->
     <DesignVignette v-if="!showParams" :is-dark="themeStore.settings.isDark" class="z-20 pointer-events-none" />

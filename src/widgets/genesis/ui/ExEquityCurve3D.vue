@@ -28,7 +28,7 @@
 
     <!-- CANVAS LAYER -->
     <canvas ref="canvasRef"
-            v-show="!showCalendarMode"
+            v-show="!showCalendarMode && !showSimulator"
             class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-10"
             @mousedown="handleMouseDown"
             @mousemove="handleMouseMove"
@@ -180,7 +180,7 @@
 
 
     <!-- OVERLAY UI -->
-    <div class="absolute top-32 left-12 z-20 pointer-events-none flex flex-col space-y-12">
+    <div v-if="!showSimulator" class="absolute top-32 left-12 z-20 pointer-events-none flex flex-col space-y-12">
       <Transition name="protocol-slide">
         <div v-if="!showMetricsPanel && !showDistribution3D">
           <div class="flex flex-col relative">
@@ -377,6 +377,7 @@
     </Transition>
 
     <ExEquityCurveMetricsPanel
+      v-if="!showSimulator"
       :panel="metricsPanel"
       :strategy-metrics="strategyMetrics"
       :sp500-benchmark-rate="sp500BenchmarkRate"
@@ -386,7 +387,7 @@
 
 
     <!-- BOTTOM TACTICAL CONTROL PANEL -->
-    <div v-if="!isTradeEntryOpen" 
+    <div v-if="!isTradeEntryOpen && !showSimulator" 
          class="absolute bottom-12 left-0 right-0 z-40 flex items-center justify-center pointer-events-none">
       <div class="pointer-events-auto flex items-center space-x-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/20 p-2 relative">
         <!-- Corner Accents -->
@@ -549,7 +550,7 @@
     </div>
 
     <!-- RIGHT PANEL -->
-    <div v-if="!showMetricsPanel"
+    <div v-if="!showMetricsPanel && !showSimulator"
          class="absolute right-12 top-1/2 -translate-y-1/2 z-[110] flex flex-col items-center justify-center pointer-events-none">
       <div class="pointer-events-auto flex flex-col items-center space-y-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/20 p-2 relative">
         <!-- Corner Accents -->
@@ -638,7 +639,7 @@
 
     <!-- CALENDAR OVERLAY -->
     <ExCalendarMode 
-      v-if="showCalendarMode"
+      v-if="showCalendarMode && !showSimulator"
       :trades="getFilteredTrades()"
       :initial-deposit="props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId) || 10000"
       :value-mode="calendarValueMode"
