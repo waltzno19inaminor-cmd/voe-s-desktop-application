@@ -65,7 +65,7 @@
       <div class="flex flex-col space-y-2">
         <ExHeading level="h1" variant="cinematic" class="!text-3xl">{{ t('dashboard.title') }}</ExHeading>
         <div class="flex items-center space-x-4">
-           <ExTag>v{{ pkg.version.toUpperCase().replace('-', '_') }}</ExTag>
+           <ExTag>v{{ appVersion.toUpperCase().replace('-', '_') }}</ExTag>
            <span class="text-[9px] font-mono uppercase tracking-[0.45em] px-3 py-1 border-l border-theme-border/70 text-theme-text/45 bg-transparent">
              {{ demoBadgeLabel }}
            </span>
@@ -270,7 +270,7 @@ import { db } from '~/shared/firebase.client'
 import { open } from '@tauri-apps/plugin-shell'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/shared/i18n/useI18n'
-import pkg from '../../../../package.json'
+import tauriConfig from '../../../../src-tauri/tauri.conf.json'
 import ExHeading from "~/shared/ui/ExHeading.vue"
 import ExText from "~/shared/ui/ExText.vue"
 import ExTag from "~/shared/ui/ExTag.vue"
@@ -286,6 +286,7 @@ const emit = defineEmits(['navigate', 'signed-out'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const appVersion = String(tauriConfig.version || '0.0.0')
 
 // User menu
 const userMenuOpen = ref(false)

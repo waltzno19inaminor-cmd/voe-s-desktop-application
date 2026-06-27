@@ -202,7 +202,7 @@
 
     <!-- Bottom Telemetry -->
     <div class="fixed bottom-10 left-0 right-0 px-12 flex justify-between items-center pointer-events-none">
-      <span class="text-[8px] font-mono uppercase tracking-widest" style="opacity: 0.2; ">ID: {{ pkg.version }} // VOSHE COMPANY D.O.O</span>
+      <span class="text-[8px] font-mono uppercase tracking-widest" style="opacity: 0.2; ">ID: {{ appVersion }} // VOSHE COMPANY D.O.O</span>
       <span class="text-[8px] font-mono uppercase tracking-widest" style="opacity: 0.2; ">ALPHA VERSION</span>
     </div>
   </div>
@@ -211,7 +211,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
-import pkg from '../../../../package.json'
+import tauriConfig from '../../../../src-tauri/tauri.conf.json'
 import { useI18n } from '~/shared/i18n/useI18n'
 import {
   getAuth,
@@ -227,6 +227,8 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { auth as firebaseAuth, db } from '~/shared/firebase.client'
 import { useThemeStore } from '~/features/store/useTheme'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
+
+const appVersion = String(tauriConfig.version || '0.0.0')
 
 const emit = defineEmits(['initiate'])
 const { locale } = useI18n()

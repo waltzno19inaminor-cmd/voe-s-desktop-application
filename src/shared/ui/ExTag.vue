@@ -5,7 +5,6 @@
       variantClasses[variant]
     ]"
   >
-    <div v-if="variant === 'ghost' || showDot" class="w-1 h-1 bg-theme-accent"></div>
     <slot></slot>
   </div>
 </template>
