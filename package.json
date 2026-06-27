@@ -8,7 +8,6 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "hotfix:package": "node scripts/create-hotfix-patch.mjs",
     "postinstall": "nuxt prepare",
     "tauri": "tauri"
   },
