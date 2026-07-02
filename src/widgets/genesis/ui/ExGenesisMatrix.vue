@@ -15,7 +15,7 @@
 
     <!-- MAIN CANVAS -->
     <div class="flex-grow relative overflow-hidden"
-         :class="state.pendingNodeConfig.value ? 'cursor-crosshair' : 'cursor-move'"
+         :class="state.pendingNodeConfig.value ? 'cursor-crosshair' : (state.viewState.value.isPanning ? 'cursor-grabbing' : 'cursor-move')"
          :ref="(el) => { canvas.canvasWrapper.value = el as HTMLElement }"
          @mousedown="canvas.startPan($event, zoneTools.isZoneToolActive.value, zoneTools.drawStart, zoneTools.drawCurrent)"
          @click="canvas.handleBackgroundClick"
@@ -70,6 +70,7 @@
                        :is-selected="state.lastSelectedId.value === node.id"
                        :is-closest="canvas.closestNodeId.value === node.id"
                        :is-dark="isDark"
+                       :is-board-panning="state.viewState.value.isPanning"
                        :class="{ 'pointer-events-none': state.isCommentDragging.value && state.lastSelectedId.value !== node.id }"
                        @comment-drag-start="state.isCommentDragging.value = true"
                        @comment-drag-end="state.isCommentDragging.value = false"
@@ -88,6 +89,11 @@
         </div>
         </div>
       </div>
+
+      <div v-if="state.viewState.value.isPanning"
+           class="absolute inset-0 z-[90] cursor-grabbing pointer-events-auto select-none"
+           @mousedown.prevent
+           @click.stop.prevent></div>
 
       <!-- VIEWPORT TELEMETRY -->
       <MatrixTelemetry :view-state="state.viewState.value" :is-scenario-context="!!state.isScenarioContext.value"

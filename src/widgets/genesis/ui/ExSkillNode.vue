@@ -12,7 +12,7 @@
        @contextmenu.prevent="$emit('contextmenu', { x: $event.clientX, y: $event.clientY, nodeId: node.id })">
 
      <!-- NIER STYLE SKILL CHIP (Reified with Design System) -->
-     <ExNTtooltip :title="tooltipTitle" :disabled="isScenarioContentNode" class="w-full h-full">
+     <ExNTtooltip :title="tooltipTitle" :disabled="isScenarioContentNode || isBoardPanning" class="w-full h-full">
        <template #trigger>
           <!-- Editing Description Overlay -->
           <div v-if="node.params?.isEditingDescription" class="w-full h-full relative pointer-events-auto z-50">
@@ -463,7 +463,6 @@
                  :style="node.params.priority === 'REQUIRED'
                    ? { boxShadow: '0 0 8px rgba(255,0,0,0.95), 0 0 18px rgba(255,0,0,0.55)' }
                    : { boxShadow: '0 0 8px rgba(0,212,255,0.95), 0 0 18px rgba(0,212,255,0.55)' }"></div>
-                       <div v-if="!isRiskPanel" class="absolute inset-x-0 bottom-0 bg-nier-text-light/10 dark:bg-nier-text-dark/10 h-0 group-hover:h-full transition-all duration-700 -z-10"></div>
          </div>
        </template>
          <div class="flex flex-col space-y-2 p-1">
@@ -770,6 +769,7 @@ const props = defineProps<{
   isClosest?: boolean
   isSelected?: boolean
   isDark?: boolean
+  isBoardPanning?: boolean
 }>()
 
 const emit = defineEmits(['click', 'start-output', 'pickup-input', 'drop', 'remove', 'moved', 'doubleclick', 'clear-input', 'clear-output', 'contextmenu', 'merge', 'comment-drag-start', 'comment-drag-end', 'open-file'])
