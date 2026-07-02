@@ -276,23 +276,6 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     window.addEventListener('mouseup', stop)
   }
 
-  function isNeonHighlight(line: Connection) {
-    const label = line.label?.toLowerCase()
-    if (label === 'if') {
-      return state.connections.value.some(c =>
-        c.fromId === line.toId &&
-        c.label?.toLowerCase() === 'therefore'
-      )
-    }
-    if (label === 'therefore') {
-      return state.connections.value.some(c =>
-        c.toId === line.fromId &&
-        c.label?.toLowerCase() === 'if'
-      )
-    }
-    return false
-  }
-
   return {
     getMainStemPath,
     getBundleStemPath,
@@ -302,7 +285,6 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     getConnectionMidpoint,
     shouldShowLabel,
     handleLabelDrag,
-    isNeonHighlight,
     createCurvedPath
   }
 }

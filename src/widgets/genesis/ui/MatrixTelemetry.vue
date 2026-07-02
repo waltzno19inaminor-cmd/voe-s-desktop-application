@@ -1,28 +1,36 @@
 <template>
-  <div v-if="!isScenarioContext" class="absolute top-32 left-12 flex flex-col space-y-8 z-[40] pointer-events-none">
-     <div class="flex items-center space-x-6">
-        <div class="flex flex-col border-l border-nier-text-light/20 dark:border-nier-text-dark/20 pl-4 py-1">
+  <div v-if="!isScenarioContext" class="absolute top-32 left-2 flex items-start gap-3 z-[40] pointer-events-none">
+     <div class="relative ml-3 flex flex-col items-center gap-2">
+         <div class="matrix-tool">
+           <button @click.stop="$emit('reset-view')" class="tactical-button w-8 h-8 border border-nier-text-light/20 dark:border-nier-text-dark/20 flex items-center justify-center hover:bg-nier-text-light/10 dark:hover:bg-nier-text-dark/10 transition-colors opacity-30 hover:opacity-100 italic text-[10px] font-mono">
+             [R]
+           </button>
+           <span class="matrix-tool-tooltip">Reset View</span>
+         </div>
+
+         <div class="matrix-tool">
+           <button @click.stop="isManualOpen = true" 
+                   class="tactical-button relative w-8 h-8 border border-current flex items-center justify-center bg-nier-text-light/5 dark:bg-nier-text-dark/5 hover:bg-nier-text-light/10 dark:hover:bg-nier-text-dark/10 transition-all opacity-100 group shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:shadow-[0_0_8px_rgba(255,255,255,0.1)]">
+             <div class="absolute -top-1 -right-1 w-2 h-2 bg-current animate-pulse"></div>
+             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 group-hover:scale-110 transition-transform">
+               <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+               <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+             </svg>
+           </button>
+           <span class="matrix-tool-tooltip">Manual</span>
+         </div>
+     </div>
+
+     <div class="flex flex-col gap-6 border-l border-nier-text-light/20 dark:border-nier-text-dark/20 pl-4 py-1">
+        <div class="flex flex-col">
            <span class="text-[8px] font-mono tracking-widest opacity-40 uppercase">
              Viewport_Telemetry
            </span>
            <span class="text-[12px] font-mono tracking-widest opacity-80 uppercase">{{ (viewState.scale * 100).toFixed(0) }}% // FOCUS</span>
         </div>
 
-         <button @click.stop="$emit('reset-view')" class="tactical-button pointer-events-auto w-8 h-8 border border-nier-text-light/20 dark:border-nier-text-dark/20 flex items-center justify-center hover:bg-nier-text-light/10 dark:hover:bg-nier-text-dark/10 transition-colors opacity-30 hover:opacity-100 italic text-[10px] font-mono">
-           [R]
-         </button>
-         <button @click.stop="isManualOpen = true" 
-                 class="tactical-button pointer-events-auto relative w-8 h-8 border border-current flex items-center justify-center bg-nier-text-light/5 dark:bg-nier-text-dark/5 hover:bg-nier-text-light/10 dark:hover:bg-nier-text-dark/10 transition-all opacity-100 group shadow-[0_0_8px_rgba(0,0,0,0.1)] dark:shadow-[0_0_8px_rgba(255,255,255,0.1)]">
-           <div class="absolute -top-1 -right-1 w-2 h-2 bg-current animate-pulse"></div>
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 group-hover:scale-110 transition-transform">
-             <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
-             <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
-           </svg>
-         </button>
-     </div>
-
      <!-- FOCUS SELECTOR STRIP -->
-     <div class="flex flex-col space-y-2 pl-4 border-l border-nier-text-light/10 dark:border-nier-text-dark/10">
+     <div class="flex flex-col space-y-2">
         <div class="flex flex-col space-y-1">
            <button v-for="zoom in [25, 50, 75, 100, 150, 200]" :key="zoom"
                    @click.stop="$emit('update-scale', zoom / 100)"
@@ -37,6 +45,7 @@
               <div class="absolute right-0 top-0 w-1 h-1 bg-current opacity-20"></div>
            </button>
         </div>
+     </div>
      </div>
   </div>
 
@@ -315,3 +324,44 @@ const manualSections = computed(() => {
   return locale.value === 'ru' ? manualSectionsRu : manualSectionsEn
 })
 </script>
+
+<style scoped>
+.matrix-tool {
+  position: relative;
+  pointer-events: auto;
+}
+
+.matrix-tool-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  z-index: 100002;
+  transform: translateY(-50%) translateX(-4px);
+  border: 1px solid rgb(44 44 42 / 0.18);
+  background: rgb(249 249 249 / 0.96);
+  color: #2c2c2a;
+  padding: 4px 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  text-transform: uppercase;
+  transition: opacity 140ms ease, transform 140ms ease;
+  white-space: nowrap;
+}
+
+.matrix-tool:hover .matrix-tool-tooltip,
+.matrix-tool:focus-within .matrix-tool-tooltip {
+  transform: translateY(-50%) translateX(0);
+  opacity: 1;
+}
+
+:global(.dark) .matrix-tool-tooltip {
+  border-color: rgb(249 246 240 / 0.18);
+  background: rgb(10 10 10 / 0.96);
+  color: #f9f6f0;
+}
+</style>

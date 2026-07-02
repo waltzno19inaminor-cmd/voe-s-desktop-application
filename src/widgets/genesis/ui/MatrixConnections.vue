@@ -1,15 +1,5 @@
 <template>
   <svg class="absolute inset-0 pointer-events-none w-full h-full z-0 overflow-visible">
-    <defs>
-      <filter id="matrixGlow" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
-        <feMerge>
-          <feMergeNode in="coloredBlur"/>
-          <feMergeNode in="SourceGraphic"/>
-        </feMerge>
-      </filter>
-    </defs>
-
     <g :transform="`scale(${state.viewState.value.scale})`">
       <g v-for="(group, gIdx) in state.bundleGroups.value" :key="group.id">
         <!-- SHARED MAIN STEM (Once per Parent) -->
@@ -17,16 +7,14 @@
               :d="pathMath.getMainStemPath(group.fromId)"
               stroke-width="1.2" fill="none"
               vector-effect="non-scaling-stroke"
-              class="nier-conn-path pointer-events-none"
-              :class="{ 'nier-conn-neon': group.connections.some(pathMath.isNeonHighlight) }" />
+              class="nier-conn-path pointer-events-none" />
 
         <!-- SHARED BUNDLE STEM (Once per Bundle) -->
         <path v-if="group.type === 'bundle'"
               :d="pathMath.getBundleStemPath(group.fromId, group.bundleId)"
               stroke-width="1.2" fill="none"
               vector-effect="non-scaling-stroke"
-              class="nier-conn-path pointer-events-none"
-              :class="{ 'nier-conn-neon': group.connections.some(pathMath.isNeonHighlight) }" />
+              class="nier-conn-path pointer-events-none" />
 
         <!-- INDIVIDUAL BRANCHES OR SIMPLE CONNECTIONS -->
         <g v-for="line in (group.type === 'bundle' ? group.connections : [group.connection])" :key="line.toId" class="group/line">
@@ -43,8 +31,7 @@
                 stroke-width="1.2"
                 fill="none"
                 vector-effect="non-scaling-stroke"
-                class="nier-conn-path pointer-events-none"
-                :class="{ 'nier-conn-neon': pathMath.isNeonHighlight(line) }" />
+                class="nier-conn-path pointer-events-none" />
 
           <circle v-if="state.getNode(line.toId)"
                   :cx="pathMath.getConnectionEndPoint(line).x"
@@ -106,16 +93,6 @@ const { locale, t } = useI18n()
 .nier-conn-path {
   stroke: #505050;
   transition: stroke 0.3s ease;
-}
-
-.nier-conn-neon {
-  stroke: #ffffff !important;
-  filter: url(#matrixGlow);
-  stroke-width: 1.5px !important;
-}
-
-html:not(.dark) .nier-conn-neon {
-  stroke: #000000 !important;
 }
 
 .group\/line:hover .nier-conn-path {
