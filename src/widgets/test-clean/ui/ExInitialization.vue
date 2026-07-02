@@ -1,7 +1,7 @@
 <template>
   <div
-    class="fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden ethereal-void theme-surface nier-text-primary"
-    :class="[isDark ? 'is-dark dark theme-dark' : 'theme-light']"
+    class="fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden ethereal-void nier-text-primary"
+    :class="{ 'is-dark': isDark }"
     style="font-family: 'Cormorant Garamond', serif;"
   >
     <!-- Ethereal Background -->
@@ -11,7 +11,7 @@
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--theme-text)_0%,transparent_70%)] opacity-5"></div>
       <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.5)_100%)]"></div>
     </div> -->
-    <DesignVignette :is-dark="isDark" />
+    <DesignVignette v-if="!isDark" :is-dark="isDark" />
 
     <!-- ── SIGN OUT (top-right, only when authenticated) ── -->
     <Transition name="fade-quick">
