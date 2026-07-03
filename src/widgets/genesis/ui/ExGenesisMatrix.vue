@@ -276,6 +276,7 @@ import { useMatrixBoot } from '../model/matrix/useMatrixBoot'
 import { useMatrixZones } from '../model/matrix/useMatrixZones'
 import { useMatrixUploads } from '../model/matrix/useMatrixUploads'
 import { usePathMath } from '../model/matrix/usePathMath'
+import { collectMatrixImageUrls, preloadImageUrls } from '../model/matrix/useMatrixImagePreload'
 
 import { initAssetService } from '@/shared/api/asset.service'
 
@@ -352,6 +353,11 @@ const focusNode = (id: string) => {
   }
 }
 
+async function preloadRestoredMatrixImages() {
+  const urls = collectMatrixImageUrls(state.matrixPages.value.flatMap((page: any) => page.nodes || []))
+  await preloadImageUrls(urls, { timeoutMs: 3000, concurrency: 8 })
+}
+
 // Global Key Listeners and Clicks
 onMounted(async () => {
   initAssetService()
@@ -360,8 +366,13 @@ onMounted(async () => {
   window.addEventListener('click', handleGlobalClick)
   document.addEventListener('selectionchange', menu.saveTextSelection)
 
-  boot.startBootAnimation()
-  await state.restoreData()
+  boot.startBootAnimation(undefined, { autoStop: false })
+  try {
+    await state.restoreData()
+    await preloadRestoredMatrixImages()
+  } finally {
+    boot.stopBootAnimation()
+  }
 })
 
 onUnmounted(() => {

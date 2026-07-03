@@ -71,6 +71,9 @@
               <img v-if="node.type === 'instrument' && node.params?.logo && !imageError"
                    :src="node.params.logo"
                    @error="imageError = true"
+                   loading="eager"
+                   decoding="async"
+                   fetchpriority="high"
                    draggable="false"
                    class="w-full h-full object-contain opacity-100 grayscale transition-all duration-700 select-none pointer-events-none"
                    style="image-rendering: -webkit-optimize-contrast; transform: translateZ(0); will-change: transform, opacity;"
@@ -171,6 +174,9 @@
                </div>
                             <div v-else class="w-full h-full border-2 border-nier-border-light dark:border-nier-border-dark p-1 bg-nier-white dark:bg-nier-black relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
                  <img :src="node.params.imageUrl"
+                      loading="eager"
+                      decoding="async"
+                      fetchpriority="high"
                       class="w-full h-full object-contain opacity-100 transition-all duration-700 select-none pointer-events-none"
                       style="image-rendering: -webkit-optimize-contrast; image-rendering: crisp-edges; transform: translateZ(0); will-change: transform, opacity;" />
                                   <!-- Scanning Lines overlay -->
@@ -291,6 +297,8 @@
                        v-if="embedImageUrl && !embedImageError"
                        :src="embedImageUrl"
                        :alt="node.params.embedUrl || 'Embed preview'"
+                       loading="eager"
+                       decoding="async"
                        draggable="false"
                        class="matrix-embed-preview-image h-full w-full object-contain p-1.5 select-none"
                        @error="embedImageError = true" />

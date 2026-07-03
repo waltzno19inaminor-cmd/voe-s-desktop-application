@@ -569,6 +569,8 @@
                           <img v-if="asset.icon && !menu.failedIcons.value.has(asset.symbol)"
                                :src="asset.icon"
                                @error="menu.failedIcons.value.add(asset.symbol)"
+                               loading="eager"
+                               decoding="async"
                                class="w-full h-full object-contain p-1 opacity-40 group-hover:opacity-100 grayscale group-hover:grayscale-0 transition-all" />
                           <span v-else class="text-[10px] font-bold opacity-40 uppercase">{{ asset.symbol.slice(0, 2) }}</span>
                           <div class="absolute inset-x-0 bottom-0 h-0.5 bg-nier-text-light dark:bg-nier-text-dark opacity-20 transition-all group-hover:opacity-100"></div>

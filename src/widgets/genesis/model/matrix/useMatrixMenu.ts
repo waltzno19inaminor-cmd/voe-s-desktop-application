@@ -8,6 +8,7 @@ import {
   type MatrixIndicatorCategory
 } from '@/shared/api/fundamentalIndicators.service'
 import { useI18n } from '~/shared/i18n/useI18n'
+import { preloadImageUrls } from './useMatrixImagePreload'
 
 export type TextFormatPreset = 'h' | 'p' | 'quote'
 
@@ -104,11 +105,18 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     }
     isSearchingAssets.value = true
     if (searchTimeout) clearTimeout(searchTimeout)
+    const query = assetSearchQuery.value
     searchTimeout = setTimeout(async () => {
       try {
-        assetResults.value = await searchAssets(assetSearchQuery.value)
+        const results = await searchAssets(query)
+        if (assetSearchQuery.value !== query) return
+        await preloadImageUrls(results.map(asset => asset.icon), { timeoutMs: 2500, concurrency: 8 })
+        if (assetSearchQuery.value !== query) return
+        assetResults.value = results
       } finally {
-        isSearchingAssets.value = false
+        if (assetSearchQuery.value === query) {
+          isSearchingAssets.value = false
+        }
       }
     }, 300)
   }
