@@ -36,7 +36,7 @@
                  ),
                  (node.type === 'image' || node.type === 'step' || node.type === 'scaling-entry' || isRiskPanel) ? 'border-none shadow-none' : ''
                ]"
-               :style="displayColor ? { borderColor: displayColor, boxShadow: isSelected ? `0 0 60px ${displayColor}40` : `0 0 30px ${displayColor}20` } : {}"
+               :style="customNodeAccentStyle"
                @dblclick.stop="$emit('doubleclick')">
 
              <!-- Separate Background Layer -->
@@ -794,6 +794,34 @@ const displayColor = computed(() => {
 
   // For system nodes, return null so they use theme-based CSS classes (text-theme-text, etc.)
   return null
+})
+
+function colorWithAlpha(color: string, alpha: number) {
+  const hex = color.trim()
+  const match = hex.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i)
+  if (match) {
+    const raw = match[1]
+    const normalized = raw.length === 3
+      ? raw.split('').map(char => char + char).join('')
+      : raw
+    const value = Number.parseInt(normalized, 16)
+    const r = (value >> 16) & 255
+    const g = (value >> 8) & 255
+    const b = value & 255
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`
+  }
+  return `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`
+}
+
+const customNodeAccentStyle = computed(() => {
+  if (!displayColor.value) return {}
+  const color = displayColor.value
+  return {
+    borderColor: props.isSelected ? color : colorWithAlpha(color, 0.18),
+    boxShadow: props.isSelected
+      ? `0 0 60px ${colorWithAlpha(color, 0.25)}`
+      : `0 0 18px ${colorWithAlpha(color, 0.06)}`
+  }
 })
 
 const riskElementTooltipTitle = computed(() => {

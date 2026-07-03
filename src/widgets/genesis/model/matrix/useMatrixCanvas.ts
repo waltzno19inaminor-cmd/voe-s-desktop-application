@@ -30,6 +30,8 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     if (e.button !== 0) return
     if (isTextEditingTarget(e.target)) return
 
+    if (state.pendingNodeConfig.value) return
+
     if ((e.target as HTMLElement).closest('.skill-chip') ||
         (e.target as HTMLElement).closest('.tactical-button') ||
         (e.target as HTMLElement).closest('.pointer-events-auto:not(.absolute.inset-0)')) return
@@ -44,24 +46,28 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
       return
     }
 
-    state.viewState.value.isPanning = true
     const startX = e.clientX
     const startY = e.clientY
     const initialPanX = state.viewState.value.panX
     const initialPanY = state.viewState.value.panY
+    let hasStartedPanning = false
     let panFrame: number | null = null
     let pendingPan: { x: number, y: number } | null = null
 
     const moveWindow = (mE: MouseEvent) => {
-      if (!state.viewState.value.isPanning) return
-      mE.preventDefault()
-      window.getSelection()?.removeAllRanges()
-      if (Math.abs(mE.clientX - startX) > 3 || Math.abs(mE.clientY - startY) > 3) {
+      const deltaX = mE.clientX - startX
+      const deltaY = mE.clientY - startY
+      if (!hasStartedPanning) {
+        if (Math.abs(deltaX) <= 3 && Math.abs(deltaY) <= 3) return
+        hasStartedPanning = true
+        state.viewState.value.isPanning = true
         suppressNextBackgroundClick.value = true
       }
+      mE.preventDefault()
+      window.getSelection()?.removeAllRanges()
       pendingPan = {
-        x: initialPanX + (mE.clientX - startX),
-        y: initialPanY + (mE.clientY - startY)
+        x: initialPanX + deltaX,
+        y: initialPanY + deltaY
       }
       if (panFrame !== null) return
       panFrame = requestAnimationFrame(() => {
@@ -84,7 +90,9 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
         state.viewState.value.panY = pendingPan.y
         pendingPan = null
       }
-      state.saveMatrixData()
+      if (hasStartedPanning) {
+        state.saveMatrixData()
+      }
       window.removeEventListener('mousemove', moveWindow)
       window.removeEventListener('mouseup', stopPan)
     }

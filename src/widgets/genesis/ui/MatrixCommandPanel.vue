@@ -946,22 +946,11 @@ const scenarioVisualTypes = [
 ]
 
 const skillTypes = computed(() => {
-  const selectedNode = props.state.effectiveSelectedNode.value
-  const contextNode = props.state.activeContextId.value ? props.state.getNode(props.state.activeContextId.value) : null
-
-  const isScenarioActive = (
-    (selectedNode && ['scenario', 'condition', 'instrument', 'indicator', 'pattern', 'smc'].includes(selectedNode.type)) ||
-    (contextNode && ['scenario', 'condition', 'instrument', 'indicator', 'pattern', 'smc'].includes(contextNode.type))
-  )
-
   const base: { label: string; type: string; color: string; description?: string }[] = [
     { label: 'Strategy', type: 'strategy', color: 'currentColor' },
-    { label: 'Scenario', type: 'scenario', color: 'currentColor' }
+    { label: 'Scenario', type: 'scenario', color: 'currentColor' },
+    { label: 'Condition', type: 'condition', color: 'currentColor' }
   ]
-
-  if (isScenarioActive) {
-    base.push({ label: 'Condition', type: 'condition', color: 'currentColor' })
-  }
 
   base.push({ label: 'Emotion', type: 'emotion', color: 'currentColor' })
   base.push({ label: 'Risk', type: 'risk', color: 'currentColor', description: 'Risk management protocol defining loss constraints and exposure limits.' })
