@@ -97,6 +97,7 @@
 
       <!-- VIEWPORT TELEMETRY -->
       <MatrixTelemetry :view-state="state.viewState.value" :is-scenario-context="!!state.isScenarioContext.value"
+                       :is-dark="isDark"
                        @reset-view="canvas.resetView" @update-scale="(s) => state.viewState.value.scale = s" />
 
       <!-- OFFSCREEN STRATEGY INDICATORS -->
