@@ -4,7 +4,7 @@
       <g v-for="(group, gIdx) in state.bundleGroups.value" :key="group.id">
         <!-- SHARED MAIN STEM (Once per Parent) -->
         <path v-if="group.type === 'bundle' && group.isFirstForParent"
-              :d="pathMath.getMainStemPath(group.fromId)"
+              :d="pathMath.getMainStemPath(group.fromId, group.bundleId)"
               stroke-width="1.2" fill="none"
               vector-effect="non-scaling-stroke"
               class="nier-conn-path pointer-events-none" />

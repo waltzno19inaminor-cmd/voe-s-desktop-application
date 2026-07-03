@@ -15,123 +15,134 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     return { x: node.x - offset, y: node.y }
   }
 
+  function getConnectionStartPoint(node: Node, line?: Connection | null) {
+    return getNodePortPoint(node, line?.fromPort || 'right')
+  }
+
+  function getBundleReferenceConnection(fromId: string, bundleId?: string) {
+    if (!bundleId) {
+      return state.connections.value.find(c => c.fromId === fromId && c.bundleId)
+    }
+
+    const bundleConnections = state.connections.value.filter(c => c.fromId === fromId && c.bundleId === bundleId)
+    return bundleConnections.find(c => c.fromPort) || bundleConnections[0]
+  }
+
+  function getBundleAxis(port: string = 'right') {
+    if (port === 'bottom') return { primary: 'y' as const, secondary: 'x' as const, sign: 1 }
+    if (port === 'top') return { primary: 'y' as const, secondary: 'x' as const, sign: -1 }
+    if (port === 'left') return { primary: 'x' as const, secondary: 'y' as const, sign: -1 }
+    return { primary: 'x' as const, secondary: 'y' as const, sign: 1 }
+  }
+
+  function movePoint(point: Point, axis: ReturnType<typeof getBundleAxis>, primaryDistance: number, secondaryDistance = 0) {
+    return {
+      x: point.x + (axis.primary === 'x' ? axis.sign * primaryDistance : 0) + (axis.secondary === 'x' ? secondaryDistance : 0),
+      y: point.y + (axis.primary === 'y' ? axis.sign * primaryDistance : 0) + (axis.secondary === 'y' ? secondaryDistance : 0)
+    }
+  }
+
+  function getBundleForwardDistance(fromId: string, startPoint: Point, axis: ReturnType<typeof getBundleAxis>) {
+    const bundleConnections = state.connections.value.filter(c => c.fromId === fromId && c.bundleId)
+    const endpointValues = bundleConnections
+      .map(connection => {
+        const to = state.getNode(connection.toId)
+        if (!to) return null
+        const point = getNodePortPoint(to, connection.toPort || 'left')
+        return axis.primary === 'x' ? point.x : point.y
+      })
+      .filter((value): value is number => typeof value === 'number')
+
+    if (!endpointValues.length) return 362
+
+    const startValue = axis.primary === 'x' ? startPoint.x : startPoint.y
+    const targetValue = axis.sign > 0 ? Math.min(...endpointValues) : Math.max(...endpointValues)
+    return Math.max(0, axis.sign > 0 ? targetValue - startValue : startValue - targetValue)
+  }
+
+  function getBundleLayout(fromId: string, bundleId: string | undefined, line?: Connection | null) {
+    const from = state.getNode(fromId)
+    if (!from) return null
+
+    const refConn = getBundleReferenceConnection(fromId, bundleId) || line
+    const axis = getBundleAxis(refConn?.fromPort || 'right')
+    const startPoint = getConnectionStartPoint(from, refConn)
+    const totalForwardDistance = getBundleForwardDistance(fromId, startPoint, axis)
+    const verticalCompactFactor = axis.primary === 'y' ? 2 / 3 : 1
+    const mainStemLen = Math.max(120, totalForwardDistance * 0.25) * verticalCompactFactor
+    const primaryDrag = axis.primary === 'x'
+      ? axis.sign * (refConn?.bundleStemX || 0)
+      : axis.sign * (refConn?.bundleStemY || 0)
+    const bundleStemLen = Math.max(80, Math.max(160, totalForwardDistance * 0.35) * verticalCompactFactor + primaryDrag)
+
+    const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === fromId && c.bundleId).map(c => c.bundleId))]
+    const bundleIndex = bundleId ? parentBundles.indexOf(bundleId) : 0
+    const totalBundles = parentBundles.length
+    const spread = 100
+    const bundleSpreadOffset = totalBundles > 1 ? (bundleIndex - (totalBundles - 1) / 2) * spread : 0
+    const secondaryDrag = axis.secondary === 'x'
+      ? (refConn?.bundleStemX || 0)
+      : (refConn?.bundleStemY || 0)
+    const bundleOffset = bundleSpreadOffset + secondaryDrag
+
+    const j1 = movePoint(startPoint, axis, mainStemLen)
+    const j2 = movePoint(j1, axis, bundleStemLen, bundleOffset)
+
+    return { axis, startPoint, j1, j2 }
+  }
+
+  function createBundleStemCurve(layout: NonNullable<ReturnType<typeof getBundleLayout>>) {
+    const primaryDelta = layout.axis.primary === 'x'
+      ? Math.abs(layout.j2.x - layout.j1.x)
+      : Math.abs(layout.j2.y - layout.j1.y)
+    const halfway = Math.max(1, primaryDelta * 0.5)
+    const cp1 = movePoint(layout.j1, layout.axis, halfway)
+    const cp2 = movePoint(layout.j1, layout.axis, halfway, layout.axis.secondary === 'x' ? layout.j2.x - layout.j1.x : layout.j2.y - layout.j1.y)
+
+    return `C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${layout.j2.x} ${layout.j2.y}`
+  }
+
+  function createBundleBranchCurve(layout: NonNullable<ReturnType<typeof getBundleLayout>>, endPoint: Point) {
+    if (layout.axis.primary === 'y') {
+      const dy = endPoint.y - layout.j2.y
+      const cpY = layout.j2.y + dy * 0.5
+      return `C ${layout.j2.x} ${cpY}, ${endPoint.x} ${cpY}, ${endPoint.x} ${endPoint.y}`
+    }
+
+    const dx = endPoint.x - layout.j2.x
+    const cpX = layout.j2.x + dx * 0.5
+    return `C ${cpX} ${layout.j2.y}, ${cpX} ${endPoint.y}, ${endPoint.x} ${endPoint.y}`
+  }
+
   function getConnectionEndPoint(line: Connection) {
     const to = state.getNode(line.toId)
     if (!to) return { x: 0, y: 0 }
     return getNodePortPoint(to, line.toPort || 'left')
   }
 
-  function getMinChildX(fromId: string) {
-    const from = state.getNode(fromId)
-    if (!from) return 0
-    const allLogicConns = state.connections.value.filter(c => c.fromId === fromId && c.bundleId)
-    const allChildren = allLogicConns.map(c => state.getNode(c.toId)).filter(Boolean) as Node[]
-    if (allChildren.length === 0) return from.x + 362
+  function getMainStemPath(fromId: string, bundleId?: string) {
+    const layout = getBundleLayout(fromId, bundleId)
+    if (!layout) return ""
 
-    return Math.min(...allChildren.map(n => {
-      const radius = (n.type === 'scaling-entry' || n.type === 'step') ? 28 : 56
-      const gap = (n.type === 'scaling-entry' || n.type === 'step') ? 2 : 6
-      return n.x - (radius + gap)
-    }))
-  }
-
-  function getMainStemPath(fromId: string) {
-    const from = state.getNode(fromId)
-    if (!from) return ""
-    const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
-    const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
-    const startX = from.x + (fromRadius + fromGap)
-
-    const minChildX = getMinChildX(fromId)
-    const totalDx = Math.max(0, minChildX - startX)
-    const mainStemLen = Math.max(120, totalDx * 0.25)
-
-    return `M ${startX} ${from.y} L ${startX + mainStemLen} ${from.y}`
+    return `M ${layout.startPoint.x} ${layout.startPoint.y} L ${layout.j1.x} ${layout.j1.y}`
   }
 
   function getBundleStemPath(fromId: string, bundleId: string) {
-    const from = state.getNode(fromId)
-    if (!from) return ""
-    const refConn = state.connections.value.find(c => c.fromId === fromId && c.bundleId === bundleId)
-    if (!refConn) return ""
+    const layout = getBundleLayout(fromId, bundleId)
+    if (!layout) return ""
 
-    const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
-    const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
-    const startX = from.x + (fromRadius + fromGap)
-
-    const minChildX = getMinChildX(fromId)
-    const totalDx = Math.max(0, minChildX - startX)
-    const mainStemLen = Math.max(120, totalDx * 0.25)
-    const bundleStemLen = Math.max(160, totalDx * 0.35) + (refConn.bundleStemX || 0)
-
-    const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === fromId && c.bundleId).map(c => c.bundleId))]
-    const bundleIndex = parentBundles.indexOf(bundleId)
-    const totalBundles = parentBundles.length
-    const verticalSpread = 100
-    const bundleYOffset = (totalBundles > 1 ? (bundleIndex - (totalBundles - 1) / 2) * verticalSpread : 0) + (refConn.bundleStemY || 0)
-
-    const j1x = startX + mainStemLen
-    const j2x = j1x + bundleStemLen
-    const j2y = from.y + bundleYOffset
-
-    const dx2 = j2x - j1x
-    const cp1 = { x: j1x + dx2 * 0.5, y: from.y }
-    const cp2 = { x: j1x + dx2 * 0.5, y: j2y }
-
-    return `M ${j1x} ${from.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${j2x} ${j2y}`
+    return `M ${layout.j1.x} ${layout.j1.y} ${createBundleStemCurve(layout)}`
   }
 
   function getBranchPath(line: Connection) {
     const from = state.getNode(line.fromId)
     const to = state.getNode(line.toId)
     if (!from || !to) return ""
-    const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
-    const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
-    const startX = from.x + (fromRadius + fromGap)
-
-    const minChildX = getMinChildX(line.fromId)
-    const totalDx = Math.max(0, minChildX - startX)
-    const mainStemLen = Math.max(120, totalDx * 0.25)
-    const bundleStemLen = Math.max(160, totalDx * 0.35) + (line.bundleStemX || 0)
-
-    const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === from.id && c.bundleId).map(c => c.bundleId))]
-    const bundleIndex = parentBundles.indexOf(line.bundleId!)
-    const totalBundles = parentBundles.length
-    const verticalSpread = 100
-    const bundleYOffset = (totalBundles > 1 ? (bundleIndex - (totalBundles - 1) / 2) * verticalSpread : 0) + (line.bundleStemY || 0)
-
-    const j2x = startX + mainStemLen + bundleStemLen
-    const j2y = from.y + bundleYOffset
-
+    const layout = getBundleLayout(line.fromId, line.bundleId, line)
+    if (!layout) return ""
     const endPoint = getNodePortPoint(to, line.toPort || 'left')
 
-    const dx3 = endPoint.x - j2x
-    const cp3 = { x: j2x + dx3 * 0.5, y: j2y }
-    const cp4 = { x: j2x + dx3 * 0.5, y: endPoint.y }
-
-    return `M ${j2x} ${j2y} C ${cp3.x} ${cp3.y}, ${cp4.x} ${cp4.y}, ${endPoint.x} ${endPoint.y}`
-  }
-
-  function createDoubleForkPath(f: Point, t: Point, mainStemLen: number, bundleStemLen: number, bundleY: number) {
-    const j1x = f.x + mainStemLen
-    const j1y = f.y
-
-    const j2x = j1x + bundleStemLen
-    const j2y = bundleY
-
-    const segment1 = `M ${f.x} ${f.y} L ${j1x} ${j1y}`
-
-    const dx2 = j2x - j1x
-    const cp1 = { x: j1x + dx2 * 0.5, y: j1y }
-    const cp2 = { x: j1x + dx2 * 0.5, y: j2y }
-    const segment2 = `C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${j2x} ${j2y}`
-
-    const dx3 = t.x - j2x
-    const cp3 = { x: j2x + dx3 * 0.5, y: j2y }
-    const cp4 = { x: j2x + dx3 * 0.5, y: t.y }
-    const segment3 = `C ${cp3.x} ${cp3.y}, ${cp4.x} ${cp4.y}, ${t.x} ${t.y}`
-
-    return `${segment1} ${segment2} ${segment3}`
+    return `M ${layout.j2.x} ${layout.j2.y} ${createBundleBranchCurve(layout, endPoint)}`
   }
 
   function createCurvedPath(f: Point, t: Point, fromPort: string = 'right', toPort: string = 'left') {
@@ -166,20 +177,10 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const endPoint = getNodePortPoint(to, conn?.toPort || 'left')
 
     if (conn?.bundleId) {
-       const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === fromId && c.bundleId).map(c => c.bundleId))]
-       const bundleIndex = parentBundles.indexOf(conn.bundleId)
-       const totalBundles = parentBundles.length
+       const layout = getBundleLayout(fromId, conn.bundleId, conn)
+       if (!layout) return ""
 
-       const minChildX = getMinChildX(fromId)
-       const totalDx = Math.max(0, minChildX - startPoint.x)
-
-       const mainStemLen = Math.max(120, totalDx * 0.25)
-       const bundleStemLen = Math.max(160, totalDx * 0.35) + (conn.bundleStemX || 0)
-
-       const verticalSpread = 100
-       const bundleYOffset = (totalBundles > 1 ? (bundleIndex - (totalBundles - 1) / 2) * verticalSpread : 0) + (conn.bundleStemY || 0)
-
-       return createDoubleForkPath(startPoint, endPoint, mainStemLen, bundleStemLen, startPoint.y + bundleYOffset)
+       return `M ${layout.startPoint.x} ${layout.startPoint.y} L ${layout.j1.x} ${layout.j1.y} ${createBundleStemCurve(layout)} ${createBundleBranchCurve(layout, endPoint)}`
     }
 
     return createCurvedPath(startPoint, endPoint, conn?.fromPort || 'right', conn?.toPort || 'left')
@@ -191,31 +192,10 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     if (!from || !to) return { x: 0, y: 0 }
 
     if (line.bundleId) {
-       const parentBundles = [...new Set(state.connections.value.filter(c => c.fromId === from.id && c.bundleId).map(c => c.bundleId))]
-       const bundleIndex = parentBundles.indexOf(line.bundleId)
-       const totalBundles = parentBundles.length
+       const layout = getBundleLayout(from.id, line.bundleId, line)
+       if (!layout) return { x: 0, y: 0 }
 
-       const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
-       const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
-       let startX = from.x + (fromRadius + fromGap)
-       let startY = from.y
-       if (line.fromPort === 'top') { startX = from.x; startY = from.y - fromRadius - fromGap }
-       else if (line.fromPort === 'bottom') { startX = from.x; startY = from.y + fromRadius + fromGap }
-       else if (line.fromPort === 'left') { startX = from.x - fromRadius - fromGap; startY = from.y }
-
-       const minChildX = getMinChildX(from.id)
-       const totalDx = Math.max(0, minChildX - startX)
-
-       const mainStemLen = Math.max(120, totalDx * 0.25)
-       const bundleStemLen = Math.max(160, totalDx * 0.35) + (line.bundleStemX || 0)
-
-       const verticalSpread = 100
-       const bundleYOffset = (totalBundles > 1 ? (bundleIndex - (totalBundles - 1) / 2) * verticalSpread : 0) + (line.bundleStemY || 0)
-
-       return {
-         x: startX + mainStemLen + bundleStemLen,
-         y: startY + bundleYOffset
-       }
+       return { x: layout.j2.x, y: layout.j2.y }
     }
 
     const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56

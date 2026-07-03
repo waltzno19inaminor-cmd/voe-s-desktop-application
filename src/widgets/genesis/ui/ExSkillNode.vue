@@ -90,7 +90,7 @@
                    node.type === 'emotion-state' ? (node.label || 'EN').slice(0, 2).toUpperCase() :
                    (node.type === 'step' || node.type === 'scaling-entry') ? (node.label || '') :
                    node.type === 'risk-element' ? (node.params?.riskType === 'trade' ? 'RT' : node.params?.riskType === 'day' ? 'RD' : node.params?.riskType === 'style' ? (node.label || 'ST').slice(0, 2).toUpperCase() : 'RR') :
-                   (node.label || 'NOD').slice(0, 3).toUpperCase()
+                   matrixNodeDisplayCode
                 }}
               </div>
            </div>
@@ -849,6 +849,25 @@ const riskPanelScalerStyle = computed(() => ({
   transformOrigin: 'top left'
 }))
 const configNodeCode = computed(() => (props.node.label || 'CFG').slice(0, 3).toUpperCase())
+const matrixNodeTypeSuffix = computed(() => {
+  if (props.node.type === 'scenario') return 'Scenario'
+  if (props.node.type === 'condition') return 'Condition'
+  return props.node.type
+})
+const matrixNodeDisplayLabel = computed(() => {
+  const identity = String(props.node.params?.customName || '').trim()
+  if (identity && (props.node.type === 'scenario' || props.node.type === 'condition')) {
+    return `${identity} (${matrixNodeTypeSuffix.value})`
+  }
+  return props.node.label || 'NODE'
+})
+const matrixNodeDisplayCode = computed(() => {
+  const identity = String(props.node.params?.customName || '').trim()
+  if (identity && (props.node.type === 'scenario' || props.node.type === 'condition')) {
+    return identity.replace(/[^A-Z0-9]/gi, '').slice(0, 3).toUpperCase() || matrixNodeTypeSuffix.value.slice(0, 3).toUpperCase()
+  }
+  return (props.node.label || 'NOD').slice(0, 3).toUpperCase()
+})
 const riskTradingStyles = ['DAY_TRADING', 'SWING_TRADING', 'INVESTING']
 const riskParams = computed(() => {
   if (!props.node.params) props.node.params = {}
@@ -1486,6 +1505,7 @@ const tooltipTitle = computed(() => {
   if (props.node.type === 'instrument') return props.node.label
   if (props.node.type === 'indicator') return props.node.label
   if (props.node.type === 'smc') return smcTooltipData.value?.title || 'SMC'
+  if (props.node.type === 'scenario' || props.node.type === 'condition') return matrixNodeDisplayLabel.value
   if (props.node.type === 'risk-element') return locale.value === 'ru' ? t(riskElementTooltipTitle.value) : riskElementTooltipTitle.value
 
   const typeKey = props.node.type.toUpperCase()
