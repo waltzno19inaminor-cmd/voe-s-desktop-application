@@ -140,6 +140,45 @@
           </div>
 
           <ExNotificationCenter :user-id="authStore.user?.uid" :locale="locale" />
+
+          <!-- Music Toggle -->
+          <button
+            type="button"
+            class="dashboard-icon-toggle opacity-30 hover:opacity-100 transition-all duration-300"
+            :aria-label="props.isMusicMuted ? (locale === 'ru' ? 'Включить музыку' : 'Enable music') : (locale === 'ru' ? 'Отключить музыку' : 'Disable music')"
+            @click="$emit('toggle-music')"
+          >
+            <svg
+              v-if="props.isMusicMuted"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+              stroke-linejoin="miter"
+              class="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M11 5 6 9H3v6h3l5 4V5z" />
+              <path d="m17 9 4 4" />
+              <path d="m21 9-4 4" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+              stroke-linejoin="miter"
+              class="h-5 w-5"
+              aria-hidden="true"
+            >
+              <path d="M11 5 6 9H3v6h3l5 4V5z" />
+              <path d="M15 9.5a4 4 0 0 1 0 5" />
+              <path d="M18 7a8 8 0 0 1 0 10" />
+            </svg>
+          </button>
           <!-- Theme Toggle -->
           <button
             class="dashboard-icon-toggle opacity-30 hover:opacity-100 transition-all duration-300"
@@ -309,7 +348,13 @@ import ExForum from '~/widgets/exforum/ui/ExForum.vue'
 import ExTournamentView from '~/widgets/tournament/ui/ExTournamentView.vue'
 import { initTournamentListener } from '~/widgets/tournament/model/useTournament'
 
-const emit = defineEmits(['navigate', 'signed-out'])
+const props = withDefaults(defineProps<{
+  isMusicMuted?: boolean
+}>(), {
+  isMusicMuted: false
+})
+
+const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()

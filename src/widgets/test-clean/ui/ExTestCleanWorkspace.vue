@@ -20,7 +20,12 @@
        <Transition name="page-reify" mode="out-in">
          <!-- Dashboard Hub (No Tab) -->
          <div v-if="isAssembled && !activeTab" key="hub" class="w-full h-full">
-            <ExDashboard @navigate="handleDashboardNavigate" @signed-out="handleSignedOut" />
+            <ExDashboard
+              :is-music-muted="isDashboardMusicMuted"
+              @navigate="handleDashboardNavigate"
+              @signed-out="handleSignedOut"
+              @toggle-music="toggleDashboardMusic"
+            />
          </div>
 
          <!-- Genesis Module -->
@@ -273,9 +278,125 @@ const showPaywall = ref(false)
 const workspaceRoot = ref(null)
 const isHudActive = ref(true)
 const isGenesisBottomBarHidden = ref(false)
+const isDashboardMusicMuted = ref(false)
 useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 
 const isGenesisPath = computed(() => route.path === genesisBasePath || route.path.startsWith(`${genesisBasePath}/`))
+const isDashboardHubActive = computed(() => hasInitialized.value && isAssembled.value && !activeTab.value)
+const shouldPlayDashboardScore = computed(() => isDashboardHubActive.value && !isDashboardMusicMuted.value)
+
+let dashboardScore = null
+const dashboardScoreVolume = 0.03
+const dashboardScoreFadeInMs = 1800
+const dashboardScoreFadeOutMs = 900
+let dashboardScoreFadeFrame = 0
+
+const ensureDashboardScore = () => {
+  if (typeof window === 'undefined' || typeof Audio === 'undefined') return null
+  if (!dashboardScore && window.__exDashboardScore instanceof HTMLAudioElement) {
+    dashboardScore = window.__exDashboardScore
+  }
+  if (!dashboardScore) {
+    const audio = new Audio('/audio/score.mp3')
+    audio.loop = true
+    audio.preload = 'auto'
+    audio.volume = 0
+    dashboardScore = audio
+    window.__exDashboardScore = audio
+  }
+  dashboardScore.loop = true
+  dashboardScore.volume = Math.min(dashboardScore.volume, dashboardScoreVolume)
+  return dashboardScore
+}
+
+const cancelDashboardScoreFade = () => {
+  if (!dashboardScoreFadeFrame || typeof window === 'undefined') return
+  window.cancelAnimationFrame(dashboardScoreFadeFrame)
+  dashboardScoreFadeFrame = 0
+}
+
+const fadeDashboardScore = (targetVolume, durationMs, onComplete) => {
+  const audio = ensureDashboardScore()
+  if (!audio || typeof window === 'undefined') return
+
+  cancelDashboardScoreFade()
+  const fromVolume = audio.volume
+  const startedAt = window.performance.now()
+
+  const step = (timestamp) => {
+    const progress = durationMs <= 0 ? 1 : Math.min(1, (timestamp - startedAt) / durationMs)
+    audio.volume = fromVolume + (targetVolume - fromVolume) * progress
+
+    if (progress < 1) {
+      dashboardScoreFadeFrame = window.requestAnimationFrame(step)
+      return
+    }
+
+    dashboardScoreFadeFrame = 0
+    onComplete?.()
+  }
+
+  dashboardScoreFadeFrame = window.requestAnimationFrame(step)
+}
+
+const playDashboardScore = async (fadeIn = true) => {
+  if (isDashboardMusicMuted.value) return
+  const audio = ensureDashboardScore()
+  if (!audio) return
+
+  cancelDashboardScoreFade()
+  audio.loop = true
+  audio.volume = Math.min(audio.volume, dashboardScoreVolume)
+  if (audio.paused) {
+    audio.volume = fadeIn ? 0 : audio.volume
+    try {
+      await audio.play()
+    } catch {
+      return
+    }
+  }
+
+  if (fadeIn) {
+    fadeDashboardScore(dashboardScoreVolume, dashboardScoreFadeInMs)
+  } else {
+    audio.volume = Math.min(audio.volume, dashboardScoreVolume)
+  }
+}
+
+const primeDashboardScore = () => {
+  if (isDashboardMusicMuted.value) return
+  const audio = ensureDashboardScore()
+  if (!audio) return
+  audio.volume = 0
+  audio.play().catch(() => {})
+}
+
+const stopDashboardScore = (fadeOut = true) => {
+  const audio = dashboardScore
+  if (!audio) return
+
+  if (!fadeOut) {
+    cancelDashboardScoreFade()
+    audio.pause()
+    audio.volume = 0
+    return
+  }
+
+  fadeDashboardScore(0, dashboardScoreFadeOutMs, () => {
+    audio.pause()
+  })
+}
+
+const toggleDashboardMusic = () => {
+  isDashboardMusicMuted.value = !isDashboardMusicMuted.value
+  if (isDashboardMusicMuted.value) {
+    stopDashboardScore(true)
+    return
+  }
+  if (isDashboardHubActive.value) {
+    playDashboardScore(true)
+  }
+}
 
 const getRouteMode = () => {
   const workspaceParams = route.params.workspace
@@ -408,6 +529,14 @@ watch(activeTab, (newTab) => {
   setScrollLock(newTab)
 }, { immediate: true })
 
+watch(shouldPlayDashboardScore, (shouldPlay) => {
+  if (shouldPlay) {
+    playDashboardScore(true)
+  } else {
+    stopDashboardScore(true)
+  }
+}, { immediate: true })
+
 const goBack = () => {
   if (activeTab.value) {
     goToHub()
@@ -426,6 +555,7 @@ const handleGlobalKeydown = (e) => {
 }
 
 const handleInitializationComplete = () => {
+  if (!activeTab.value) primeDashboardScore()
   hasInitialized.value = true
   
   setTimeout(() => {
@@ -437,6 +567,7 @@ const handleInitializationComplete = () => {
 }
 
 const handleSignedOut = () => {
+  stopDashboardScore(false)
   hasInitialized.value = false
   isAssembled.value = false
   showBloom.value = true
@@ -452,6 +583,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  stopDashboardScore(false)
   document.body.style.overflow = ''
   document.body.style.height = ''
 })
