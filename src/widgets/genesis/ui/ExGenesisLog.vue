@@ -43,6 +43,23 @@
               </svg>
            </button>
 
+           <!-- Cube Reveal Animation -->
+           <button @click="startCubeRevealAnimation"
+                   class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-25"
+                   :class="isCubeRevealAnimating
+                            ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]'
+                            : 'bg-white/5 dark:bg-black/5 text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'"
+                   :disabled="isCubeRevealAnimating"
+                   :title="locale === 'ru' ? 'Запустить анимацию сделок' : 'Run trade reveal animation'">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                 <path d="M5 5v14l12-7z"></path>
+                 <path d="M19 5v14"></path>
+              </svg>
+              <div v-if="isCubeRevealAnimating"
+                   class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]">
+              </div>
+           </button>
+
            <!-- Compliance Toggle -->
            <button @click="showComplianceStatus = !showComplianceStatus" 
                    class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer"
@@ -1334,6 +1351,7 @@ const resetDistributionView = () => {
 watch(viewType, (next) => {
   if (next === 'distribution') resetDistributionView()
   if (next !== 'timeTree') exitTimeTreeFullscreen()
+  if (next !== 'cube') clearCubeRevealAnimation()
 })
 
 const distributionTooltipStyle = computed(() => {
@@ -1934,6 +1952,10 @@ const facesTrades = ref<TradeNode[][]>([[], [], [], [], [], []])
 const internalNodes = ref<TradeNode[]>([])
 
 const revealProgress = ref(0)
+const cubeRevealAnimationStart = ref<number | null>(null)
+const cubeRevealAnimationFace = ref<number | null>(null)
+const cubeRevealAnimationOrder = ref<string[]>([])
+let cubeRevealAnimationTimeout: ReturnType<typeof setTimeout> | null = null
 const tradeStore = useStrategyTradesStore()
 const selectedStrategyId = computed({
   get: () => tradeStore.selectedStrategyId,
@@ -2124,9 +2146,63 @@ const activeFaceIndices = computed(() => {
     .filter(index => index !== -1)
 })
 
+const isCubeRevealAnimating = computed(() => cubeRevealAnimationStart.value !== null)
+
+const easeOutCubic = (value: number) => {
+  const clamped = Math.min(1, Math.max(0, value))
+  return 1 - Math.pow(1 - clamped, 3)
+}
+
+const clearCubeRevealAnimation = () => {
+  if (cubeRevealAnimationTimeout) {
+    clearTimeout(cubeRevealAnimationTimeout)
+    cubeRevealAnimationTimeout = null
+  }
+  cubeRevealAnimationStart.value = null
+  cubeRevealAnimationFace.value = null
+  cubeRevealAnimationOrder.value = []
+}
+
+const getCubeRevealProgress = (node: TradeNode) => {
+  const start = cubeRevealAnimationStart.value
+  if (start === null || cubeRevealAnimationFace.value !== currentFace.value || node.faceIndex !== cubeRevealAnimationFace.value) {
+    return { icon: 1, label: 1 }
+  }
+
+  const lookupId = node.isNote && node.parentId ? node.parentId : node.id
+  const index = cubeRevealAnimationOrder.value.indexOf(lookupId)
+  if (index === -1) return { icon: 1, label: 1 }
+
+  const elapsed = performance.now() - start
+  const nodeDelay = 2000 + index * 1000
+  const icon = easeOutCubic((elapsed - nodeDelay) / 650)
+  const label = easeOutCubic((elapsed - nodeDelay - 360) / 650)
+  return { icon, label }
+}
+
+const startCubeRevealAnimation = () => {
+  if (viewType.value !== 'cube' || isCubeRevealAnimating.value) return
+
+  const pageTradeNodes = chronologicalPathNodes.value
+    .filter(node => node.faceIndex === currentFace.value && !node.isNote)
+
+  if (pageTradeNodes.length === 0) return
+
+  clearCubeRevealAnimation()
+  cubeRevealAnimationFace.value = currentFace.value
+  cubeRevealAnimationOrder.value = pageTradeNodes.map(node => node.id)
+  cubeRevealAnimationStart.value = performance.now()
+
+  const totalDuration = 2000 + Math.max(0, pageTradeNodes.length - 1) * 1000 + 1200
+  cubeRevealAnimationTimeout = setTimeout(() => {
+    clearCubeRevealAnimation()
+  }, totalDuration)
+}
+
 
 // Immediate update when trades are added, strategy changes, or filters are modified
 watch([selectedStrategyId, filteredTrades, cubeSearchQuery], () => {
+  clearCubeRevealAnimation()
   initTrades()
 }, { deep: true })
 
@@ -2151,6 +2227,7 @@ const calculateWorldPos = (faceIndex: number, localX: number, localY: number): P
 }
 
 const switchFace = (newIndex: number) => {
+  clearCubeRevealAnimation()
   currentFace.value = newIndex
   isTransitioning.value = true
   
@@ -2480,6 +2557,11 @@ const update = () => {
       if (node.isNote && node.parentId) {
         const parentNode = face.find(n => n.id === node.parentId)
         if (parentNode) {
+           const nodeReveal = getCubeRevealProgress(node)
+           const parentReveal = getCubeRevealProgress(parentNode)
+           const connectionReveal = Math.min(nodeReveal.icon, parentReveal.icon)
+           if (connectionReveal <= 0.01) return
+
            let p1 = rotateY(node.worldPos, currentRotation.value.y)
            p1 = rotateX(p1, currentRotation.value.x)
            p1.x *= viewScale.value; p1.y *= viewScale.value; p1.z *= viewScale.value
@@ -2494,6 +2576,7 @@ const update = () => {
              ctx.beginPath()
              ctx.moveTo(proj1.x, proj1.y)
              ctx.lineTo(proj2.x, proj2.y)
+             ctx.globalAlpha = connectionReveal
              ctx.strokeStyle = isDark.value ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.4)'
              ctx.lineWidth = 1 * (viewScale.value / 2.2)
              ctx.stroke()
@@ -2511,21 +2594,23 @@ const update = () => {
 
       const proj = project(p, w, h); const isCurrentFace = fIdx === currentFace.value
       const focusMultiplier = viewScale.value / 2.2 // Smooth linear scaling based on initial viewScale (2.2)
+      const reveal = getCubeRevealProgress(node)
 
       if (node.isNote) {
         if (isCurrentFace) {
-           ctx.globalAlpha = Math.min(1, proj.opacity)
-           const radius = 3 * focusMultiplier
+           if (reveal.icon <= 0.01) return
+           ctx.globalAlpha = Math.min(1, proj.opacity) * reveal.icon
+           const radius = 3 * focusMultiplier * (0.74 + reveal.icon * 0.26)
            ctx.fillStyle = isDark.value ? '#ffffff' : '#000000'
            ctx.beginPath()
-           ctx.arc(proj.x, proj.y, radius, 0, Math.PI * 2)
+           ctx.arc(proj.x, proj.y + (1 - reveal.icon) * 5, radius, 0, Math.PI * 2)
            ctx.fill()
            
-           if (proj.opacity > 0.5) {
-             ctx.globalAlpha = 1; ctx.fillStyle = isDark.value ? '#94a3b8' : '#475569'
+           if (proj.opacity > 0.5 && reveal.label > 0.01) {
+             ctx.globalAlpha = reveal.label; ctx.fillStyle = isDark.value ? '#94a3b8' : '#475569'
              const dynamicFontSize = Math.floor(8 * focusMultiplier)
              ctx.font = `${dynamicFontSize}px Inter`
-             ctx.fillText(node.label, proj.x + (6 * focusMultiplier), proj.y + (3 * focusMultiplier))
+             ctx.fillText(node.label, proj.x + (6 * focusMultiplier), proj.y + (3 * focusMultiplier) + (1 - reveal.label) * 4)
            }
         } else {
            ctx.globalAlpha = proj.opacity * 0.3
@@ -2536,26 +2621,28 @@ const update = () => {
         }
       } else {
         if (isCurrentFace) {
-          ctx.globalAlpha = Math.min(1, proj.opacity * 1.5)
-          const baseSize = 8 * focusMultiplier
+          if (reveal.icon <= 0.01) return
+          ctx.globalAlpha = Math.min(1, proj.opacity * 1.5) * reveal.icon
+          const revealLift = (1 - reveal.icon) * 8
+          const baseSize = 8 * focusMultiplier * (0.72 + reveal.icon * 0.28)
           const thinWidth = baseSize * 0.6
           
           ctx.fillStyle = isDark.value ? '#ffffff' : '#334155' 
           ctx.beginPath()
-          ctx.moveTo(proj.x, proj.y - baseSize)
-          ctx.lineTo(proj.x + thinWidth, proj.y)
-          ctx.lineTo(proj.x, proj.y + baseSize)
-          ctx.lineTo(proj.x - thinWidth, proj.y)
+          ctx.moveTo(proj.x, proj.y - revealLift - baseSize)
+          ctx.lineTo(proj.x + thinWidth, proj.y - revealLift)
+          ctx.lineTo(proj.x, proj.y - revealLift + baseSize)
+          ctx.lineTo(proj.x - thinWidth, proj.y - revealLift)
           ctx.closePath()
           ctx.fill()
           
           ctx.fillStyle = isDark.value ? '#94a3b8' : '#94a3b8'
           ctx.beginPath()
           const offX = proj.x + 1
-          ctx.moveTo(offX, proj.y - baseSize)
-          ctx.lineTo(offX + thinWidth, proj.y)
-          ctx.lineTo(offX, proj.y + baseSize)
-          ctx.lineTo(offX - thinWidth, proj.y)
+          ctx.moveTo(offX, proj.y - revealLift - baseSize)
+          ctx.lineTo(offX + thinWidth, proj.y - revealLift)
+          ctx.lineTo(offX, proj.y - revealLift + baseSize)
+          ctx.lineTo(offX - thinWidth, proj.y - revealLift)
           ctx.closePath()
           ctx.fill()
         } else {
@@ -2571,11 +2658,11 @@ const update = () => {
           ctx.fill()
         }
         
-        if (isCurrentFace && proj.opacity > 0.5) {
-          ctx.globalAlpha = 1; ctx.fillStyle = isDark.value ? '#ffffff' : '#1e293b'
+        if (isCurrentFace && proj.opacity > 0.5 && reveal.label > 0.01) {
+          ctx.globalAlpha = reveal.label; ctx.fillStyle = isDark.value ? '#ffffff' : '#1e293b'
           const dynamicFontSize = Math.floor(12 * focusMultiplier)
           ctx.font = `bold ${dynamicFontSize}px Inter`
-          ctx.fillText(node.label, proj.x + (14 * focusMultiplier), proj.y + (5 * focusMultiplier))
+          ctx.fillText(node.label, proj.x + (14 * focusMultiplier), proj.y + (5 * focusMultiplier) + (1 - reveal.label) * 6)
         }
       }
     })
@@ -2597,6 +2684,7 @@ const handleMouseDown = (e: MouseEvent) => {
         const currentFaceNodes = facesTrades.value[currentFace.value] || []
         
         for (const node of currentFaceNodes) {
+           if (getCubeRevealProgress(node).icon <= 0.2) continue
            let p = rotateY(node.worldPos, currentRotation.value.y)
            p = rotateX(p, currentRotation.value.x)
            p.x *= viewScale.value; p.y *= viewScale.value; p.z *= viewScale.value
@@ -2640,6 +2728,7 @@ const handleDoubleClick = (e: MouseEvent) => {
         const currentFaceNodes = facesTrades.value[currentFace.value] || []
         
         for (const node of currentFaceNodes) {
+           if (getCubeRevealProgress(node).icon <= 0.2) continue
            let p = rotateY(node.worldPos, currentRotation.value.y)
            p = rotateX(p, currentRotation.value.x)
            p.x *= viewScale.value; p.y *= viewScale.value; p.z *= viewScale.value
@@ -2724,6 +2813,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.removeEventListener('keydown', handleGlobalKeydown)
   clearTimeTreeFullscreenHintTimer()
+  clearCubeRevealAnimation()
   cancelAnimationFrame(rafId) 
 })
 </script>
