@@ -2751,15 +2751,26 @@ canvas { image-rendering: pixelated; }
   transform: translate(-50%, -8px);
 }
 
-.time-tree-scroll--fullscreen {
+.time-tree-scroll--fullscreen,
+:global(.time-tree-scroll--fullscreen.custom-scrollbar) {
   -ms-overflow-style: none;
-  scrollbar-width: none;
+  scrollbar-width: none !important;
 }
 
-.time-tree-scroll--fullscreen::-webkit-scrollbar {
-  display: none;
-  height: 0;
-  width: 0;
+.time-tree-scroll--fullscreen::-webkit-scrollbar,
+:global(.time-tree-scroll--fullscreen.custom-scrollbar::-webkit-scrollbar) {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  background: transparent !important;
+}
+
+.time-tree-scroll--fullscreen::-webkit-scrollbar-track,
+.time-tree-scroll--fullscreen::-webkit-scrollbar-thumb,
+:global(.time-tree-scroll--fullscreen.custom-scrollbar::-webkit-scrollbar-track),
+:global(.time-tree-scroll--fullscreen.custom-scrollbar::-webkit-scrollbar-thumb) {
+  background: transparent !important;
+  border: 0 !important;
 }
 .protocol-slide-enter-to, .protocol-slide-leave-from {
   opacity: 1;
