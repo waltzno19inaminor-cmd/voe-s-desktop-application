@@ -63,13 +63,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
              variant="basic"
              placement="bottom"
              :title="riskViolationMessage || ''"
+             :disabled="actualRiskPercent === null && actualRR === null"
            >
              <template #trigger>
                <div class="flex gap-8 cursor-default" :class="riskViolationMessage ? 'ring-1 ring-rose-500/30 px-2 -mx-2 py-1 -my-1 rounded-sm' : ''">
                  <div class="flex flex-col">
-                    <span class="text-[7px] font-mono uppercase tracking-[0.3em] font-bold" :class="riskViolationMessage ? 'text-rose-400/80' : 'opacity-40'">Panel_Risk</span>
-                    <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">
-                       {{ activeRiskManagement.riskPerTradeValue ?? '--' }}{{ activeRiskManagement.riskPerTradeUnit }} / {{ activeRiskManagement.riskRewardRatio ? `1:${activeRiskManagement.riskRewardRatio}` : 'RR_--' }}
+                    <span class="text-[7px] font-mono uppercase tracking-[0.3em] font-bold transition-colors" :class="riskViolationMessage ? 'text-rose-400/80' : 'text-white'">Panel_Risk</span>
+                    <span class="text-[12px] font-mono font-bold tabular-nums transition-colors" :class="riskViolationMessage ? 'text-rose-500' : 'text-white'">
+                       {{ actualRiskPercent !== null ? actualRiskPercent.toFixed(2) + '%' : '--%' }} / {{ actualRR !== null ? `1:${actualRR.toFixed(2)}` : 'RR_--' }}
                     </span>
                  </div>
                  <div class="flex flex-col">
@@ -80,23 +81,24 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                  </div>
                </div>
              </template>
-             <div class="flex flex-col gap-2">
+             <div class="flex flex-col gap-2 min-w-[200px]">
+               <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-white/40 mb-1">Protocol Constraints</span>
+               <div v-if="activeRiskManagement.riskRewardRatio" class="flex items-center justify-between gap-6">
+                 <span class="opacity-70 text-[11px]">Required R:R:</span>
+                 <span class="font-black text-[11px] text-white">1 / {{ activeRiskManagement.riskRewardRatio }}</span>
+               </div>
+               <div v-if="activeRiskManagement.riskPerTradeValue" class="flex items-center justify-between gap-6">
+                 <span class="opacity-70 text-[11px]">Max Risk Per Trade:</span>
+                 <span class="font-black text-[11px] text-white">{{ activeRiskManagement.riskPerTradeValue }}{{ activeRiskManagement.riskPerTradeUnit }}</span>
+               </div>
+               <div class="h-px bg-white/10 my-1"></div>
                <div v-if="actualRR !== null" class="flex items-center justify-between gap-6">
-                 <span class="opacity-50 text-[11px]">Your Risk Reward:</span>
+                 <span class="opacity-70 text-[11px]">Actual R:R:</span>
                  <span class="font-black text-[11px]" :class="violatesRR ? 'text-rose-400' : 'text-emerald-400'">1 / {{ actualRR.toFixed(2) }}</span>
                </div>
                <div v-if="actualRiskPercent !== null" class="flex items-center justify-between gap-6">
-                 <span class="opacity-50 text-[11px]">Your Risk Per Trade:</span>
+                 <span class="opacity-70 text-[11px]">Actual Risk:</span>
                  <span class="font-black text-[11px]" :class="violatesRiskPerTrade ? 'text-rose-400' : 'text-emerald-400'">{{ actualRiskPercent.toFixed(2) }}%</span>
-               </div>
-               <div class="h-px bg-white/10 my-1"></div>
-               <div v-if="activeRiskManagement.riskRewardRatio" class="flex items-center justify-between gap-6">
-                 <span class="opacity-40 text-[10px]">Required R:R:</span>
-                 <span class="opacity-70 text-[10px]">1 / {{ activeRiskManagement.riskRewardRatio }}</span>
-               </div>
-               <div v-if="activeRiskManagement.riskPerTradeValue" class="flex items-center justify-between gap-6">
-                 <span class="opacity-40 text-[10px]">Max Risk Per Trade:</span>
-                 <span class="opacity-70 text-[10px]">{{ activeRiskManagement.riskPerTradeValue }}{{ activeRiskManagement.riskPerTradeUnit }}</span>
                </div>
              </div>
            </ExTooltip>

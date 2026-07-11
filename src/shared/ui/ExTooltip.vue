@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
   title: String,
@@ -82,14 +82,53 @@ const props = defineProps({
     type: String,
     default: 'top',
     validator: (v) => ['top', 'bottom'].includes(v)
+  },
+  disabled: {
+    type: Boolean,
+    default: false
   }
 })
 
 const isVisible = ref(false)
 const triggerPos = ref({ x: 0, y: 0, width: 0, height: 0 })
 const triggerRef = ref(null)
+const tooltipRef = ref(null)
+const tooltipSize = ref({ width: 0, height: 0 })
+const viewportSize = ref({
+  width: typeof window !== 'undefined' ? window.innerWidth : 0,
+  height: typeof window !== 'undefined' ? window.innerHeight : 0
+})
 
-const handleMouseEnter = () => {
+const baseTooltipWidth = computed(() => props.variant === 'tactical' ? 600 : 300)
+const tooltipWidth = computed(() => {
+  const margin = 16
+  if (typeof window === 'undefined') return baseTooltipWidth.value
+  return Math.min(baseTooltipWidth.value, Math.max(180, viewportSize.value.width - (margin * 2)))
+})
+
+const measureTooltip = async () => {
+  await nextTick()
+  if (!tooltipRef.value) return
+  const rect = tooltipRef.value.getBoundingClientRect()
+  tooltipSize.value = {
+    width: rect.width || tooltipWidth.value,
+    height: rect.height || tooltipSize.value.height
+  }
+}
+
+const updateViewportSize = () => {
+  if (typeof window === 'undefined') return
+  viewportSize.value = {
+    width: window.innerWidth,
+    height: window.innerHeight
+  }
+  if (isVisible.value) {
+    updateTriggerPosition()
+    measureTooltip()
+  }
+}
+
+const updateTriggerPosition = () => {
   if (triggerRef.value) {
     const rect = triggerRef.value.getBoundingClientRect()
     triggerPos.value = {
@@ -99,7 +138,13 @@ const handleMouseEnter = () => {
       height: rect.height
     }
   }
+}
+
+const handleMouseEnter = () => {
+  if (props.disabled) return
+  updateTriggerPosition()
   isVisible.value = true
+  measureTooltip()
 }
 
 const handleMouseLeave = () => isVisible.value = false

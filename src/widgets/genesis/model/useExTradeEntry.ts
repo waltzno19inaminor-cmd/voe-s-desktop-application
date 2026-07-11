@@ -227,12 +227,18 @@ const activeRiskManagement = computed(() => {
   return resolveRiskManagementForStrategy(allNodes, allConnections, selectedStrategyId.value)
 })
 
-const activeRiskPerTradeDollars = computed(() => {
+const currentCapital = computed(() => {
   const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
+  const historical = tradeStore.getTradesForStrategy(selectedStrategyId.value) || []
+  const totalPnl = historical.reduce((acc, t) => acc + (Number(t.profitInCurrency) || 0), 0)
+  return initialDeposit + totalPnl
+})
+
+const activeRiskPerTradeDollars = computed(() => {
   return riskValueToDollars(
     activeRiskManagement.value.riskPerTradeValue,
     activeRiskManagement.value.riskPerTradeUnit,
-    initialDeposit
+    currentCapital.value
   )
 })
 
@@ -266,9 +272,8 @@ const actualRiskPercent = computed(() => {
   const sl = +stopLoss.value
   const s = +size.value
   if (!e || !sl || !s) return null
-  const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
   const riskInAsset = Math.abs(e - sl) * s
-  return (riskInAsset / initialDeposit) * 100
+  return (riskInAsset / currentCapital.value) * 100
 })
 
 const violatesRR = computed(() => {
@@ -286,8 +291,7 @@ const violatesRiskPerTrade = computed(() => {
   const s = +size.value
   if (!e || !sl || !s) return false
   const riskInAsset = Math.abs(e - sl) * s
-  const initialDeposit = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000
-  const riskLimit = unit === '%' ? (required / 100) * initialDeposit : required
+  const riskLimit = unit === '%' ? (required / 100) * currentCapital.value : required
   return riskInAsset > riskLimit
 })
 
