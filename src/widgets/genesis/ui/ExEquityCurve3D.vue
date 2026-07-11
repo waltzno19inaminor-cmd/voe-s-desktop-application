@@ -230,13 +230,11 @@
             </div>
           </div>
           <div v-else class="flex flex-col">
-            <div class="flex items-center gap-4">
-              <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
-                {{ displayBalance }}
-              </span>
-            </div>
+            <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
+              {{ displayBalance }}
+            </span>
             <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-              REIFIED_BALANCE_SNAPSHOT
+              {{ apiSyncStatusMessage || 'REIFIED_BALANCE_SNAPSHOT' }}
             </span>
           </div>
         </div>
@@ -534,7 +532,63 @@
           </div>
         </button>
 
-        <!-- PURGE DIARY RECORDS -->
+        <!-- WINRATE TARGET MENU BUTTON -->
+        <button v-if="!showMetricsPanel && !showDistribution3D && !showCalendarMode"
+                @click="showWinrateMenu = true"
+                class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
+                :class="showWinrateMenu ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white opacity-60 hover:opacity-100'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
+            {{ isRu ? '[ ВЫБОР_ЦЕЛИ_СИСТЕМЫ ]' : '[ SELECT_SYSTEM_TARGET ]' }}
+          </div>
+        </button>
+
+        <!-- BROKER / EXCHANGE CONNECTORS -->
+        <button v-if="!showMetricsPanel && !showDistribution3D"
+                @click="showBrokerConnectPanel = true"
+                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
+            {{ isRu ? '[ ПОДКЛЮЧИТЬ_БРОКЕР_API ]' : '[ CONNECT_BROKER_API ]' }}
+          </div>
+        </button>
+
+        <!-- SYNC TRADES FROM API -->
+        <button v-if="!showMetricsPanel && !showDistribution3D"
+                @click="syncCurrentStrategyApi"
+                :disabled="isApiSyncing"
+                :title="apiSyncButtonTitle"
+                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-25"
+                :class="isApiSyncing ? 'bg-white/10 opacity-100 border-white/20' : ''">
+          <svg viewBox="0 0 24 24"
+               fill="none"
+               stroke="currentColor"
+               stroke-width="1.5"
+               stroke-linecap="round"
+               stroke-linejoin="round"
+               class="w-4 h-4"
+               :class="isApiSyncing ? 'animate-spin' : ''">
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+            <path d="M3 21v-5h5" />
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+            <path d="M16 8h5V3" />
+          </svg>
+          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
+             {{ isApiSyncing ? (isRu ? '[ СИНХРОНИЗАЦИЯ_СДЕЛОК ]' : '[ SYNCING_TRADES ]') : (isRu ? '[ СИНХРОНИЗИРОВАТЬ_СДЕЛКИ_API ]' : '[ SYNC_TRADES_FROM_API ]') }}
+           </div>
+         </button>
+
+         <!-- PURGE DIARY RECORDS -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
                 @click="showClearConfirmation = true" 
                 class="group relative flex items-center justify-center w-10 h-10 text-red-500/60 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all hover:bg-red-500/5">
