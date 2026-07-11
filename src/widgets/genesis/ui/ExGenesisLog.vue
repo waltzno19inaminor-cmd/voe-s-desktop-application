@@ -161,6 +161,7 @@
               v-else
               key="time-tree-content"
               class="relative min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+              :class="isTimeTreeFullscreen ? 'time-tree-scroll--fullscreen' : ''"
             >
               <div v-if="timeTreeGroups.length" class="relative mx-auto w-full max-w-7xl pb-24 pt-2">
                 <div class="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/15 dark:bg-white/15"></div>
@@ -2748,6 +2749,17 @@ canvas { image-rendering: pixelated; }
 .time-tree-fullscreen-hint-leave-to {
   opacity: 0;
   transform: translate(-50%, -8px);
+}
+
+.time-tree-scroll--fullscreen {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.time-tree-scroll--fullscreen::-webkit-scrollbar {
+  display: none;
+  height: 0;
+  width: 0;
 }
 .protocol-slide-enter-to, .protocol-slide-leave-from {
   opacity: 1;
