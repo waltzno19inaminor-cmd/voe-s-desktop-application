@@ -37,6 +37,30 @@
             <div class="absolute top-0.5 left-0.5 w-1.5 h-1.5 border border-red-500 transition-opacity" :class="colorMode === 'colorful' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
             <div class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-green-500 transition-opacity" :class="colorMode === 'colorful' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
           </button>
+          <button
+            v-if="showFullscreenToggle && activeListViewMode === 'timeTree'"
+            @click="emit('toggle-time-tree-fullscreen')"
+            class="ml-1 flex h-5 w-5 items-center justify-center border border-black/20 opacity-45 transition-all hover:border-black/50 hover:opacity-100 dark:border-white/20 dark:hover:border-white/50"
+            :class="timeTreeFullscreenActive ? 'bg-black text-white opacity-100 dark:bg-[#F9F6F0] dark:text-black' : ''"
+            :title="locale === 'ru' ? 'Полноэкранный TimeTree' : 'Fullscreen TimeTree'"
+            :aria-label="locale === 'ru' ? 'Полноэкранный TimeTree' : 'Fullscreen TimeTree'"
+          >
+            <svg
+              class="h-3.5 w-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="square"
+              stroke-linejoin="miter"
+              aria-hidden="true"
+            >
+              <path d="M8 4H4v4" />
+              <path d="M16 4h4v4" />
+              <path d="M20 16v4h-4" />
+              <path d="M4 16v4h4" />
+            </svg>
+          </button>
         </div>
       </div>
 
@@ -485,16 +509,33 @@ const { locale } = useI18n()
 
 const props = defineProps<{
   trades?: any[]
+  filtersOnly?: boolean
+  hideFilters?: boolean
+  viewMode?: 'list' | 'timeTree'
+  resultDisplayMode?: 'currency' | 'percent'
+  colorMode?: 'monochrome' | 'colorful'
+  showFullscreenToggle?: boolean
+  timeTreeFullscreenActive?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'open-note', payload: { tradeId: string; noteId: string }): void
   (e: 'open-trade', payload: { tradeId: string }): void
+  (e: 'filtered-trades-change', payload: any[]): void
+  (e: 'list-view-mode-change', payload: 'list' | 'timeTree'): void
+  (e: 'display-settings-change', payload: { resultDisplayMode: 'currency' | 'percent'; colorMode: 'monochrome' | 'colorful' }): void
+  (e: 'toggle-time-tree-fullscreen'): void
 }>()
 
+const filtersOnly = computed(() => props.filtersOnly === true)
+const showFilters = computed(() => props.hideFilters !== true)
+const activeListViewMode = computed(() => props.viewMode || 'list')
+const showFullscreenToggle = computed(() => props.showFullscreenToggle === true)
+const timeTreeFullscreenActive = computed(() => props.timeTreeFullscreenActive === true)
+
 const expandedTradeId = ref<string | null>(null)
-const colorMode = ref<'monochrome' | 'colorful'>('monochrome')
-const resultDisplayMode = ref<'currency' | 'percent'>('percent')
+const colorMode = ref<'monochrome' | 'colorful'>(props.colorMode || 'colorful')
+const resultDisplayMode = ref<'currency' | 'percent'>(props.resultDisplayMode || 'percent')
 const openFilterId = ref<string | null>(null)
 const filterBarRef = ref<HTMLElement | null>(null)
 const showHiddenTrades = ref(true)

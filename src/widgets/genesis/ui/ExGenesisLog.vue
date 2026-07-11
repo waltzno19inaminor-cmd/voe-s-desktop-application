@@ -103,19 +103,228 @@
 
       <!-- LIST VIEW LAYER -->
       <div
-        v-if="viewType === 'list'"
+        v-if="viewType === 'list' || viewType === 'timeTree'"
+        class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
+        :class="[
+          showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : '',
+          isTimeTreeFullscreen ? '!fixed !inset-0 !z-[10080]' : ''
+        ]"
+      >
+        <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
+        <Transition name="time-tree-fullscreen-hint">
+          <div
+            v-if="isTimeTreeFullscreen && showTimeTreeFullscreenHint"
+            class="pointer-events-none fixed left-1/2 top-6 z-[10090] -translate-x-1/2 border border-black/10 bg-white/85 px-5 py-2 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-black shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-black/75 dark:text-white"
+          >
+            {{ locale === 'ru' ? 'Чтобы выйти, нажмите ESC' : 'Press ESC to exit' }}
+          </div>
+        </Transition>
+        <div
+          class="relative z-10 flex h-full w-full flex-col"
+          :class="isTimeTreeFullscreen ? 'px-6 py-10 md:px-10 md:py-12' : 'px-8 py-14 md:px-16 md:py-20'"
+        >
+          <div v-if="!isTimeTreeFullscreen" class="mb-5 shrink-0">
+            <ExVerticalTradeList
+              :trades="currentTradesForList"
+              :filters-only="true"
+              :view-mode="viewType === 'list' ? 'list' : 'timeTree'"
+              :result-display-mode="listResultDisplayMode"
+              :color-mode="listColorMode"
+              :show-fullscreen-toggle="viewType === 'timeTree'"
+              :time-tree-fullscreen-active="isTimeTreeFullscreen"
+              @list-view-mode-change="setListViewMode"
+              @display-settings-change="handleListDisplaySettingsChange"
+              @filtered-trades-change="handleTimeTreeFilteredTrades"
+              @toggle-time-tree-fullscreen="enterTimeTreeFullscreen"
+            />
+          </div>
+
+          <Transition name="page-reify" mode="out-in">
+            <div
+              v-if="viewType === 'list'"
+              key="vertical-list-content"
+              class="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 md:px-8"
+            >
+              <ExVerticalTradeList
+                :trades="timeTreeSourceTrades"
+                :hide-filters="true"
+                view-mode="list"
+                :result-display-mode="listResultDisplayMode"
+                :color-mode="listColorMode"
+                @display-settings-change="handleListDisplaySettingsChange"
+                @open-note="handleOpenNote"
+                @open-trade="handleOpenTrade"
+              />
+            </div>
+
+            <div
+              v-else
+              key="time-tree-content"
+              class="relative min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+            >
+              <div v-if="timeTreeGroups.length" class="relative mx-auto w-full max-w-7xl pb-24 pt-2">
+                <div class="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/15 dark:bg-white/15"></div>
+
+                <div
+                  v-for="(group, index) in timeTreeGroups"
+                  :key="group.key"
+                  class="relative grid grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)] items-start gap-y-5 py-4"
+                >
+                  <div
+                    class="relative min-w-0"
+                    :class="group.side === 'left' ? 'col-start-1 pr-6' : 'col-start-3 pl-6'"
+                  >
+                    <div
+                      class="flex flex-col gap-1.5"
+                      :class="group.side === 'left' ? 'items-end text-right' : 'items-start text-left'"
+                    >
+                      <div class="mb-0.5 font-mono uppercase tracking-[0.22em]">
+                        <div class="text-[8px] opacity-45">{{ group.weekday }}</div>
+                        <div class="relative mt-0.5 text-[10px] font-black nier-text-primary">
+                          <div
+                            class="absolute top-1/2 h-px -translate-y-1/2 bg-black/20 dark:bg-white/20"
+                            :class="group.side === 'left' ? 'right-[-32px] w-6' : 'left-[-32px] w-6'"
+                          ></div>
+                          {{ group.label }}
+                        </div>
+                      </div>
+
+                      <button
+                        v-for="trade in group.trades"
+                        :key="trade.id"
+                        class="group/tree-trade w-full max-w-[340px] border nier-border-primary bg-white/60 px-3 py-2 text-left font-mono uppercase backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-black/35 hover:bg-white/90 dark:bg-black/45 dark:hover:border-white/35 dark:hover:bg-black/70"
+                        :class="group.side === 'left' ? 'text-right' : 'text-left'"
+                        @click="handleOpenTrade({ tradeId: trade.id })"
+                      >
+                        <div
+                          class="flex min-w-0 items-center justify-between gap-4"
+                          :class="group.side === 'left' ? 'flex-row-reverse' : ''"
+                        >
+                          <div
+                            class="flex min-w-0 items-center gap-2"
+                            :class="group.side === 'left' ? 'flex-row-reverse text-right' : 'text-left'"
+                          >
+                            <span class="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden border border-black/10 bg-white/80 p-0.5 dark:border-white/10 dark:bg-black/70">
+                              <img
+                                v-if="trade.assetIcon"
+                                :src="trade.assetIcon"
+                                class="h-full w-full object-contain"
+                                alt=""
+                                @error="hideBrokenAssetIcon"
+                              />
+                            </span>
+                            <span class="min-w-0">
+                              <span class="block truncate text-xs font-black tracking-[0.16em] nier-text-primary">{{ trade.asset }}</span>
+                              <span class="mt-1 block text-[9px] tracking-[0.22em] opacity-45">{{ trade.time }}</span>
+                            </span>
+                            <span
+                              class="shrink-0 border px-1.5 py-0.5 text-[7px] font-black tracking-[0.18em]"
+                              :class="trade.side === 'SHORT'
+                                ? 'border-rose-500/30 text-rose-500'
+                                : 'border-emerald-500/30 text-emerald-500'"
+                            >
+                              {{ trade.side }}
+                            </span>
+                          </div>
+                          <div
+                            class="shrink-0 text-base font-black leading-none tracking-[0.12em]"
+                          :style="{ color: trade.resultColor }"
+                          :class="group.side === 'left' ? 'text-left' : 'text-right'"
+                        >
+                            {{ trade.resultLabel }}
+                        </div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="col-start-2 row-start-1 flex justify-center pt-3">
+                    <div class="relative flex h-8 w-8 items-center justify-center border nier-border-primary bg-white/85 font-mono text-[10px] font-black backdrop-blur-xl dark:bg-black/75">
+                      <div class="absolute h-1.5 w-1.5 rotate-45 nier-bg-inverted"></div>
+                      <span class="relative z-10 opacity-0">{{ index + 1 }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div v-else class="flex h-full items-center justify-center">
+                <div class="border border-dashed border-black/20 px-8 py-6 text-center font-mono text-[10px] uppercase tracking-[0.35em] opacity-40 dark:border-white/20">
+                  {{ locale === 'ru' ? 'НЕТ_СДЕЛОК_ДЛЯ_ДЕРЕВА' : 'NO_TRADES_FOR_TREE' }}
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </div>
+
+      <!-- PNL DISTRIBUTION LAYER -->
+      <div
+        v-if="viewType === 'distribution'"
         class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
-         <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
-         <div class="relative z-10 w-full h-full overflow-y-auto custom-scrollbar px-12 md:px-24 py-24 md:py-32">
-           <ExVerticalTradeList :trades="currentTradesForList" @open-note="handleOpenNote" @open-trade="handleOpenTrade" />
-         </div>
+        <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
+        <div class="relative z-10 flex h-full w-full flex-col py-20 md:py-28">
+          <div class="mx-10 mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-black/10 pb-5 dark:border-white/10 md:mx-20">
+            <div class="flex flex-col gap-2">
+              <span class="text-[9px] font-mono uppercase tracking-[0.45em] opacity-40">
+                {{ distributionMetricMode === 'pnl' ? (locale === 'ru' ? 'РАСПРЕДЕЛЕНИЕ_СДЕЛОК' : 'TRADE_DISTRIBUTION') : (locale === 'ru' ? 'РАСПРЕДЕЛЕНИЕ_SCORE' : 'SCORE_DISTRIBUTION') }}
+              </span>
+              <span class="text-xs font-mono uppercase tracking-[0.25em] opacity-70">
+                {{ distributionMetricMode === 'pnl' ? (locale === 'ru' ? 'ОТ МАКСИМАЛЬНОГО УБЫТКА К МАКСИМАЛЬНОЙ ПРИБЫЛИ' : 'MAX LOSS TO MAX PROFIT') : (locale === 'ru' ? 'ОТ МАКСИМАЛЬНОГО SCORE К МИНИМАЛЬНОМУ' : 'MAX SCORE TO MIN SCORE') }}
+              </span>
+            </div>
+            <div class="flex flex-wrap items-end justify-end gap-6">
+              <div class="grid grid-cols-3 gap-5 text-right font-mono uppercase">
+                <div>
+                  <div class="text-[8px] tracking-[0.3em]" :class="distributionMetricMode === 'pnl' ? 'text-rose-500/70' : 'text-white/70'">{{ distributionMetricMode === 'pnl' ? (locale === 'ru' ? 'УБЫТОК' : 'LOSS') : (locale === 'ru' ? 'МАКС' : 'MAX') }}</div>
+                  <div class="mt-1 text-sm font-black" :class="distributionMetricMode === 'pnl' ? 'text-rose-500' : 'nier-text-primary'">{{ formatDistributionValue(distributionMetricMode === 'pnl' ? tradeDistributionStats.min : tradeDistributionStats.max) }}</div>
+                </div>
+                <div>
+                  <div class="text-[8px] tracking-[0.3em] opacity-40">{{ locale === 'ru' ? 'СДЕЛКИ' : 'TRADES' }}</div>
+                  <div class="mt-1 text-sm font-black nier-text-primary">{{ tradeDistributionStats.count }}</div>
+                </div>
+                <div>
+                  <div class="text-[8px] tracking-[0.3em]" :class="distributionMetricMode === 'pnl' ? 'text-white/70' : 'text-rose-500/70'">{{ distributionMetricMode === 'pnl' ? (locale === 'ru' ? 'ПРИБЫЛЬ' : 'PROFIT') : (locale === 'ru' ? 'МИН' : 'MIN') }}</div>
+                  <div class="mt-1 text-sm font-black" :class="distributionMetricMode === 'pnl' ? 'nier-text-primary' : 'nier-text-primary'">{{ formatDistributionValue(distributionMetricMode === 'pnl' ? tradeDistributionStats.max : tradeDistributionStats.min) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="tradeDistributionBars.length" class="relative min-h-0 flex-1">
+            <canvas
+              ref="distributionCanvasRef"
+              class="absolute inset-0 h-full w-full cursor-grab active:cursor-grabbing"
+              @mousedown.stop="handleDistributionMouseDown"
+              @mousemove.stop="handleDistributionMouseMove"
+              @mouseup.stop="handleDistributionMouseUp"
+              @mouseleave.stop="handleDistributionMouseLeave"
+              @wheel.stop="handleDistributionWheel"
+            ></canvas>
+            <div
+              v-if="hoveredDistributionBar"
+              class="pointer-events-none absolute z-20 max-w-[220px] border border-black/10 bg-white px-3 py-2 text-left font-mono text-[9px] uppercase tracking-[0.18em] text-black shadow-xl dark:border-white/10 dark:bg-black dark:text-white"
+              :style="distributionTooltipStyle"
+            >
+              <div class="truncate font-black">{{ hoveredDistributionBar.asset }}</div>
+              <div class="mt-1" :class="distributionMetricMode === 'score' ? 'nier-text-primary' : (hoveredDistributionBar.value < 0 ? 'text-rose-500' : 'nier-text-primary')">
+                {{ formatDistributionValue(hoveredDistributionBar.value, distributionMetricMode === 'score') }}
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="flex flex-1 items-center justify-center">
+            <div class="border border-dashed border-black/20 px-8 py-6 text-center font-mono text-[10px] uppercase tracking-[0.35em] opacity-40 dark:border-white/20">
+              {{ locale === 'ru' ? 'НЕТ_СДЕЛОК_ДЛЯ_ГРАФИКА' : 'NO_TRADES_FOR_CHART' }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- BOTTOM LEFT: VIEW TOGGLE -->
       <div
-        v-if="isHudVisible && !isTradeEntryOpen"
+        v-if="isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen"
         class="absolute bottom-12 left-12 z-[10000] flex flex-col space-y-3 pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
       >
@@ -186,7 +395,7 @@
     <!-- TACTICAL PROTOCOL INSIGHT (FIXED RIGHT - ARCHIVE) -->
     <Teleport to="body">
        <Transition name="panel-slide" mode="out-in">
-          <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen" 
+          <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen && !isTimeTreeFullscreen"
                key="trade-archive-insight"
                class="fixed right-12 top-1/2 -translate-y-1/2 w-[440px] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]">
              
@@ -373,7 +582,7 @@
     </div>
 
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
-    <div v-if="!showNodeMap && isHudVisible && viewType !== 'tree' && !isTradeEntryOpen" class="absolute bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
+    <div v-if="!showNodeMap && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
        
        <!-- The Dropdown Menu -->
 
@@ -688,9 +897,14 @@ const downloadCardPng = async () => {
   }
 }
 
-const viewType = ref<'cube' | 'list' | 'tree'>('cube')
+const viewType = ref<'cube' | 'list' | 'timeTree' | 'distribution'>('cube')
+const listResultDisplayMode = ref<'currency' | 'percent'>('percent')
+const listColorMode = ref<'monochrome' | 'colorful'>('colorful')
+const isTimeTreeFullscreen = ref(false)
+const showTimeTreeFullscreenHint = ref(false)
 const selectedTradeId = ref<string | null>(null)
 const editingTrade = ref<any>(undefined)
+let timeTreeFullscreenHintTimeout: ReturnType<typeof setTimeout> | null = null
 
 const editTrade = (trade: any) => {
   editingTrade.value = trade
@@ -779,7 +993,358 @@ const currentTrades = computed(() => {
 })
 
 const currentTradesForList = computed(() => {
-  return tradeStore.getAllTradesForStrategy(selectedStrategyId.value)
+  return scopeTradesToSelectedVersion(tradeStore.getAllTradesForStrategy(selectedStrategyId.value))
+})
+
+const timeTreeFilteredTrades = ref<any[] | null>(null)
+
+const setListViewMode = (mode: 'list' | 'timeTree') => {
+  viewType.value = mode
+}
+
+const clearTimeTreeFullscreenHintTimer = () => {
+  if (!timeTreeFullscreenHintTimeout) return
+  clearTimeout(timeTreeFullscreenHintTimeout)
+  timeTreeFullscreenHintTimeout = null
+}
+
+const enterTimeTreeFullscreen = () => {
+  if (viewType.value !== 'timeTree') return
+  isTimeTreeFullscreen.value = true
+  showTimeTreeFullscreenHint.value = true
+  clearTimeTreeFullscreenHintTimer()
+  timeTreeFullscreenHintTimeout = setTimeout(() => {
+    showTimeTreeFullscreenHint.value = false
+    timeTreeFullscreenHintTimeout = null
+  }, 4000)
+}
+
+const exitTimeTreeFullscreen = () => {
+  if (!isTimeTreeFullscreen.value) return
+  isTimeTreeFullscreen.value = false
+  showTimeTreeFullscreenHint.value = false
+  clearTimeTreeFullscreenHintTimer()
+}
+
+const handleTimeTreeFullscreenKeydown = (e: KeyboardEvent) => {
+  if (!isTimeTreeFullscreen.value || e.key !== 'Escape') return
+  e.preventDefault()
+  e.stopPropagation()
+  e.stopImmediatePropagation()
+  exitTimeTreeFullscreen()
+}
+
+const handleTimeTreeFilteredTrades = (trades: any[]) => {
+  timeTreeFilteredTrades.value = Array.isArray(trades) ? trades : []
+}
+
+const handleListDisplaySettingsChange = (settings: { resultDisplayMode: 'currency' | 'percent'; colorMode: 'monochrome' | 'colorful' }) => {
+  listResultDisplayMode.value = settings.resultDisplayMode
+  listColorMode.value = settings.colorMode
+}
+
+const timeTreeSourceTrades = computed(() => timeTreeFilteredTrades.value ?? currentTradesForList.value)
+
+const getTradeTimelineTimestamp = (trade: any) => {
+  const rawDate = trade?.date || trade?.dateObj || trade?.createdAt || trade?.dateExit || trade?.dateEntryStr || trade?.dateTime
+  const timestamp = new Date(rawDate).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+const formatTimeTreeDayKey = (timestamp: number) => {
+  const date = new Date(timestamp)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+const formatTimeTreeDayLabel = (timestamp: number) => {
+  const date = new Date(timestamp)
+  return date.toLocaleDateString(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).replace('.', '')
+}
+
+const formatTimeTreeWeekday = (timestamp: number) => {
+  const date = new Date(timestamp)
+  return date.toLocaleDateString(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+    weekday: 'short'
+  }).replace('.', '')
+}
+
+const formatTimeTreeTime = (timestamp: number) => {
+  if (!timestamp) return '--:--'
+  return new Date(timestamp).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+}
+
+const getTimeTreeSide = (side: unknown) => {
+  const normalized = String(side || '').toLowerCase()
+  if (normalized.includes('short') || normalized.includes('sell')) return 'SHORT'
+  return 'LONG'
+}
+
+const formatSignedPercent = (value: number) => {
+  if (!Number.isFinite(value)) return 'NaN%'
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(2)}%`
+}
+
+const getTradeResultPercent = (trade: any) => {
+  const explicitResult = Number(trade?.result)
+  if (Number.isFinite(explicitResult)) return explicitResult
+
+  const pnl = getTradePnlValue(trade)
+  const strategyId = trade?.strategyId || selectedStrategyId.value
+  const deposit = tradeStore.getInitialDeposit(strategyId) || 1000
+  return deposit > 0 ? (pnl / deposit) * 100 : Number.NaN
+}
+
+const normalizeAssetSymbol = (asset: unknown) => String(asset || '').trim().toUpperCase()
+
+const getAssetSymbolVariants = (asset: unknown) => {
+  const symbol = normalizeAssetSymbol(asset)
+  const compact = symbol.replace(/[^A-Z0-9]/g, '')
+  const variants = new Set([symbol, compact])
+
+  if (/^[A-Z]{6}$/.test(compact)) {
+    variants.add(`${compact.slice(0, 3)}/${compact.slice(3)}`)
+  }
+
+  return variants
+}
+
+const resolveTimeTreeAssetIcon = (trade: any) => {
+  const variants = getAssetSymbolVariants(trade?.asset || trade?.symbol || trade?.ticker)
+  const assetData = (globalAssets as any[]).find((asset) => {
+    const symbol = normalizeAssetSymbol(asset?.symbol)
+    const name = normalizeAssetSymbol(asset?.name)
+    const compactSymbol = symbol.replace(/[^A-Z0-9]/g, '')
+    return variants.has(symbol) || variants.has(name) || variants.has(compactSymbol)
+  })
+
+  if (assetData?.icon) return assetData.icon
+
+  const symbol = normalizeAssetSymbol(trade?.asset || trade?.symbol || trade?.ticker)
+  return getIconForAsset(symbol, trade?.assetType || 'Crypto')
+}
+
+const getTimeTreeResultColor = (value: number) => {
+  if (listColorMode.value !== 'colorful') return 'currentColor'
+  if (!Number.isFinite(value) || value === 0) return 'currentColor'
+  const intensity = Math.min(Math.abs(value) / 5, 1)
+  if (value > 0) return `hsl(145 72% ${42 + intensity * 16}%)`
+  return `hsl(350 78% ${48 + intensity * 12}%)`
+}
+
+const formatTimeTreeResult = (percentValue: number, currencyValue: number) => {
+  if (listResultDisplayMode.value === 'currency') return formatDistributionCurrency(currencyValue)
+  return formatSignedPercent(percentValue)
+}
+
+const hideBrokenAssetIcon = (event: Event) => {
+  const image = event.currentTarget as HTMLImageElement | null
+  if (image) image.style.display = 'none'
+}
+
+const timeTreeGroups = computed(() => {
+  const groups = new Map<string, { key: string, timestamp: number, trades: any[] }>()
+
+  timeTreeSourceTrades.value.forEach((trade: any) => {
+    const timestamp = getTradeTimelineTimestamp(trade)
+    if (!timestamp) return
+    const key = formatTimeTreeDayKey(timestamp)
+    if (!groups.has(key)) {
+      groups.set(key, { key, timestamp, trades: [] })
+    }
+    const pnl = getTradePnlValue(trade)
+    const resultValue = getTradeResultPercent(trade)
+    groups.get(key)!.trades.push({
+      id: String(trade?.id || `${key}-${groups.get(key)!.trades.length}`),
+      asset: String(trade?.asset || 'UNKNOWN').toUpperCase(),
+      assetIcon: resolveTimeTreeAssetIcon(trade),
+      side: getTimeTreeSide(trade?.side || trade?.direction),
+      pnl,
+      resultLabel: formatTimeTreeResult(resultValue, pnl),
+      resultColor: getTimeTreeResultColor(listResultDisplayMode.value === 'currency' ? pnl : resultValue),
+      time: formatTimeTreeTime(timestamp),
+      timestamp
+    })
+  })
+
+  return Array.from(groups.values())
+    .sort((left, right) => left.timestamp - right.timestamp)
+    .map((group, index) => ({
+      key: group.key,
+      side: index % 2 === 0 ? 'left' : 'right',
+      label: formatTimeTreeDayLabel(group.timestamp),
+      weekday: formatTimeTreeWeekday(group.timestamp),
+      trades: group.trades.sort((left, right) => left.timestamp - right.timestamp)
+    }))
+})
+
+const patternForecastClosedTradesCount = computed(() => {
+  return currentTrades.value.filter((trade: any) => {
+    return Number.isFinite(new Date(trade?.date).getTime()) &&
+      Number.isFinite(new Date(trade?.dateExit).getTime()) &&
+      Number.isFinite(Number(trade?.profitInCurrency))
+  }).length
+})
+
+const patternForecastIntroStats = computed(() => ({
+  userTrades: patternForecastClosedTradesCount.value,
+  minTrades: PATTERN_FORECAST_LIMITS.minUserTrades,
+  historicalProfiles: PATTERN_FORECAST_LIMITS.historicalProfiles,
+  maxMatches: PATTERN_FORECAST_LIMITS.maxMatches,
+  horizonsLabel: PATTERN_FORECAST_LIMITS.horizons.join('/')
+}))
+
+const getTradePnlValue = (trade: any) => {
+  const raw = trade?.profitInCurrency ?? trade?.pnl ?? trade?.result ?? 0
+  const value = typeof raw === 'string' ? Number.parseFloat(raw) : Number(raw)
+  return Number.isFinite(value) ? value : 0
+}
+
+const distributionMetricMode = ref<'pnl' | 'score'>('pnl')
+
+const formatDistributionCurrency = (value: number) => {
+  const sign = value > 0 ? '+' : ''
+  return `${sign}$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+}
+
+const formatDistributionValue = (value: number, withMetricLabel = false) => {
+  if (distributionMetricMode.value === 'score') {
+    const score = Math.min(Math.max(Math.round(value), 0), 100)
+    return `${withMetricLabel ? 'SCORE ' : ''}${score}%`
+  }
+  return formatDistributionCurrency(value)
+}
+
+const tradeOverallScoreMap = computed(() => {
+  const strategyId = selectedStrategyId.value
+  const deposit = tradeStore.getInitialDeposit(strategyId) || 1000
+  const scoredTrades = currentTrades.value
+    .map((trade) => ({
+      id: String(trade?.id || ''),
+      rawScore: getTradeScore(trade, deposit)
+    }))
+    .filter(item => item.id && Number.isFinite(item.rawScore))
+
+  if (scoredTrades.length === 0) return new Map<string, number>()
+
+  const rawScores = scoredTrades.map(item => item.rawScore).sort((a, b) => a - b)
+
+  return new Map(scoredTrades.map((item) => {
+    const lowerScores = rawScores.filter(score => score < item.rawScore).length
+    const overallScore = Math.round((lowerScores / scoredTrades.length) * 100)
+    return [item.id, Math.min(Math.max(overallScore, 0), 100)]
+  }))
+})
+
+const getTradeOverallScorePercent = (trade: any) => {
+  const id = String(trade?.id || '')
+  if (!id) return 0
+  return tradeOverallScoreMap.value.get(id) ?? 0
+}
+
+const tradeDistributionBars = computed(() => {
+  const getDistributionValue = (trade: any) => {
+    if (distributionMetricMode.value === 'score') {
+      return getTradeOverallScorePercent(trade)
+    }
+    return getTradePnlValue(trade)
+  }
+
+  const sortedTrades = [...filteredTrades.value]
+    .map((trade) => ({
+      trade,
+      pnl: getTradePnlValue(trade),
+      value: getDistributionValue(trade)
+    }))
+    .sort((a, b) => distributionMetricMode.value === 'score' ? b.value - a.value : a.value - b.value)
+
+  const maxAbsValue = Math.max(1, ...sortedTrades.map(item => Math.abs(item.value)))
+
+  return sortedTrades.map((item, index) => {
+    const normalized = distributionMetricMode.value === 'score'
+      ? Math.min(Math.max(item.value / 100, 0), 1)
+      : Math.abs(item.value) / maxAbsValue
+    const height = Math.max(3, normalized * 100)
+    const asset = String(item.trade?.asset || 'UNKNOWN').toUpperCase()
+    return {
+      id: item.trade?.id || `${asset}-${index}`,
+      trade: item.trade,
+      pnl: item.pnl,
+      value: item.value,
+      asset,
+      height,
+      opacity: distributionMetricMode.value === 'score'
+        ? Math.min(1, 0.18 + normalized * 0.72)
+        : Math.min(1, 0.45 + normalized * 0.55),
+      label: `${asset} ${formatDistributionValue(item.value, distributionMetricMode.value === 'score')}`
+    }
+  })
+})
+
+const tradeDistributionStats = computed(() => {
+  const values = tradeDistributionBars.value.map(bar => bar.value)
+  if (!values.length) {
+    return { count: 0, min: 0, max: 0 }
+  }
+  return {
+    count: values.length,
+    min: Math.min(...values),
+    max: Math.max(...values)
+  }
+})
+
+const distributionCanvasRef = ref<HTMLCanvasElement | null>(null)
+const INITIAL_DISTRIBUTION_ROTATION = { x: 0.087, y: 0 }
+const INITIAL_DISTRIBUTION_SCALE = 1.35
+const distributionRotation = ref({ ...INITIAL_DISTRIBUTION_ROTATION })
+const distributionTargetRotation = ref({ ...INITIAL_DISTRIBUTION_ROTATION })
+const distributionScale = ref(INITIAL_DISTRIBUTION_SCALE)
+const isDistributionDragging = ref(false)
+const didDistributionDrag = ref(false)
+const distributionLastMousePos = ref({ x: 0, y: 0 })
+const distributionMousePos = ref({ x: 0, y: 0 })
+const hoveredDistributionBar = ref<any | null>(null)
+const distributionHitAreas: Array<{ bar: any, x1: number, y1: number, x2: number, y2: number, depth: number }> = []
+
+const resetDistributionView = () => {
+  distributionRotation.value = { ...INITIAL_DISTRIBUTION_ROTATION }
+  distributionTargetRotation.value = { ...INITIAL_DISTRIBUTION_ROTATION }
+  distributionScale.value = INITIAL_DISTRIBUTION_SCALE
+  hoveredDistributionBar.value = null
+  isDistributionDragging.value = false
+  didDistributionDrag.value = false
+  distributionHitAreas.length = 0
+}
+
+watch(viewType, (next) => {
+  if (next === 'distribution') resetDistributionView()
+  if (next !== 'timeTree') exitTimeTreeFullscreen()
+})
+
+const distributionTooltipStyle = computed(() => {
+  const canvas = distributionCanvasRef.value
+  const width = canvas?.clientWidth || 260
+  const height = canvas?.clientHeight || 180
+  const left = Math.min(Math.max(distributionMousePos.value.x + 14, 12), Math.max(12, width - 226))
+  const top = Math.min(Math.max(distributionMousePos.value.y - 58, 12), Math.max(12, height - 74))
+  return {
+    left: `${left}px`,
+    top: `${top}px`
+  }
 })
 
 const activeMatrixNodes = computed(() => {
@@ -2145,6 +2710,7 @@ const handleWheel = (e: WheelEvent) => {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.addEventListener('keydown', handleGlobalKeydown)
   loadMatrixData()
   tradeStore.init().then(() => {
@@ -2154,7 +2720,9 @@ onMounted(() => {
   })
 })
 onUnmounted(() => { 
+  window.removeEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.removeEventListener('keydown', handleGlobalKeydown)
+  clearTimeTreeFullscreenHintTimer()
   cancelAnimationFrame(rafId) 
 })
 </script>
@@ -2169,6 +2737,17 @@ canvas { image-rendering: pixelated; }
 .protocol-slide-enter-from, .protocol-slide-leave-to {
   opacity: 0;
   transform: translateY(20px);
+}
+
+.time-tree-fullscreen-hint-enter-active,
+.time-tree-fullscreen-hint-leave-active {
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.time-tree-fullscreen-hint-enter-from,
+.time-tree-fullscreen-hint-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -8px);
 }
 .protocol-slide-enter-to, .protocol-slide-leave-from {
   opacity: 1;
