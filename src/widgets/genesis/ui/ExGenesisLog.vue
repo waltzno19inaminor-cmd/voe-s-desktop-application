@@ -114,9 +114,9 @@
         <Transition name="time-tree-fullscreen-hint">
           <div
             v-if="isTimeTreeFullscreen && showTimeTreeFullscreenHint"
-            class="pointer-events-none fixed left-1/2 top-6 z-[10090] -translate-x-1/2 border border-black/10 bg-white/85 px-5 py-2 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-black shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-black/75 dark:text-white"
+            class="pointer-events-none fixed left-1/2 top-8 z-[10090] w-[min(960px,calc(100vw-48px))] -translate-x-1/2 text-center font-serif text-sm font-normal tracking-[0.18em] text-black/70 dark:text-white/70 md:text-base"
           >
-            {{ locale === 'ru' ? 'Чтобы выйти, нажмите ESC' : 'Press ESC to exit' }}
+            {{ locale === 'ru' ? 'Чтобы выйти из полноэкранного режима TimeTree, нажмите ESC' : 'Press ESC to exit fullscreen TimeTree mode' }}
           </div>
         </Transition>
         <div
