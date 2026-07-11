@@ -44,12 +44,11 @@
            </button>
 
            <!-- Cube Reveal Animation -->
-           <button @click="startCubeRevealAnimation"
-                   class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer disabled:cursor-not-allowed disabled:opacity-25"
+           <button @click="toggleCubeRevealAnimation"
+                   class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer"
                    :class="isCubeRevealAnimating
                             ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]'
                             : 'bg-white/5 dark:bg-black/5 text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'"
-                   :disabled="isCubeRevealAnimating"
                    :title="locale === 'ru' ? 'Запустить анимацию сделок' : 'Run trade reveal animation'">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M5 5v14l12-7z"></path>
@@ -2181,7 +2180,7 @@ const getCubeRevealProgress = (node: TradeNode) => {
 }
 
 const startCubeRevealAnimation = () => {
-  if (viewType.value !== 'cube' || isCubeRevealAnimating.value) return
+  if (viewType.value !== 'cube') return
 
   const pageTradeNodes = chronologicalPathNodes.value
     .filter(node => node.faceIndex === currentFace.value && !node.isNote)
@@ -2197,6 +2196,15 @@ const startCubeRevealAnimation = () => {
   cubeRevealAnimationTimeout = setTimeout(() => {
     clearCubeRevealAnimation()
   }, totalDuration)
+}
+
+const toggleCubeRevealAnimation = () => {
+  if (isCubeRevealAnimating.value) {
+    clearCubeRevealAnimation()
+    return
+  }
+
+  startCubeRevealAnimation()
 }
 
 
