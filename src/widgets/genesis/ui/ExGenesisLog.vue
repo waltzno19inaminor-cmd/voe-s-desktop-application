@@ -630,97 +630,122 @@
           />
           <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar p-6">
             <!-- RISK PER TRADE VIOLATIONS -->
-            <div v-if="activeComplianceMetricKey === 'riskPerTrade'" class="space-y-4">
-              <div v-if="complianceViolations.violatingTrades.length === 0" class="text-center opacity-50 py-10 font-mono text-sm">
+            <div v-if="activeComplianceMetricKey === 'riskPerTrade'" class="flex flex-col font-mono text-xs pt-2 select-none">
+              <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                <div class="w-[15%] flex items-center space-x-3">
+                  <span>Direction</span>
+                </div>
+                <span class="w-[15%]">Asset</span>
+                <span class="w-[22%] text-center">Entry Date</span>
+                <span class="w-[16%] text-right">Realized Loss</span>
+                <span class="w-[16%] text-right">Planned Risk</span>
+                <span class="w-[16%] text-right">Result</span>
+              </div>
+
+              <div v-if="complianceViolations.violatingTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
                 NO RISK_PER_TRADE VIOLATIONS DETECTED
               </div>
-              <div v-else class="space-y-2">
-                <div v-for="trade in complianceViolations.violatingTrades" :key="trade.id" class="w-full bg-white/5 dark:bg-black/20 border border-black/10 dark:border-white/10 p-4 flex flex-wrap items-center justify-between gap-4 transition-all hover:border-red-500/50">
-                  <div class="flex items-center gap-6 min-w-[300px]">
-                    <div class="font-mono text-xs opacity-60 w-24">{{ new Date(trade.date).toLocaleDateString() }}</div>
-                    <div class="font-bold text-sm tracking-wider w-20">{{ trade.asset }}</div>
-                    <div class="font-mono text-xs font-bold w-16" :class="trade.direction === 'LONG' ? 'text-green-500' : 'text-red-500'">{{ trade.direction }}</div>
-                  </div>
-                  <div class="flex items-center gap-8 text-right font-mono text-sm">
-                    <div class="flex flex-col">
-                      <span class="text-[10px] opacity-50 uppercase">Realized Risk</span>
-                      <span :class="trade._realizedLoss > trade._maxRiskDollars ? 'text-red-500' : 'opacity-80'">
-                        {{ trade._realizedLoss > 0 ? '$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+
+              <div v-else class="flex flex-col space-y-3.5 pt-2">
+                <div v-for="trade in complianceViolations.violatingTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div class="w-[15%] flex items-center space-x-3 truncate">
+                      <span
+                        class="w-1 h-1 rounded-full shrink-0"
+                        :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30'"
+                      ></span>
+                      <span class="font-bold uppercase tracking-widest">{{ trade.side || trade.direction || 'N/A' }}</span>
+                    </div>
+                    <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
+                    <div class="w-[22%] flex flex-col items-center min-w-0">
+                      <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
+                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
-                    <div class="flex flex-col">
-                      <span class="text-[10px] opacity-50 uppercase">Planned Risk</span>
-                      <span :class="trade._positionRisk > trade._maxRiskDollars ? 'text-red-500' : 'opacity-80'">
-                        ${{ trade._positionRisk.toFixed(2) }}
-                      </span>
-                    </div>
-                    <div class="flex flex-col w-24">
-                      <span class="text-[10px] opacity-50 uppercase">Result</span>
-                      <span :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
-                        {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+' : '' }}${{ (Number(trade.profitInCurrency) || 0).toFixed(2) }}
-                      </span>
-                    </div>
+                    <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                      {{ trade._realizedLoss > 0 ? '-$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+                    </span>
+                    <span class="w-[16%] text-right tracking-wider truncate" :class="trade._positionRisk > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                      {{ trade._positionRisk > 0 ? '-$' + trade._positionRisk.toFixed(2) : '$0.00' }}
+                    </span>
+                    <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                      {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
             <!-- RISK PER SESSION VIOLATIONS -->
-            <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="space-y-4">
-              <div v-if="complianceViolations.violatingSessions.length === 0" class="text-center opacity-50 py-10 font-mono text-sm">
+            <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="flex flex-col font-mono text-xs pt-2 select-none">
+              <div v-if="complianceViolations.violatingSessions.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
                 NO RISK_PER_SESSION VIOLATIONS DETECTED
               </div>
-              <div v-else class="space-y-4">
+              <div v-else class="flex flex-col space-y-4">
                 <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="w-full">
                   <div 
                     class="bg-white/5 dark:bg-black/20 border border-black/10 dark:border-white/10 p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5"
                     @click="toggleSession(session.date)"
                   >
                     <div class="flex items-center gap-6">
-                      <div class="font-mono text-sm font-bold">{{ session.date }}</div>
-                      <div class="text-xs opacity-60 flex gap-2"><span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded">{{ session.violatingTrades.length }} VIOLATIONS</span></div>
+                      <div class="font-mono text-sm font-bold uppercase tracking-widest">{{ session.date }}</div>
+                      <div class="text-[10px] opacity-60 uppercase tracking-widest flex gap-2"><span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded">{{ session.violatingTrades.length }} VIOLATIONS</span></div>
                     </div>
-                    <div class="flex items-center gap-8 text-right font-mono text-sm">
+                    <div class="flex items-center gap-8 text-right font-mono text-sm uppercase tracking-widest">
                       <div class="flex flex-col">
-                        <span class="text-[10px] opacity-50 uppercase">Realized Risk</span>
-                        <span :class="session.realizedLoss > session._maxSessionRiskDollars ? 'text-red-500' : 'opacity-80'">
-                          ${{ session.realizedLoss.toFixed(2) }}
+                        <span class="text-[9px] opacity-40">Realized Loss</span>
+                        <span :class="session.realizedLoss > session._maxSessionRiskDollars ? 'text-red-500 font-bold' : 'text-green-500 font-bold'">
+                          {{ session.realizedLoss > 0 ? '-$' + session.realizedLoss.toFixed(2) : '$0.00' }}
                         </span>
                       </div>
                       <div class="flex flex-col w-24">
-                        <span class="text-[10px] opacity-50 uppercase">Planned Risk</span>
-                        <span :class="session.positionRisk > session._maxSessionRiskDollars ? 'text-red-500' : 'opacity-80'">
-                          ${{ session.positionRisk.toFixed(2) }}
+                        <span class="text-[9px] opacity-40">Planned Risk</span>
+                        <span :class="session.positionRisk > session._maxSessionRiskDollars ? 'text-red-500 font-bold' : 'text-green-500 font-bold'">
+                          {{ session.positionRisk > 0 ? '-$' + session.positionRisk.toFixed(2) : '$0.00' }}
                         </span>
                       </div>
-                      <div class="w-6 flex justify-center opacity-50">
+                      <div class="w-6 flex justify-center opacity-40">
                         <svg v-if="expandedSessions.has(session.date)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
                         <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                       </div>
                     </div>
                   </div>
                   <!-- Session Violating Trades -->
-                  <div v-if="expandedSessions.has(session.date)" class="pl-8 pr-2 py-2 space-y-2 border-l-2 border-red-500/30 ml-4 mt-2">
-                    <div v-for="trade in session.violatingTrades" :key="trade.id" class="w-full bg-white/5 dark:bg-black/20 border border-black/5 dark:border-white/5 p-3 flex flex-wrap items-center justify-between gap-4">
-                      <div class="flex items-center gap-6 min-w-[200px]">
-                        <div class="font-bold text-sm tracking-wider w-16">{{ trade.asset }}</div>
-                        <div class="font-mono text-xs font-bold w-12" :class="trade.direction === 'LONG' ? 'text-green-500' : 'text-red-500'">{{ trade.direction }}</div>
+                  <div v-if="expandedSessions.has(session.date)" class="my-2 ml-2 pl-6 border-l border-black/20 dark:border-white/20 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
+                    <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                      <div class="w-[15%] flex items-center space-x-3">
+                        <span>Direction</span>
                       </div>
-                      <div class="flex items-center gap-8 text-right font-mono text-xs">
-                        <div class="flex flex-col">
-                          <span class="text-[9px] opacity-50 uppercase">Realized</span>
-                          <span class="opacity-80">${{ trade._realizedLoss > 0 ? trade._realizedLoss.toFixed(2) : '0.00' }}</span>
+                      <span class="w-[15%]">Asset</span>
+                      <span class="w-[22%] text-center">Entry Date</span>
+                      <span class="w-[16%] text-right">Realized Loss</span>
+                      <span class="w-[16%] text-right">Planned Risk</span>
+                      <span class="w-[16%] text-right">Result</span>
+                    </div>
+                    <div v-for="trade in session.violatingTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                      <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div class="w-[15%] flex items-center space-x-3 truncate">
+                          <span
+                            class="w-1 h-1 rounded-full shrink-0"
+                            :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30'"
+                          ></span>
+                          <span class="font-bold uppercase tracking-widest">{{ trade.side || trade.direction || 'N/A' }}</span>
                         </div>
-                        <div class="flex flex-col">
-                          <span class="text-[9px] opacity-50 uppercase">Planned</span>
-                          <span class="opacity-80">${{ trade._positionRisk.toFixed(2) }}</span>
-                        </div>
-                        <div class="flex flex-col w-20">
-                          <span class="text-[9px] opacity-50 uppercase">Result</span>
-                          <span :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
-                            {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+' : '' }}${{ (Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                        <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
+                        <div class="w-[22%] flex flex-col items-center min-w-0">
+                          <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
+                            ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
                           </span>
                         </div>
+                        <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                          {{ trade._realizedLoss > 0 ? '-$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+                        </span>
+                        <span class="w-[16%] text-right tracking-wider truncate" :class="trade._positionRisk > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                          {{ trade._positionRisk > 0 ? '-$' + trade._positionRisk.toFixed(2) : '$0.00' }}
+                        </span>
+                        <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                          {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                        </span>
                       </div>
                     </div>
                   </div>
