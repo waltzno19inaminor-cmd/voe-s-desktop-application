@@ -724,7 +724,14 @@
                             :class="expandedSessions.has(session.date) ? 'bg-[#F9F6F0] dark:bg-black' : 'bg-black dark:bg-[#F9F6F0]'"></span>
                       <span class="font-bold uppercase tracking-widest">{{ locale === 'ru' ? 'СЕССИЯ' : 'SESSION' }}</span>
                     </div>
-                    <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ session.date }}</span>
+                    <div class="w-[15%] flex flex-col min-w-0">
+                      <span class="opacity-60 uppercase tracking-wider truncate">
+                        {{ new Date(session.date).toLocaleDateString(locale === 'ru' ? 'ru-RU' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) }}
+                      </span>
+                      <span class="mt-0.5 text-[9px] opacity-40 uppercase tracking-wider truncate">
+                        {{ locale === 'ru' ? 'МАКС РИСК: $' : 'MAX RISK: $' }}{{ session._maxSessionRiskDollars.toFixed(2) }}
+                      </span>
+                    </div>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded text-[10px] font-bold tracking-widest">
                         {{ session.violatingTrades.length }} {{ locale === 'ru' ? 'НАРУШЕНИЙ' : 'VIOLATIONS' }}
