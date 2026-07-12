@@ -1,0 +1,50 @@
+--- src/widgets/genesis/ui/ExGenesisLog.vue
++++ src/widgets/genesis/ui/ExGenesisLog.vue
+@@ -1876,2 +1876,4 @@
+   const sessionRiskMap: Record<string, { date: string, realizedLoss: number, positionRisk: number, balanceAtStart: number, trades: any[] }> = {};
++  const violatingStyleTrades: any[] = [];
++  const violatingNeuralTrades: any[] = [];
+ 
+@@ -1886,2 +1888,34 @@
+ 
++    // Trading Style
++    let durationMins = 0;
++    if (t.date && t.dateExit) {
++      durationMins = (new Date(t.dateExit).getTime() - new Date(t.date).getTime()) / 60000;
++    }
++    const durationDays = durationMins / 60 / 24;
++    let styleCompliant = true;
++    if (extraType != null && styleLimits[extraType as keyof typeof styleLimits]) {
++      const limit = styleLimits[extraType as keyof typeof styleLimits];
++      if (limit) {
++        if (limit.min !== undefined && durationDays < limit.min) styleCompliant = false;
++        if (limit.max !== undefined && durationDays > limit.max) styleCompliant = false;
++      }
++    }
++    if (!styleCompliant) {
++      violatingStyleTrades.push({ ...t, _expectedStyle: extraType === 0 ? '< 1D' : (extraType === 1 ? '1-14D' : '> 14D') });
++    }
++
++    // Neural Status
++    const emotions = t.emotions || [];
++    if (emotions.length === 0) {
++      violatingNeuralTrades.push({ ...t, _neuralScore: 0, _neuralReason: 'NO EMOTIONS' });
++    } else {
++      let tradeScore = 60;
++      emotions.forEach((e: any) => {
++        const key = (typeof e === 'string' ? e : (e.name || '')).toUpperCase();
++        const weight = EMOTION_WEIGHTS_STABILITY[key as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0;
++        tradeScore += weight;
++      });
++      const finalScore = Math.min(Math.max(Math.round(tradeScore), 0), 100);
++      if (finalScore < 50) violatingNeuralTrades.push({ ...t, _neuralScore: finalScore, _neuralReason: 'SCORE < 50%' });
++    }
++
+     const pnl = Number((t as any).profitInCurrency) || 0;
+@@ -1914,2 +1948,4 @@
+     violatingTrades: violatingTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+-    violatingSessions: violatingSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
++    violatingSessions: violatingSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
++    violatingStyleTrades: violatingStyleTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
++    violatingNeuralTrades: violatingNeuralTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+   };

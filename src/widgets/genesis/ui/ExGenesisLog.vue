@@ -753,8 +753,102 @@
               </div>
             </div>
 
+            <!-- TRADING STYLE VIOLATIONS -->
+            <div v-if="activeComplianceMetricKey === 'tradingStyle'" class="flex flex-col font-mono text-xs pt-2 select-none">
+              <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                <div class="w-[15%] flex items-center space-x-3">
+                  <span>Direction</span>
+                </div>
+                <span class="w-[15%]">Asset</span>
+                <span class="w-[22%] text-center">Entry Date</span>
+                <span class="w-[16%] text-right">Duration</span>
+                <span class="w-[16%] text-right">Expected</span>
+                <span class="w-[16%] text-right">Result</span>
+              </div>
+
+              <div v-if="complianceViolations.violatingStyleTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
+                NO TRADING_STYLE VIOLATIONS DETECTED
+              </div>
+
+              <div v-else class="flex flex-col space-y-3.5 pt-2">
+                <div v-for="trade in complianceViolations.violatingStyleTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div class="w-[15%] flex items-center space-x-3 truncate">
+                      <span
+                        class="w-1 h-1 rounded-full shrink-0"
+                        :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30'"
+                      ></span>
+                      <span class="font-bold uppercase tracking-widest">{{ trade.side || trade.direction || 'N/A' }}</span>
+                    </div>
+                    <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
+                    <div class="w-[22%] flex flex-col items-center min-w-0">
+                      <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
+                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                      </span>
+                    </div>
+                    <span class="w-[16%] opacity-80 font-bold text-red-500 text-right tracking-wider truncate">
+                      {{ trade._durationStr }}
+                    </span>
+                    <span class="w-[16%] opacity-60 text-right tracking-wider truncate">
+                      {{ trade._expectedStyle }}
+                    </span>
+                    <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                      {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- NEURAL STATUS VIOLATIONS -->
+            <div v-if="activeComplianceMetricKey === 'emotionalState'" class="flex flex-col font-mono text-xs pt-2 select-none">
+              <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                <div class="w-[15%] flex items-center space-x-3">
+                  <span>Direction</span>
+                </div>
+                <span class="w-[15%]">Asset</span>
+                <span class="w-[22%] text-center">Entry Date</span>
+                <span class="w-[16%] text-right">Reason</span>
+                <span class="w-[16%] text-right">Score</span>
+                <span class="w-[16%] text-right">Result</span>
+              </div>
+
+              <div v-if="complianceViolations.violatingNeuralTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
+                NO NEURAL_STATUS VIOLATIONS DETECTED
+              </div>
+
+              <div v-else class="flex flex-col space-y-3.5 pt-2">
+                <div v-for="trade in complianceViolations.violatingNeuralTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div class="w-[15%] flex items-center space-x-3 truncate">
+                      <span
+                        class="w-1 h-1 rounded-full shrink-0"
+                        :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30'"
+                      ></span>
+                      <span class="font-bold uppercase tracking-widest">{{ trade.side || trade.direction || 'N/A' }}</span>
+                    </div>
+                    <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
+                    <div class="w-[22%] flex flex-col items-center min-w-0">
+                      <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
+                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                      </span>
+                    </div>
+                    <span class="w-[16%] opacity-60 font-bold text-red-500 text-right tracking-wider truncate">
+                      {{ trade._neuralReason }}
+                    </span>
+                    <span class="w-[16%] opacity-80 font-bold text-red-500 text-right tracking-wider truncate">
+                      {{ trade._neuralScore }}%
+                    </span>
+                    <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                      {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- OTHER METRICS FALLBACK -->
-            <div v-if="activeComplianceMetricKey !== 'riskPerTrade' && activeComplianceMetricKey !== 'riskPerSession'" class="flex items-center justify-center h-full opacity-30 font-mono text-sm uppercase">
+            <div v-if="activeComplianceMetricKey !== 'riskPerTrade' && activeComplianceMetricKey !== 'riskPerSession' && activeComplianceMetricKey !== 'tradingStyle' && activeComplianceMetricKey !== 'emotionalState'" class="flex items-center justify-center h-full opacity-30 font-mono text-sm uppercase">
               SELECT A SECTION ABOVE TO VIEW VIOLATIONS
             </div>
           </div>
@@ -1861,7 +1955,7 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
 
 const complianceViolations = computed(() => {
   const trades = currentTrades.value;
-  if (trades.length === 0) return { violatingTrades: [], violatingSessions: [] };
+  if (trades.length === 0) return { violatingTrades: [], violatingSessions: [], violatingStyleTrades: [], violatingNeuralTrades: [] };
 
   const initDep = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000;
   
@@ -1874,8 +1968,17 @@ const complianceViolations = computed(() => {
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let currentBalance = initDep;
 
+  const styleLimits: Record<number, { max?: number, min?: number }> = {
+    0: { max: 1 },
+    1: { min: 1, max: 14 },
+    2: { min: 14 }
+  };
+  const extraType = activeMatrixNodes.value.tradingStyleExtraType;
+
   const violatingTrades: any[] = [];
   const sessionRiskMap: Record<string, { date: string, realizedLoss: number, positionRisk: number, balanceAtStart: number, trades: any[] }> = {};
+  const violatingStyleTrades: any[] = [];
+  const violatingNeuralTrades: any[] = [];
 
   sortedTrades.forEach(t => {
     const maxRiskDollars = riskValueToDollars(riskVal, riskUnit, currentBalance);
@@ -1888,6 +1991,51 @@ const complianceViolations = computed(() => {
         _positionRisk: risk.positionRisk,
         _maxRiskDollars: maxRiskDollars
       });
+    }
+
+    let durationMins = 0;
+    if (t.date && t.dateExit) {
+      durationMins = (new Date(t.dateExit).getTime() - new Date(t.date).getTime()) / 60000;
+    }
+    const durationDays = durationMins / 60 / 24;
+    let styleCompliant = true;
+    if (extraType != null && styleLimits[extraType as keyof typeof styleLimits]) {
+      const limit = styleLimits[extraType as keyof typeof styleLimits];
+      if (limit) {
+        if (limit.min !== undefined && durationDays < limit.min) styleCompliant = false;
+        if (limit.max !== undefined && durationDays > limit.max) styleCompliant = false;
+      }
+    }
+    if (!styleCompliant) {
+      violatingStyleTrades.push({
+        ...t,
+        _durationStr: (t as any).duration || 'N/A',
+        _expectedStyle: extraType === 0 ? '< 1D (Scalping)' : (extraType === 1 ? '1-14D (Intraday)' : '> 14D (Swing)'),
+      });
+    }
+
+    const emotions = t.emotions || [];
+    if (emotions.length === 0) {
+      violatingNeuralTrades.push({
+        ...t,
+        _neuralScore: 0,
+        _neuralReason: 'NO EMOTIONS',
+      });
+    } else {
+      let tradeScore = 60;
+      emotions.forEach((e: any) => {
+        const key = (typeof e === 'string' ? e : (e.name || '')).toUpperCase();
+        const weight = EMOTION_WEIGHTS_STABILITY[key as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0;
+        tradeScore += weight;
+      });
+      const finalScore = Math.min(Math.max(Math.round(tradeScore), 0), 100);
+      if (finalScore < 50) {
+        violatingNeuralTrades.push({
+          ...t,
+          _neuralScore: finalScore,
+          _neuralReason: 'SCORE < 50%',
+        });
+      }
     }
 
     const pnl = Number((t as any).profitInCurrency) || 0;
@@ -1923,7 +2071,9 @@ const complianceViolations = computed(() => {
 
   return {
     violatingTrades: violatingTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    violatingSessions: violatingSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    violatingSessions: violatingSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    violatingStyleTrades: violatingStyleTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    violatingNeuralTrades: violatingNeuralTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
   };
 });
 
