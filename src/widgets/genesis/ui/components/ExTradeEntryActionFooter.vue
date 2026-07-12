@@ -6,7 +6,7 @@ const emit = defineEmits(['close']);
 const { locale } = useI18n();
 
 
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showEmotionSelector, registrySearchQuery, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
 </script>
 
 <template>
@@ -140,14 +140,38 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 </div>
               </div>
 
-              <div v-else-if="activeSector === 'risk'" :key="'risk'" class="flex items-center gap-10">
-                <div class="flex flex-col gap-0.5 text-left">
-                  <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">Stop_Loss</span>
-                  <input v-model="stopLoss" type="number" placeholder="0.00" class="nier-input w-24 font-mono text-rose-400"/>
-                </div>
-                <div class="flex flex-col gap-0.5 text-left">
-                  <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
-                  <input v-model="takeProfit" type="number" placeholder="0.00" class="nier-input w-24 font-mono text-emerald-400"/>
+              <div v-else-if="activeSector === 'risk'" :key="'risk'" class="flex items-center gap-8">
+                <div class="flex items-center gap-10">
+                  <div class="flex flex-col gap-0.5 text-left">
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">Stop_Loss</span>
+                    <input
+                      v-model="stopLoss"
+                      type="number"
+                      placeholder="0.00"
+                      class="nier-input w-24 font-mono text-rose-400"
+                      :min="side === 'short' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
+                      :max="side === 'long' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
+                      @beforeinput="blockInvalidRiskInput($event, 'stopLoss')"
+                      @paste="blockInvalidRiskPaste($event, 'stopLoss')"
+                      @change="normalizeRiskInputs"
+                      @blur="normalizeRiskInputs"
+                    />
+                  </div>
+                  <div class="flex flex-col gap-0.5 text-left">
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
+                    <input
+                      v-model="takeProfit"
+                      type="number"
+                      placeholder="0.00"
+                      class="nier-input w-24 font-mono text-emerald-400"
+                      :min="side === 'long' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
+                      :max="side === 'short' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
+                      @beforeinput="blockInvalidRiskInput($event, 'takeProfit')"
+                      @paste="blockInvalidRiskPaste($event, 'takeProfit')"
+                      @change="normalizeRiskInputs"
+                      @blur="normalizeRiskInputs"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -204,7 +228,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               </div>
             </div>
 
-            <button @click="submit" :disabled="commitState !== 'idle'" 
+            <button @click="submit" :disabled="commitState !== 'idle'"
                     class="group relative h-9 px-6 bg-white/10 border border-white/30 transition-all duration-300 flex items-center justify-center min-w-[120px]"
                     :class="commitState === 'idle' ? 'hover:bg-white cursor-pointer' : 'cursor-not-allowed'">
               <span v-if="commitState === 'idle'" class="relative z-10 text-[9px] uppercase tracking-[0.5em] font-black text-white group-hover:text-black">

@@ -255,55 +255,6 @@ const activeRiskSnapshot = computed(() => {
   }
 })
 
-// ─── Risk Violation Detection ────────────────────────────────────────────────
-const actualRR = computed(() => {
-  const e = +entry.value
-  const tp = +takeProfit.value
-  const sl = +stopLoss.value
-  if (!e || !tp || !sl || e === sl) return null
-  const reward = Math.abs(tp - e)
-  const risk = Math.abs(e - sl)
-  if (risk === 0) return null
-  return reward / risk
-})
-
-const actualRiskPercent = computed(() => {
-  const e = +entry.value
-  const sl = +stopLoss.value
-  const s = +size.value
-  if (!e || !sl || !s) return null
-  const riskInAsset = Math.abs(e - sl) * s
-  return (riskInAsset / currentCapital.value) * 100
-})
-
-const violatesRR = computed(() => {
-  const required = activeRiskManagement.value.riskRewardRatio
-  if (!required || actualRR.value === null) return false
-  return actualRR.value < required
-})
-
-const violatesRiskPerTrade = computed(() => {
-  const required = activeRiskManagement.value.riskPerTradeValue
-  const unit = activeRiskManagement.value.riskPerTradeUnit
-  if (!required) return false
-  const e = +entry.value
-  const sl = +stopLoss.value
-  const s = +size.value
-  if (!e || !sl || !s) return false
-  const riskInAsset = Math.abs(e - sl) * s
-  const riskLimit = unit === '%' ? (required / 100) * currentCapital.value : required
-  return riskInAsset > riskLimit
-})
-
-const riskViolationMessage = computed(() => {
-  const rrViol = violatesRR.value
-  const rptViol = violatesRiskPerTrade.value
-  if (rrViol && rptViol) return 'YOU VIOLATE BOTH RISK RULES'
-  if (rrViol) return 'YOU VIOLATE RISK REWARD RULE'
-  if (rptViol) return 'YOU VIOLATE RISK PER TRADE RULE'
-  return null
-})
-
 const getReachableNodes = (startId, allNodes, allConnections) => {
   const visited = new Set([startId])
   const queue = [startId]
@@ -1220,6 +1171,208 @@ const isEmotionDisabled = (label) => {
 const stopLoss = ref('')
 const takeProfit = ref('')
 
+const toTradeNumber = (value) => {
+  const parsed = parseFloat(value)
+  return Number.isFinite(parsed) ? parsed : Number.NaN
+}
+
+const toPositiveTradeNumber = (value) => {
+  const parsed = toTradeNumber(value)
+  return parsed > 0 ? parsed : Number.NaN
+}
+
+const tradeEntryPrice = computed(() => {
+  return entryMethodEnabled.value ? averageEntry.value : toPositiveTradeNumber(entry.value)
+})
+
+const tradePositionSize = computed(() => {
+  return totalSize.value
+})
+
+const getDirectionalStopDistance = (entryPrice, stopPrice) => {
+  if (!Number.isFinite(entryPrice) || !Number.isFinite(stopPrice)) return Number.NaN
+  if (side.value === 'short') return stopPrice > entryPrice ? stopPrice - entryPrice : Number.NaN
+  return stopPrice < entryPrice ? entryPrice - stopPrice : Number.NaN
+}
+
+const getDirectionalTargetDistance = (entryPrice, targetPrice) => {
+  if (!Number.isFinite(entryPrice) || !Number.isFinite(targetPrice)) return Number.NaN
+  if (side.value === 'short') return targetPrice < entryPrice ? entryPrice - targetPrice : Number.NaN
+  return targetPrice > entryPrice ? targetPrice - entryPrice : Number.NaN
+}
+
+const calculateGrossPriceMoveDollars = (entryPrice, exitPrice, quantity) => {
+  if (![entryPrice, exitPrice, quantity].every(Number.isFinite) || quantity <= 0) return Number.NaN
+
+  if (isForex.value) {
+    const symbol = asset.value.toUpperCase().replace('/', '')
+    const base = symbol.substring(0, 3)
+    const quote = symbol.substring(3, 6)
+    const isJpy = symbol.includes('JPY')
+    const priceMove = side.value === 'long' ? (exitPrice - entryPrice) : (entryPrice - exitPrice)
+    const pips = isJpy ? priceMove * 100 : priceMove * 10000
+    const pipValue = quantity * 10
+
+    if (quote === 'USD') return pips * pipValue
+    if (isJpy) return (pips * pipValue * 100) / getRate('JPY')
+    if (base === 'USD') return (pips * pipValue) / exitPrice
+
+    const quoteToUsdRate = 1 / getRate(quote)
+    return (pips * pipValue) * quoteToUsdRate
+  }
+
+  const priceMove = side.value === 'long' ? (exitPrice - entryPrice) : (entryPrice - exitPrice)
+  if (currentAssetData.value?.contractSize) {
+    const rawProfit = priceMove * quantity * currentAssetData.value.contractSize
+    const assetCurrency = currentAssetData.value.currency || 'USD'
+    return assetCurrency !== 'USD' ? rawProfit / getRate(assetCurrency) : rawProfit
+  }
+
+  return priceMove * quantity
+}
+
+const riskInputViolationMessage = computed(() => {
+  const e = tradeEntryPrice.value
+  if (!Number.isFinite(e) || e <= 0) return null
+
+  const sl = toPositiveTradeNumber(stopLoss.value)
+  const tp = toPositiveTradeNumber(takeProfit.value)
+  const isRu = locale.value === 'ru'
+
+  if (side.value === 'short') {
+    if (Number.isFinite(sl) && sl <= e) {
+      return isRu ? 'Для SHORT stop loss должен быть выше entry.' : 'For SHORT, stop loss must be above entry.'
+    }
+    if (Number.isFinite(tp) && tp >= e) {
+      return isRu ? 'Для SHORT take profit должен быть ниже entry.' : 'For SHORT, take profit must be below entry.'
+    }
+    return null
+  }
+
+  if (Number.isFinite(sl) && sl >= e) {
+    return isRu ? 'Для LONG stop loss должен быть ниже entry.' : 'For LONG, stop loss must be below entry.'
+  }
+  if (Number.isFinite(tp) && tp <= e) {
+    return isRu ? 'Для LONG take profit должен быть выше entry.' : 'For LONG, take profit must be above entry.'
+  }
+  return null
+})
+
+const hasRiskInputViolation = computed(() => !!riskInputViolationMessage.value)
+
+// ─── Risk Violation Detection ────────────────────────────────────────────────
+const actualRiskDollars = computed(() => {
+  const e = tradeEntryPrice.value
+  const sl = toPositiveTradeNumber(stopLoss.value)
+  const s = tradePositionSize.value
+  const stopDistance = getDirectionalStopDistance(e, sl)
+  if (!Number.isFinite(stopDistance) || !Number.isFinite(s) || s <= 0) return null
+
+  const risk = Math.abs(calculateGrossPriceMoveDollars(e, sl, s))
+  return Number.isFinite(risk) ? risk : null
+})
+
+const actualRiskPercent = computed(() => {
+  if (actualRiskDollars.value === null || currentCapital.value <= 0) return null
+  return (actualRiskDollars.value / currentCapital.value) * 100
+})
+
+const actualRR = computed(() => {
+  const e = tradeEntryPrice.value
+  const tp = toPositiveTradeNumber(takeProfit.value)
+  const sl = toPositiveTradeNumber(stopLoss.value)
+  const reward = getDirectionalTargetDistance(e, tp)
+  const risk = getDirectionalStopDistance(e, sl)
+  if (!Number.isFinite(reward) || !Number.isFinite(risk) || risk === 0) return null
+  return reward / risk
+})
+
+const violatesRR = computed(() => {
+  const required = activeRiskManagement.value.riskRewardRatio
+  if (!required || actualRR.value === null) return false
+  return actualRR.value < required
+})
+
+const violatesRiskPerTrade = computed(() => {
+  const required = activeRiskManagement.value.riskPerTradeValue
+  const unit = activeRiskManagement.value.riskPerTradeUnit
+  if (!required || actualRiskDollars.value === null) return false
+  const riskLimit = unit === '%' ? (required / 100) * currentCapital.value : required
+  return actualRiskDollars.value > riskLimit
+})
+
+const riskViolationMessage = computed(() => {
+  if (riskInputViolationMessage.value) return riskInputViolationMessage.value
+  const rrViol = violatesRR.value
+  const rptViol = violatesRiskPerTrade.value
+  if (rrViol && rptViol) return 'YOU VIOLATE BOTH RISK RULES'
+  if (rrViol) return 'YOU VIOLATE RISK REWARD RULE'
+  if (rptViol) return 'YOU VIOLATE RISK PER TRADE RULE'
+  return null
+})
+
+const normalizeRiskInputs = () => {
+  const e = tradeEntryPrice.value
+  if (!Number.isFinite(e) || e <= 0) return
+
+  const sl = toPositiveTradeNumber(stopLoss.value)
+  const tp = toPositiveTradeNumber(takeProfit.value)
+
+  if (side.value === 'short') {
+    if (Number.isFinite(sl) && sl <= e) stopLoss.value = ''
+    if (Number.isFinite(tp) && tp >= e) takeProfit.value = ''
+    return
+  }
+
+  if (Number.isFinite(sl) && sl >= e) stopLoss.value = ''
+  if (Number.isFinite(tp) && tp <= e) takeProfit.value = ''
+}
+
+watch([side, tradeEntryPrice], normalizeRiskInputs)
+
+const getCandidateInputValue = (event) => {
+  const target = event.target
+  const current = target?.value ?? ''
+  const data = event.data ?? event.clipboardData?.getData('text') ?? ''
+  const start = target?.selectionStart ?? current.length
+  const end = target?.selectionEnd ?? current.length
+  return current.slice(0, start) + data + current.slice(end)
+}
+
+const integerDigitCount = (value) => {
+  const [integerPart = ''] = String(value).replace('-', '').split('.')
+  const normalized = integerPart.replace(/^0+(?=\d)/, '')
+  return normalized.length
+}
+
+const isRiskInputAllowed = (field, rawValue) => {
+  const raw = String(rawValue ?? '').trim()
+  if (raw === '' || raw === '.' || raw === '0.') return true
+
+  const value = toPositiveTradeNumber(raw)
+  const entryPrice = tradeEntryPrice.value
+  if (!Number.isFinite(value) || !Number.isFinite(entryPrice) || entryPrice <= 0) return true
+
+  const needsAboveEntry = (field === 'stopLoss' && side.value === 'short') || (field === 'takeProfit' && side.value === 'long')
+  const isDirectionallyValid = needsAboveEntry ? value > entryPrice : value < entryPrice
+  if (isDirectionallyValid) return true
+
+  const entryDigits = integerDigitCount(Math.floor(Math.abs(entryPrice)))
+  const valueDigits = integerDigitCount(raw)
+  return valueDigits < entryDigits
+}
+
+const blockInvalidRiskInput = (event, field) => {
+  if (event.inputType?.startsWith('delete')) return
+  const nextValue = getCandidateInputValue(event)
+  if (!isRiskInputAllowed(field, nextValue)) event.preventDefault()
+}
+
+const blockInvalidRiskPaste = (event, field) => {
+  const nextValue = getCandidateInputValue(event)
+  if (!isRiskInputAllowed(field, nextValue)) event.preventDefault()
+}
+
 // Time Data
 const openDate = ref(new Date())
 const exitDate = ref(new Date())
@@ -1334,57 +1487,9 @@ const projectedProfit = computed(() => {
   const ex = exitMethodEnabled.value ? averageExit.value : parseFloat(exit.value)
   const sz = exitMethodEnabled.value ? totalExitSize.value : (entryMethodEnabled.value ? totalSize.value : parseFloat(size.value))
   if (isNaN(en) || isNaN(ex) || isNaN(sz)) return null
-  
-  let finalProfit = 0
-  
-  if (isForex.value) {
-    const symbol = asset.value.toUpperCase().replace('/', '')
-    const base = symbol.substring(0, 3)
-    const quote = symbol.substring(3, 6)
-    const isJpy = symbol.includes('JPY')
-    
-    // 1. price_move
-    const price_move = side.value === 'long' ? (ex - en) : (en - ex)
-    
-    // 2. pips calculation (100 for JPY, 10000 for standard)
-    const pips = isJpy ? price_move * 100 : price_move * 10000
-    
-    // 3. pip_value (base standard: 0.01 lot = 0.1)
-    const pip_value = sz * 10
-    
-    // 4. profit calculation
-    if (quote === 'USD') {
-      finalProfit = pips * pip_value
-    } else if (isJpy) {
-      const usdJpyRate = getRate('JPY')
-      finalProfit = (pips * pip_value * 100) / usdJpyRate
-    } else if (base === 'USD') {
-      finalProfit = (pips * pip_value) / ex
-    } else {
-      const quoteToUsdRate = 1 / getRate(quote)
-      finalProfit = (pips * pip_value) * quoteToUsdRate
-    }
-  } else {
-    // Non-forex
-    const price_move = side.value === 'long' ? (ex - en) : (en - ex)
-    
-    if (currentAssetData.value?.contractSize) {
-      const size_multiplier = currentAssetData.value.contractSize
-      const raw_profit = price_move * sz * size_multiplier
-      
-      // Currency conversion to USD
-      const assetCurrency = currentAssetData.value.currency || 'USD'
-      if (assetCurrency !== 'USD') {
-        const rate = getRate(assetCurrency)
-        finalProfit = raw_profit / rate
-      } else {
-        finalProfit = raw_profit
-      }
-    } else {
-      // Fallback for assets without metadata
-      finalProfit = price_move * sz
-    }
-  }
+
+  const finalProfit = calculateGrossPriceMoveDollars(en, ex, sz)
+  if (!Number.isFinite(finalProfit)) return null
 
   // Deduct Fees
   let eFee = +entryFee.value || 0
@@ -1529,6 +1634,11 @@ const submit = async () => {
   const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
 
   if (!finalEntry || !finalExit || !finalSize) return
+  if (riskInputViolationMessage.value) {
+    normalizeRiskInputs()
+    activeSector.value = 'risk'
+    return
+  }
   if (commitState.value !== 'idle') return
   
   const findActiveScenario = (scenarios) => {
@@ -1744,8 +1854,8 @@ const submit = async () => {
     profitInCurrency: pnl.value,
     assetType: currentAssetData.value?.type || 'Forex',
     strategyId: selectedStrategyId.value,
-    risk: Number.isFinite(activeRiskPerTradeDollars.value) ? activeRiskPerTradeDollars.value : undefined,
-    riskReward: plannedRiskReward,
+    risk: actualRiskDollars.value !== null ? actualRiskDollars.value : undefined,
+    riskReward: actualRR.value ?? plannedRiskReward,
     tradingStyle: activeRiskManagement.value.tradingStyle || undefined,
     riskManagement: activeRiskSnapshot.value || undefined,
     entryFee: +entryFee.value || 0,
@@ -1823,10 +1933,16 @@ const submit = async () => {
     activeRiskPerTradeDollars,
     activeRiskSnapshot,
     actualRR,
+    actualRiskDollars,
     actualRiskPercent,
     violatesRR,
     violatesRiskPerTrade,
     riskViolationMessage,
+    riskInputViolationMessage,
+    hasRiskInputViolation,
+    normalizeRiskInputs,
+    blockInvalidRiskInput,
+    blockInvalidRiskPaste,
     getReachableNodes,
     getNodeZoneType,
     showStrategyMenu,
