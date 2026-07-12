@@ -473,11 +473,21 @@
                       <span class="text-2xl font-black opacity-20 font-mono nier-text-primary uppercase">{{ selectedTrade?.asset?.slice(0, 2) }}</span>
                     </div>
                    <div class="flex flex-col">
-                     <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.5em] nier-text-primary">{{ t('genesis.virtualLog.assetIdentifier') }}</span>
                      <h3 class="text-3xl font-light font-serif tracking-[0.2em] uppercase nier-text-primary mt-1 leading-none">
                        {{ selectedTrade?.asset }}
                      </h3>
                    </div>
+                 </div>
+                 
+                 <div v-if="selectedTrade" class="flex items-baseline space-x-3">
+                   <span class="text-4xl font-bold font-mono tracking-tighter bg-clip-text text-transparent"
+                         :class="(Number(selectedTrade.profitInCurrency) || 0) >= 0 ? 'bg-gradient-to-br from-green-500 to-green-300 dark:from-green-400 dark:to-green-600' : 'bg-gradient-to-br from-red-500 to-red-300 dark:from-red-400 dark:to-red-600'">
+                     {{ (Number(selectedTrade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(selectedTrade.profitInCurrency) || 0).toFixed(2) }}
+                   </span>
+                   <span class="text-xl font-bold font-mono tracking-widest opacity-80"
+                         :class="(Number(selectedTrade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                     {{ (Number(selectedTrade.profitInCurrency) || 0) >= 0 ? '+' : '' }}{{ (((Number(selectedTrade.profitInCurrency) || 0) / Math.max(1, selectedTradeBalanceBefore)) * 100).toFixed(3) }}%
+                   </span>
                  </div>
                   <div class="h-px w-full bg-gradient-to-r from-black/10 via-transparent to-transparent dark:from-white/10"></div>
 
@@ -2570,6 +2580,34 @@ const selectedTrade = computed(() => {
     currentTradesForList.value.find(t => t.id === selectedTradeId.value) ||
     null
 })
+
+const toCashPnl = (trade: any) => {
+  const val = Number(trade?.profitInCurrency ?? trade?.pnl ?? 0);
+  return Number.isFinite(val) ? val : 0;
+};
+
+const selectedTradeBalanceBefore = computed(() => {
+  if (!selectedTrade.value) return 1000;
+  
+  const strategyId = selectedTrade.value.strategyId || selectedStrategyId.value;
+  const currentEntryTs = new Date(selectedTrade.value.date || (selectedTrade.value as any).entryTime || selectedTrade.value.dateExit || Date.now()).getTime();
+  const currentTradeId = selectedTrade.value.id;
+  const startBalance = tradeStore.getInitialDeposit(strategyId) || 1000;
+  
+  const priorTrades = currentTrades.value
+    .filter((trade: any) => {
+      if (currentTradeId && trade?.id === currentTradeId) return false;
+      const tradeExitTs = new Date(trade?.dateExit || trade?.date || 0).getTime();
+      return tradeExitTs > 0 && tradeExitTs < currentEntryTs;
+    })
+    .sort((a: any, b: any) => {
+      const aTs = new Date(a?.dateExit || a?.date || 0).getTime();
+      const bTs = new Date(b?.dateExit || b?.date || 0).getTime();
+      return aTs - bTs;
+    });
+    
+  return priorTrades.reduce((balance: number, trade: any) => balance + toCashPnl(trade), startBalance);
+});
 
 watch(selectedTradeId, () => {
   imageLoadError.value = false
