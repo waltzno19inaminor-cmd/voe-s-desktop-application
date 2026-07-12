@@ -1439,7 +1439,7 @@ const strategyExecutionMetrics = computed(() => {
     }
   }
   const maxRisk = riskBudgetDollars ?? 250;
-  const riskBudgetRatio = maxRisk > 0 ? Math.min(200, (actualRisk / maxRisk) * 100) : 0;
+  const riskBudgetRatio = maxRisk > 0 ? (actualRisk / maxRisk) * 100 : 0;
   const riskBudgetBudgetStr = riskBudgetDollars !== null
     ? (maxRiskTrade.value!.unit === '%'
       ? (isRu
