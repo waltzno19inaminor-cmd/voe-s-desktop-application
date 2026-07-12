@@ -11,6 +11,7 @@ export interface Execution {
     price: number;
     size: number;
     date: Date;
+    timeZone?: string;
     label?: string;
 }
 
@@ -18,6 +19,7 @@ export interface DiaryEntry {
     id?: string;
     date: Date;
     dateExit?: Date;
+    timeZone?: string;
     asset?: string;
     side?: 'Long' | 'Short';
     entry?: number;

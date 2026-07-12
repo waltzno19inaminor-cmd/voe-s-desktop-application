@@ -371,6 +371,7 @@ onMounted(() => {
     feeType.value = t.feeType || '%'
     stopLoss.value = t.stopLoss || ''
     takeProfit.value = t.takeProfit || ''
+    tradeTimeZone.value = t.timeZone || t.timezone || detectUserTimeZone()
     openDate.value = t.date ? new Date(t.date) : new Date()
     exitDate.value = t.dateExit ? new Date(t.dateExit) : new Date()
     selectedEmotions.value = Array.isArray(t.emotions) ? [...t.emotions] : []
@@ -1374,6 +1375,57 @@ const blockInvalidRiskPaste = (event, field) => {
 }
 
 // Time Data
+const detectUserTimeZone = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch (e) {
+    return 'UTC'
+  }
+}
+
+const FALLBACK_TIME_ZONES = [
+  'UTC',
+  'Europe/London',
+  'Europe/Podgorica',
+  'Europe/Berlin',
+  'Europe/Moscow',
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Asia/Dubai',
+  'Asia/Singapore',
+  'Asia/Tokyo',
+  'Australia/Sydney'
+]
+
+const supportedTimeZones = computed(() => {
+  let zones = FALLBACK_TIME_ZONES
+  try {
+    if (typeof Intl.supportedValuesOf === 'function') {
+      zones = Intl.supportedValuesOf('timeZone')
+    }
+  } catch (e) {}
+
+  return Array.from(new Set([detectUserTimeZone(), ...zones])).sort()
+})
+
+const getTimeZoneOffsetLabel = (timeZone) => {
+  const zone = String(timeZone || '').trim()
+  if (!zone) return ''
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      timeZoneName: 'shortOffset'
+    }).formatToParts(new Date())
+    return parts.find(part => part.type === 'timeZoneName')?.value || ''
+  } catch (e) {
+    return ''
+  }
+}
+
+const tradeTimeZone = ref(detectUserTimeZone())
+const tradeTimeZoneOffset = computed(() => getTimeZoneOffsetLabel(tradeTimeZone.value))
 const openDate = ref(new Date())
 const exitDate = ref(new Date())
 
@@ -1611,6 +1663,7 @@ const resetForm = () => {
   journalEntries.value = []
   openDate.value = new Date()
   exitDate.value = new Date()
+  tradeTimeZone.value = detectUserTimeZone()
   overridePnl.value = null
   selectedRegistryScenarioId.value = null
   showEntryMethod.value = false
@@ -1631,6 +1684,7 @@ const submit = async () => {
   const finalSize = totalSize.value
   const committedOpenDate = cloneDate(openDate.value)
   const committedExitDate = cloneDate(exitDate.value)
+  const committedTimeZone = String(tradeTimeZone.value || detectUserTimeZone()).trim() || detectUserTimeZone()
   const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
 
   if (!finalEntry || !finalExit || !finalSize) return
@@ -1797,6 +1851,7 @@ const submit = async () => {
            price: parseFloat(e.price) || 0,
            size: parseFloat(e.size) || 0,
            date: cloneDate(committedOpenDate),
+           timeZone: committedTimeZone,
            label: entryMethodType.value
          })
        }
@@ -1809,6 +1864,7 @@ const submit = async () => {
          price: parseFloat(entry.value) || 0,
          size: parseFloat(size.value) || 0,
          date: cloneDate(committedOpenDate),
+         timeZone: committedTimeZone,
          label: 'SINGLE'
     })
   }
@@ -1823,6 +1879,7 @@ const submit = async () => {
            price: parseFloat(e.price) || 0,
            size: parseFloat(e.size) || 0,
            date: cloneDate(committedExitDate),
+           timeZone: committedTimeZone,
            label: 'EXIT_SCALE'
          })
        }
@@ -1835,6 +1892,7 @@ const submit = async () => {
          price: parseFloat(exit.value) || 0,
          size: parseFloat(size.value) || 0,
          date: cloneDate(committedExitDate),
+         timeZone: committedTimeZone,
          label: 'SINGLE'
     })
   }
@@ -1847,6 +1905,7 @@ const submit = async () => {
     exit: exitMethodEnabled.value ? averageExit.value : +exit.value,
     size: totalSize.value,
     executions: builtExecutions,
+    timeZone: committedTimeZone,
     stopLoss: +stopLoss.value,
     takeProfit: +takeProfit.value,
     date: cloneDate(committedOpenDate),
@@ -2035,6 +2094,9 @@ const submit = async () => {
     takeProfit,
     openDate,
     exitDate,
+    tradeTimeZone,
+    supportedTimeZones,
+    tradeTimeZoneOffset,
     cloneDate,
     adjustDate,
     formatPart,

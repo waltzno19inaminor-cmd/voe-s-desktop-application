@@ -499,6 +499,14 @@
                       <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') }}</span>
                     </div>
 
+                    <!-- TIME ZONE -->
+                    <div v-if="selectedTradeTimeZone" class="col-span-2 flex items-center justify-between border-y border-black/5 py-3 dark:border-white/5">
+                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'ЧАСОВОЙ_ПОЯС' : 'TIME_ZONE' }}</span>
+                      <span class="max-w-[240px] truncate text-right text-[10px] font-mono font-black uppercase tracking-[0.22em] nier-text-primary">
+                        {{ formatTradeTimeZone(selectedTrade) }}
+                      </span>
+                    </div>
+
                     <!-- RISK MANAGEMENT -->
                     <div class="flex flex-col pt-4 border-t border-black/5 dark:border-white/5">
                       <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.riskExposure') }}</span>
@@ -1183,6 +1191,34 @@ const formatFullDate = (d: any) => {
     hour12: false
   })
   return `${datePart}\n${timePart}`
+}
+
+const getTradeTimeZone = (trade: any) => {
+  return String(trade?.timeZone || trade?.timezone || '').trim()
+}
+
+const getTimeZoneOffsetLabel = (timeZone: string, dateLike?: any) => {
+  const zone = String(timeZone || '').trim()
+  if (!zone) return ''
+  try {
+    const date = dateLike ? new Date(dateLike) : new Date()
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      timeZoneName: 'shortOffset'
+    }).formatToParts(Number.isNaN(date.getTime()) ? new Date() : date)
+    return parts.find(part => part.type === 'timeZoneName')?.value || ''
+  } catch (e) {
+    return ''
+  }
+}
+
+const selectedTradeTimeZone = computed(() => getTradeTimeZone(selectedTrade.value))
+
+const formatTradeTimeZone = (trade: any) => {
+  const zone = getTradeTimeZone(trade)
+  if (!zone) return ''
+  const offset = getTimeZoneOffsetLabel(zone, trade?.date || trade?.dateExit)
+  return offset ? `${zone} (${offset})` : zone
 }
 
 const formatFullPrice = (value: unknown) => {

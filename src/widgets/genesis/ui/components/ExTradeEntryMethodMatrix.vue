@@ -1,12 +1,47 @@
 <script setup>
 
-import { inject } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useI18n } from '~/shared/i18n/useI18n';
 const emit = defineEmits(['close']);
 const { locale } = useI18n();
 
 import ExPanel from '~/shared/ui/ExPanel.vue';
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showEmotionSelector, registrySearchQuery, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, tradeTimeZone, supportedTimeZones, tradeTimeZoneOffset, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+const timeZoneMenuOpen = ref(false);
+const timeZoneSearch = ref('');
+
+const filteredTimeZones = computed(() => {
+  const query = timeZoneSearch.value.trim().toLowerCase();
+  const zones = supportedTimeZones?.value || [];
+  if (!query) return zones.slice(0, 80);
+  return zones.filter(zone => zone.toLowerCase().includes(query)).slice(0, 80);
+});
+
+const openTimeZoneMenu = () => {
+  timeZoneSearch.value = tradeTimeZone.value || '';
+  timeZoneMenuOpen.value = true;
+};
+
+const closeTimeZoneMenu = () => {
+  window.setTimeout(() => {
+    timeZoneMenuOpen.value = false;
+  }, 120);
+};
+
+const updateTimeZoneSearch = () => {
+  tradeTimeZone.value = timeZoneSearch.value;
+  timeZoneMenuOpen.value = true;
+};
+
+const selectTimeZone = (zone) => {
+  tradeTimeZone.value = zone;
+  timeZoneSearch.value = zone;
+  timeZoneMenuOpen.value = false;
+};
+
+watch(tradeTimeZone, (zone) => {
+  if (!timeZoneMenuOpen.value) timeZoneSearch.value = zone || '';
+}, { immediate: true });
 </script>
 
 <template>
@@ -176,6 +211,58 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
 
             <div class="grid grid-cols-2 divide-x divide-black/5 dark:divide-white/5 h-[450px] nier-text-primary">
               <div class="flex flex-col p-10 gap-8">
+                <div class="flex flex-col gap-2">
+                  <span class="text-[9px] uppercase tracking-widest text-black/40 dark:text-white/20">{{ locale === 'ru' ? 'Часовой_пояс' : 'Time_Zone' }}</span>
+                  <div class="relative" @click.stop>
+                    <input v-model="timeZoneSearch"
+                           spellcheck="false"
+                           autocomplete="off"
+                           @focus="openTimeZoneMenu"
+                           @input="updateTimeZoneSearch"
+                           @keydown.escape.prevent="timeZoneMenuOpen = false"
+                           @blur="closeTimeZoneMenu"
+                           class="w-full border border-black/20 bg-transparent px-3 py-3 pr-24 font-mono text-[10px] font-bold uppercase tracking-[0.22em] outline-none transition-all nier-text-primary placeholder:text-black/20 focus:border-black/40 dark:border-white/20 dark:placeholder:text-white/20 dark:focus:border-white/40" />
+                    <span v-if="tradeTimeZoneOffset"
+                          class="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 font-mono text-[8px] font-black uppercase tracking-[0.18em] text-black/35 dark:text-white/35">
+                      {{ tradeTimeZoneOffset }}
+                    </span>
+                    <button type="button"
+                            @mousedown.prevent
+                            @click="timeZoneMenuOpen = !timeZoneMenuOpen"
+                            class="absolute right-2 top-1/2 flex h-5 w-5 -translate-y-1/2 items-center justify-center text-black/35 transition-colors hover:text-black dark:text-white/35 dark:hover:text-white"
+                            :title="locale === 'ru' ? 'Открыть список часовых поясов' : 'Open time zone list'">
+                      <svg class="h-3 w-3 transition-transform" :class="timeZoneMenuOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+
+                    <Transition name="nier-fade">
+                      <div v-if="timeZoneMenuOpen"
+                           class="absolute left-0 top-[calc(100%+8px)] z-[2200] w-full border border-black/20 bg-[#f4f1ea] shadow-[10px_10px_0_0_rgba(0,0,0,0.12)] dark:border-white/20 dark:bg-[#090909] dark:shadow-[10px_10px_0_0_rgba(0,0,0,0.45)]">
+                        <div class="max-h-48 overflow-y-auto custom-scrollbar py-1">
+                          <button v-for="zone in filteredTimeZones"
+                                  :key="zone"
+                                  type="button"
+                                  @mousedown.prevent="selectTimeZone(zone)"
+                                  class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left font-mono text-[9px] font-bold uppercase tracking-[0.18em] transition-colors hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
+                                  :class="tradeTimeZone === zone ? 'bg-black/10 dark:bg-white/10 nier-text-primary' : 'text-black/55 dark:text-white/55'">
+                            <span class="truncate">{{ zone }}</span>
+                            <span v-if="tradeTimeZone === zone" class="h-1.5 w-1.5 shrink-0 bg-current"></span>
+                          </button>
+
+                          <div v-if="filteredTimeZones.length === 0"
+                               class="px-3 py-4 text-center font-mono text-[8px] font-bold uppercase tracking-[0.28em] text-black/30 dark:text-white/30">
+                            {{ locale === 'ru' ? 'Ничего не найдено' : 'No matches' }}
+                          </div>
+                        </div>
+                      </div>
+                    </Transition>
+                  </div>
+                  <span class="text-[7px] uppercase tracking-[0.3em] text-black/30 dark:text-white/20">
+                    {{ locale === 'ru' ? 'Будет сохранён в данных сделки' : 'Saved_into_trade_data' }}
+                  </span>
+                </div>
+
                 <div class="flex flex-col gap-2">
                   <span class="text-[9px] uppercase tracking-widest text-black/40 dark:text-white/20">Active_Target</span>
                   <div class="flex gap-2">
