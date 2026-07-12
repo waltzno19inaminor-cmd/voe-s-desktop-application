@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, onMounted, watch } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExPanel from "~/shared/ui/ExPanel.vue"
@@ -12,6 +12,13 @@ import ExImageEditor from './ExImageEditor.vue'
 import ExEfficiencyLattice from "~/shared/ui/ExEfficiencyLattice.vue"
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import { useI18n } from '~/shared/i18n/useI18n'
+import { resolveRiskManagementForStrategy } from '~/widgets/genesis/model/riskManagement'
+import { tradeMatchesProtocol } from '~/shared/utils/scenarioConditionScope'
+import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
+import {
+  filterTradesBySelectedStrategyVersion,
+  getSelectedStrategyVersionSnapshot
+} from '~/shared/utils/strategyVersionScope'
 
 interface Condition {
   id: string;
@@ -87,8 +94,48 @@ useDomI18n(analysisPanelRoot, 'genesis.dom', { includeBody: true });
 const { locale } = useI18n();
 
 const tradeStore = useStrategyTradesStore();
-const matrixNodes = shallowRef<any[]>([]);
-const matrixConnections = shallowRef<any[]>([]);
+const {
+  nodes: matrixStateNodes,
+  connections: matrixStateConnections,
+  strategyVersions,
+  selectedStrategyVersionId,
+  ensureMatrixDataRestored
+} = useMatrixState();
+
+const selectedMatrixSnapshot = computed(() => {
+  return getSelectedStrategyVersionSnapshot(strategyVersions.value || [], selectedStrategyVersionId.value);
+});
+
+const matrixNodes = computed(() => {
+  const allNodes: any[] = [];
+  const flatten = (nodes: any[]) => {
+    nodes.forEach(node => {
+      allNodes.push(node);
+      if (node.subGraph?.nodes) flatten(node.subGraph.nodes);
+    });
+  };
+
+  flatten(selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || []);
+  return allNodes;
+});
+
+const matrixConnections = computed(() => {
+  const allConnections: any[] = [];
+  const flatten = (nodes: any[], connections: any[]) => {
+    allConnections.push(...connections);
+    nodes.forEach(node => {
+      if (node.subGraph) {
+        flatten(node.subGraph.nodes || [], node.subGraph.connections || []);
+      }
+    });
+  };
+
+  flatten(
+    selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || [],
+    selectedMatrixSnapshot.value?.connections || matrixStateConnections.value || []
+  );
+  return allConnections;
+});
 
 const showEmotionSelector = ref(false);
 const selectedEmotions = ref<string[]>([]);
@@ -503,14 +550,16 @@ watch(() => props.trade?.id, () => {
   syncNotes();
 }, { immediate: true });
 
-const loadMatrixData = async () => {
-  matrixNodes.value = [];
-  matrixConnections.value = [];
-};
-
 const allTrades = computed(() => {
   if (!props.trade?.strategyId) return [];
-  return tradeStore.getTradesForStrategy(props.trade.strategyId);
+  const trades = tradeStore.getTradesForStrategy(props.trade.strategyId);
+  if (props.trade.strategyId === 'MAIN_DIARY') return trades;
+
+  return filterTradesBySelectedStrategyVersion(
+    trades,
+    strategyVersions.value || [],
+    selectedStrategyVersionId.value
+  );
 });
 
 const getNormalizedPnl = (tr: any) => {
@@ -539,13 +588,7 @@ const percentileRank = computed(() => {
 });
 
 const resolvedRiskManagement = computed(() => {
-  return {
-    tradingStyle: '',
-    tradingStyleExtraType: null,
-    riskPerTradeValue: undefined,
-    riskPerTradeUnit: '%',
-    riskRewardRatio: null as number | null
-  };
+  return resolveRiskManagementForStrategy(matrixNodes.value, matrixConnections.value, props.trade?.strategyId);
 });
 
 const resolvedStyleNode = computed(() => {
@@ -595,25 +638,10 @@ const calcPF = (tradeList: any[]) => {
   return gLoss === 0 ? (gProf > 0 ? 99.9 : 0) : gProf / gLoss;
 };
 
-const calcStats = (trades: any[], id: string) => {
+const calcStats = (trades: any[], id: string, scenarioId?: string | null) => {
   if (trades.length === 0) return { freq: 0, pf: 1.0 };
 
-  const presentIn = trades.filter(tr => {
-    const te = tr as any;
-    return te.boardScenarioEntry?.id === id ||
-           te.boardScenarioExit?.id === id ||
-           te.boardScenarioEntryId === id ||
-           te.boardScenarioExitId === id ||
-           te.boardConditions?.some((c: any) => (typeof c === 'string' ? c === id : c.id === id)) ||
-           te.boardScenarioEntry?.info?.conditions?.some((c: any) => c.id === id) ||
-           te.boardScenarioExit?.info?.conditions?.some((c: any) => c.id === id) ||
-           // Also check props.trade style structures (scenarios array)
-           te.scenarios?.some((s: any) => s.id === id || s.conditions?.some((c: any) => c.id === id)) ||
-           te.emotions?.includes(id) ||
-           te.emotionsEntry?.includes(id) ||
-           te.emotionsDuring?.includes(id) ||
-           te.emotionsExit?.includes(id);
-  });
+  const presentIn = trades.filter(tr => tradeMatchesProtocol(tr, id, scenarioId));
 
   const freq = presentIn.length / trades.length;
   const pf = calcPF(presentIn);
@@ -636,21 +664,21 @@ const liveTradesList = computed(() => {
   });
 });
 
-const getProtocolStats = (id: string) => {
+const getProtocolStats = (id: string, scenarioId?: string | null) => {
   const list = liveTradesList.value;
   if (list.length === 0) return { freq: 0, pf: 1.0 };
   // Current Global State (including all trades)
-  return calcStats(list, id);
+  return calcStats(list, id, scenarioId);
 };
 
-const getProtocolStatsBefore = (id: string) => {
+const getProtocolStatsBefore = (id: string, scenarioId?: string | null) => {
   const list = liveTradesList.value;
   if (list.length <= 1) return { freq: 0, pf: 1.0 };
   
   // Previous Global State (all trades except the very last one in the timeline)
   // This calculates if the absolute most recent activity moved the needle up or down globally
   const filtered = list.slice(0, list.length - 1);
-  return calcStats(filtered, id);
+  return calcStats(filtered, id, scenarioId);
 };
 
 const enrichedTrade = computed(() => {
@@ -677,8 +705,8 @@ const enrichedTrade = computed(() => {
         profitability: sStats.pf,
         prevProfitability: sPrev?.pf ?? undefined,
         conditions: (s.conditions || []).map(c => {
-          const cStats = getProtocolStats(c.id);
-          const cPrev  = getProtocolStatsBefore(c.id);
+          const cStats = getProtocolStats(c.id, s.id);
+          const cPrev  = getProtocolStatsBefore(c.id, s.id);
           return {
             ...c,
             frequency: cStats.freq,
@@ -692,7 +720,7 @@ const enrichedTrade = computed(() => {
   };
 });
 
-const currentPage = ref(props.initialPage || 5);
+const currentPage = ref(props.initialPage || 3);
 watch(() => props.initialPage, (newPage) => {
   if (newPage) {
     currentPage.value = newPage;
@@ -714,7 +742,7 @@ const scenarioDurationStats = computed(() => {
   const scenarioId = trade.boardScenarioEntry?.id;
   if (!scenarioId) return { minDays: 0, maxDays: 0, count: 0 };
 
-  const relatedTrades = tradeStore.getTradesForStrategy(trade.strategyId).filter((t: any) => {
+  const relatedTrades = allTrades.value.filter((t: any) => {
     if (t?.id === trade.id) return false;
     return t?.boardScenarioEntry?.id === scenarioId;
   });
@@ -834,7 +862,7 @@ const isInitializing = ref(true);
 
 onMounted(async () => {
   isInitializing.value = true;
-  await loadMatrixData();
+  await ensureMatrixDataRestored();
   isInitializing.value = false;
   
   const duration = 1500; // 1.5s
@@ -999,8 +1027,7 @@ const balanceBeforeTrade = computed(() => {
     return Number.isFinite(val) ? val : 0;
   };
 
-  const priorTrades = tradeStore
-    .getTradesForStrategy(strategyId)
+  const priorTrades = allTrades.value
     .filter((trade: any) => {
       if (currentTradeId && trade?.id === currentTradeId) return false;
       const tradeExitTs = new Date(trade?.dateExit || trade?.date || 0).getTime();
@@ -1021,8 +1048,7 @@ import ExEquityCurve2D from './ExEquityCurve2D.vue'
 
 const reportTrades = computed(() => {
   if (!props.trade) return [];
-  const strategyId = props.trade.strategyId || 'MAIN_DIARY';
-  const historyTrades = tradeStore.getTradesForStrategy(strategyId);
+  const historyTrades = allTrades.value;
   
   const currentTradeTime = new Date(props.trade.dateExit || props.trade.date || Date.now()).getTime();
   
@@ -1047,31 +1073,46 @@ const reportTrades = computed(() => {
   });
 });
 
+const parsePositiveTradePrice = (value: any) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : Number.NaN;
+};
+
+const getTradeDirection = (trade: any): 'LONG' | 'SHORT' | null => {
+  const raw = String(trade?.side || trade?.direction || '').toUpperCase();
+  if (raw.includes('SHORT')) return 'SHORT';
+  if (raw.includes('LONG')) return 'LONG';
+  return null;
+};
+
+const getDirectionalStopDistance = (entry: number, stopLoss: number, direction: 'LONG' | 'SHORT' | null) => {
+  if (!Number.isFinite(entry) || !Number.isFinite(stopLoss)) return Number.NaN;
+  if (direction === 'SHORT') return stopLoss > entry ? stopLoss - entry : Number.NaN;
+  if (direction === 'LONG') return stopLoss < entry ? entry - stopLoss : Number.NaN;
+  return Math.abs(entry - stopLoss);
+};
+
+const getDirectionalTargetDistance = (entry: number, takeProfit: number, direction: 'LONG' | 'SHORT' | null) => {
+  if (!Number.isFinite(entry) || !Number.isFinite(takeProfit)) return Number.NaN;
+  if (direction === 'SHORT') return takeProfit < entry ? entry - takeProfit : Number.NaN;
+  if (direction === 'LONG') return takeProfit > entry ? takeProfit - entry : Number.NaN;
+  return Math.abs(takeProfit - entry);
+};
+
 const getSlDistPct = (t: any) => {
-  if (!t) return 0;
-  const entry = parseFloat(t.entry);
-  const sl = parseFloat(t.stopLoss);
-  if (!isNaN(entry) && !isNaN(sl) && entry > 0 && sl > 0) {
-    return (Math.abs(entry - sl) / entry) * 100;
-  }
-  return 0;
+  if (!t) return Number.NaN;
+  const entry = parsePositiveTradePrice(t.entry);
+  const sl = parsePositiveTradePrice(t.stopLoss);
+  const distance = getDirectionalStopDistance(entry, sl, getTradeDirection(t));
+  return Number.isFinite(distance) && entry > 0 ? (distance / entry) * 100 : Number.NaN;
 };
 
 const getTpDistPct = (t: any) => {
-  if (!t) return 0;
-  const entry = parseFloat(t.entry);
-  let tp = parseFloat(t.takeProfit);
-  if (isNaN(tp) || tp <= 0) {
-    const exit = parseFloat(t.exit);
-    const pnl = t.profitInCurrency ?? t.pnl ?? 0;
-    if (!isNaN(exit) && exit > 0 && pnl > 0) {
-      tp = exit;
-    }
-  }
-  if (!isNaN(entry) && !isNaN(tp) && entry > 0 && tp > 0) {
-    return (Math.abs(tp - entry) / entry) * 100;
-  }
-  return 0;
+  if (!t) return Number.NaN;
+  const entry = parsePositiveTradePrice(t.entry);
+  const tp = parsePositiveTradePrice(t.takeProfit);
+  const distance = getDirectionalTargetDistance(entry, tp, getTradeDirection(t));
+  return Number.isFinite(distance) && entry > 0 ? (distance / entry) * 100 : Number.NaN;
 };
 
 const currentSlDistPct = computed(() => {
@@ -1084,7 +1125,7 @@ const currentTpDistPct = computed(() => {
 
 const strategyStats = computed(() => {
   if (!props.trade?.strategyId) return { avgPnl: 0, avgDuration: 0, avgRR: 0, avgVelocity: 0, avgAdherence: 0, avgSlDistPct: 0, avgTpDistPct: 0 };
-  const trades = tradeStore.getTradesForStrategy(props.trade.strategyId);
+  const trades = allTrades.value;
   if (trades.length === 0) return { avgPnl: 0, avgDuration: 0, avgRR: 0, avgVelocity: 0, avgAdherence: 0, avgSlDistPct: 0, avgTpDistPct: 0 };
   
   const totalPnl = trades.reduce((acc, t) => acc + (t.profitInCurrency || t.result || 0), 0);
@@ -1100,11 +1141,11 @@ const strategyStats = computed(() => {
 
   const totalDurationHours = totalDurationMs / (1000 * 60 * 60);
 
-  const validSlTrades = trades.filter(t => getSlDistPct(t) > 0);
+  const validSlTrades = trades.filter(t => Number.isFinite(getSlDistPct(t)));
   const totalSlDist = validSlTrades.reduce((acc, t) => acc + getSlDistPct(t), 0);
   const avgSlDistPct = validSlTrades.length > 0 ? totalSlDist / validSlTrades.length : 0;
 
-  const validTpTrades = trades.filter(t => getTpDistPct(t) > 0);
+  const validTpTrades = trades.filter(t => Number.isFinite(getTpDistPct(t)));
   const totalTpDist = validTpTrades.reduce((acc, t) => acc + getTpDistPct(t), 0);
   const avgTpDistPct = validTpTrades.length > 0 ? totalTpDist / validTpTrades.length : 0;
 
@@ -1169,20 +1210,16 @@ const targetRR = computed(() => {
   return strategyStats.value.avgRR || 0;
 });
 
-const actualRiskDollars = computed(() => {
+const plannedStopRiskDollars = computed(() => {
   const t = props.trade as any;
-  if (!t) return 0;
+  if (!t) return Number.NaN;
 
-  const explicitRisk = Number(t.risk);
-  if (Number.isFinite(explicitRisk) && explicitRisk > 0) {
-    return explicitRisk;
-  }
-
-  const entry = parseFloat(t.entry);
-  const sl = parseFloat(t.stopLoss);
+  const entry = parsePositiveTradePrice(t.entry);
+  const sl = parsePositiveTradePrice(t.stopLoss);
+  const stopDistance = getDirectionalStopDistance(entry, sl, getTradeDirection(t));
   let size = parseFloat(t.size);
 
-  if (!isNaN(entry) && !isNaN(sl) && entry > 0) {
+  if (Number.isFinite(stopDistance)) {
     if (isNaN(size) || size <= 0) {
       const sizeCurr = parseFloat(t.sizeInCurrency);
       if (!isNaN(sizeCurr) && sizeCurr > 0) {
@@ -1190,25 +1227,38 @@ const actualRiskDollars = computed(() => {
       }
     }
     if (!isNaN(size) && size > 0) {
-      return Math.abs(entry - sl) * size;
+      return stopDistance * size;
     }
   }
 
+  return Number.NaN;
+});
+
+const realizedRiskDollars = computed(() => {
+  const t = props.trade as any;
+  if (!t) return 0;
   const pnl = t.profitInCurrency ?? t.pnl ?? 0;
-  const rr = t.rr ?? t.riskReward ?? 0;
+  return pnl < 0 ? Math.abs(Number(pnl) || 0) : 0;
+});
 
-  if (pnl < 0) {
-    return Math.abs(pnl);
-  } else if (pnl > 0 && rr > 0) {
-    return pnl / rr;
-  }
-
-  return 0;
+const actualRiskDollars = computed(() => {
+  return plannedStopRiskDollars.value;
 });
 
 const actualRiskPct = computed(() => {
   if (balanceBeforeTrade.value <= 0) return 0;
   return (actualRiskDollars.value / balanceBeforeTrade.value) * 100;
+});
+
+const plannedStopRiskPct = computed(() => {
+  if (balanceBeforeTrade.value <= 0) return 0;
+  if (!Number.isFinite(plannedStopRiskDollars.value)) return Number.NaN;
+  return (plannedStopRiskDollars.value / balanceBeforeTrade.value) * 100;
+});
+
+const realizedRiskPct = computed(() => {
+  if (balanceBeforeTrade.value <= 0) return 0;
+  return (realizedRiskDollars.value / balanceBeforeTrade.value) * 100;
 });
 
 const maxRiskTrade = computed(() => {
@@ -1219,6 +1269,82 @@ const maxRiskTrade = computed(() => {
   return {
     value: val,
     unit: p.unit || '$'
+  };
+});
+
+const riskBudgetDollars = computed(() => {
+  if (!maxRiskTrade.value) return null;
+  if (maxRiskTrade.value.unit === '%') {
+    return (maxRiskTrade.value.value / 100) * balanceBeforeTrade.value;
+  }
+  return maxRiskTrade.value.value;
+});
+
+const tradeRiskAudit = computed(() => {
+  const budget = riskBudgetDollars.value;
+  const planned = plannedStopRiskDollars.value;
+  const realized = realizedRiskDollars.value;
+  const hasPlannedRisk = Number.isFinite(planned);
+  const comparablePlanned = hasPlannedRisk ? planned : 0;
+  const worst = Math.max(comparablePlanned, realized);
+  const plannedRatio = budget && budget > 0 && hasPlannedRisk ? (planned / budget) * 100 : Number.NaN;
+  const realizedRatio = budget && budget > 0 ? (realized / budget) * 100 : 0;
+  const worstRatio = budget && budget > 0 ? (worst / budget) * 100 : 0;
+  const plannedOk = hasPlannedRisk && (budget === null || planned <= budget);
+  const realizedOk = budget === null || realized <= budget;
+  const isRu = locale.value === 'ru';
+
+  let status = isRu ? 'В лимите' : 'Within limit';
+  let hint = isRu
+    ? 'Риск по stop loss и фактический убыток находятся в пределах Risk Per Trade.'
+    : 'Stop-loss risk and realized loss are within the Risk Per Trade budget.';
+
+  if (!hasPlannedRisk && !realizedOk) {
+    status = isRu ? 'Нет стопа + факт за лимитом' : 'No stop + realized breach';
+    hint = isRu
+      ? 'Stop loss не установлен, а фактический убыток превысил Risk Per Trade.'
+      : 'Stop loss is not set and realized loss exceeded Risk Per Trade.';
+  } else if (!hasPlannedRisk) {
+    status = isRu ? 'Stop loss не задан' : 'Stop loss missing';
+    hint = isRu
+      ? 'Planned risk невозможно посчитать без установленного stop loss.'
+      : 'Planned risk cannot be calculated without a stop loss.';
+  } else if (!plannedOk && !realizedOk) {
+    status = isRu ? 'Двойное превышение' : 'Double breach';
+    hint = isRu
+      ? 'И стоп был выставлен за пределами лимита, и фактический убыток превысил Risk Per Trade.'
+      : 'Both stop placement and realized loss exceeded the Risk Per Trade budget.';
+  } else if (!plannedOk) {
+    status = isRu ? 'Стоп за лимитом' : 'Stop risk breach';
+    hint = isRu
+      ? 'Расстояние от entry до stop loss с учетом размера позиции превышает Risk Per Trade.'
+      : 'The entry-to-stop distance, adjusted by position size, exceeds Risk Per Trade.';
+  } else if (!realizedOk) {
+    status = isRu ? 'Факт за лимитом' : 'Realized breach';
+    hint = isRu
+      ? 'Стоп был в лимите, но реализованный убыток превысил Risk Per Trade. Проверьте ручной выход, проскальзывание или изменение стопа.'
+      : 'Stop risk was within budget, but realized loss exceeded Risk Per Trade. Check manual exit, slippage, or stop changes.';
+  } else if (hasPlannedRisk && realized > planned && planned > 0) {
+    status = isRu ? 'Факт хуже стопа' : 'Worse than stop';
+    hint = isRu
+      ? 'Фактический убыток больше риска по stop loss, даже если общий лимит не превышен.'
+      : 'Realized loss is larger than the stop-loss risk, even though the total budget was not breached.';
+  }
+
+  return {
+    budget,
+    planned,
+    realized,
+    worst,
+    plannedRatio,
+    realizedRatio,
+    worstRatio,
+    plannedOk,
+    realizedOk,
+    hasPlannedRisk,
+    ok: plannedOk && realizedOk && !(hasPlannedRisk && realized > planned && planned > 0),
+    status,
+    hint
   };
 });
 
@@ -1299,7 +1425,159 @@ const tacticalAdvice = computed(() => {
 // -------------------------------------------------------------
 // ADVANCED METRIC TAB FILTERING & TELEMETRY CALCULATIONS
 // -------------------------------------------------------------
+const activeReportMetricMode = ref<'simple' | 'advanced'>('simple');
+const reportMetricModes: Array<{ id: 'simple' | 'advanced'; label: string }> = [
+  { id: 'simple', label: 'Simple' },
+  { id: 'advanced', label: 'Advanced' }
+];
 const activeMetricTab = ref('all'); // 'all', 'adherence', 'behavioural', 'execution'
+const isTradeScoreExpanded = ref(false);
+
+const formatCurrency = (value: number) => {
+  if (!Number.isFinite(value)) return 'N/A';
+  const safe = Number.isFinite(value) ? value : 0;
+  return `${safe < 0 ? '-' : ''}$${Math.abs(safe).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
+const formatRiskCurrency = (value: number) => Number.isFinite(value) ? `$${value.toFixed(2)}` : 'N/A';
+const formatRiskPercent = (value: number) => Number.isFinite(value) ? `${value.toFixed(2)}%` : 'N/A';
+
+const NODE_MAPPING_EMOTION_WEIGHTS: Record<string, number> = {
+  CONFIDENCE: 10,
+  PATIENCE: 15,
+  DISCIPLINE: 20,
+  FOMO: -20,
+  GREED: -25,
+  REVENGE: -30,
+  FEAR: -15,
+  TILT: -40,
+  ANXIETY: -15
+};
+
+const getNodeMappingEmotionScore = (trade: any) => {
+  if (!Array.isArray(trade?.emotions)) return 0;
+  return trade.emotions.reduce((sum: number, emotion: any) => {
+    const key = String(typeof emotion === 'string' ? emotion : (emotion?.name || '')).toUpperCase();
+    return sum + (NODE_MAPPING_EMOTION_WEIGHTS[key] || 0);
+  }, 0);
+};
+
+const getNodeMappingTradeScore = (trade: any) => {
+  return getNormalizedPnl(trade) + getNodeMappingEmotionScore(trade);
+};
+
+const tradeScoreBreakdown = computed(() => {
+  const tr = props.trade as any;
+  if (!tr) {
+    return { percentile: 0, pnlScore: 0, emotionScore: 0, rawScore: 0, comparedTrades: 0, lowerTrades: 0 };
+  }
+
+  const pnlScore = getNormalizedPnl(tr);
+  const emotionScore = getNodeMappingEmotionScore(tr);
+  const rawScore = pnlScore + emotionScore;
+  const scoredTrades = liveTradesList.value
+    .map((trade: any) => getNodeMappingTradeScore(trade))
+    .filter((score: number) => Number.isFinite(score))
+    .sort((a: number, b: number) => a - b);
+  const lowerTrades = scoredTrades.filter((score: number) => score < rawScore).length;
+  const computedPercentile = scoredTrades.length > 0 ? Math.round((lowerTrades / scoredTrades.length) * 100) : 0;
+  const propPercentile = Number((tr as any)?.percentileRank);
+
+  return {
+    percentile: Number.isFinite(propPercentile) ? propPercentile : computedPercentile,
+    pnlScore,
+    emotionScore,
+    rawScore,
+    comparedTrades: scoredTrades.length,
+    lowerTrades
+  };
+});
+
+const formatRatio = (value: number) => {
+  const safe = Number.isFinite(value) && value > 0 ? value : 0;
+  return `1:${safe.toFixed(2)}`;
+};
+
+const conditionIdentity = (condition: any) => {
+  if (typeof condition === 'string') return condition.toLowerCase();
+  return String(condition?.id ?? condition?.info?.id ?? condition?.name ?? condition?.label ?? condition?.info?.name ?? '').toLowerCase();
+};
+
+const conditionProtocolId = (condition: any) => {
+  if (typeof condition === 'string') return condition;
+  return String(condition?.id ?? condition?.info?.id ?? condition?.name ?? condition?.label ?? condition?.info?.name ?? '');
+};
+
+const conditionDisplayName = (condition: any) => {
+  if (typeof condition === 'string') return condition;
+  return String(condition?.info?.customName ?? condition?.info?.name ?? condition?.name ?? condition?.label ?? condition?.id ?? 'REQUIRED');
+};
+
+const conditionDescription = (condition: any) => {
+  if (typeof condition === 'string') return '';
+  return String(condition?.info?.description ?? condition?.description ?? condition?.info?.logic ?? '');
+};
+
+const getEntryRequiredConditionSnapshot = (trade: any) => {
+  const directSnapshot = trade?.boardRequiredConditionsEntry;
+  if (Array.isArray(directSnapshot) && directSnapshot.length > 0) return directSnapshot;
+
+  const scenarioSnapshot = trade?.boardScenarioEntry?.info?.requiredConditions;
+  if (Array.isArray(scenarioSnapshot) && scenarioSnapshot.length > 0) return scenarioSnapshot;
+
+  const legacyConditions = trade?.boardScenarioEntry?.info?.conditions || [];
+  return legacyConditions.filter((c: any) => c?.info?.priority === 'REQUIRED' || c?.priority === 'REQUIRED');
+};
+
+const getEntryExecutedConditions = (trade: any) => {
+  const scenarioExecuted = trade?.boardScenarioEntry?.info?.conditions;
+  return Array.isArray(trade?.boardConditions) && trade.boardConditions.length > 0
+    ? trade.boardConditions
+    : (Array.isArray(scenarioExecuted) ? scenarioExecuted : []);
+};
+
+const isRequiredConditionsExpanded = ref(false);
+
+const requiredConditionRows = computed(() => {
+  const tr = props.trade as any;
+  const required = getEntryRequiredConditionSnapshot(tr);
+  const executedKeys = new Set(getEntryExecutedConditions(tr).map(conditionIdentity).filter(Boolean));
+
+  return required
+    .map((condition: any, index: number) => {
+      const id = conditionProtocolId(condition);
+      const identity = conditionIdentity(condition);
+      if (!id && !identity) return null;
+
+      const name = conditionDisplayName(condition);
+      const selected = executedKeys.has(identity);
+
+      return {
+        id: id || identity || `required-${index}`,
+        name,
+        description: conditionDescription(condition),
+        selected,
+        statusLabel: selected
+          ? (locale.value === 'ru' ? 'выбрано' : 'selected')
+          : (locale.value === 'ru' ? 'пропущено' : 'missing')
+      };
+    })
+    .filter(Boolean);
+});
+
+const requiredConditionStats = computed(() => {
+  const tr = props.trade as any;
+  const required = getEntryRequiredConditionSnapshot(tr);
+  const executed = getEntryExecutedConditions(tr);
+
+  if (required.length === 0) {
+    return { used: 0, total: 0 };
+  }
+
+  const executedKeys = new Set(executed.map(conditionIdentity).filter(Boolean));
+  const used = required.filter((req: any) => executedKeys.has(conditionIdentity(req))).length;
+  return { used, total: required.length };
+});
 
 // Tab A: Matrix Adherence Metrics
 const matrixAdherenceMetrics = computed(() => {
@@ -1307,7 +1585,7 @@ const matrixAdherenceMetrics = computed(() => {
   if (!tr) return { reqRatio: 0, reqText: '0/0', addCount: 0, addAlpha: 0, strictness: 0, condPnl: 0, complexity: 1.0 };
 
   const conditions = tr.boardScenarioEntry?.info?.conditions || [];
-  const reqConditions = conditions.filter((c: any) => c?.info?.priority === 'REQUIRED');
+  const reqConditions = getEntryRequiredConditionSnapshot(tr);
   const addConditions = conditions.filter((c: any) => c?.info?.priority === 'ADDITIONAL');
   const scenarioId = tr.boardScenarioEntry?.id;
   const getRuleCount = (trade: any) => {
@@ -1317,8 +1595,9 @@ const matrixAdherenceMetrics = computed(() => {
     return 0;
   };
 
-  const reqRatio = reqConditions.length > 0 ? 100 : (conditions.length > 0 ? 0 : 100);
-  const reqText = `${reqConditions.length} Fulfilled`;
+  const requiredStats = requiredConditionStats.value;
+  const reqRatio = requiredStats.total > 0 ? (requiredStats.used / requiredStats.total) * 100 : (conditions.length > 0 ? 0 : 100);
+  const reqText = requiredStats.total > 0 ? `${requiredStats.used}/${requiredStats.total} Fulfilled` : '0/0';
 
   const avgPnl = strategyStats.value.avgPnl || 0;
   const pnlDiff = tr.pnl - avgPnl;
@@ -1326,7 +1605,7 @@ const matrixAdherenceMetrics = computed(() => {
 
   const strictness = Math.min(10, (reqConditions.length * 2.5) + (addConditions.length * 1.5) || 8.5);
   const condPnl = conditions.length > 0 ? tr.pnl / conditions.length : tr.pnl;
-  const historicalRuleCounts = tradeStore.getTradesForStrategy(tr?.strategyId || '')
+  const historicalRuleCounts = allTrades.value
     .filter((trade: any) => !scenarioId || trade?.boardScenarioEntry?.id === scenarioId)
     .map(getRuleCount)
     .filter((count: number) => count > 0);
@@ -1409,17 +1688,17 @@ const strategyExecutionMetrics = computed(() => {
     executionGrade: 100, executionGradeText: 'Flawless Execution'
   };
 
-  const entry = parseFloat(tr.entry) || 0;
-  const exit = parseFloat(tr.exit) || 0;
-  const sl = parseFloat(tr.stopLoss) || 0;
-  let tp = parseFloat(tr.takeProfit) || 0;
+  const entry = parsePositiveTradePrice(tr.entry);
+  const exit = parsePositiveTradePrice(tr.exit);
+  const sl = parsePositiveTradePrice(tr.stopLoss);
+  const tp = parsePositiveTradePrice(tr.takeProfit);
   const pnl = tr.profitInCurrency ?? tr.pnl ?? 0;
-  const isLong = String(tr.side || '').toUpperCase() === 'LONG';
+  const direction = getTradeDirection(tr);
+  const isLong = direction !== 'SHORT';
 
   let slDrag = 0;
   let slDragText = 'No SL Breached';
-  if (entry > 0 && sl > 0 && exit > 0) {
-    const isLong = String(tr.side || '').toUpperCase() === 'LONG';
+  if (Number.isFinite(entry) && Number.isFinite(sl) && Number.isFinite(exit)) {
     if (pnl < 0) {
       const diff = isLong ? (exit - sl) : (sl - exit);
       slDrag = diff * (parseFloat(tr.size) || 1);
@@ -1427,44 +1706,35 @@ const strategyExecutionMetrics = computed(() => {
     }
   }
 
-  const actualRisk = actualRiskDollars.value;
+  const actualRisk = tradeRiskAudit.value.worst;
   const isRu = locale.value === 'ru';
-  // Resolve risk budget from genesis matrix risk_per_trade node
-  let riskBudgetDollars: number | null = null;
-  if (maxRiskTrade.value) {
-    if (maxRiskTrade.value.unit === '%') {
-      riskBudgetDollars = (maxRiskTrade.value.value / 100) * balanceBeforeTrade.value;
-    } else {
-      riskBudgetDollars = maxRiskTrade.value.value;
-    }
-  }
-  const maxRisk = riskBudgetDollars ?? 250;
+  const resolvedBudgetDollars = riskBudgetDollars.value;
+  const maxRisk = resolvedBudgetDollars ?? 250;
   const riskBudgetRatio = maxRisk > 0 ? (actualRisk / maxRisk) * 100 : 0;
-  const riskBudgetBudgetStr = riskBudgetDollars !== null
+  const riskBudgetBudgetStr = resolvedBudgetDollars !== null
     ? (maxRiskTrade.value!.unit === '%'
       ? (isRu
         ? `${maxRiskTrade.value!.value}% от баланса до сделки = $${maxRisk.toFixed(2)}`
         : `${maxRiskTrade.value!.value}% of pre-trade balance = $${maxRisk.toFixed(2)}`)
       : `$${maxRisk.toFixed(2)}`)
     : 'No budget set';
-  const riskBudgetText = riskBudgetDollars === null
+  const riskBudgetText = resolvedBudgetDollars === null
     ? (isRu ? 'Бюджет матрицы не задан' : 'No matrix budget set')
-    : (actualRisk <= maxRisk
-      ? (isRu ? `В пределах лимита · Бюджет: ${riskBudgetBudgetStr}` : `Compliant · Budget: ${riskBudgetBudgetStr}`)
-      : (isRu ? `Превышен · Бюджет: ${riskBudgetBudgetStr}` : `Exceeded · Budget: ${riskBudgetBudgetStr}`));
+    : `${tradeRiskAudit.value.status} · ${isRu ? 'стоп' : 'stop'} ${formatRiskCurrency(tradeRiskAudit.value.planned)} · ${isRu ? 'факт' : 'realized'} ${formatRiskCurrency(tradeRiskAudit.value.realized)} · ${isRu ? 'бюджет' : 'budget'} ${riskBudgetBudgetStr}`;
 
-  if (tp <= 0 && pnl > 0 && exit > 0) tp = exit;
-  let tpCapture = 100;
+  let tpCapture = Number.NaN;
   let tpCaptureText = 'Full Target Achieved';
-  if (entry > 0 && tp > 0 && exit > 0) {
-    const plannedDist = Math.abs(tp - entry);
+  if (Number.isFinite(entry) && Number.isFinite(tp) && Number.isFinite(exit)) {
+    const plannedDist = getDirectionalTargetDistance(entry, tp, direction);
     const actualDist = isLong
       ? Math.max(0, exit - entry)
       : Math.max(0, entry - exit);
-    if (plannedDist > 0) {
+    if (Number.isFinite(plannedDist) && plannedDist > 0) {
       tpCapture = Math.min(100, (actualDist / plannedDist) * 100);
       tpCaptureText = tpCapture < 100 ? 'Premature Exit' : 'Full Target Achieved';
     }
+  } else {
+    tpCaptureText = 'No TP Data';
   }
 
   const realizedRR = actualRR.value || 1;
@@ -1474,12 +1744,17 @@ const strategyExecutionMetrics = computed(() => {
 
   let unrealizedLeft = 0;
   let unrealizedLeftText = 'Full Target Captured';
-  if (entry > 0 && tp > 0 && exit > 0) {
-    const plannedPnL = Math.abs(tp - entry) * (parseFloat(tr.size) || (Math.abs(pnl) / Math.abs(exit - entry)));
+  if (Number.isFinite(entry) && Number.isFinite(tp) && Number.isFinite(exit)) {
+    const targetDistance = getDirectionalTargetDistance(entry, tp, direction);
+    const exitDistance = Math.abs(exit - entry);
+    const plannedPnL = Number.isFinite(targetDistance) ? targetDistance * (parseFloat(tr.size) || (exitDistance > 0 ? Math.abs(pnl) / exitDistance : 0)) : Number.NaN;
     if (plannedPnL > pnl) {
       unrealizedLeft = plannedPnL - pnl;
       unrealizedLeftText = 'Target Unreached';
     }
+  } else {
+    unrealizedLeft = Number.NaN;
+    unrealizedLeftText = 'No TP Data';
   }
 
   const days = duration.value / 24;
@@ -1518,16 +1793,18 @@ const strategyExecutionMetrics = computed(() => {
   ]);
   const hasNegative = emotions.map(getEmotionName).some((e: string) => negativeSet.has(e));
   const conditions = tr.boardScenarioEntry?.info?.conditions || [];
-  const reqConditions = conditions.filter((c: any) => c?.info?.priority === 'REQUIRED');
-  const executedConditions = tr.boardConditions || [];
+  const reqConditions = getEntryRequiredConditionSnapshot(tr);
+  const executedConditions = Array.isArray(tr.boardConditions) && tr.boardConditions.length > 0
+    ? tr.boardConditions
+    : conditions;
   const missingRequiredRules = reqConditions.filter((req: any) =>
-    !executedConditions.some((exec: any) => (typeof exec === 'string' ? exec === req.id : exec?.id === req.id))
+    !executedConditions.some((exec: any) => conditionIdentity(exec) === conditionIdentity(req))
   ).length;
   const alphaDecay = hasNegative ? missingRequiredRules : 0;
   const alphaDecayText = alphaDecay > 0 ? `Bypassed ${alphaDecay} Required Rules` : 'Zero Degradation';
 
   const adherenceScore = matrixAdherenceMetrics.value.reqRatio;
-  const tpScore = tpCapture;
+  const tpScore = Number.isFinite(tpCapture) ? tpCapture : 100;
   const riskScore = actualRisk <= maxRisk ? 100 : Math.max(0, 100 - ((actualRisk - maxRisk) / maxRisk) * 100);
   const stabilityScore = behaviouralMetrics.value.stability;
   const executionGrade = Math.round((adherenceScore * 0.3) + (tpScore * 0.3) + (riskScore * 0.2) + (stabilityScore * 0.2));
@@ -1546,6 +1823,113 @@ const strategyExecutionMetrics = computed(() => {
     alphaDecay, alphaDecayText,
     executionGrade, executionGradeText
   };
+});
+
+const simpleMetricInsights = computed(() => {
+  const tr = props.trade as any;
+  const isRu = locale.value === 'ru';
+  if (!tr) return [];
+
+  const currentPnl = getNormalizedPnl(tr);
+  const sameStrategyTrades = allTrades.value.filter((trade: any) => trade?.id !== tr.id);
+  const baselineTrades = sameStrategyTrades.length > 0 ? sameStrategyTrades : allTrades.value;
+  const normalizedPnls = baselineTrades
+    .map((trade: any) => getNormalizedPnl(trade))
+    .filter((value: number) => Number.isFinite(value));
+  const winningPnls = normalizedPnls.filter((value: number) => value > 0);
+  const losingPnls = normalizedPnls.filter((value: number) => value < 0);
+  const avgWin = winningPnls.length ? winningPnls.reduce((sum: number, value: number) => sum + value, 0) / winningPnls.length : 0;
+  const avgLoss = losingPnls.length ? losingPnls.reduce((sum: number, value: number) => sum + value, 0) / losingPnls.length : 0;
+
+  const requiredStats = requiredConditionStats.value;
+
+  const riskAudit = tradeRiskAudit.value;
+  let riskValue = formatCurrency(riskAudit.planned);
+  let riskSuffix = isRu ? 'риск по stop loss от entry' : 'stop-loss risk from entry';
+  let riskBenchmarkLabel = isRu ? 'факт' : 'realized';
+  let riskBenchmarkValue = formatCurrency(riskAudit.realized);
+  let riskHint = riskAudit.hint;
+  if (maxRiskTrade.value?.unit === '%') {
+    const maxPct = maxRiskTrade.value.value;
+    riskValue = formatRiskPercent(plannedStopRiskPct.value);
+    riskSuffix = isRu ? 'по stop loss от капитала' : 'stop risk of capital';
+    riskBenchmarkLabel = isRu ? 'факт' : 'realized';
+    riskBenchmarkValue = `${realizedRiskPct.value.toFixed(2)}% / ${maxPct.toFixed(2)}%`;
+  } else if (maxRiskTrade.value) {
+    riskValue = formatCurrency(riskAudit.planned);
+    riskSuffix = isRu ? 'по stop loss на сделку' : 'stop risk on this trade';
+    riskBenchmarkValue = `${formatCurrency(riskAudit.realized)} / ${formatCurrency(maxRiskTrade.value.value)}`;
+  }
+
+  const rrHint = targetRR.value > 0 && actualRR.value > 0 && actualRR.value < targetRR.value
+    ? (isRu
+      ? 'Увеличьте R/R через более точное смещение stop loss и take profit.'
+      : 'Improve R/R by adjusting stop loss and take profit placement.')
+    : '';
+  const scoreBreakdown = tradeScoreBreakdown.value;
+
+  return [
+    {
+      id: 'score',
+      label: isRu ? 'Общий score сделки' : 'Trade Score',
+      prefix: isRu ? 'Лучше чем' : 'Better than',
+      value: `${scoreBreakdown.percentile}%`,
+      suffix: isRu ? 'сделок в node mapping' : 'of trades in node mapping',
+      benchmarkLabel: isRu ? 'raw score' : 'raw score',
+      benchmarkValue: formatCurrency(scoreBreakdown.rawScore),
+      hint: '',
+      tone: scoreBreakdown.percentile >= 70 ? 'positive' : (scoreBreakdown.percentile >= 40 ? 'warning' : 'negative')
+    },
+    {
+      id: 'pnl',
+      label: isRu ? 'Результат сделки' : 'Trade Result',
+      prefix: currentPnl >= 0 ? (isRu ? 'Прибыль' : 'Profit') : (isRu ? 'Убыток' : 'Loss'),
+      value: formatCurrency(currentPnl),
+      suffix: isRu ? 'по текущей сделке' : 'on the current trade',
+      benchmarkLabel: currentPnl >= 0 ? (isRu ? 'средняя прибыльная' : 'avg win') : (isRu ? 'средняя убыточная' : 'avg loss'),
+      benchmarkValue: currentPnl >= 0 ? formatCurrency(avgWin) : formatCurrency(avgLoss),
+      hint: '',
+      tone: currentPnl >= 0 ? 'positive' : 'negative'
+    },
+    {
+      id: 'required',
+      label: isRu ? 'Обязательные условия' : 'Required Conditions',
+      prefix: requiredStats.total > 0 ? (isRu ? 'Использовано' : 'Used') : (isRu ? 'Список' : 'List'),
+      value: requiredStats.total > 0 ? `${requiredStats.used}/${requiredStats.total}` : 'N/A',
+      suffix: requiredStats.total > 0 ? (isRu ? 'required условий' : 'required conditions') : (isRu ? 'required условий не найден' : 'required conditions not found'),
+      benchmarkLabel: isRu ? 'статус' : 'status',
+      benchmarkValue: requiredStats.total > 0 && requiredStats.used < requiredStats.total
+        ? (isRu ? 'пропуск' : 'missing')
+        : (isRu ? 'полно' : 'complete'),
+      hint: requiredStats.total > 0 && requiredStats.used < requiredStats.total
+        ? (isRu ? 'Проверьте, какие required условия были пропущены перед следующим входом.' : 'Review which required conditions were skipped before the next entry.')
+        : '',
+      tone: requiredStats.total > 0 && requiredStats.used < requiredStats.total ? 'warning' : 'positive'
+    },
+    {
+      id: 'risk',
+      label: isRu ? 'Риск сделки' : 'Trade Risk',
+      prefix: isRu ? 'Риск' : 'Risk',
+      value: riskValue,
+      suffix: riskSuffix,
+      benchmarkLabel: riskBenchmarkLabel,
+      benchmarkValue: riskBenchmarkValue,
+      hint: riskHint,
+      benchmarkTone: riskAudit.realizedOk ? 'positive' : 'negative',
+      tone: riskAudit.ok ? 'positive' : 'negative'
+    },
+    {
+      id: 'rr',
+      label: 'Risk/Reward',
+      prefix: 'Risk/Reward',
+      value: formatRatio(actualRR.value),
+      suffix: isRu ? 'фактическое соотношение' : 'realized ratio',
+      benchmarkLabel: isRu ? 'цель' : 'target',
+      benchmarkValue: targetRR.value > 0 ? formatRatio(targetRR.value) : 'N/A',
+      hint: rrHint,
+      tone: targetRR.value > 0 && actualRR.value < targetRR.value ? 'warning' : 'positive'
+    }
+  ];
 });
 
 </script>
@@ -1573,6 +1957,7 @@ const strategyExecutionMetrics = computed(() => {
       <div class="w-12 h-full flex flex-col items-center py-6 border-r border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] z-20 shrink-0">
         <div class="flex flex-col space-y-6">
           <button v-for="(tab, idx) in [
+            { id: 3, label: 'REPORT', icon: 'M9 17H15M9 13H15M9 9H10M13 3H14.6C15.7201 3 16.2802 3 16.708 3.21799C17.0843 3.40973 17.3903 3.71569 17.582 4.09202C17.8 4.51984 17.8 5.07989 17.8 6.2V17.8C17.8 18.9201 17.8 19.4802 17.582 19.908C17.3903 20.2843 17.0843 20.5903 16.708 20.782C16.2802 21 15.7201 21 14.6 21H9.4C8.2798 21 7.71984 21 7.29202 20.782C6.91569 20.5903 6.60973 20.2843 6.41799 19.908C6.2 19.4802 6.2 18.9201 6.2 17.8V6.2C6.2 5.07989 6.2 4.51984 6.41799 4.09202C6.60973 3.71569 6.91569 3.40973 7.29202 3.21799C7.71984 3 8.27989 3 9.4 3H10.2M12 3V5' },
             { id: 4, label: 'VISUALS', icon: 'M15 8H15.01M7 16H17M7 11L10.29 7.71C10.68 7.32 11.31 7.32 11.7 7.71L14.59 10.6M14.59 10.6L16.29 8.9C16.68 8.51 17.31 8.51 17.7 8.9L21 12.2M4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20Z' },
             { id: 5, label: 'NOTES', icon: 'M11 4H4C2.89543 4 2 4.89543 2 6V20C2 21.1046 2.89543 22 4 22H18C19.1046 22 20 21.1046 20 20V13M18.5 2.5C19.3284 1.67157 20.6716 1.67157 21.5 2.5C22.3284 3.32843 22.3284 4.67157 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z' }
           ]" :key="tab.id"
@@ -1619,16 +2004,1372 @@ const strategyExecutionMetrics = computed(() => {
 
       <!-- MAIN CONTENT WRAPPER (Relative to ensure it stays above decor) -->
       <div class="relative z-10 h-full">
+      <!-- 0. STRATEGY LOCKOUT (WARNING) -->
+      <div v-if="(enrichedTrade.tradingStyle === 'Main Diary' || enrichedTrade.strategyId === 'MAIN_DIARY') && currentPage === 3" class="h-full flex flex-col items-center justify-center p-8 text-center space-y-6 bg-black/[0.01] dark:bg-white/[0.01]">
+          <div class="relative w-32 h-32 flex items-center justify-center shrink-0">
+             <div class="absolute inset-0 border nier-border-primary rotate-45 animate-[pulse_4s_ease-in-out_infinite]"></div>
+             <div class="absolute inset-4 border border-black/20 dark:border-white/20 -rotate-45"></div>
+             <div class="absolute inset-0 flex items-center justify-center">
+                <span class="text-6xl font-serif italic text-black/10 dark:text-white/10">!</span>
+             </div>
+             <!-- Scanning effect -->
+             <div class="absolute top-0 left-0 w-full h-[1px] bg-black/10 dark:bg-white/10 animate-[scan_3s_linear_infinite]"></div>
+          </div>
+          
+          <div class="flex flex-col items-center space-y-3 max-w-sm">
+             <div class="flex flex-col items-center space-y-1">
+                <span class="text-[10px] font-mono uppercase tracking-[0.6em] font-black text-red-500/40">Diagnostic_Lockout</span>
+                <ExHeading level="h3" variant="module" class="!text-2xl nier-text-primary text-center animate-glow-red">PROTOCOL_UNDEFINED</ExHeading>
+             </div>
+             <ExText variant="small" class="opacity-40 uppercase tracking-[0.2em] leading-relaxed text-center">
+                High-fidelity analysis requires a specific strategy protocol. Tactical mapping is currently disabled for generic [Main Diary] entries.
+             </ExText>
+          </div>
+          
+          <div class="pt-6 flex flex-col items-center space-y-4">
+             <div class="w-16 h-px bg-black/10 dark:bg-white/10"></div>
+             <span class="text-[8px] font-mono uppercase tracking-[0.4em] opacity-20">Initialization_Pending...</span>
+          </div>
+      </div>
 
-      <Transition name="page-slide" mode="out-in">
-        <!-- MAIN ANALYSIS -->
+      <Transition v-else name="page-slide" mode="out-in">
+        <!-- MAIN ANALYSIS (HIDDEN DURING REPORT) -->
       <div :key="'analysis'" class="flex flex-col h-full overflow-hidden">
           <!-- 2. DYNAMIC CONTENT GRID (SWAPPABLE) -->
           <div class="p-3 md:p-4 flex-grow relative overflow-y-auto custom-scrollbar overflow-x-hidden">
             <Transition name="page-slide" mode="out-in">
               <!-- REPORT VIEW (MODE 3) -->
+              <div v-if="currentPage === 3" :key="'report'" class="min-h-full flex flex-col p-4 space-y-6">
+                <!-- Temporal Verification -->
+                <div class="flex flex-col space-y-6 w-full p-4 md:p-6">
+                   <div class="flex flex-col space-y-3">
+                      <div class="flex justify-between items-center text-[9px] font-mono opacity-30 uppercase tracking-[0.2em] nier-text-primary">
+                         <span>Execution_Duration</span>
+                         <span>Risk_Element_Type</span>
+                      </div>
+                      <div class="flex justify-between items-baseline">
+                         <span class="text-3xl font-serif italic nier-text-primary leading-none">
+                            <span v-for="(part, idx) in durationParts" :key="idx" class="inline-flex items-baseline mr-1.5">
+                               <span>{{ part.num }}</span><span class="text-sm font-mono not-italic opacity-40 ml-0.5">{{ part.unit }}</span>
+                            </span>
+                         </span>
+                          <div class="flex items-center gap-2">
+                             <div class="w-1 h-1 nier-bg-inverted rotate-45"></div>
+                             <span class="text-[10px] font-mono font-black uppercase tracking-widest nier-text-primary">
+                               {{ resolvedTradingStyle }} 
+                               <span v-if="scenarioDurationStats.count > 0" class="opacity-40 ml-1">scenario range</span>
+                             </span>
+                          </div>
+                       </div>
+                    </div>
+                    <div class="space-y-2">
+                       <div class="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest opacity-30 nier-text-primary">
+                          <span>Start_Point</span>
+                          <span>{{ scenarioDurationLabel }}</span>
+                       </div>
+                       <div class="h-1 w-full bg-black/5 dark:bg-white/5 relative group">
+                          <div class="h-full transition-all duration-1000 ease-[var(--nier-ease)]"
+                               :class="isStyleCompliant ? 'nier-bg-inverted' : 'bg-rose-500'"
+                               :style="{ width: `${scenarioDurationStats.count > 0 ? Math.min((duration / 24 / Math.max(scenarioDurationStats.maxDays, 0.0001)) * 100, 100) : 100}%` }">
+                          </div>
+                          <div v-if="!isStyleCompliant" class="absolute inset-y-0 right-0 w-px bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]"></div>
+                       </div>
+                    </div>
+                    <div v-if="!isStyleCompliant" class="p-4 bg-rose-500/5 border border-rose-500/20 relative overflow-hidden">
+                       <div class="absolute top-0 left-0 w-1 h-full bg-rose-500"></div>
+                       <p class="text-[8px] font-mono uppercase tracking-[0.2em] text-rose-500 leading-relaxed">
+                          {{ styleAlertMessage }}
+                       </p>
+                    </div>
+                   <div v-else class="flex items-center space-x-2 opacity-30 nier-text-primary">
+                      <div class="w-8 h-px border-black/40 dark:border-white/40"></div>
+                      <span class="text-[8px] font-mono uppercase tracking-widest italic">Duration remains within nominal strategy parameters.</span>
+                   </div>
+                </div>
+
+                <!-- TOP SECTION: EQUITY_TRAJECTORY (Expanded) -->
+                <div class="flex-grow relative min-h-[300px]">
+                   <ExEquityCurve2D :trades="reportTrades" :initialBalance="initialBalance" />
+                </div>
+
+                <!-- BOTTOM SECTION: PERFORMANCE_BENCHMARK (Detailed Grid) -->
+                <div class="flex flex-col gap-3 border-b nier-border-primary pb-3 mb-4 md:flex-row md:items-center md:justify-between">
+                  <div class="flex flex-col">
+                    <span class="text-[8px] font-mono uppercase tracking-[0.4em] opacity-30 nier-text-primary">Performance_Benchmark</span>
+                    <span class="text-[10px] font-mono uppercase tracking-[0.22em] opacity-60 nier-text-primary">
+                      {{ activeReportMetricMode === 'simple' ? 'Readable diagnostic brief' : 'Advanced telemetry grid' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center border nier-border-primary bg-black/[0.02] dark:bg-white/[0.02] p-1 shrink-0">
+                    <button
+                      v-for="mode in reportMetricModes"
+                      :key="mode.id"
+                      @click="activeReportMetricMode = mode.id"
+                      class="relative min-w-[96px] px-4 py-2 text-[9px] font-mono font-black uppercase tracking-[0.22em] transition-all duration-300"
+                      :class="activeReportMetricMode === mode.id
+                        ? 'nier-bg-inverted nier-text-primary shadow-sm'
+                        : 'text-black/45 dark:text-white/45 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'">
+                      {{ mode.label }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="activeReportMetricMode === 'simple'" class="pb-6">
+                  <div
+                    v-for="(item, index) in simpleMetricInsights"
+                    :key="item.id"
+                    class="group relative grid grid-cols-[34px_minmax(0,1fr)] gap-4 border-b nier-border-primary px-4 py-4 transition-all duration-300 first:border-t hover:bg-black/[0.025] dark:hover:bg-white/[0.025] md:grid-cols-[42px_minmax(0,1fr)_minmax(148px,auto)] md:px-5"
+                  >
+                    <div class="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                         :class="item.tone === 'positive' ? 'bg-emerald-500' : (item.tone === 'negative' ? 'bg-rose-500' : 'bg-amber-500')"></div>
+
+                    <div class="flex items-center justify-center">
+                      <div class="relative flex h-7 w-7 items-center justify-center text-[9px] font-mono font-black opacity-45 transition-all duration-300 group-hover:opacity-100">
+                        <div class="absolute inset-0 rotate-45 border nier-border-primary transition-transform duration-300 group-hover:scale-110"></div>
+                        <span class="relative">{{ index + 1 }}</span>
+                      </div>
+                    </div>
+
+                    <div class="min-w-0">
+                      <div class="mb-2 flex items-center gap-3">
+                        <span class="text-[8px] font-mono font-black uppercase tracking-[0.32em] opacity-35 transition-opacity group-hover:opacity-60">
+                          {{ item.label }}
+                        </span>
+                        <span class="h-px min-w-8 flex-1 bg-current opacity-10"></span>
+                      </div>
+                      <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <span class="text-[11px] font-mono uppercase tracking-[0.2em] opacity-45">{{ item.prefix }}</span>
+                        <span class="text-2xl font-mono font-black tracking-normal md:text-3xl"
+                              :class="item.tone === 'positive' ? 'text-emerald-500 dark:text-emerald-400' : (item.tone === 'negative' ? 'text-rose-500 dark:text-rose-400' : 'text-amber-500 dark:text-amber-400')">
+                          {{ item.value }}
+                        </span>
+                        <span class="text-[12px] font-mono uppercase tracking-[0.12em] opacity-70">{{ item.suffix }}</span>
+                      </div>
+                      <p v-if="item.hint" class="mt-2 max-w-3xl text-[10px] font-mono uppercase leading-relaxed tracking-[0.16em] opacity-50">
+                        {{ item.hint }}
+                      </p>
+                      <div v-if="item.id === 'score'" class="mt-4">
+                        <button
+                          type="button"
+                          class="group/score-expand inline-flex items-center gap-3 border nier-border-primary px-3 py-2 text-[8px] font-mono font-black uppercase tracking-[0.24em] opacity-70 transition-all duration-300 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+                          @click.stop="isTradeScoreExpanded = !isTradeScoreExpanded"
+                        >
+                          <span class="relative h-3 w-3">
+                            <span class="absolute left-1/2 top-1/2 h-px w-3 -translate-x-1/2 -translate-y-1/2 bg-current"></span>
+                            <span
+                              class="absolute left-1/2 top-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-current transition-transform duration-300"
+                              :class="isTradeScoreExpanded ? 'scale-y-0' : 'scale-y-100'"
+                            ></span>
+                          </span>
+                          <span>
+                            {{ isTradeScoreExpanded ? (locale === 'ru' ? 'Скрыть состав' : 'Hide score') : (locale === 'ru' ? 'Показать состав' : 'Show score') }}
+                          </span>
+                        </button>
+
+                        <div v-if="isTradeScoreExpanded" class="mt-3 flex flex-col border-t nier-border-primary">
+                          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b nier-border-primary px-2 py-3">
+                            <span class="text-[9px] font-mono uppercase tracking-[0.2em] opacity-45">{{ locale === 'ru' ? 'PnL компонент' : 'PnL component' }}</span>
+                            <span class="text-[10px] font-mono font-black" :class="tradeScoreBreakdown.pnlScore >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'">{{ formatCurrency(tradeScoreBreakdown.pnlScore) }}</span>
+                          </div>
+                          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b nier-border-primary px-2 py-3">
+                            <span class="text-[9px] font-mono uppercase tracking-[0.2em] opacity-45">{{ locale === 'ru' ? 'Эмоциональная поправка' : 'Emotional adjustment' }}</span>
+                            <span class="text-[10px] font-mono font-black" :class="tradeScoreBreakdown.emotionScore >= 0 ? 'text-emerald-500 dark:text-emerald-400' : 'text-rose-500 dark:text-rose-400'">{{ tradeScoreBreakdown.emotionScore >= 0 ? '+' : '' }}{{ tradeScoreBreakdown.emotionScore }}</span>
+                          </div>
+                          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b nier-border-primary px-2 py-3">
+                            <span class="text-[9px] font-mono uppercase tracking-[0.2em] opacity-45">{{ locale === 'ru' ? 'Итоговый raw score' : 'Final raw score' }}</span>
+                            <span class="text-[10px] font-mono font-black nier-text-primary">{{ formatCurrency(tradeScoreBreakdown.rawScore) }}</span>
+                          </div>
+                          <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b nier-border-primary px-2 py-3">
+                            <span class="text-[9px] font-mono uppercase tracking-[0.2em] opacity-45">{{ locale === 'ru' ? 'Сравнение' : 'Comparison' }}</span>
+                            <span class="text-[10px] font-mono font-black nier-text-primary">{{ tradeScoreBreakdown.lowerTrades }}/{{ tradeScoreBreakdown.comparedTrades }}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div v-if="item.id === 'required' && requiredConditionRows.length > 0" class="mt-4">
+                        <button
+                          type="button"
+                          class="group/required-expand inline-flex items-center gap-3 border nier-border-primary px-3 py-2 text-[8px] font-mono font-black uppercase tracking-[0.24em] opacity-70 transition-all duration-300 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5"
+                          @click.stop="isRequiredConditionsExpanded = !isRequiredConditionsExpanded"
+                        >
+                          <span class="relative h-3 w-3">
+                            <span class="absolute left-1/2 top-1/2 h-px w-3 -translate-x-1/2 -translate-y-1/2 bg-current"></span>
+                            <span
+                              class="absolute left-1/2 top-1/2 h-3 w-px -translate-x-1/2 -translate-y-1/2 bg-current transition-transform duration-300"
+                              :class="isRequiredConditionsExpanded ? 'scale-y-0' : 'scale-y-100'"
+                            ></span>
+                          </span>
+                          <span>
+                            {{ isRequiredConditionsExpanded ? (locale === 'ru' ? 'Скрыть условия' : 'Hide conditions') : (locale === 'ru' ? 'Показать условия' : 'Show conditions') }}
+                          </span>
+                        </button>
+
+                        <div
+                          v-if="isRequiredConditionsExpanded"
+                          class="mt-3 flex flex-col border-t nier-border-primary"
+                        >
+                          <div
+                            v-for="condition in requiredConditionRows"
+                            :key="condition.id"
+                            class="group/required-row relative grid grid-cols-[18px_minmax(0,1fr)_auto] items-start gap-3 border-b nier-border-primary px-2 py-3 transition-all duration-300"
+                            :class="condition.selected
+                              ? 'bg-black/[0.06] text-black dark:bg-white/[0.08] dark:text-white'
+                              : 'text-black/35 dark:text-white/35'"
+                          >
+                            <span
+                              class="mt-1 h-2.5 w-2.5 rotate-45 border transition-all duration-300"
+                              :class="condition.selected
+                                ? 'border-black bg-black shadow-[0_0_14px_rgba(0,0,0,0.25)] dark:border-white dark:bg-white dark:shadow-[0_0_16px_rgba(255,255,255,0.35)]'
+                                : 'border-current bg-transparent opacity-45'"
+                            ></span>
+                            <span class="min-w-0">
+                              <span class="block truncate text-[10px] font-mono font-black uppercase tracking-[0.22em]">
+                                {{ condition.name }}
+                              </span>
+                              <span
+                                v-if="condition.description"
+                                class="mt-1 block truncate text-[8px] font-mono uppercase tracking-[0.16em] opacity-45"
+                              >
+                                {{ condition.description }}
+                              </span>
+                            </span>
+                            <span
+                              class="shrink-0 text-[8px] font-mono font-black uppercase tracking-[0.2em]"
+                              :class="condition.selected ? 'opacity-90' : 'opacity-40'"
+                            >
+                              {{ condition.statusLabel }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="col-start-2 flex items-center md:col-start-auto md:justify-end">
+                      <div class="inline-flex items-center gap-2 border nier-border-primary px-3 py-2 text-[9px] font-mono uppercase tracking-[0.18em] opacity-70 transition-all duration-300 group-hover:opacity-100">
+                        <span class="opacity-45">{{ item.benchmarkLabel }}</span>
+                        <span class="font-black"
+                              :class="(item.benchmarkTone || item.tone) === 'positive' ? 'text-emerald-500 dark:text-emerald-400' : ((item.benchmarkTone || item.tone) === 'negative' ? 'text-rose-500 dark:text-rose-400' : 'text-amber-500 dark:text-amber-400')">
+                          {{ item.benchmarkValue }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else>
+                <!-- METRICS FILTER TABS -->
+                <div class="flex items-center space-x-2 border-b nier-border-primary pb-3 mb-4 overflow-x-auto custom-scrollbar">
+                  <button v-for="tab in [
+                    { id: 'all', label: 'All', count: 27 },
+                    { id: 'adherence', label: 'Matrix Adherence', count: 5 },
+                    { id: 'behavioural', label: 'Behavioural', count: 5 },
+                    { id: 'execution', label: 'Execution & Risk', count: 8 },
+                    { id: 'strategy_execution', label: 'Strategy vs. Execution', count: 9 }
+                  ]" :key="tab.id"
+                  @click="activeMetricTab = tab.id"
+                  class="relative flex items-center space-x-2 px-4 py-2 border transition-all duration-300 cursor-pointer shrink-0"
+                  :class="activeMetricTab === tab.id ? 'border-black dark:border-white bg-black/5 dark:bg-white/5 nier-text-primary font-bold shadow-sm' : 'nier-border-primary text-black/50 dark:text-white/50 hover:border-black/30 dark:hover:border-white/30'">
+                    <div v-if="activeMetricTab === tab.id" class="w-1.5 h-1.5 nier-bg-inverted rotate-45 animate-pulse"></div>
+                    <span class="text-[10px] font-mono tracking-wider uppercase">{{ tab.label }}</span>
+                    <span class="text-[8px] font-mono px-1.5 py-0.5 bg-black/10 dark:bg-white/10 rounded-full opacity-60">{{ tab.count }}</span>
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pb-4">
+                     <!-- TAB A: MATRIX ADHERENCE METRICS -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'adherence'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Required_Adherence</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="matrixAdherenceMetrics.reqRatio === 100 ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ (matrixAdherenceMetrics.reqRatio || 0).toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    {{ matrixAdherenceMetrics.reqText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Evaluates the percentage of required matrix conditions fulfilled during execution.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (Fulfilled / Required) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">100%</span><span class="text-emerald-500 font-bold">Perfect</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 100%</span><span class="text-amber-500 font-bold">Sub-Optimal</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="matrixAdherenceMetrics.reqRatio === 100 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ matrixAdherenceMetrics.reqRatio === 100 ? 'Perfect' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'adherence'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Additional_Alpha</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="matrixAdherenceMetrics.addAlpha >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ matrixAdherenceMetrics.addAlpha >= 0 ? '+' : '' }}{{ matrixAdherenceMetrics.addAlpha.toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    {{ matrixAdherenceMetrics.addCount }} Confirmations
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Calculates the PnL alpha generated by adding extra confirmation layers compared to the strategy baseline.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 ((PnL - Average PnL) / Average PnL) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 0%</span><span class="text-emerald-500 font-bold">Positive Alpha</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 0%</span><span class="text-rose-500 font-bold">Negative Drag</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="matrixAdherenceMetrics.addAlpha >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ matrixAdherenceMetrics.addAlpha >= 0 ? 'Positive' : 'Negative' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'adherence'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Protocol_Strictness</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary">
+                                    {{ matrixAdherenceMetrics.strictness.toFixed(2) }} / 10
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    Weighted Rating
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>A weighted algorithmic score combining required and additional criteria to measure execution strictness.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (Required Rules * 2.5) + (Additional Rules * 1.5)
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= 8.0</span><span class="text-emerald-500 font-bold">Good</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 8.0</span><span class="text-amber-500 font-bold">Sub-Optimal</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="matrixAdherenceMetrics.strictness >= 8.0 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ matrixAdherenceMetrics.strictness >= 8.0 ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'adherence'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Conditional_PnL_Ratio</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="matrixAdherenceMetrics.condPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ matrixAdherenceMetrics.condPnl >= 0 ? '+' : '' }}${{ matrixAdherenceMetrics.condPnl.toFixed(2) }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    Per Active Condition
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+	                           <div>Measures the ratio of profit captured per active condition in the setup.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+	                                 PnL / Active Conditions
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; $0</span><span class="text-emerald-500 font-bold">Positive Yield</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; $0</span><span class="text-rose-500 font-bold">Negative Drag</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="matrixAdherenceMetrics.condPnl >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ matrixAdherenceMetrics.condPnl >= 0 ? 'Positive' : 'Negative' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'adherence'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Setup_Complexity</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                <span class="text-xl font-mono font-black nier-text-primary">
+                                    {{ matrixAdherenceMetrics.complexity.toFixed(2) }}x
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs Scenario Median
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Evaluates the total number of rules triggered versus the historical median rule count of the same entry scenario.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Active Rules / Scenario Median
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&lt;= 1.5x</span><span class="text-emerald-500 font-bold">Good</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 1.5x</span><span class="text-amber-500 font-bold">Over-Complicated</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="matrixAdherenceMetrics.complexity <= 1.5 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ matrixAdherenceMetrics.complexity <= 1.5 ? 'Good' : 'Over-Complicated' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- TAB B: BEHAVIOURAL METRICS -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'behavioural'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Cognitive_Stability</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="behaviouralMetrics.stability >= 70 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ (behaviouralMetrics.stability || 0).toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    Neural Telemetry
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Evaluates active emotional markers, deducting stability points for psychological friction tags.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 100 - (Friction Tags * 15)
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= 70%</span><span class="text-emerald-500 font-bold">Stable</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 70%</span><span class="text-rose-500 font-bold">Unstable</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="behaviouralMetrics.stability >= 70 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ behaviouralMetrics.stability >= 70 ? 'Stable' : 'Unstable' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'behavioural'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Dominant_Bias</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-sm font-mono font-black nier-text-primary truncate">
+                                    {{ behaviouralMetrics.bias.split(' ')[0] }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ behaviouralMetrics.bias.split(' ').slice(1).join(' ') || 'Nominal' }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Identifies the primary psychological friction marker present and maps it to its known execution risk profile.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Highest Priority Friction Tag
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">None</span><span class="text-emerald-500 font-bold">Clear Execution</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">Active Bias</span><span class="text-amber-500 font-bold">Cognitive Risk</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="behaviouralMetrics.bias.startsWith('None') ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ behaviouralMetrics.bias.startsWith('None') ? 'Clear' : 'Cognitive Risk' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'behavioural'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Emotional_PnL_Drag</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="behaviouralMetrics.pnlDrag >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ behaviouralMetrics.pnlDrag >= 0 ? '+' : '' }}${{ behaviouralMetrics.pnlDrag.toFixed(2) }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs Clean Execution
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Calculates potential profit lost or left on the table due to psychological friction markers.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Actual PnL - (Average PnL * 1.15)
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= $0</span><span class="text-emerald-500 font-bold">Zero Drag</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; $0</span><span class="text-rose-500 font-bold">Profit Drag</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="behaviouralMetrics.pnlDrag >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ behaviouralMetrics.pnlDrag >= 0 ? 'Good' : 'Negative Drag' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'behavioural'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Friction_Density</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black" :class="behaviouralMetrics.frictionDensity === 0 ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ behaviouralMetrics.frictionDensity.toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    {{ behaviouralMetrics.frictionCount }} Friction Markers
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Total count of active negative emotional tags divided by total active tags.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (Friction Tags / Total Tags) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">0%</span><span class="text-emerald-500 font-bold">Pristine</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 0%</span><span class="text-amber-500 font-bold">Friction Present</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="behaviouralMetrics.frictionDensity === 0 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ behaviouralMetrics.frictionDensity === 0 ? 'Perfect' : 'Friction Present' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+
+
+                     <!-- TAB C: EXECUTION & RISK METRICS (Existing) -->
+                     <!-- PROFIT COMPARISON -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Net_Result_Variance</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <div class="flex items-baseline space-x-2">
+                                    <span class="text-xl font-mono font-black" :class="props.trade.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                       {{ props.trade.pnl >= 0 ? '+' : '' }}{{ props.trade.pnl.toFixed(2) }}$
+                                    </span>
+                                 </div>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs avg <span class="font-black nier-text-primary">${{ strategyStats.avgPnl.toFixed(2) }}</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Calculates the difference between the current trade's profit/loss and the historical average for this strategy.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Trade PnL - Strategy Avg PnL
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= Avg</span><span class="text-emerald-500 font-bold">Above Average</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; Avg</span><span class="text-amber-500 font-bold">Below Average</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="props.trade.pnl >= strategyStats.avgPnl ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ props.trade.pnl >= strategyStats.avgPnl ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- YIELD EFFICIENCY -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Yield_Efficiency</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary uppercase">{{ tradeDetailStats.yieldPct.toFixed(2) }}%</span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    Balance Before Trade
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Measures the net impact of this trade relative to the account balance immediately before entry.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (PnL / Balance Before Trade) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 0%</span><span class="text-emerald-500 font-bold">Positive Impact</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 0%</span><span class="text-rose-500 font-bold">Drawdown</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="tradeDetailStats.yieldPct >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ tradeDetailStats.yieldPct >= 0 ? 'Positive' : 'Negative' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- PROFIT VELOCITY -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Profit_Velocity</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary uppercase">${{ tradeDetailStats.velocity.toFixed(2) }}/h</span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs baseline <span class="font-black nier-text-primary">${{ strategyStats.avgVelocity.toFixed(2) }}/h</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Capital efficiency metric showing USD earned per hour of market exposure.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 PnL / (Duration Minutes / 60)
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= Avg Velocity</span><span class="text-emerald-500 font-bold">High Efficiency</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; Avg Velocity</span><span class="text-amber-500 font-bold">Low Efficiency</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="tradeDetailStats.velocity >= strategyStats.avgVelocity ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ tradeDetailStats.velocity >= strategyStats.avgVelocity ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- ACTUAL VS TARGET RR -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Actual_vs_Target_RR</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <div class="flex items-baseline space-x-2">
+                                   <span class="text-xl font-mono font-black" :class="actualRR >= targetRR ? 'text-emerald-400' : 'text-amber-400'">
+                                      1:{{ actualRR.toFixed(2) }}
+                                   </span>
+                                 </div>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    {{ resolvedRRNode ? 'vs target' : 'vs avg' }} <span class="font-black nier-text-primary">1:{{ resolvedRRNode ? targetRR.toFixed(2) : strategyStats.avgRR.toFixed(2) }}</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>{{ resolvedRRNode ? 'Compares the realized Risk/Reward ratio against the matrix target protocol.' : 'The realized ratio of risk taken to potential reward captured during this session.' }}</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Realized Reward / Realized Risk
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= Target RR</span><span class="text-emerald-500 font-bold">Target Met</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; Target RR</span><span class="text-amber-500 font-bold">Sub-Optimal</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="actualRR >= targetRR ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ actualRR >= targetRR ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- PLANNED VS REALIZED RISK -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Planned_vs_Realized_Risk</span>
+                              <div class="flex flex-col justify-center space-y-1 py-1">
+                                 <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+                                   <span class="text-lg font-mono font-black" :class="tradeRiskAudit.plannedOk ? 'text-emerald-400' : 'text-rose-400'">
+                                      S: {{ formatRiskCurrency(tradeRiskAudit.planned) }}
+                                   </span>
+                                   <span class="text-lg font-mono font-black" :class="tradeRiskAudit.realizedOk ? 'text-emerald-400' : 'text-rose-400'">
+                                      R: {{ formatRiskCurrency(tradeRiskAudit.realized) }}
+                                   </span>
+                                 </div>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    {{ tradeRiskAudit.status }} · max <span class="font-black nier-text-primary">{{ riskBudgetDollars !== null ? '$' + riskBudgetDollars.toFixed(2) : 'N/A' }}</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Audits both planned stop-loss risk and realized loss against the Risk Per Trade budget, catching manual exits that lose more than the planned stop.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Stop Risk = |Entry - Stop Loss| * Size · Realized Risk = max(0, -PnL)
+                              </code>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary grid grid-cols-2 gap-2">
+                              <div class="border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] p-2">
+                                 <span class="text-[8px] opacity-40 block uppercase tracking-widest font-black">Stop Risk</span>
+                                 <span class="text-[12px] font-black" :class="tradeRiskAudit.plannedOk ? 'text-emerald-500' : 'text-rose-500'">{{ formatRiskCurrency(tradeRiskAudit.planned) }}</span>
+                              </div>
+                              <div class="border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] p-2">
+                                 <span class="text-[8px] opacity-40 block uppercase tracking-widest font-black">Realized Loss</span>
+                                 <span class="text-[12px] font-black" :class="tradeRiskAudit.realizedOk ? 'text-emerald-500' : 'text-rose-500'">{{ formatRiskCurrency(tradeRiskAudit.realized) }}</span>
+                              </div>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">Stop & Realized &lt;= Risk Per Trade</span><span class="text-emerald-500 font-bold">Compliant</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">Either value &gt; Risk Per Trade</span><span class="text-rose-500 font-bold">Breach Warning</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="tradeRiskAudit.ok ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ tradeRiskAudit.status }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- DURATION COMPARISON -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Temporal_Exposure</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary uppercase flex items-baseline flex-wrap">
+                                    <span v-for="(part, idx) in durationParts" :key="idx" class="inline-flex items-baseline mr-1">
+                                       <span>{{ part.num }}</span><span class="text-[11px] font-normal opacity-40 ml-0.5">{{ part.unit }}</span>
+                                    </span>
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs avg <span class="font-black nier-text-primary">{{ Math.floor(strategyStats.avgDuration / 60) }}h {{ Math.floor(strategyStats.avgDuration % 60) }}m</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Total duration of the trade from entry to exit protocol completion.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Exit Timestamp - Entry Timestamp
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&lt;= Avg Duration</span><span class="text-emerald-500 font-bold">Efficient</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; Avg Duration</span><span class="text-amber-500 font-bold">Extended Hold</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="tradeDurationMinutes <= strategyStats.avgDuration ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ tradeDurationMinutes <= strategyStats.avgDuration ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- ASSET PROTOCOL -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Asset_Protocol</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary truncate uppercase">{{ props.trade.side }} {{ enrichedTrade?.asset || 'N/A' }}</span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    Active Tactical Layer
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>The specific market vehicle and direction (Long/Short) utilized for this tactical operation.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Trade Side + Trade Asset
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">Valid Asset</span><span class="text-emerald-500 font-bold">Verified</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[14px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 text-emerald-500">
+                                 Perfect
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- STOP LOSS DISTANCE -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Stop_Loss_Distance</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary">{{ formatRiskPercent(currentSlDistPct) }}</span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs avg <span class="font-black nier-text-primary">{{ strategyStats.avgSlDistPct.toFixed(2) }}%</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>The percentage distance between the entry price and the planned stop loss threshold.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (|Entry Price - Stop Loss| / Entry Price) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&lt;= Avg SL Dist</span><span class="text-emerald-500 font-bold">Tight Stop</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; Avg SL Dist</span><span class="text-amber-500 font-bold">Wide Stop</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="Number.isFinite(currentSlDistPct) && currentSlDistPct <= strategyStats.avgSlDistPct ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ Number.isFinite(currentSlDistPct) ? (currentSlDistPct <= strategyStats.avgSlDistPct ? 'Good' : 'Sub-Optimal') : 'N/A' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- TAKE PROFIT DISTANCE -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Take_Profit_Distance</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1">
+                                 <span class="text-xl font-mono font-black nier-text-primary">{{ formatRiskPercent(currentTpDistPct) }}</span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
+                                    vs avg <span class="font-black nier-text-primary">{{ strategyStats.avgTpDistPct.toFixed(2) }}%</span>
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>The percentage distance between the entry price and the planned take profit target.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (|Take Profit - Entry Price| / Entry Price) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= Avg TP Dist</span><span class="text-emerald-500 font-bold">High Target</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; Avg TP Dist</span><span class="text-amber-500 font-bold">Low Target</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="Number.isFinite(currentTpDistPct) && currentTpDistPct >= strategyStats.avgTpDistPct ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ Number.isFinite(currentTpDistPct) ? (currentTpDistPct >= strategyStats.avgTpDistPct ? 'Good' : 'Sub-Optimal') : 'N/A' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <!-- TAB D: STRATEGY VS. EXECUTION METRICS -->
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">SL_Execution_Drag</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.slDrag >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ strategyExecutionMetrics.slDrag >= 0 ? '+' : '' }}${{ strategyExecutionMetrics.slDrag.toFixed(2) }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.slDragText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Compares planned stop loss against actual exit price to measure execution slippage or premature cutting.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Actual Exit - Planned Stop Loss
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= $0</span><span class="text-emerald-500 font-bold">Zero Drag</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; $0</span><span class="text-rose-500 font-bold">Slippage / Premature Cut</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="strategyExecutionMetrics.slDrag >= 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ strategyExecutionMetrics.slDrag >= 0 ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Risk_Budget_Adherence</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="tradeRiskAudit.ok ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ strategyExecutionMetrics.riskBudgetRatio.toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.riskBudgetText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Compares the worst value between planned stop risk and realized loss against the Risk_Per_Trade budget defined in the Genesis Matrix.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 max(Stop Risk, Realized Loss) / Risk Budget × 100
+                              </code>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary grid grid-cols-2 gap-2">
+                              <div class="border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] p-2">
+                                 <span class="text-[8px] opacity-40 block uppercase tracking-widest font-black">Stop Risk</span>
+                                 <span class="text-[12px] font-black" :class="tradeRiskAudit.plannedOk ? 'text-emerald-500' : 'text-rose-500'">{{ formatRiskCurrency(tradeRiskAudit.planned) }}</span>
+                              </div>
+                              <div class="border border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] p-2">
+                                 <span class="text-[8px] opacity-40 block uppercase tracking-widest font-black">Realized Loss</span>
+                                 <span class="text-[12px] font-black" :class="tradeRiskAudit.realizedOk ? 'text-emerald-500' : 'text-rose-500'">{{ formatRiskCurrency(tradeRiskAudit.realized) }}</span>
+                              </div>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&lt;= 100%</span><span class="text-emerald-500 font-bold">Compliant</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 100%</span><span class="text-rose-500 font-bold">Budget Exceeded</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="tradeRiskAudit.ok ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ tradeRiskAudit.status }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">TP_Capture_Ratio</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="Number.isFinite(strategyExecutionMetrics.tpCapture) && strategyExecutionMetrics.tpCapture === 100 ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ formatRiskPercent(strategyExecutionMetrics.tpCapture) }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.tpCaptureText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Measures how much of the planned reward toward take profit was realized before exit, using trade direction.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (Reward Toward TP / Target Reward) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">100%</span><span class="text-emerald-500 font-bold">Full Capture</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 100%</span><span class="text-amber-500 font-bold">Partial Capture</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="Number.isFinite(strategyExecutionMetrics.tpCapture) && strategyExecutionMetrics.tpCapture === 100 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ Number.isFinite(strategyExecutionMetrics.tpCapture) ? (strategyExecutionMetrics.tpCapture === 100 ? 'Perfect' : 'Sub-Optimal') : 'N/A' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Edge_Capture_Quotient</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.edgeQuotient >= 1 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ strategyExecutionMetrics.edgeQuotient.toFixed(2) }}x
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.edgeQuotientText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Compares realized Risk/Reward ratio against the strategy's expected baseline R/R.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Realized RR / Baseline RR
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= 1.0x</span><span class="text-emerald-500 font-bold">Edge Maintained</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 1.0x</span><span class="text-rose-500 font-bold">Edge Diluted</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="strategyExecutionMetrics.edgeQuotient >= 1 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ strategyExecutionMetrics.edgeQuotient >= 1 ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Unrealized_Alpha_Left</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="Number.isFinite(strategyExecutionMetrics.unrealizedLeft) && strategyExecutionMetrics.unrealizedLeft === 0 ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ formatRiskCurrency(strategyExecutionMetrics.unrealizedLeft) }}
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.unrealizedLeftText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Calculates additional profit that would have been captured if held to the planned Take Profit level.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Planned TP Profit - Realized Profit
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">$0</span><span class="text-emerald-500 font-bold">Zero Left</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; $0</span><span class="text-amber-500 font-bold">Left on Table</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="Number.isFinite(strategyExecutionMetrics.unrealizedLeft) && strategyExecutionMetrics.unrealizedLeft === 0 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ Number.isFinite(strategyExecutionMetrics.unrealizedLeft) ? (strategyExecutionMetrics.unrealizedLeft === 0 ? 'Perfect' : 'Sub-Optimal') : 'N/A' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Horizon_Sync_Rating</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.horizonSync === 100 ? 'text-emerald-400' : 'text-rose-400'">
+                                    {{ (strategyExecutionMetrics.horizonSync || 0).toFixed(2) }}%
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.horizonSyncText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Shows the trade duration position inside the historical scenario range, from minimum to maximum.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 (Trade Duration - Scenario Min) / (Scenario Max - Scenario Min) * 100
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">0%</span><span class="text-emerald-500 font-bold">Scenario Min</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">50%</span><span class="text-slate-500 font-bold">Scenario Mid</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">100%</span><span class="text-emerald-500 font-bold">Scenario Max</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5 nier-text-primary">
+                                 {{ strategyExecutionMetrics.horizonSyncText }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Velocity_Variance_Index</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.velocityDelta >= 1 ? 'text-emerald-400' : 'text-amber-400'">
+                                    {{ strategyExecutionMetrics.velocityDelta.toFixed(2) }}x
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.velocityDeltaText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Compares realized profit velocity against the strategy's historical baseline velocity in dollars per hour.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Realized Velocity / Baseline Velocity
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= 1.0x</span><span class="text-emerald-500 font-bold">Optimal Pacing</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 1.0x</span><span class="text-amber-500 font-bold">Lagging Velocity</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="strategyExecutionMetrics.velocityDelta >= 1 ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ strategyExecutionMetrics.velocityDelta >= 1 ? 'Good' : 'Sub-Optimal' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Conditional_Alpha_Decay</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.alphaDecay === 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                    -{{ strategyExecutionMetrics.alphaDecay }} Rules
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.alphaDecayText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>Correlates negative emotional markers with required rules missing from the executed condition set.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 Missing Required Rules * Emotion Penalty
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">0 Rules</span><span class="text-emerald-500 font-bold">Zero Decay</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&gt; 0 Rules</span><span class="text-rose-500 font-bold">Alpha Decay</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="strategyExecutionMetrics.alphaDecay === 0 ? 'text-emerald-500' : 'text-rose-500'">
+                                 {{ strategyExecutionMetrics.alphaDecay === 0 ? 'Perfect' : 'Decay Warning' }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+
+                     <ExTooltip :is-dark="isDark" v-if="['all', 'strategy_execution'].includes(activeMetricTab)" variant="basic">
+                        <template #trigger>
+                           <div class="flex flex-col space-y-1 group cursor-pointer">
+                              <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Execution_Confidence_Index</span>
+                              <div class="flex flex-col justify-center space-y-0.5 py-1 overflow-hidden">
+                                 <span class="text-xl font-mono font-black" :class="strategyExecutionMetrics.executionGrade >= 80 ? 'text-emerald-400' : (strategyExecutionMetrics.executionGrade >= 60 ? 'text-amber-400' : 'text-rose-400')">
+                                    {{ (strategyExecutionMetrics.executionGrade || 0).toFixed(2) }} / 100
+                                 </span>
+                                 <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60 truncate">
+                                    {{ strategyExecutionMetrics.executionGradeText }}
+                                 </span>
+                              </div>
+                           </div>
+                        </template>
+                        <div class="w-full text-[10px] font-mono uppercase tracking-wider leading-relaxed flex flex-col space-y-1">
+                           <div>A unified composite score combining adherence, target capture efficiency, risk compliance, and cognitive stability.</div>
+                           <div class="pt-2 border-t nier-border-primary">
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Formula</span>
+                              <code class="block p-1 bg-black/5 dark:bg-white/5 rounded text-[9px] font-mono font-bold nier-text-primary tracking-tighter">
+                                 0.3*Adherence + 0.3*TP Capture + 0.2*Risk Score + 0.2*Stability
+                              </code>
+                           </div>
+                           <div>
+                              <span class="text-[9px] opacity-40 block uppercase tracking-widest font-black mb-1">Benchmark</span>
+                              <div class="text-[9px] space-y-0.5 bg-black/[0.02] dark:bg-white/[0.02] p-1 rounded border border-black/5 dark:border-white/5 font-medium">
+                                 <div class="flex justify-between"><span class="opacity-70">&gt;= 80</span><span class="text-emerald-500 font-bold">High Confidence</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">60-79</span><span class="text-amber-500 font-bold">Moderate</span></div>
+                                 <div class="flex justify-between"><span class="opacity-70">&lt; 60</span><span class="text-rose-500 font-bold">Low Confidence</span></div>
+                              </div>
+                           </div>
+                           <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
+                              <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
+                              <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
+                                    :class="strategyExecutionMetrics.executionGrade >= 80 ? 'text-emerald-500' : (strategyExecutionMetrics.executionGrade >= 60 ? 'text-amber-500' : 'text-rose-500')">
+                                 {{ strategyExecutionMetrics.executionGrade >= 80 ? 'Good' : (strategyExecutionMetrics.executionGrade >= 60 ? 'Stable' : 'Sub-Optimal') }}
+                              </span>
+                           </div>
+                        </div>
+                     </ExTooltip>
+                  </div>
+
+                </div>
+
+               </div>
+
                <!-- VISUALS VIEW (MODE 4) -->
-               <div v-if="currentPage === 4" :key="'visuals'" class="min-h-full flex flex-col p-8 space-y-8 overflow-y-auto custom-scrollbar">
+               <div v-else-if="currentPage === 4" :key="'visuals'" class="min-h-full flex flex-col p-8 space-y-8 overflow-y-auto custom-scrollbar">
                   <div class="flex items-center justify-between border-b nier-border-primary pb-4">
                      <div class="flex flex-col">
                        <span class="text-[10px] font-mono font-black uppercase tracking-[0.4em] opacity-40 nier-text-primary">Archival_Visual_Stream</span>

@@ -92,20 +92,10 @@
                  <path d="M3 17l5-5 4 4 8-9"></path>
                  <path d="M17 7h3v3"></path>
               </svg>
-           </button>
-        </div>
-        <!-- Facet Navigation -->
-        <div v-if="activeFaceIndices.length > 1 && isHudVisible" class="absolute bottom-28 left-1/2 -translate-x-1/2 flex flex-col items-center space-y-6 pointer-events-auto transition-all duration-300" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
-           <div class="flex items-center space-x-12">
-              <div class="flex flex-col items-center">
-                 <div class="flex space-x-2 mt-2">
-                    <div v-for="faceIdx in activeFaceIndices" :key="faceIdx"
-                         class="w-1.5 h-1.5 border border-slate-500 transition-all rotate-45"
-                         :class="faceIdx === currentFace ? 'bg-white border-white scale-125 shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'bg-transparent opacity-20'">
-                    </div>
-                 </div>
+              <div v-if="patternForecastLoading"
+                   class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.55)]">
               </div>
-           </div>
+           </button>
         </div>
         <!-- Cube Search Query Overlay -->
         <Transition name="fade">
@@ -117,7 +107,6 @@
         </Transition>
       </div>
 
-      <!-- LIST VIEW LAYER -->
       <div
         v-if="viewType === 'list' || viewType === 'timeTree'"
         class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
@@ -345,74 +334,119 @@
         class="absolute bottom-12 left-12 z-[10000] flex flex-col space-y-3 pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
       >
-         <div class="flex items-center space-x-2 p-1.5 border nier-border-primary bg-white/5 dark:bg-black/5 backdrop-blur-xl relative">
+         <div class="relative flex items-center gap-2 border nier-border-primary bg-white/5 p-1.5 backdrop-blur-xl dark:bg-black/5">
             <!-- Brackets -->
             <div class="absolute -top-px -left-px w-1.5 h-1.5 border-t border-l border-black/40 dark:border-white/40"></div>
             <div class="absolute -bottom-px -right-px w-1.5 h-1.5 border-b border-r border-black/40 dark:border-white/40"></div>
 
             <button @click="viewType = 'cube'" 
-                    class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
+                    class="group relative flex h-12 w-12 items-center justify-center overflow-hidden p-0 transition-all duration-500"
                     :class="viewType === 'cube' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
-               <div class="w-4 h-4 border-2 transition-all duration-700 relative flex items-center justify-center"
+               <div class="relative flex h-4 w-4 shrink-0 items-center justify-center border-2 transition-all duration-700"
                     :class="viewType === 'cube' ? 'border-white dark:border-black rotate-[135deg] scale-110' : 'border-black/40 dark:border-white/40 group-hover:border-black dark:group-hover:border-white group-hover:rotate-45'">
                   <div class="w-1 h-1 bg-current rotate-45"></div>
                </div>
                <div v-if="viewType === 'cube'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
 
-            <button @click="viewType = 'list'" 
-                    class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
-                    :class="viewType === 'list' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
-               <div class="flex flex-col items-center space-y-1.5 transition-all duration-700"
-                    :class="viewType === 'list' ? 'nier-text-primary scale-110' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white group-hover:translate-y-[-1px]'">
+            <button @click="viewType = 'timeTree'"
+                    class="group relative flex h-12 w-12 items-center justify-center overflow-hidden p-0 transition-all duration-500"
+                    :class="viewType === 'list' || viewType === 'timeTree' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
+               <div class="flex shrink-0 flex-col items-center space-y-1.5 transition-all duration-700"
+                    :class="viewType === 'list' || viewType === 'timeTree' ? 'nier-text-primary scale-110' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white group-hover:translate-y-[-1px]'">
                   <div class="w-5 h-[1.5px] bg-current"></div>
                   <div class="w-5 h-[1.5px] bg-current opacity-60"></div>
                   <div class="w-5 h-[1.5px] bg-current opacity-30"></div>
                </div>
-               <div v-if="viewType === 'list'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
+               <div v-if="viewType === 'list' || viewType === 'timeTree'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
 
-            <button @click="viewType = 'tree'" 
-                    class="w-12 h-12 flex items-center justify-center transition-all duration-500 relative group overflow-hidden"
-                    :class="viewType === 'tree' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'"
-                    title="Tree View">
-               <svg v-if="viewType === 'tree'" class="w-4 h-4 transition-all duration-500 nier-text-primary scale-110" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 5v14"></path>
-                  <path d="M12 9H7"></path>
-                  <path d="M12 13h5"></path>
-                  <path d="M7 9v4"></path>
-                  <path d="M17 13v4"></path>
-                  <rect x="5" y="4" width="4" height="4" rx="0.8"></rect>
-                  <rect x="15" y="10" width="4" height="4" rx="0.8"></rect>
-                  <rect x="10" y="17" width="4" height="4" rx="0.8"></rect>
+            <button @click="viewType = 'distribution'"
+                    class="group relative flex h-12 w-12 items-center justify-center overflow-hidden p-0 transition-all duration-500"
+                    :class="viewType === 'distribution' ? 'nier-bg-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'hover:bg-black/5 dark:hover:bg-white/5'">
+               <svg class="h-5 w-5 shrink-0 transition-all duration-700"
+                    :class="viewType === 'distribution' ? 'nier-text-primary scale-110' : 'text-black/40 dark:text-white/40 group-hover:text-black dark:group-hover:text-white group-hover:translate-y-[-1px]'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                    stroke-linejoin="round">
+                  <path d="M4 19h16"></path>
+                  <path d="M6 16V9"></path>
+                  <path d="M10 16V5"></path>
+                  <path d="M14 16v-3"></path>
+                  <path d="M18 16V7"></path>
                </svg>
-               <svg v-else class="w-4 h-4 nier-text-primary transition-all duration-500 group-hover:scale-110 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 5v14"></path>
-                  <path d="M12 9H7"></path>
-                  <path d="M12 13h5"></path>
-                  <path d="M7 9v4"></path>
-                  <path d="M17 13v4"></path>
-                  <rect x="5" y="4" width="4" height="4" rx="0.8"></rect>
-                  <rect x="15" y="10" width="4" height="4" rx="0.8"></rect>
-                  <rect x="10" y="17" width="4" height="4" rx="0.8"></rect>
-               </svg>
-               <div v-if="viewType === 'tree'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
+               <div v-if="viewType === 'distribution'" class="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 nier-bg-inverted opacity-50"></div>
             </button>
          </div>
       </div>
 
-      <ExGenesisTree
-        v-if="viewType === 'tree'"
-        @switch-view="viewType = $event"
-        @open-trade-archive="handleTreeOpenTradeArchive"
-      />
-
+      <!-- BOTTOM RIGHT: DISTRIBUTION METRIC MODE -->
+      <div
+        v-if="isHudVisible && !isTradeEntryOpen && viewType === 'distribution'"
+        class="absolute bottom-12 right-12 z-[10000] pointer-events-auto transition-all duration-300"
+        :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
+      >
+        <div class="relative flex items-center gap-2 border nier-border-primary bg-white/5 p-1.5 font-mono text-[9px] uppercase tracking-[0.24em] backdrop-blur-xl dark:bg-black/5">
+          <div class="absolute -top-px -left-px h-1.5 w-1.5 border-l border-t border-black/40 dark:border-white/40"></div>
+          <div class="absolute -bottom-px -right-px h-1.5 w-1.5 border-b border-r border-black/40 dark:border-white/40"></div>
+          <button
+            aria-label="PnL"
+            class="flex h-12 w-12 items-center justify-center p-0 transition-all duration-500"
+            :class="distributionMetricMode === 'pnl' ? 'nier-bg-inverted nier-text-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'opacity-45 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5'"
+            @click="distributionMetricMode = 'pnl'"
+          >
+            <svg
+              class="h-5 w-5 shrink-0 transition-transform duration-500"
+              :class="distributionMetricMode === 'pnl' ? 'scale-110' : ''"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M4 19h16"></path>
+              <path d="M6 16l3.5-5 3.5 3 5-8"></path>
+              <path d="M18 6h-4"></path>
+              <path d="M18 6v4"></path>
+            </svg>
+          </button>
+          <button
+            :disabled="isMainDiaryStrategy"
+            aria-label="Score"
+            class="flex h-12 w-12 items-center justify-center p-0 transition-all duration-500"
+            :class="isMainDiaryStrategy
+              ? 'cursor-not-allowed opacity-20'
+              : (distributionMetricMode === 'score' ? 'nier-bg-inverted nier-text-inverted shadow-[0_0_20px_rgba(0,0,0,0.1)]' : 'opacity-45 hover:bg-black/5 hover:opacity-100 dark:hover:bg-white/5')"
+            @click="distributionMetricMode = 'score'"
+          >
+            <svg
+              class="h-5 w-5 shrink-0 transition-transform duration-500"
+              :class="distributionMetricMode === 'score' ? 'scale-110' : ''"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="8"></circle>
+              <path d="M8.5 15.5l7-7"></path>
+              <circle cx="9" cy="9" r="1"></circle>
+              <circle cx="15" cy="15" r="1"></circle>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- TACTICAL PROTOCOL INSIGHT (FIXED RIGHT - ARCHIVE) -->
     <Teleport to="body">
        <Transition name="panel-slide" mode="out-in">
-          <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen && !isTimeTreeFullscreen"
+          <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen && !isTimeTreeFullscreen" 
                key="trade-archive-insight"
                class="fixed right-12 top-1/2 -translate-y-1/2 w-[440px] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]">
              
@@ -471,11 +505,11 @@
                       <div class="flex flex-col mt-2 space-y-2">
                         <div class="flex items-baseline justify-between">
                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.stopLoss') }}</span>
-                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatFullPrice(selectedTrade?.stopLoss) }}</span>
+                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatOptionalTradePrice(selectedTrade?.stopLoss) }}</span>
                         </div>
                         <div class="flex items-baseline justify-between">
                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.takeProfit') }}</span>
-                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatFullPrice(selectedTrade?.takeProfit) }}</span>
+                          <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatOptionalTradePrice(selectedTrade?.takeProfit) }}</span>
                         </div>
                       </div>
                     </div>
@@ -484,6 +518,10 @@
                     <div class="flex flex-col pt-4 border-t border-black/5 dark:border-white/5">
                       <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.tradeMetrics') }}</span>
                       <div class="flex flex-col mt-2 space-y-2">
+                         <div class="flex items-baseline justify-between">
+                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ locale === 'ru' ? 'НАПРАВЛЕНИЕ' : 'DIRECTION' }}</span>
+                           <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ formatTradeDirection(selectedTrade) }}</span>
+                         </div>
                          <div class="flex items-baseline justify-between">
                            <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ t('genesis.virtualLog.rrRatio') }}</span>
                            <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">1:{{ calculateRR(selectedTrade) }}</span>
@@ -556,26 +594,11 @@
       :is-open="showNodeMap" 
       :trade="mappedTradeForAnalysis"
       :is-dark="isDark"
+      :initial-page="panelInitialPage"
+      :initial-expanded-note-id="panelInitialNoteId"
+      :open-analytics-on-mount="showExtraDetails"
       @close="showNodeMap = false; showExtraDetails = false" 
     />
-
-    <Teleport to="body">
-      <Transition name="panel-center" mode="out-in">
-        <div
-          v-if="selectedTrade && showExtraDetails && !isTradeEntryOpen"
-          key="trade-analysis-panel"
-          class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[1100px] max-w-[calc(100vw-6rem)] h-[85vh] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]"
-        >
-          <ExTradeAnalysisPanel
-            :trade="mappedTradeForAnalysis"
-            :global-stability="64"
-            :initial-page="panelInitialPage"
-            :initial-expanded-note-id="panelInitialNoteId"
-            @close="showExtraDetails = false; panelInitialPage = 5; panelInitialNoteId = undefined"
-          />
-        </div>
-      </Transition>
-    </Teleport>
 
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
     <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500">
@@ -598,16 +621,36 @@
        </ExPanel>
     </div>
 
+    <div
+      v-if="!showNodeMap && viewType === 'cube' && showCapitalForecast && isHudVisible && canOpenCapitalForecast"
+      class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[8990] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500"
+    >
+      <ExPatternForecastPanel
+        :visible="showCapitalForecast"
+        :trades="currentTrades"
+        :initial-capital="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+        :strategy-id="selectedStrategyId"
+        :strategy-name="selectedStrategy.name"
+        @loading-change="patternForecastLoading = $event"
+      />
+    </div>
+
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
     <div v-if="!showNodeMap && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
        
        <!-- The Dropdown Menu -->
 
+       <div v-if="viewType === 'cube' && activeFaceIndices.length > 1" class="mb-4 flex items-center justify-center space-x-2 pointer-events-auto">
+          <div v-for="faceIdx in activeFaceIndices" :key="faceIdx"
+               class="w-1.5 h-1.5 border border-slate-500 transition-all rotate-45"
+               :class="faceIdx === currentFace ? 'bg-white border-white scale-125 shadow-[0_0_8px_rgba(255,255,255,0.5)]' : 'bg-transparent opacity-20'">
+          </div>
+       </div>
 
        <!-- The Pagination + Protocol Select Button Row -->
        <div class="flex items-center space-x-4">
           <!-- Left Pagination Arrow -->
-          <button @click="prevCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
+          <button v-if="viewType === 'cube'" @click="prevCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
              <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-black/30 dark:border-white/30"></div>
              <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-black/30 dark:border-white/30"></div>
              <div class="w-2 h-2 border-t-2 border-l-2 border-black dark:border-white -rotate-45 group-hover/arrow:-translate-x-0.5 transition-transform"></div>
@@ -623,7 +666,7 @@
           />
 
           <!-- Right Pagination Arrow -->
-          <button @click="nextCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
+          <button v-if="viewType === 'cube'" @click="nextCubePage" class="w-12 h-12 bg-white/5 dark:bg-black/5 border nier-border-primary flex items-center justify-center backdrop-blur-md pointer-events-auto cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-all group/arrow relative">
              <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-black/30 dark:border-white/30"></div>
              <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-black/30 dark:border-white/30"></div>
              <div class="w-2 h-2 border-t-2 border-r-2 border-black dark:border-white rotate-45 group-hover/arrow:translate-x-0.5 transition-transform"></div>
@@ -761,32 +804,133 @@
     </Transition>
   </Teleport>
 
+  <Teleport to="body">
+    <Transition name="fade-blur">
+      <div
+        v-if="showCapitalForecastIntro"
+        class="fixed inset-0 z-[10040] flex items-center justify-center bg-black/45 p-8 backdrop-blur-md"
+        @click.self="rejectCapitalForecastIntro"
+      >
+        <ExPanel
+          variant="light"
+          :no-padding="true"
+          :no-shadow="true"
+          :show-corners="true"
+          class="w-full max-w-[560px] !border-black/15 dark:!border-white/15"
+        >
+          <div class="px-8 py-7 nier-text-primary">
+            <div class="mb-5 flex items-center justify-between gap-6 border-b border-black/10 pb-4 dark:border-white/10">
+              <div>
+                <div class="text-[8px] font-mono uppercase tracking-[0.42em] opacity-45">
+                  {{ locale === 'ru' ? 'ПРОГНОЗ_ПАТТЕРНОВ' : 'PATTERN_FORECAST' }}
+                </div>
+                <h2 class="mt-2 text-lg font-mono font-black uppercase tracking-[0.18em]">
+                  {{ locale === 'ru' ? 'Предупреждение перед запуском' : 'Forecast Preview Notice' }}
+                </h2>
+              </div>
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center border nier-border-primary">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 17l5-5 4 4 8-9"></path>
+                  <path d="M17 7h3v3"></path>
+                </svg>
+              </div>
+            </div>
+
+            <div class="font-mono text-[10px] uppercase tracking-[0.12em] leading-relaxed">
+              <div class="grid grid-cols-2 gap-3 border-b border-black/10 pb-4 dark:border-white/10">
+                <div>
+                  <div class="opacity-40">{{ locale === 'ru' ? 'ВАШИ_СДЕЛКИ' : 'YOUR_TRADES' }}</div>
+                  <div class="mt-1 text-base font-black">{{ patternForecastIntroStats.userTrades }}</div>
+                </div>
+                <div>
+                  <div class="opacity-40">{{ locale === 'ru' ? 'ИСТОРИИ_ТРЕЙДЕРОВ' : 'TRADER_HISTORIES' }}</div>
+                  <div class="mt-1 text-base font-black">{{ patternForecastIntroStats.historicalProfiles }}</div>
+                </div>
+              </div>
+
+              <ol class="mt-5 space-y-3">
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">01</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? `Берем ваши закрытые сделки: сейчас ${patternForecastIntroStats.userTrades}, минимум для запуска ${patternForecastIntroStats.minTrades}.`
+                      : `We read your closed trades: ${patternForecastIntroStats.userTrades} now, ${patternForecastIntroStats.minTrades} minimum to run.` }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">02</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? `Сравниваем вашу динамику, риск, длительность сделок, серии win/loss и структурные блоки с ${patternForecastIntroStats.historicalProfiles} историями других трейдеров.`
+                      : `We compare your performance path, risk, trade duration, win/loss streaks, and structural blocks with ${patternForecastIntroStats.historicalProfiles} histories from other traders.` }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">03</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? `Выбираем до ${patternForecastIntroStats.maxMatches} ближайших исторических совпадений и строим прогноз на ${patternForecastIntroStats.horizonsLabel} следующих сделок.`
+                      : `We select up to ${patternForecastIntroStats.maxMatches} closest historical matches and build a forecast for the next ${patternForecastIntroStats.horizonsLabel} trades.` }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3 opacity-70">
+                  <span class="font-black opacity-45">04</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? 'На выходе вы получите вероятный диапазон капитала, confidence, похожие исторические сценарии и слабые места модели. Это проверка сценария, не торговый сигнал.'
+                      : 'Output: probable capital range, confidence, similar historical scenarios, and weak points in the model. This is scenario review, not a trade signal.' }}
+                  </span>
+                </li>
+              </ol>
+            </div>
+
+            <div class="mt-7 flex items-center justify-end gap-3">
+              <ExButton variant="ghost" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="rejectCapitalForecastIntro">
+                {{ locale === 'ru' ? 'Отклонить' : 'Decline' }}
+              </ExButton>
+              <ExButton variant="solid" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="acceptCapitalForecastIntro">
+                {{ locale === 'ru' ? 'Принять' : 'Accept' }}
+              </ExButton>
+            </div>
+          </div>
+        </ExPanel>
+      </div>
+    </Transition>
+  </Teleport>
+
   <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
 </template>
 
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
 import { calculateTacticalHistory } from '~/shared/utils/tacticalHistory'
+import { tradeMatchesProtocol } from '~/shared/utils/scenarioConditionScope'
+import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import globalAssets from '~/shared/data/global_assets.json'
 import { getIconForAsset } from '~/shared/api/asset.service'
 import ExTacticalNodeMap from '~/widgets/genesis/ui/ExTacticalNodeMap.vue'
-import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/ExPaywallOverlay.vue'
+import ExPatternForecastPanel from '~/widgets/genesis/ui/ExPatternForecastPanel.vue'
+import { PATTERN_FORECAST_LIMITS } from '~/widgets/genesis/model/patternForecast'
 import { useAuthStore } from '~/entities/user/auth.store'
 import OpenStrategyMetrics from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
 import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
-import ExGenesisTree from '~/widgets/genesis/tree/ui/ExGenesisTree.vue'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
 import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
+import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
+import {
+  filterTradesBySelectedStrategyVersion,
+  getSelectedStrategyVersionSnapshot
+} from '~/shared/utils/strategyVersionScope'
 
 const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openTrade'])
 
@@ -794,10 +938,63 @@ const themeStore = useThemeStore()
 const isDark = computed(() => themeStore?.settings?.isDark ?? false)
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const {
+  nodes: matrixStateNodes,
+  connections: matrixStateConnections,
+  strategyVersions,
+  selectedStrategyVersionId,
+  ensureMatrixDataRestored
+} = useMatrixState()
+
+const selectedMatrixSnapshot = computed(() => {
+  return getSelectedStrategyVersionSnapshot(strategyVersions.value || [], selectedStrategyVersionId.value)
+})
+
+const matrixNodes = computed(() => {
+  const allNodes: any[] = []
+  const flatten = (nodes: any[]) => {
+    nodes.forEach(node => {
+      allNodes.push(node)
+      if (node.subGraph?.nodes) flatten(node.subGraph.nodes)
+    })
+  }
+
+  flatten(selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || [])
+  return allNodes
+})
+
+const matrixConnections = computed(() => {
+  const allConnections: any[] = []
+  const flatten = (nodes: any[], connections: any[]) => {
+    allConnections.push(...connections)
+    nodes.forEach(node => {
+      if (node.subGraph) {
+        flatten(node.subGraph.nodes || [], node.subGraph.connections || [])
+      }
+    })
+  }
+
+  flatten(
+    selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || [],
+    selectedMatrixSnapshot.value?.connections || matrixStateConnections.value || []
+  )
+  return allConnections
+})
+
+const scopeTradesToSelectedVersion = <T,>(trades: T[]) => {
+  if (selectedStrategyId.value === 'MAIN_DIARY') return trades
+  return filterTradesBySelectedStrategyVersion(
+    trades,
+    strategyVersions.value || [],
+    selectedStrategyVersionId.value
+  )
+}
 
 const showShareCardModal = ref(false)
 const isGeneratingPng = ref(false)
 const showCapitalForecast = ref(false)
+const showCapitalForecastIntro = ref(false)
+const patternForecastLoading = ref(false)
 
 const tradeEfficiency = computed(() => {
   return mappedTradeForAnalysis.value?.percentileRank ?? 0
@@ -929,7 +1126,7 @@ const editTrade = (trade: any) => {
 }
 
 const showExtraDetails = ref(false)
-const panelInitialPage = ref<number | undefined>(5)
+const panelInitialPage = ref<number | undefined>(undefined)
 const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
@@ -943,26 +1140,29 @@ watch(isHudVisible, (val) => {
 })
 const showPaywall = ref(false)
 const canOpenCapitalForecast = computed(() => {
-  return false
+  return true
 })
 
 const openNodeMap = () => {
-  panelInitialPage.value = 5
-  panelInitialNoteId.value = undefined
-  showExtraDetails.value = true
+  showNodeMap.value = true
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
+  selectedTradeId.value = payload.tradeId
+  panelInitialPage.value = 5
+  panelInitialNoteId.value = payload.noteId
+  showExtraDetails.value = true
+  showNodeMap.value = true
   emit('openNote', payload)
 }
 
 const handleOpenTrade = (payload: { tradeId: string }) => {
+  selectedTradeId.value = payload.tradeId
+  panelInitialPage.value = undefined
+  panelInitialNoteId.value = undefined
+  showExtraDetails.value = false
+  showNodeMap.value = false
   emit('openTrade', payload)
-}
-
-const handleTreeOpenTradeArchive = (trade: { id?: string; strategyId?: string }) => {
-  if (!trade.id || !trade.strategyId) return
-  emit('openTrade', { tradeId: trade.id })
 }
 
 watch(showNodeMap, (val) => {
@@ -992,6 +1192,21 @@ const formatFullPrice = (value: unknown) => {
   return Number.isInteger(number) ? String(number) : number.toString()
 }
 
+const formatOptionalTradePrice = (value: unknown) => {
+  if (value === undefined || value === null || value === '') return 'NaN'
+  const number = Number(value)
+  if (!Number.isFinite(number) || number === 0) return 'NaN'
+  return Number.isInteger(number) ? String(number) : number.toString()
+}
+
+const formatTradeDirection = (trade: any) => {
+  const rawDirection = String(trade?.side || trade?.direction || '').trim().toLowerCase()
+  const isShort = rawDirection.includes('short') || rawDirection.includes('sell')
+  return locale.value === 'ru'
+    ? (isShort ? 'КОРОТКАЯ' : 'ДЛИННАЯ')
+    : (isShort ? 'SHORT' : 'LONG')
+}
+
 const getDynamicPriceClass = (price: unknown) => {
   const str = formatFullPrice(price)
   const len = str.length
@@ -1006,7 +1221,7 @@ const translateTemporalUnit = (unit: string) => t(`genesis.virtualLog.units.${un
 
 
 const currentTrades = computed(() => {
-  return tradeStore.getTradesForStrategy(selectedStrategyId.value)
+  return scopeTradesToSelectedVersion(tradeStore.getTradesForStrategy(selectedStrategyId.value))
 })
 
 const currentTradesForList = computed(() => {
@@ -1586,7 +1801,26 @@ const complianceDotColor = computed(() => {
 })
 
 const toggleCapitalForecast = () => {
-  showPaywall.value = true
+  if (!canOpenCapitalForecast.value) {
+    showPaywall.value = true
+    return
+  }
+
+  if (showCapitalForecast.value) {
+    showCapitalForecast.value = false
+    return
+  }
+
+  showCapitalForecastIntro.value = true
+}
+
+const acceptCapitalForecastIntro = () => {
+  showCapitalForecastIntro.value = false
+  showCapitalForecast.value = true
+}
+
+const rejectCapitalForecastIntro = () => {
+  showCapitalForecastIntro.value = false
 }
 
 const calculateRR = (trade: any) => {
@@ -1900,7 +2134,9 @@ const resetAllFilters = () => {
 
 const selectedTrade = computed(() => {
   if (!selectedTradeId.value) return null
-  return currentTrades.value.find(t => t.id === selectedTradeId.value) || null
+  return currentTrades.value.find(t => t.id === selectedTradeId.value) ||
+    currentTradesForList.value.find(t => t.id === selectedTradeId.value) ||
+    null
 })
 
 watch(selectedTradeId, () => {
@@ -1961,24 +2197,23 @@ const selectedStrategyId = computed({
   set: (val) => { tradeStore.selectedStrategyId = val }
 })
 
+const isMainDiaryStrategy = computed(() => selectedStrategyId.value === 'MAIN_DIARY')
+
+watch(isMainDiaryStrategy, (isMainDiary) => {
+  if (isMainDiary && distributionMetricMode.value === 'score') {
+    distributionMetricMode.value = 'pnl'
+  }
+}, { immediate: true })
+
 const formatCubeTradeAssetLabel = (asset?: string) => {
   return String(asset || '').toUpperCase()
 }
 
-const matrixNodes = shallowRef<any[]>([])
-const matrixConnections = shallowRef<any[]>([])
 const isMatrixLoading = ref(true)
 const showStrategyMenu = ref(false)
 
-const getStats = (id: string, allTrades: any[]) => {
-  const presentIn = allTrades.filter(tr => 
-    tr.boardScenarioEntry?.id === id || 
-    tr.boardScenarioExit?.id === id ||
-    tr.boardConditions?.some((c: any) => (typeof c === 'string' ? c === id : c.id === id)) ||
-    tr.boardScenarioEntry?.info?.conditions?.some((c: any) => c.id === id) ||
-    tr.boardScenarioExit?.info?.conditions?.some((c: any) => c.id === id) ||
-    (tr.emotions && Array.isArray(tr.emotions) && tr.emotions.includes(id))
-  )
+const getStats = (id: string, allTrades: any[], scenarioId?: string | null) => {
+  const presentIn = allTrades.filter(tr => tradeMatchesProtocol(tr, id, scenarioId))
   const count = presentIn.length
   const freq = allTrades.length > 0 ? count / allTrades.length : 0
   
@@ -1992,24 +2227,12 @@ const getStats = (id: string, allTrades: any[]) => {
   return { freq, pf }
 }
 
-const getHistory = (id: string, allTrades: any[]) => {
-  return calculateTacticalHistory(id, allTrades)
+const getHistory = (id: string, allTrades: any[], scenarioId?: string | null) => {
+  return calculateTacticalHistory(id, allTrades, scenarioId)
 }
 
 
 
-
-const loadMatrixData = async () => {
-  isMatrixLoading.value = true
-  try {
-    matrixNodes.value = []
-    matrixConnections.value = []
-  } catch (err) {
-    console.error('Failed to load matrix data:', err)
-  } finally {
-    isMatrixLoading.value = false
-  }
-}
 
 const selectStrategy = (id: string) => {
   selectedStrategyId.value = id
@@ -2105,8 +2328,8 @@ const mappedTradeForAnalysis = computed(() => {
         history: sHistory,
         conditions: ((s as any).info?.conditions || []).map((c: any) => {
           const cId = typeof c === 'object' ? c.id : String(c)
-          const cStats = getStats(cId, allTrades)
-          const cHistory = getHistory(cId, allTrades)
+          const cStats = getStats(cId, allTrades, s.id)
+          const cHistory = getHistory(cId, allTrades, s.id)
           return {
             id: cId,
             name: typeof c === 'object' ? c.info?.name : String(c),
@@ -2138,6 +2361,17 @@ const handleRemoveTrade = async (tradeId: string) => {
     selectedTradeId.value = null
   }
 }
+
+watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
+  if (loading) return
+  const cores = (nodes as any[])
+    .filter(n => n.type === 'strategy' || n.type === 'system')
+    .map(n => ({
+      id: n.id,
+      name: (n.params?.customName || n.label).toUpperCase()
+    }))
+  tradeStore.syncStrategies(cores)
+}, { immediate: true, deep: true })
 
 const activeFaceIndices = computed(() => {
   return facesTrades.value
@@ -2418,6 +2652,212 @@ const project = (p: Point3D, width: number, height: number): Point2D => {
   }
 }
 
+const projectDistributionPoint = (p: Point3D, width: number, height: number): Point2D => {
+  const focalLength = 900
+  const z = Math.max(-850, p.z)
+  const scale = focalLength / (focalLength + z)
+  return {
+    x: p.x * scale + width / 2,
+    y: p.y * scale + height * 0.68,
+    opacity: Math.max(0.18, (900 - z) / 1300),
+    depth: p.z
+  }
+}
+
+const getDistributionFaceColor = (pnl: number, face: 'front' | 'back' | 'side' | 'top' | 'bottom', active: boolean, scoreOpacity?: number) => {
+  const boost = active ? 0.14 : 0
+  if (distributionMetricMode.value === 'score') {
+    const opacity = Math.min(1, (scoreOpacity ?? 0.45) + boost)
+    if (face === 'top') return `rgba(255, 255, 255, ${Math.min(1, opacity + 0.08)})`
+    if (face === 'bottom') return `rgba(255, 255, 255, ${Math.max(0.06, opacity - 0.2)})`
+    if (face === 'back') return `rgba(255, 255, 255, ${Math.max(0.07, opacity - 0.16)})`
+    if (face === 'side') return `rgba(255, 255, 255, ${Math.max(0.08, opacity - 0.12)})`
+    return `rgba(255, 255, 255, ${opacity})`
+  }
+  if (pnl < 0) {
+    if (face === 'top') return `rgba(251, 113, 133, ${0.34 + boost})`
+    if (face === 'bottom') return `rgba(127, 29, 29, ${0.18 + boost})`
+    if (face === 'back') return `rgba(159, 18, 57, ${0.24 + boost})`
+    if (face === 'side') return `rgba(190, 18, 60, ${0.26 + boost})`
+    return `rgba(244, 63, 94, ${0.38 + boost})`
+  }
+  if (pnl > 0) {
+    if (face === 'top') return `rgba(110, 231, 183, ${0.34 + boost})`
+    if (face === 'bottom') return `rgba(6, 78, 59, ${0.18 + boost})`
+    if (face === 'back') return `rgba(4, 120, 87, ${0.24 + boost})`
+    if (face === 'side') return `rgba(5, 150, 105, ${0.26 + boost})`
+    return `rgba(16, 185, 129, ${0.38 + boost})`
+  }
+  return isDark.value ? `rgba(255, 255, 255, ${0.16 + boost})` : `rgba(0, 0, 0, ${0.14 + boost})`
+}
+
+const drawDistributionPoly = (
+  ctx: CanvasRenderingContext2D,
+  points: Point2D[],
+  fill: string,
+  stroke: string
+) => {
+  if (!points.length) return
+  ctx.beginPath()
+  ctx.moveTo(points[0]!.x, points[0]!.y)
+  points.slice(1).forEach(point => ctx.lineTo(point.x, point.y))
+  ctx.closePath()
+  ctx.fillStyle = fill
+  ctx.fill()
+  ctx.strokeStyle = stroke
+  ctx.lineWidth = 0.65
+  ctx.stroke()
+}
+
+const renderDistributionChart = () => {
+  const canvas = distributionCanvasRef.value
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+  const width = canvas.clientWidth
+  const height = canvas.clientHeight
+  if (width <= 0 || height <= 0) return
+
+  if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+    canvas.width = Math.floor(width * dpr)
+    canvas.height = Math.floor(height * dpr)
+  }
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  ctx.clearRect(0, 0, width, height)
+
+  distributionRotation.value.x += (distributionTargetRotation.value.x - distributionRotation.value.x) * 0.08
+  distributionRotation.value.y += (distributionTargetRotation.value.y - distributionRotation.value.y) * 0.08
+
+  const bars = tradeDistributionBars.value
+  distributionHitAreas.length = 0
+  if (!bars.length) return
+
+  const chartWidth = Math.max(320, width * 0.92)
+  const slot = Math.min(26, Math.max(2.4, chartWidth / bars.length))
+  const barWidth = Math.max(1.4, slot * 0.68)
+  const barDepth = Math.min(30, Math.max(8, slot * 1.25))
+  const maxWorldHeight = Math.min(300, Math.max(120, height * 0.42))
+  const worldScale = distributionScale.value
+  const stroke = isDark.value ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.22)'
+
+  const transform = (point: Point3D) => {
+    let p = rotateY(point, distributionRotation.value.y)
+    p = rotateX(p, distributionRotation.value.x)
+    p.x *= worldScale
+    p.y *= worldScale
+    p.z *= worldScale
+    return p
+  }
+  const projectLocal = (point: Point3D) => projectDistributionPoint(transform(point), width, height)
+
+  ctx.save()
+  const gridColor = isDark.value ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'
+  const axisColor = isDark.value ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.18)'
+  const gridHalfWidth = chartWidth / 2 + 40
+  const gridDepth = 130
+  ctx.lineWidth = 0.7
+  for (let i = -4; i <= 4; i++) {
+    const x = (gridHalfWidth / 4) * i
+    const a = projectLocal({ x, y: 0, z: -gridDepth })
+    const b = projectLocal({ x, y: 0, z: gridDepth })
+    ctx.strokeStyle = i === 0 ? axisColor : gridColor
+    ctx.beginPath()
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
+    ctx.stroke()
+  }
+  for (let i = -2; i <= 2; i++) {
+    const z = (gridDepth / 2) * i
+    const a = projectLocal({ x: -gridHalfWidth, y: 0, z })
+    const b = projectLocal({ x: gridHalfWidth, y: 0, z })
+    ctx.strokeStyle = i === 0 ? axisColor : gridColor
+    ctx.beginPath()
+    ctx.moveTo(a.x, a.y)
+    ctx.lineTo(b.x, b.y)
+    ctx.stroke()
+  }
+  ctx.restore()
+
+  const faces: Array<{ depth: number, points: Point2D[], fill: string, stroke: string }> = []
+  const waveTime = performance.now() * 0.001
+  bars.forEach((bar, index) => {
+    const xCenter = (index - (bars.length - 1) / 2) * slot
+    const randomPhase = (Math.sin(index * 12.9898) * 43758.5453) % (Math.PI * 2)
+    const pulseA = Math.max(0, Math.sin(waveTime * (0.75 + (index % 5) * 0.11) + randomPhase))
+    const pulseB = Math.max(0, Math.sin(waveTime * (1.18 + (index % 7) * 0.07) + randomPhase * 1.7))
+    const wavePulse = Math.max(pulseA, pulseB * 0.7)
+    const waveBoost = 1 + Math.pow(wavePulse, 10) * 0.04
+    const h = (bar.height / 100) * maxWorldHeight * waveBoost
+    const animatedBarWidth = barWidth * (1 + (waveBoost - 1) * 0.65)
+    const animatedBarDepth = barDepth * (1 + (waveBoost - 1) * 0.65)
+    const x0 = xCenter - animatedBarWidth / 2
+    const x1 = xCenter + animatedBarWidth / 2
+    const y0 = 0
+    const y1 = -h
+    const z0 = -animatedBarDepth / 2
+    const z1 = animatedBarDepth / 2
+    const active = hoveredDistributionBar.value?.id === bar.id
+    const vertices = {
+      fbl: { x: x0, y: y0, z: z1 },
+      fbr: { x: x1, y: y0, z: z1 },
+      ftl: { x: x0, y: y1, z: z1 },
+      ftr: { x: x1, y: y1, z: z1 },
+      bbl: { x: x0, y: y0, z: z0 },
+      bbr: { x: x1, y: y0, z: z0 },
+      btl: { x: x0, y: y1, z: z0 },
+      btr: { x: x1, y: y1, z: z0 }
+    }
+    const screenVertices = Object.fromEntries(
+      Object.entries(vertices).map(([key, value]) => [key, projectLocal(value)])
+    ) as Record<keyof typeof vertices, Point2D>
+    const allScreen = Object.values(screenVertices)
+    const xValues = allScreen.map(point => point.x)
+    const yValues = allScreen.map(point => point.y)
+    distributionHitAreas.push({
+      bar,
+      x1: Math.min(...xValues) - 5,
+      y1: Math.min(...yValues) - 5,
+      x2: Math.max(...xValues) + 5,
+      y2: Math.max(...yValues) + 5,
+      depth: allScreen.reduce((sum, point) => sum + point.depth, 0) / allScreen.length
+    })
+
+    const faceGroups: Array<{ kind: 'front' | 'back' | 'side' | 'top' | 'bottom', points: Point2D[] }> = [
+      { kind: 'back', points: [screenVertices.fbl, screenVertices.ftl, screenVertices.ftr, screenVertices.fbr] },
+      { kind: 'front', points: [screenVertices.bbl, screenVertices.bbr, screenVertices.btr, screenVertices.btl] },
+      { kind: 'side', points: [screenVertices.fbr, screenVertices.bbr, screenVertices.btr, screenVertices.ftr] },
+      { kind: 'side', points: [screenVertices.bbl, screenVertices.fbl, screenVertices.ftl, screenVertices.btl] },
+      { kind: 'top', points: [screenVertices.ftl, screenVertices.ftr, screenVertices.btr, screenVertices.btl] },
+      { kind: 'bottom', points: [screenVertices.bbl, screenVertices.fbl, screenVertices.fbr, screenVertices.bbr] }
+    ]
+    faceGroups.forEach(face => {
+      faces.push({
+        depth: face.points.reduce((sum, point) => sum + point.depth, 0) / face.points.length,
+        points: face.points,
+        fill: getDistributionFaceColor(bar.value, face.kind, active, bar.opacity),
+        stroke
+      })
+    })
+  })
+
+  faces
+    .sort((a, b) => b.depth - a.depth)
+    .forEach(face => drawDistributionPoly(ctx, face.points, face.fill, face.stroke))
+
+  const hovered = hoveredDistributionBar.value
+  if (hovered) {
+    const area = distributionHitAreas.find(item => item.bar.id === hovered.id)
+    if (area) {
+      ctx.strokeStyle = isDark.value ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.62)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(area.x1, area.y1, area.x2 - area.x1, area.y2 - area.y1)
+    }
+  }
+}
+
 const navigateFace = (dir: number) => {
   if (isTransitioning.value || activeFaceIndices.value.length === 0) return
   const currentIndex = activeFaceIndices.value.indexOf(currentFace.value)
@@ -2427,16 +2867,27 @@ const navigateFace = (dir: number) => {
 
 // Extract expensive path computation out of RAF loop
 const chronologicalPathNodes = computed(() => {
-  const currentTrades = tradeStore.getTradesForStrategy(selectedStrategyId.value)
+  const scopedTrades = currentTrades.value
   const allTradeNodes = facesTrades.value.flat().filter(n => !n.isNote)
   const nodeMap = new Map(allTradeNodes.map(n => [n.id, n]))
   
   // Use exact diary order
-  return currentTrades.map(t => nodeMap.get(t.id!)).filter(Boolean) as TradeNode[]
+  return scopedTrades.map(t => nodeMap.get(t.id!)).filter(Boolean) as TradeNode[]
 })
 
 let rafId: number
 const update = () => {
+  if (viewType.value === 'distribution') {
+    renderDistributionChart()
+    rafId = requestAnimationFrame(update)
+    return
+  }
+
+  if (viewType.value !== 'cube') {
+    rafId = requestAnimationFrame(update)
+    return
+  }
+
   const canvas = canvasRef.value
   if (!canvas) {
     rafId = requestAnimationFrame(update)
@@ -2704,13 +3155,14 @@ const handleMouseDown = (e: MouseEvent) => {
            }
         }
         
-           if (nearest) {
+        if (nearest) {
            if (nearest.node.isNote && nearest.node.parentId) {
               selectedTradeId.value = nearest.node.parentId
               const noteId = nearest.node.id.split('_').slice(2).join('_')
               panelInitialPage.value = 5
               panelInitialNoteId.value = noteId
               showExtraDetails.value = true
+              showNodeMap.value = true
            } else {
               selectedTradeId.value = nearest.id
               showExtraDetails.value = false
@@ -2750,6 +3202,7 @@ const handleDoubleClick = (e: MouseEvent) => {
         
         if (nearest && nearest.node.isNote && nearest.node.parentId) {
            selectedTradeId.value = nearest.node.parentId
+           // Extract actual note ID from the composed string "note_tradeId_noteId"
            const noteId = nearest.node.id.split('_').slice(2).join('_')
            panelInitialPage.value = 5
            panelInitialNoteId.value = noteId
@@ -2807,15 +3260,68 @@ const handleWheel = (e: WheelEvent) => {
   viewScale.value = Math.max(0.5, Math.min(6, viewScale.value - e.deltaY * 0.001))
 }
 
-onMounted(() => {
+const updateDistributionHover = (e: MouseEvent) => {
+  const rect = distributionCanvasRef.value?.getBoundingClientRect()
+  if (!rect) return
+  const mouseX = e.clientX - rect.left
+  const mouseY = e.clientY - rect.top
+  distributionMousePos.value = { x: mouseX, y: mouseY }
+
+  const hit = distributionHitAreas
+    .filter(area => mouseX >= area.x1 && mouseX <= area.x2 && mouseY >= area.y1 && mouseY <= area.y2)
+    .sort((a, b) => a.depth - b.depth)[0]
+  hoveredDistributionBar.value = hit?.bar || null
+}
+
+const handleDistributionMouseDown = (e: MouseEvent) => {
+  isDistributionDragging.value = true
+  didDistributionDrag.value = false
+  distributionLastMousePos.value = { x: e.clientX, y: e.clientY }
+  updateDistributionHover(e)
+}
+
+const handleDistributionMouseMove = (e: MouseEvent) => {
+  updateDistributionHover(e)
+  if (!isDistributionDragging.value) return
+
+  const dx = e.clientX - distributionLastMousePos.value.x
+  const dy = e.clientY - distributionLastMousePos.value.y
+  if (Math.abs(dx) + Math.abs(dy) > 3) didDistributionDrag.value = true
+  distributionTargetRotation.value.y += dx * 0.01
+  distributionTargetRotation.value.x += dy * 0.004
+  distributionLastMousePos.value = { x: e.clientX, y: e.clientY }
+}
+
+const handleDistributionMouseUp = () => {
+  if (!didDistributionDrag.value && hoveredDistributionBar.value?.trade?.id) {
+    selectedTradeId.value = hoveredDistributionBar.value.trade.id
+    showExtraDetails.value = false
+  }
+  isDistributionDragging.value = false
+}
+
+const handleDistributionMouseLeave = () => {
+  isDistributionDragging.value = false
+  hoveredDistributionBar.value = null
+}
+
+const handleDistributionWheel = (e: WheelEvent) => {
+  e.preventDefault()
+  distributionScale.value = Math.max(0.65, Math.min(2.2, distributionScale.value - e.deltaY * 0.001))
+}
+
+onMounted(async () => {
   window.addEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.addEventListener('keydown', handleGlobalKeydown)
-  loadMatrixData()
-  tradeStore.init().then(() => {
-    initTrades()
-    switchFace(0)
-    update()
-  })
+  isMatrixLoading.value = true
+  await Promise.all([
+    ensureMatrixDataRestored(),
+    tradeStore.init()
+  ])
+  isMatrixLoading.value = false
+  initTrades()
+  switchFace(0)
+  update()
 })
 onUnmounted(() => { 
   window.removeEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
@@ -2887,6 +3393,17 @@ canvas { image-rendering: pixelated; }
   opacity: 1;
 }
 
+.page-reify-enter-active,
+.page-reify-leave-active {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.page-reify-enter-from,
+.page-reify-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+  filter: blur(10px);
+}
+
 .fade-blur-enter-active, .fade-blur-leave-active {
   transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2914,17 +3431,5 @@ canvas { image-rendering: pixelated; }
   100% {
     transform: translateX(220%);
   }
-}
-
-.panel-center-enter-active, .panel-center-leave-active {
-  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.panel-center-enter-from, .panel-center-leave-to {
-  transform: translate(-50%, -45%) scale(0.95);
-  opacity: 0;
-}
-.panel-center-enter-to, .panel-center-leave-from {
-  transform: translate(-50%, -50%) scale(1);
-  opacity: 1;
 }
 </style>
