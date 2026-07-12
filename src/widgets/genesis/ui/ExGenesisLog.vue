@@ -499,10 +499,8 @@
                       <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') }}</span>
                     </div>
 
-                    <!-- TIME ZONE -->
-                    <div v-if="selectedTradeTimeZone" class="col-span-2 flex items-center justify-between border-y border-black/5 py-3 dark:border-white/5">
-                      <span class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'ЧАСОВОЙ_ПОЯС' : 'TIME_ZONE' }}</span>
-                      <span class="max-w-[240px] truncate text-right text-[10px] font-mono font-black uppercase tracking-[0.22em] nier-text-primary">
+                    <div v-if="selectedTradeTimeZone" class="col-span-2 flex justify-start">
+                      <span class="max-w-full truncate text-left text-[10px] font-mono font-black uppercase tracking-[0.22em] opacity-45 nier-text-primary">
                         {{ formatTradeTimeZone(selectedTrade) }}
                       </span>
                     </div>
