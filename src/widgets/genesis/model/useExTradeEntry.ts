@@ -1625,9 +1625,7 @@ const syncTempParts = () => {
     minute: formatPart(d, 'minute')
   }
   Object.keys(parts).forEach(k => {
-    if (parseInt(tempDateParts.value[k]) !== parseInt(parts[k])) {
-      tempDateParts.value[k] = parts[k]
-    }
+    tempDateParts.value[k] = parts[k]
   })
 }
 
@@ -1635,6 +1633,17 @@ const openTemporal = (target) => {
   activeTemporalTarget.value = target
   syncTempParts()
   isTemporalOpen.value = true
+}
+
+const setActiveTemporalToNow = () => {
+  if (activeTemporalTarget.value === 'open') openDate.value = new Date()
+  else exitDate.value = new Date()
+  syncTempParts()
+}
+
+const cloneOpenTemporalToExit = () => {
+  exitDate.value = cloneDate(openDate.value)
+  if (activeTemporalTarget.value === 'exit') syncTempParts()
 }
 
 watch(activeTemporalTarget, () => {
@@ -2110,6 +2119,8 @@ const submit = async () => {
     tempDateParts,
     syncTempParts,
     openTemporal,
+    setActiveTemporalToNow,
+    cloneOpenTemporalToExit,
     scrollContainer,
     pnl,
     commitState,

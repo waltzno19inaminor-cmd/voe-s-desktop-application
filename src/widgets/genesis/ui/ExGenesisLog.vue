@@ -685,6 +685,7 @@
     <Transition name="page-reify">
        <ExTradeEntry v-if="isTradeEntryOpen" 
                      class="fixed inset-0 z-[9999] w-screen h-screen"
+                     :key="editingTrade?.id || 'new-trade-entry'"
                      :initial-trade="editingTrade"
                      @close="isTradeEntryOpen = false; editingTrade = undefined" 
                      @addTrade="isTradeEntryOpen = false; editingTrade = undefined"
