@@ -849,11 +849,20 @@
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
                 <div v-for="trade in complianceViolations.violatingNeuralTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
-                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
-                    <div class="w-[15%] flex items-center space-x-3 truncate">
+                  <div class="relative flex items-center justify-between py-3 transition-all cursor-pointer" 
+                       :class="expandedNeuralTrades.has(trade.id) ? '-mx-6 px-8 bg-black text-[#F9F6F0] dark:bg-[#F9F6F0] dark:text-black opacity-100 shadow-md' : 'px-2 opacity-80 group-hover:opacity-100'"
+                       @click="handleOpenTrade({ tradeId: trade.id })">
+                    <!-- Tactical Corners -->
+                    <template v-if="expandedNeuralTrades.has(trade.id)">
+                      <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                    </template>
+                    <div class="w-[15%] flex items-center space-x-3 truncate relative z-10">
                       <span
                         class="w-1 h-1 rounded-full shrink-0"
-                        :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30'"
+                        :class="expandedNeuralTrades.has(trade.id) ? ((Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-[#F9F6F0] dark:bg-black' : 'bg-[#F9F6F0]/30 dark:bg-black/30') : ((Number(trade.profitInCurrency) || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-black/30 dark:bg-white/30')"
                       ></span>
                       <span class="font-bold uppercase tracking-widest">{{ trade.side || trade.direction || 'N/A' }}</span>
                     </div>
@@ -869,9 +878,51 @@
                     <span class="w-[16%] opacity-80 font-bold text-red-500 text-right tracking-wider truncate">
                       {{ trade._neuralScore }}%
                     </span>
-                    <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
-                      {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
-                    </span>
+                    <div class="w-[16%] flex items-center justify-end space-x-2">
+                      <span class="font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                        {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                      </span>
+                      <button @click.stop="toggleNeuralTrade(trade.id)" class="w-6 flex items-center justify-center opacity-40 hover:opacity-100 transition-opacity cursor-pointer" title="View emotions">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" :d="expandedNeuralTrades.has(trade.id) ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <!-- EXPANDED EMOTIONS -->
+                  <div v-if="expandedNeuralTrades.has(trade.id)" class="my-2 -mx-6 px-6 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
+                    <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                      <div class="w-[30%] flex items-center space-x-3">
+                        <span>Emotion</span>
+                      </div>
+                      <span class="w-[35%] text-right">Frequency</span>
+                      <span class="w-[35%] text-right">Profit Factor</span>
+                    </div>
+
+                    <div v-for="emotion in (trade.emotions || [])" :key="typeof emotion === 'string' ? emotion : emotion.name" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                      <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                        <div class="w-[30%] flex items-center space-x-3 truncate">
+                          <span
+                            class="w-1 h-1 rounded-full shrink-0"
+                            :class="(EMOTION_WEIGHTS_STABILITY[(typeof emotion === 'string' ? emotion : (emotion.name || '')).toUpperCase() as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-red-500'"
+                          ></span>
+                          <span class="font-bold uppercase tracking-widest"
+                                :class="(EMOTION_WEIGHTS_STABILITY[(typeof emotion === 'string' ? emotion : (emotion.name || '')).toUpperCase() as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0) < 0 ? 'text-red-500' : 'nier-text-primary'">
+                            {{ typeof emotion === 'string' ? emotion : emotion.name }}
+                          </span>
+                        </div>
+                        <span class="w-[35%] text-right font-mono font-bold text-[11px] uppercase tracking-wider truncate opacity-80">
+                          {{ (getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).freq * 100).toFixed(1) }}%
+                        </span>
+                        <span class="w-[35%] text-right font-mono font-bold text-[11px] tracking-wider truncate" :class="getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).pf >= 1 ? 'text-green-500' : 'text-red-500'">
+                          {{ getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).pf.toFixed(2) }}
+                        </span>
+                      </div>
+                    </div>
+                    <div v-if="!(trade.emotions || []).length" class="py-4 text-center opacity-40 text-[10px] uppercase tracking-widest">
+                      NO EMOTIONS LOGGED
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2053,9 +2104,11 @@ const complianceViolations = computed(() => {
       });
     } else {
       let tradeScore = 60;
+      let negativeCount = 0;
       emotions.forEach((e: any) => {
         const key = (typeof e === 'string' ? e : (e.name || '')).toUpperCase();
         const weight = EMOTION_WEIGHTS_STABILITY[key as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0;
+        if (weight < 0) negativeCount++;
         tradeScore += weight;
       });
       const finalScore = Math.min(Math.max(Math.round(tradeScore), 0), 100);
@@ -2063,7 +2116,7 @@ const complianceViolations = computed(() => {
         violatingNeuralTrades.push({
           ...t,
           _neuralScore: finalScore,
-          _neuralReason: 'SCORE < 50%',
+          _neuralReason: negativeCount > 0 ? `${negativeCount} NEGATIVE EMOTIONS` : 'SCORE < 50%',
         });
       }
     }
@@ -2113,6 +2166,14 @@ const toggleSession = (date: string) => {
   if (newSet.has(date)) newSet.delete(date);
   else newSet.add(date);
   expandedSessions.value = newSet;
+};
+
+const expandedNeuralTrades = ref<Set<string>>(new Set());
+const toggleNeuralTrade = (tradeId: string) => {
+  const newSet = new Set(expandedNeuralTrades.value);
+  if (newSet.has(tradeId)) newSet.delete(tradeId);
+  else newSet.add(tradeId);
+  expandedNeuralTrades.value = newSet;
 };
 
 const emotionalStatus = computed(() => {
