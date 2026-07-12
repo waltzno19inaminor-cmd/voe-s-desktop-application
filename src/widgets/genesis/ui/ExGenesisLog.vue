@@ -643,17 +643,17 @@
             <div v-if="activeComplianceMetricKey === 'riskPerTrade'" class="flex flex-col font-mono text-xs pt-2 select-none">
               <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                 <div class="w-[15%] flex items-center space-x-3">
-                  <span>Direction</span>
+                  <span>{{ locale === 'ru' ? 'Направление' : 'Direction' }}</span>
                 </div>
-                <span class="w-[15%]">Asset</span>
-                <span class="w-[22%] text-center">Entry Date</span>
-                <span class="w-[16%] text-right">Realized Loss</span>
-                <span class="w-[16%] text-right">Planned Risk</span>
-                <span class="w-[16%] text-right">Result</span>
+                <span class="w-[15%]">{{ locale === 'ru' ? 'Актив' : 'Asset' }}</span>
+                <span class="w-[22%] text-center">{{ locale === 'ru' ? 'Дата входа' : 'Entry Date' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Реализованный убыток' : 'Realized Loss' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Плановый риск' : 'Planned Risk' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Результат' : 'Result' }}</span>
               </div>
 
               <div v-if="complianceViolations.violatingTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
-                NO RISK_PER_TRADE VIOLATIONS DETECTED
+                {{ locale === 'ru' ? 'НАРУШЕНИЙ RISK_PER_TRADE НЕ ОБНАРУЖЕНО' : 'NO RISK_PER_TRADE VIOLATIONS DETECTED' }}
               </div>
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
@@ -669,7 +669,7 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
                     <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
@@ -692,17 +692,17 @@
             <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="flex flex-col font-mono text-xs pt-2 select-none">
               <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                 <div class="w-[15%] flex items-center space-x-3">
-                  <span>Type</span>
+                  <span>{{ locale === 'ru' ? 'Тип' : 'Type' }}</span>
                 </div>
-                <span class="w-[15%]">Date</span>
-                <span class="w-[22%] text-center">Violations</span>
-                <span class="w-[16%] text-right">Realized Loss</span>
-                <span class="w-[16%] text-right">Planned Risk</span>
-                <span class="w-[16%] text-right">Expand</span>
+                <span class="w-[15%]">{{ locale === 'ru' ? 'Дата' : 'Date' }}</span>
+                <span class="w-[22%] text-center">{{ locale === 'ru' ? 'Нарушения' : 'Violations' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Реализованный убыток' : 'Realized Loss' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Плановый риск' : 'Planned Risk' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Раскрыть' : 'Expand' }}</span>
               </div>
 
               <div v-if="complianceViolations.violatingSessions.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
-                NO RISK_PER_SESSION VIOLATIONS DETECTED
+                {{ locale === 'ru' ? 'НАРУШЕНИЙ RISK_PER_SESSION НЕ ОБНАРУЖЕНО' : 'NO RISK_PER_SESSION VIOLATIONS DETECTED' }}
               </div>
               <div v-else class="flex flex-col space-y-3.5 pt-2">
                 <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
@@ -719,12 +719,12 @@
                     <div class="w-[15%] flex items-center space-x-3 truncate">
                       <span class="w-1 h-1 rounded-full shrink-0"
                             :class="expandedSessions.has(session.date) ? 'bg-[#F9F6F0] dark:bg-black' : 'bg-black dark:bg-[#F9F6F0]'"></span>
-                      <span class="font-bold uppercase tracking-widest">SESSION</span>
+                      <span class="font-bold uppercase tracking-widest">{{ locale === 'ru' ? 'СЕССИЯ' : 'SESSION' }}</span>
                     </div>
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ session.date }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded text-[10px] font-bold tracking-widest">
-                        {{ session.violatingTrades.length }} VIOLATIONS
+                        {{ session.violatingTrades.length }} {{ locale === 'ru' ? 'НАРУШЕНИЙ' : 'VIOLATIONS' }}
                       </span>
                     </div>
                     <span class="w-[16%] text-right tracking-wider truncate" :class="session.realizedLoss > session._maxSessionRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
@@ -742,13 +742,13 @@
                   <div v-if="expandedSessions.has(session.date)" class="my-2 -mx-6 px-6 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
                     <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                       <div class="w-[15%] flex items-center space-x-3">
-                        <span>Direction</span>
+                        <span>{{ locale === 'ru' ? 'Направление' : 'Direction' }}</span>
                       </div>
-                      <span class="w-[15%]">Asset</span>
-                      <span class="w-[22%] text-center">Entry Date</span>
-                      <span class="w-[16%] text-right">Realized Loss</span>
-                      <span class="w-[16%] text-right">Planned Risk</span>
-                      <span class="w-[16%] text-right">Result</span>
+                      <span class="w-[15%]">{{ locale === 'ru' ? 'Актив' : 'Asset' }}</span>
+                      <span class="w-[22%] text-center">{{ locale === 'ru' ? 'Дата входа' : 'Entry Date' }}</span>
+                      <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Реализованный убыток' : 'Realized Loss' }}</span>
+                      <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Плановый риск' : 'Planned Risk' }}</span>
+                      <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Результат' : 'Result' }}</span>
                     </div>
                     <div v-for="trade in session.violatingTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
                       <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
@@ -762,7 +762,7 @@
                         <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                         <div class="w-[22%] flex flex-col items-center min-w-0">
                           <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                            ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                            {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
                           </span>
                         </div>
                         <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
@@ -787,17 +787,17 @@
             <div v-if="activeComplianceMetricKey === 'tradingStyle'" class="flex flex-col font-mono text-xs pt-2 select-none">
               <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                 <div class="w-[15%] flex items-center space-x-3">
-                  <span>Direction</span>
+                  <span>{{ locale === 'ru' ? 'Направление' : 'Direction' }}</span>
                 </div>
-                <span class="w-[15%]">Asset</span>
-                <span class="w-[22%] text-center">Entry Date</span>
-                <span class="w-[16%] text-right">Duration</span>
-                <span class="w-[16%] text-right">Expected</span>
-                <span class="w-[16%] text-right">Result</span>
+                <span class="w-[15%]">{{ locale === 'ru' ? 'Актив' : 'Asset' }}</span>
+                <span class="w-[22%] text-center">{{ locale === 'ru' ? 'Дата входа' : 'Entry Date' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Длительность' : 'Duration' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Ожидание' : 'Expected' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Результат' : 'Result' }}</span>
               </div>
 
               <div v-if="complianceViolations.violatingStyleTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
-                NO TRADING_STYLE VIOLATIONS DETECTED
+                {{ locale === 'ru' ? 'НАРУШЕНИЙ TRADING_STYLE НЕ ОБНАРУЖЕНО' : 'NO TRADING_STYLE VIOLATIONS DETECTED' }}
               </div>
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
@@ -813,7 +813,7 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
                     <span class="w-[16%] opacity-80 font-bold text-red-500 text-right tracking-wider truncate">
@@ -834,17 +834,17 @@
             <div v-if="activeComplianceMetricKey === 'emotionalState'" class="flex flex-col font-mono text-xs pt-2 select-none">
               <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                 <div class="w-[15%] flex items-center space-x-3">
-                  <span>Direction</span>
+                  <span>{{ locale === 'ru' ? 'Направление' : 'Direction' }}</span>
                 </div>
-                <span class="w-[15%]">Asset</span>
-                <span class="w-[22%] text-center">Entry Date</span>
-                <span class="w-[16%] text-right">Reason</span>
-                <span class="w-[16%] text-right">Score</span>
-                <span class="w-[16%] text-right">Result</span>
+                <span class="w-[15%]">{{ locale === 'ru' ? 'Актив' : 'Asset' }}</span>
+                <span class="w-[22%] text-center">{{ locale === 'ru' ? 'Дата входа' : 'Entry Date' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Причина' : 'Reason' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Балл' : 'Score' }}</span>
+                <span class="w-[16%] text-right">{{ locale === 'ru' ? 'Результат' : 'Result' }}</span>
               </div>
 
               <div v-if="complianceViolations.violatingNeuralTrades.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
-                NO NEURAL_STATUS VIOLATIONS DETECTED
+                {{ locale === 'ru' ? 'НАРУШЕНИЙ NEURAL_STATUS НЕ ОБНАРУЖЕНО' : 'NO NEURAL_STATUS VIOLATIONS DETECTED' }}
               </div>
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
@@ -869,7 +869,7 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        ENTRY: {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
                     <span class="w-[16%] opacity-60 font-bold text-red-500 text-right tracking-wider truncate">
@@ -894,11 +894,11 @@
                   <div v-if="expandedNeuralTrades.has(trade.id)" class="my-2 -mx-6 px-6 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
                     <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                       <div class="w-[25%] flex items-center space-x-3">
-                        <span>Emotion</span>
+                        <span>{{ locale === 'ru' ? 'Эмоция' : 'Emotion' }}</span>
                       </div>
-                      <span class="w-[25%]">Type</span>
-                      <span class="w-[25%] text-right">Frequency</span>
-                      <span class="w-[25%] text-right">Profit Factor</span>
+                      <span class="w-[25%]">{{ locale === 'ru' ? 'Тип' : 'Type' }}</span>
+                      <span class="w-[25%] text-right">{{ locale === 'ru' ? 'Частота' : 'Frequency' }}</span>
+                      <span class="w-[25%] text-right">{{ locale === 'ru' ? 'Профит фактор' : 'Profit Factor' }}</span>
                     </div>
 
                     <div v-for="emotion in (trade.emotions || [])" :key="typeof emotion === 'string' ? emotion : emotion.name" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
@@ -926,7 +926,7 @@
                       </div>
                     </div>
                     <div v-if="!(trade.emotions || []).length" class="py-4 text-center opacity-40 text-[10px] uppercase tracking-widest">
-                      NO EMOTIONS LOGGED
+                      {{ locale === 'ru' ? 'ЭМОЦИИ НЕ ЗАФИКСИРОВАНЫ' : 'NO EMOTIONS LOGGED' }}
                     </div>
                   </div>
                 </div>
@@ -934,8 +934,8 @@
             </div>
 
             <!-- OTHER METRICS FALLBACK -->
-            <div v-if="activeComplianceMetricKey !== 'riskPerTrade' && activeComplianceMetricKey !== 'riskPerSession' && activeComplianceMetricKey !== 'tradingStyle' && activeComplianceMetricKey !== 'emotionalState'" class="flex items-center justify-center h-full opacity-30 font-mono text-sm uppercase">
-              SELECT A SECTION ABOVE TO VIEW VIOLATIONS
+            <div v-if="activeComplianceMetricKey !== 'riskPerTrade' && activeComplianceMetricKey !== 'riskPerSession' && activeComplianceMetricKey !== 'tradingStyle' && activeComplianceMetricKey !== 'emotionalState'" class="flex items-center justify-center h-full opacity-30 font-mono text-sm uppercase text-center px-4">
+              {{ locale === 'ru' ? 'ВЫБЕРИТЕ СЕКЦИЮ ВЫШЕ ДЛЯ ПРОСМОТРА НАРУШЕНИЙ' : 'SELECT A SECTION ABOVE TO VIEW VIOLATIONS' }}
             </div>
           </div>
          </div>
@@ -2096,7 +2096,7 @@ const complianceViolations = computed(() => {
       violatingStyleTrades.push({
         ...t,
         _durationStr: (t as any).duration || 'N/A',
-        _expectedStyle: extraType === 0 ? '< 1D (Scalping)' : (extraType === 1 ? '1-14D (Intraday)' : '> 14D (Swing)'),
+        _expectedStyle: extraType === 0 ? (locale.value === 'ru' ? '< 1Д (СКАЛЬПИНГ)' : '< 1D (Scalping)') : (extraType === 1 ? (locale.value === 'ru' ? '1-14Д (ВНУТРИДНЕВНАЯ)' : '1-14D (Intraday)') : (locale.value === 'ru' ? '> 14Д (СВИНГ)' : '> 14D (Swing)')),
       });
     }
 
@@ -2105,7 +2105,7 @@ const complianceViolations = computed(() => {
       violatingNeuralTrades.push({
         ...t,
         _neuralScore: 0,
-        _neuralReason: 'NO EMOTIONS',
+        _neuralReason: locale.value === 'ru' ? 'НЕТ ЭМОЦИЙ' : 'NO EMOTIONS',
       });
     } else {
       let tradeScore = 60;
@@ -2121,7 +2121,7 @@ const complianceViolations = computed(() => {
         violatingNeuralTrades.push({
           ...t,
           _neuralScore: finalScore,
-          _neuralReason: negativeCount > 0 ? `${negativeCount} NEGATIVE EMOTIONS` : 'SCORE < 50%',
+          _neuralReason: negativeCount > 0 ? (locale.value === 'ru' ? `${negativeCount} НЕГАТИВНЫХ ЭМОЦИЙ` : `${negativeCount} NEGATIVE EMOTIONS`) : (locale.value === 'ru' ? 'БАЛЛ < 50%' : 'SCORE < 50%'),
         });
       }
     }
