@@ -40,18 +40,24 @@
               v-for="kpi in group.items"
               :key="kpi.key"
               class="osp-kpi-card"
+              :class="{ 'osp-kpi-card--active': selectedMetricKey === kpi.key }"
+              role="button"
+              tabindex="0"
+              @click="$emit('metric-select', kpi.key)"
+              @keydown.enter.prevent="$emit('metric-select', kpi.key)"
+              @keydown.space.prevent="$emit('metric-select', kpi.key)"
             >
               <div class="osp-kpi-inner">
                 <!-- Top micro label -->
                 <span class="osp-label-micro osp-muted">{{ kpi.label.replace(/_/g, ' ') }}</span>
                 <!-- Value -->
-                <span class="osp-kpi-value" :style="{ color: kpi.colorVal(values, isDark) }">
+                <span class="osp-kpi-value" :style="{ color: selectedMetricKey === kpi.key ? 'var(--osp-bg)' : kpi.colorVal(values, isDark) }">
                   {{ kpi.valStr(values) }}
                 </span>
                 <!-- Sublabel / eval -->
                 <div class="osp-kpi-eval">
                   <div class="osp-kpi-bar">
-                    <div class="osp-kpi-bar-fill" :style="{ width: '50%', backgroundColor: kpi.colorVal(values, isDark) }"></div>
+                    <div class="osp-kpi-bar-fill" :style="{ width: '50%', backgroundColor: selectedMetricKey === kpi.key ? 'var(--osp-bg)' : kpi.colorVal(values, isDark) }"></div>
                   </div>
                   <span class="osp-label-nano osp-muted">{{ kpi.evalStr(values).toUpperCase() }}</span>
                 </div>
@@ -114,6 +120,7 @@ interface Props {
   editable?: boolean;
   minimal?: boolean;
   transparent?: boolean;
+  selectedMetricKey?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -125,10 +132,11 @@ const props = withDefaults(defineProps<Props>(), {
   values: () => ({}),
   editable: true,
   minimal: false,
-  transparent: false
+  transparent: false,
+  selectedMetricKey: ''
 })
 
-defineEmits(['edit'])
+const emit = defineEmits(['edit', 'metric-select'])
 
 const groupedMetrics = computed(() => {
   const groups: Record<string, MetricConfig[]> = {}
@@ -197,7 +205,7 @@ const groupedMetrics = computed(() => {
   flex-direction: column;
   gap: 0;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   width: 100%;
 }
 
@@ -343,8 +351,9 @@ const groupedMetrics = computed(() => {
   border-right: 1px solid var(--osp-border);
   border-bottom: 1px solid var(--osp-border);
   background: var(--osp-bg-card);
-  transition: background 0.3s ease;
-  overflow: hidden;
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  overflow: visible;
+  cursor: pointer;
 }
 /* Handle borders for 4 columns */
 .osp-kpi-card:nth-child(4n) { border-right: none; }
@@ -352,6 +361,28 @@ const groupedMetrics = computed(() => {
 /* A bit complex with dynamic items, but good enough for now. */
 
 .osp-kpi-card:hover { background: var(--osp-bg-hover); }
+.osp-kpi-card--active,
+.osp-kpi-card--active:hover {
+  background: var(--osp-text);
+  color: var(--osp-bg);
+  border-color: var(--osp-text);
+}
+.osp-kpi-card--active .osp-muted,
+.osp-kpi-card--active .osp-label-micro,
+.osp-kpi-card--active .osp-label-nano {
+  color: var(--osp-bg);
+  opacity: 0.68;
+}
+.osp-kpi-card--active .osp-kpi-value {
+  color: var(--osp-bg);
+}
+.osp-kpi-card--active .osp-kpi-bar {
+  background: color-mix(in srgb, var(--osp-bg) 24%, transparent);
+}
+.osp-kpi-card--active .osp-corner-tl,
+.osp-kpi-card--active .osp-corner-br {
+  border-color: var(--osp-bg);
+}
 
 .osp-kpi-inner {
   display: flex;
@@ -477,5 +508,21 @@ const groupedMetrics = computed(() => {
 }
 .osp-transparent .osp-kpi-card:hover {
   background: var(--osp-bg-hover) !important;
+}
+.osp-transparent .osp-kpi-card--active,
+.osp-transparent .osp-kpi-card--active:hover {
+  background: var(--osp-text) !important;
+  border-color: var(--osp-text) !important;
+  color: var(--osp-bg) !important;
+}
+.osp-transparent .osp-kpi-card--active .osp-muted,
+.osp-transparent .osp-kpi-card--active .osp-label-micro,
+.osp-transparent .osp-kpi-card--active .osp-label-nano,
+.osp-transparent .osp-kpi-card--active .osp-kpi-value {
+  color: var(--osp-bg) !important;
+}
+.osp-transparent .osp-kpi-card--active .osp-corner-tl,
+.osp-transparent .osp-kpi-card--active .osp-corner-br {
+  border-color: var(--osp-bg) !important;
 }
 </style>

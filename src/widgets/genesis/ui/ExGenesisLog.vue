@@ -607,23 +607,133 @@
     />
 
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
-    <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500">
+    <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
        <ExPanel
          variant="light"
          :show-corners="true"
          :no-padding="true"
-         class="!bg-gray-50/50 dark:!bg-[#070707]/60 !border-black/10 dark:!border-white/10"
+         :no-shadow="true"
+         class="!h-[560px] !bg-gray-50/65 dark:!bg-[#070707]/65 !border-black/10 dark:!border-white/10 shadow-[14px_14px_0_rgba(0,0,0,0.16)] dark:shadow-[14px_14px_0_rgba(0,0,0,0.42)]"
        >
+         <div class="flex h-full min-h-0 flex-col">
           <OpenStrategyMetrics
             :is-dark="isDark"
             :minimal="true"
             :transparent="true"
             :metrics="complianceMetricsConfigs"
             :values="complianceMetricsValues"
+            :selected-metric-key="activeComplianceMetricKey"
             strategy-name="Protocol_Compliance"
             :is-live="true"
             :editable="false"
+            @metric-select="activeComplianceMetricKey = $event"
           />
+          <div class="min-h-0 flex-1 overflow-y-auto custom-scrollbar p-6">
+            <!-- RISK PER TRADE VIOLATIONS -->
+            <div v-if="activeComplianceMetricKey === 'riskPerTrade'" class="space-y-4">
+              <div v-if="complianceViolations.violatingTrades.length === 0" class="text-center opacity-50 py-10 font-mono text-sm">
+                NO RISK_PER_TRADE VIOLATIONS DETECTED
+              </div>
+              <div v-else class="space-y-2">
+                <div v-for="trade in complianceViolations.violatingTrades" :key="trade.id" class="w-full bg-white/5 dark:bg-black/20 border border-black/10 dark:border-white/10 p-4 flex flex-wrap items-center justify-between gap-4 transition-all hover:border-red-500/50">
+                  <div class="flex items-center gap-6 min-w-[300px]">
+                    <div class="font-mono text-xs opacity-60 w-24">{{ new Date(trade.date).toLocaleDateString() }}</div>
+                    <div class="font-bold text-sm tracking-wider w-20">{{ trade.asset }}</div>
+                    <div class="font-mono text-xs font-bold w-16" :class="trade.direction === 'LONG' ? 'text-green-500' : 'text-red-500'">{{ trade.direction }}</div>
+                  </div>
+                  <div class="flex items-center gap-8 text-right font-mono text-sm">
+                    <div class="flex flex-col">
+                      <span class="text-[10px] opacity-50 uppercase">Realized Risk</span>
+                      <span :class="trade._realizedLoss > trade._maxRiskDollars ? 'text-red-500' : 'opacity-80'">
+                        {{ trade._realizedLoss > 0 ? '$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+                      </span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-[10px] opacity-50 uppercase">Planned Risk</span>
+                      <span :class="trade._positionRisk > trade._maxRiskDollars ? 'text-red-500' : 'opacity-80'">
+                        ${{ trade._positionRisk.toFixed(2) }}
+                      </span>
+                    </div>
+                    <div class="flex flex-col w-24">
+                      <span class="text-[10px] opacity-50 uppercase">Result</span>
+                      <span :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                        {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+' : '' }}${{ (Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RISK PER SESSION VIOLATIONS -->
+            <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="space-y-4">
+              <div v-if="complianceViolations.violatingSessions.length === 0" class="text-center opacity-50 py-10 font-mono text-sm">
+                NO RISK_PER_SESSION VIOLATIONS DETECTED
+              </div>
+              <div v-else class="space-y-4">
+                <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="w-full">
+                  <div 
+                    class="bg-white/5 dark:bg-black/20 border border-black/10 dark:border-white/10 p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5"
+                    @click="toggleSession(session.date)"
+                  >
+                    <div class="flex items-center gap-6">
+                      <div class="font-mono text-sm font-bold">{{ session.date }}</div>
+                      <div class="text-xs opacity-60 flex gap-2"><span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded">{{ session.violatingTrades.length }} VIOLATIONS</span></div>
+                    </div>
+                    <div class="flex items-center gap-8 text-right font-mono text-sm">
+                      <div class="flex flex-col">
+                        <span class="text-[10px] opacity-50 uppercase">Realized Risk</span>
+                        <span :class="session.realizedLoss > session._maxSessionRiskDollars ? 'text-red-500' : 'opacity-80'">
+                          ${{ session.realizedLoss.toFixed(2) }}
+                        </span>
+                      </div>
+                      <div class="flex flex-col w-24">
+                        <span class="text-[10px] opacity-50 uppercase">Planned Risk</span>
+                        <span :class="session.positionRisk > session._maxSessionRiskDollars ? 'text-red-500' : 'opacity-80'">
+                          ${{ session.positionRisk.toFixed(2) }}
+                        </span>
+                      </div>
+                      <div class="w-6 flex justify-center opacity-50">
+                        <svg v-if="expandedSessions.has(session.date)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Session Violating Trades -->
+                  <div v-if="expandedSessions.has(session.date)" class="pl-8 pr-2 py-2 space-y-2 border-l-2 border-red-500/30 ml-4 mt-2">
+                    <div v-for="trade in session.violatingTrades" :key="trade.id" class="w-full bg-white/5 dark:bg-black/20 border border-black/5 dark:border-white/5 p-3 flex flex-wrap items-center justify-between gap-4">
+                      <div class="flex items-center gap-6 min-w-[200px]">
+                        <div class="font-bold text-sm tracking-wider w-16">{{ trade.asset }}</div>
+                        <div class="font-mono text-xs font-bold w-12" :class="trade.direction === 'LONG' ? 'text-green-500' : 'text-red-500'">{{ trade.direction }}</div>
+                      </div>
+                      <div class="flex items-center gap-8 text-right font-mono text-xs">
+                        <div class="flex flex-col">
+                          <span class="text-[9px] opacity-50 uppercase">Realized</span>
+                          <span class="opacity-80">${{ trade._realizedLoss > 0 ? trade._realizedLoss.toFixed(2) : '0.00' }}</span>
+                        </div>
+                        <div class="flex flex-col">
+                          <span class="text-[9px] opacity-50 uppercase">Planned</span>
+                          <span class="opacity-80">${{ trade._positionRisk.toFixed(2) }}</span>
+                        </div>
+                        <div class="flex flex-col w-20">
+                          <span class="text-[9px] opacity-50 uppercase">Result</span>
+                          <span :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
+                            {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+' : '' }}${{ (Number(trade.profitInCurrency) || 0).toFixed(2) }}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- OTHER METRICS FALLBACK -->
+            <div v-if="activeComplianceMetricKey !== 'riskPerTrade' && activeComplianceMetricKey !== 'riskPerSession'" class="flex items-center justify-center h-full opacity-30 font-mono text-sm uppercase">
+              SELECT A SECTION ABOVE TO VIEW VIOLATIONS
+            </div>
+          </div>
+         </div>
        </ExPanel>
     </div>
 
@@ -1138,6 +1248,7 @@ const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
 const showComplianceStatus = ref(false)
+const activeComplianceMetricKey = ref('riskPerTrade')
 const isTradeEntryOpen = ref(false)
 const showAssetMenu = ref(false)
 const imageLoadError = ref(false)
@@ -1620,12 +1731,38 @@ const activeMatrixNodes = computed(() => {
   return resolveRiskManagementForStrategy(matrixNodes.value, matrixConnections.value, stratId);
 });
 
+const getTradeRiskComponents = (trade: any) => {
+  const configuredRisk = Number(trade?.risk)
+  const hasConfiguredRisk = Number.isFinite(configuredRisk) && configuredRisk > 0
+  const entryPrice = Number(trade?.entry)
+  const stopPrice = Number(trade?.stopLoss)
+  const size = Number(trade?.size) || 1
+  const priceRisk = Number.isFinite(entryPrice) && Number.isFinite(stopPrice)
+    ? Math.abs(entryPrice - stopPrice) * size
+    : 0
+  const positionRisk = Math.max(hasConfiguredRisk ? configuredRisk : 0, Number.isFinite(priceRisk) ? priceRisk : 0)
+  const pnl = Number(trade?.profitInCurrency)
+  const realizedLoss = Number.isFinite(pnl) && pnl < 0 ? Math.abs(pnl) : 0
+
+  return {
+    configuredRisk: hasConfiguredRisk ? configuredRisk : 0,
+    priceRisk,
+    positionRisk,
+    realizedLoss
+  }
+}
+
+const tradeViolatesRiskLimit = (trade: any, limit: number) => {
+  if (!Number.isFinite(limit)) return false
+  const risk = getTradeRiskComponents(trade)
+  return risk.realizedLoss > limit || risk.positionRisk > limit
+}
+
 const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number, tradingStyle: number }>(() => {
   const trades = currentTrades.value;
   if (trades.length === 0) return { riskPerTrade: 100, riskPerSession: 100, tradingStyle: 100 };
 
   let compliantTradeCount = 0;
-  let compliantSessionCount = 0;
   let compliantStyleCount = 0;
 
   const initDep = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000;
@@ -1643,26 +1780,14 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
   };
   const extraType = activeMatrixNodes.value.tradingStyleExtraType;
 
-  const sessionRiskMap: Record<string, { pnl: number, balanceAtStart: number }> = {};
+  const sessionRiskMap: Record<string, { realizedLoss: number, positionRisk: number, balanceAtStart: number }> = {};
 
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let currentBalance = initDep;
 
   sortedTrades.forEach(t => {
     const maxRiskDollars = riskValueToDollars(riskVal, riskUnit, currentBalance);
-
-    // Risk Per Trade
-    let actualRisk = Number((t as any).risk) || 0;
-    if (actualRisk === 0 && t.entry && t.stopLoss) {
-      actualRisk = Math.abs(Number(t.entry) - Number(t.stopLoss)) * (Number((t as any).size) || 1);
-    }
-    
-    // Fallback if risk is 0 and trade was a loss
-    if (actualRisk === 0 && t.profitInCurrency !== undefined && t.profitInCurrency < 0) {
-      actualRisk = Math.abs(t.profitInCurrency);
-    }
-    
-    if (actualRisk <= maxRiskDollars) compliantTradeCount++;
+    if (!tradeViolatesRiskLimit(t, maxRiskDollars)) compliantTradeCount++;
 
     // Trading Style
     let durationMins = 0;
@@ -1680,14 +1805,15 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
     }
     if (styleCompliant) compliantStyleCount++;
 
-    // Session Risk map
+    const risk = getTradeRiskComponents(t);
     const pnl = Number((t as any).profitInCurrency) || 0;
     const dateStr = new Date(t.date).toDateString();
     
     if (!sessionRiskMap[dateStr]) {
-      sessionRiskMap[dateStr] = { pnl: 0, balanceAtStart: currentBalance };
+      sessionRiskMap[dateStr] = { realizedLoss: 0, positionRisk: 0, balanceAtStart: currentBalance };
     }
-    sessionRiskMap[dateStr].pnl += pnl;
+    sessionRiskMap[dateStr].realizedLoss += risk.realizedLoss;
+    sessionRiskMap[dateStr].positionRisk += risk.positionRisk;
 
     currentBalance += pnl;
   });
@@ -1698,7 +1824,7 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
     const sessionData = sessionRiskMap[k];
     if (!sessionData) return;
     const maxSessionRiskDollars = riskValueToDollars(sessionRiskVal, sessionRiskUnit, sessionData.balanceAtStart);
-    if (sessionData.pnl >= -maxSessionRiskDollars) validSessions++;
+    if (sessionData.realizedLoss <= maxSessionRiskDollars && sessionData.positionRisk <= maxSessionRiskDollars) validSessions++;
   });
 
   return {
@@ -1707,6 +1833,82 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
     tradingStyle: (compliantStyleCount / trades.length) * 100
   };
 });
+
+const complianceViolations = computed(() => {
+  const trades = currentTrades.value;
+  if (trades.length === 0) return { violatingTrades: [], violatingSessions: [] };
+
+  const initDep = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000;
+  
+  const riskUnit = activeMatrixNodes.value.riskPerTradeUnit;
+  const riskVal = activeMatrixNodes.value.riskPerTradeValue;
+
+  const sessionRiskUnit = activeMatrixNodes.value.riskPerSessionUnit;
+  const sessionRiskVal = activeMatrixNodes.value.riskPerSessionValue;
+
+  const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  let currentBalance = initDep;
+
+  const violatingTrades: any[] = [];
+  const sessionRiskMap: Record<string, { date: string, realizedLoss: number, positionRisk: number, balanceAtStart: number, trades: any[] }> = {};
+
+  sortedTrades.forEach(t => {
+    const maxRiskDollars = riskValueToDollars(riskVal, riskUnit, currentBalance);
+    const risk = getTradeRiskComponents(t);
+
+    if (risk.realizedLoss > maxRiskDollars || risk.positionRisk > maxRiskDollars) {
+      violatingTrades.push({
+        ...t,
+        _realizedLoss: risk.realizedLoss,
+        _positionRisk: risk.positionRisk,
+        _maxRiskDollars: maxRiskDollars
+      });
+    }
+
+    const pnl = Number((t as any).profitInCurrency) || 0;
+    const dateStr = new Date(t.date).toDateString();
+    
+    if (!sessionRiskMap[dateStr]) {
+      sessionRiskMap[dateStr] = { date: dateStr, realizedLoss: 0, positionRisk: 0, balanceAtStart: currentBalance, trades: [] };
+    }
+    sessionRiskMap[dateStr].realizedLoss += risk.realizedLoss;
+    sessionRiskMap[dateStr].positionRisk += risk.positionRisk;
+    sessionRiskMap[dateStr].trades.push({
+      ...t,
+      _realizedLoss: risk.realizedLoss,
+      _positionRisk: risk.positionRisk,
+      _maxRiskDollars: maxRiskDollars
+    });
+
+    currentBalance += pnl;
+  });
+
+  const violatingSessions: any[] = [];
+  Object.values(sessionRiskMap).forEach(sessionData => {
+    const maxSessionRiskDollars = riskValueToDollars(sessionRiskVal, sessionRiskUnit, sessionData.balanceAtStart);
+    if (sessionData.realizedLoss > maxSessionRiskDollars || sessionData.positionRisk > maxSessionRiskDollars) {
+      const sViolatingTrades = sessionData.trades.filter((t: any) => t._realizedLoss > 0 || t._positionRisk > 0);
+      violatingSessions.push({
+        ...sessionData,
+        _maxSessionRiskDollars: maxSessionRiskDollars,
+        violatingTrades: sViolatingTrades
+      });
+    }
+  });
+
+  return {
+    violatingTrades: violatingTrades.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    violatingSessions: violatingSessions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  };
+});
+
+const expandedSessions = ref<Set<string>>(new Set());
+const toggleSession = (date: string) => {
+  const newSet = new Set(expandedSessions.value);
+  if (newSet.has(date)) newSet.delete(date);
+  else newSet.add(date);
+  expandedSessions.value = newSet;
+};
 
 const emotionalStatus = computed(() => {
   const trades = currentTrades.value;
