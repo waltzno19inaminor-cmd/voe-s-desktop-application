@@ -2161,7 +2161,7 @@ const complianceViolations = computed(() => {
   Object.values(sessionRiskMap).forEach(sessionData => {
     const maxSessionRiskDollars = riskValueToDollars(sessionRiskVal, sessionRiskUnit, sessionData.balanceAtStart);
     if (sessionData.realizedLoss > maxSessionRiskDollars || sessionData.positionRisk > maxSessionRiskDollars) {
-      const sViolatingTrades = sessionData.trades.filter((t: any) => t._realizedLoss > 0 || t._positionRisk > 0);
+      const sViolatingTrades = sessionData.trades.filter((t: any) => (Number(t.profitInCurrency) || 0) < 0);
       violatingSessions.push({
         ...sessionData,
         _maxSessionRiskDollars: maxSessionRiskDollars,
