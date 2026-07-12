@@ -37,7 +37,7 @@
     "shortDescription": "JLJ Desktop Application",
     "longDescription": "JLJ is a desktop application for advanced trading performance analysis.",
     "icon": [
-      "icons/icon.icns",
+      "icons/jor.icns",
       "icons/icon.ico"
     ]
   },
