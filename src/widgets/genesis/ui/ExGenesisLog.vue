@@ -669,7 +669,10 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ new Date(trade.date).toLocaleDateString() }}
+                      </span>
+                      <span class="mt-0.5 text-[9px] opacity-40 uppercase tracking-wider truncate">
+                        {{ locale === 'ru' ? 'МАКС РИСК: $' : 'MAX RISK: $' }}{{ trade._maxRiskDollars.toFixed(2) }}
                       </span>
                     </div>
                     <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
@@ -762,7 +765,10 @@
                         <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                         <div class="w-[22%] flex flex-col items-center min-w-0">
                           <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                            {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
+                            {{ new Date(trade.date).toLocaleDateString() }}
+                          </span>
+                          <span class="mt-0.5 text-[9px] opacity-40 uppercase tracking-wider truncate">
+                            {{ locale === 'ru' ? 'МАКС РИСК: $' : 'MAX RISK: $' }}{{ trade._maxRiskDollars.toFixed(2) }}
                           </span>
                         </div>
                         <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
@@ -813,7 +819,7 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
                     <span class="w-[16%] opacity-80 font-bold text-red-500 text-right tracking-wider truncate">
@@ -869,7 +875,7 @@
                     <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ trade.asset }}</span>
                     <div class="w-[22%] flex flex-col items-center min-w-0">
                       <span class="mt-1 text-[10px] opacity-80 font-bold uppercase tracking-wider truncate">
-                        {{ locale === 'ru' ? 'ВХОД:' : 'ENTRY:' }} {{ new Date(trade.date).toLocaleDateString() }}
+                        {{ new Date(trade.date).toLocaleDateString() }}
                       </span>
                     </div>
                     <span class="w-[16%] opacity-60 font-bold text-red-500 text-right tracking-wider truncate">
