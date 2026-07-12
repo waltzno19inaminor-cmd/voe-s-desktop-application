@@ -648,7 +648,7 @@
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
                 <div v-for="trade in complianceViolations.violatingTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
-                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
                     <div class="w-[15%] flex items-center space-x-3 truncate">
                       <span
                         class="w-1 h-1 rounded-full shrink-0"
@@ -664,9 +664,11 @@
                     </div>
                     <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
                       {{ trade._realizedLoss > 0 ? '-$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+                      <span v-if="trade._realizedLoss > trade._maxRiskDollars" class="text-[9px] opacity-60 ml-0.5">(-${{ (trade._realizedLoss - trade._maxRiskDollars).toFixed(2) }})</span>
                     </span>
                     <span class="w-[16%] text-right tracking-wider truncate" :class="trade._positionRisk > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
                       {{ trade._positionRisk > 0 ? '-$' + trade._positionRisk.toFixed(2) : '$0.00' }}
+                      <span v-if="trade._positionRisk > trade._maxRiskDollars" class="text-[9px] opacity-60 ml-0.5">(-${{ (trade._positionRisk - trade._maxRiskDollars).toFixed(2) }})</span>
                     </span>
                     <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
                       {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
@@ -739,7 +741,7 @@
                       <span class="w-[16%] text-right">Result</span>
                     </div>
                     <div v-for="trade in session.violatingTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
-                      <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
                         <div class="w-[15%] flex items-center space-x-3 truncate">
                           <span
                             class="w-1 h-1 rounded-full shrink-0"
@@ -755,9 +757,11 @@
                         </div>
                         <span class="w-[16%] text-right tracking-wider truncate" :class="trade._realizedLoss > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
                           {{ trade._realizedLoss > 0 ? '-$' + trade._realizedLoss.toFixed(2) : '$0.00' }}
+                          <span v-if="trade._realizedLoss > trade._maxRiskDollars" class="text-[9px] opacity-60 ml-0.5">(-${{ (trade._realizedLoss - trade._maxRiskDollars).toFixed(2) }})</span>
                         </span>
                         <span class="w-[16%] text-right tracking-wider truncate" :class="trade._positionRisk > trade._maxRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
                           {{ trade._positionRisk > 0 ? '-$' + trade._positionRisk.toFixed(2) : '$0.00' }}
+                          <span v-if="trade._positionRisk > trade._maxRiskDollars" class="text-[9px] opacity-60 ml-0.5">(-${{ (trade._positionRisk - trade._maxRiskDollars).toFixed(2) }})</span>
                         </span>
                         <span class="w-[16%] font-bold text-right tracking-wider" :class="(Number(trade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
                           {{ (Number(trade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(trade.profitInCurrency) || 0).toFixed(2) }}
@@ -788,7 +792,7 @@
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
                 <div v-for="trade in complianceViolations.violatingStyleTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
-                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
                     <div class="w-[15%] flex items-center space-x-3 truncate">
                       <span
                         class="w-1 h-1 rounded-full shrink-0"
@@ -835,7 +839,7 @@
 
               <div v-else class="flex flex-col space-y-3.5 pt-2">
                 <div v-for="trade in complianceViolations.violatingNeuralTrades" :key="trade.id" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
-                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                  <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity cursor-pointer" @click="handleOpenTrade({ tradeId: trade.id })">
                     <div class="w-[15%] flex items-center space-x-3 truncate">
                       <span
                         class="w-1 h-1 rounded-full shrink-0"
