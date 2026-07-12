@@ -1,0 +1,15 @@
+--- src/widgets/genesis/ui/ExGenesisLog.vue
++++ src/widgets/genesis/ui/ExGenesisLog.vue
+@@ -679,2 +679,12 @@
+             <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="flex flex-col font-mono text-xs pt-2 select-none">
++              <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
++                <div class="w-[15%] flex items-center space-x-3">
++                  <span>Type</span>
++                </div>
++                <span class="w-[15%]">Date</span>
++                <span class="w-[22%] text-center">Violations</span>
++                <span class="w-[16%] text-right">Realized Loss</span>
++                <span class="w-[16%] text-right">Planned Risk</span>
++                <span class="w-[16%] text-right">Expand</span>
++              </div>
+               <div v-if="complianceViolations.violatingSessions.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">

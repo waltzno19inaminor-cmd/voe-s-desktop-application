@@ -1,0 +1,10 @@
+--- src/widgets/genesis/ui/ExGenesisLog.vue
++++ src/widgets/genesis/ui/ExGenesisLog.vue
+@@ -694,3 +694,3 @@
+               <div v-else class="flex flex-col space-y-3.5 pt-2">
+                 <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+-                  <div class="relative flex items-center justify-between py-3 px-2 transition-all cursor-pointer" 
+-                       :class="expandedSessions.has(session.date) ? 'bg-black text-[#F9F6F0] dark:bg-[#F9F6F0] dark:text-black opacity-100 shadow-md' : 'opacity-80 group-hover:opacity-100'"
++                  <div class="relative flex items-center justify-between py-3 transition-all cursor-pointer" 
++                       :class="expandedSessions.has(session.date) ? '-mx-6 px-8 bg-black text-[#F9F6F0] dark:bg-[#F9F6F0] dark:text-black opacity-100 shadow-md' : 'px-2 opacity-80 group-hover:opacity-100'"
+                        @click="toggleSession(session.date)">

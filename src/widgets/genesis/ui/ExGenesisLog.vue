@@ -678,40 +678,56 @@
 
             <!-- RISK PER SESSION VIOLATIONS -->
             <div v-if="activeComplianceMetricKey === 'riskPerSession'" class="flex flex-col font-mono text-xs pt-2 select-none">
+              <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
+                <div class="w-[15%] flex items-center space-x-3">
+                  <span>Type</span>
+                </div>
+                <span class="w-[15%]">Date</span>
+                <span class="w-[22%] text-center">Violations</span>
+                <span class="w-[16%] text-right">Realized Loss</span>
+                <span class="w-[16%] text-right">Planned Risk</span>
+                <span class="w-[16%] text-right">Expand</span>
+              </div>
+
               <div v-if="complianceViolations.violatingSessions.length === 0" class="py-16 text-center opacity-40 text-xs uppercase tracking-widest">
                 NO RISK_PER_SESSION VIOLATIONS DETECTED
               </div>
-              <div v-else class="flex flex-col space-y-4">
-                <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="w-full">
-                  <div 
-                    class="bg-white/5 dark:bg-black/20 border border-black/10 dark:border-white/10 p-4 flex items-center justify-between cursor-pointer transition-all hover:bg-black/5 dark:hover:bg-white/5"
-                    @click="toggleSession(session.date)"
-                  >
-                    <div class="flex items-center gap-6">
-                      <div class="font-mono text-sm font-bold uppercase tracking-widest">{{ session.date }}</div>
-                      <div class="text-[10px] opacity-60 uppercase tracking-widest flex gap-2"><span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded">{{ session.violatingTrades.length }} VIOLATIONS</span></div>
+              <div v-else class="flex flex-col space-y-3.5 pt-2">
+                <div v-for="session in complianceViolations.violatingSessions" :key="session.date" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
+                  <div class="relative flex items-center justify-between py-3 transition-all cursor-pointer" 
+                       :class="expandedSessions.has(session.date) ? '-mx-6 px-8 bg-black text-[#F9F6F0] dark:bg-[#F9F6F0] dark:text-black opacity-100 shadow-md' : 'px-2 opacity-80 group-hover:opacity-100'"
+                       @click="toggleSession(session.date)">
+                    <!-- Tactical Corners -->
+                    <template v-if="expandedSessions.has(session.date)">
+                      <div class="absolute top-0 left-0 w-2 h-2 border-t border-l border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute top-0 right-0 w-2 h-2 border-t border-r border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                      <div class="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-[#F9F6F0] dark:border-black opacity-50 pointer-events-none"></div>
+                    </template>
+                    <div class="w-[15%] flex items-center space-x-3 truncate">
+                      <span class="w-1 h-1 rounded-full shrink-0"
+                            :class="expandedSessions.has(session.date) ? 'bg-[#F9F6F0] dark:bg-black' : 'bg-black dark:bg-[#F9F6F0]'"></span>
+                      <span class="font-bold uppercase tracking-widest">SESSION</span>
                     </div>
-                    <div class="flex items-center gap-8 text-right font-mono text-sm uppercase tracking-widest">
-                      <div class="flex flex-col">
-                        <span class="text-[9px] opacity-40">Realized Loss</span>
-                        <span :class="session.realizedLoss > session._maxSessionRiskDollars ? 'text-red-500 font-bold' : 'text-green-500 font-bold'">
-                          {{ session.realizedLoss > 0 ? '-$' + session.realizedLoss.toFixed(2) : '$0.00' }}
-                        </span>
-                      </div>
-                      <div class="flex flex-col w-24">
-                        <span class="text-[9px] opacity-40">Planned Risk</span>
-                        <span :class="session.positionRisk > session._maxSessionRiskDollars ? 'text-red-500 font-bold' : 'text-green-500 font-bold'">
-                          {{ session.positionRisk > 0 ? '-$' + session.positionRisk.toFixed(2) : '$0.00' }}
-                        </span>
-                      </div>
-                      <div class="w-6 flex justify-center opacity-40">
-                        <svg v-if="expandedSessions.has(session.date)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
-                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                      </div>
+                    <span class="w-[15%] opacity-60 uppercase tracking-wider truncate">{{ session.date }}</span>
+                    <div class="w-[22%] flex flex-col items-center min-w-0">
+                      <span class="px-2 py-0.5 bg-red-500/20 text-red-500 rounded text-[10px] font-bold tracking-widest">
+                        {{ session.violatingTrades.length }} VIOLATIONS
+                      </span>
                     </div>
+                    <span class="w-[16%] text-right tracking-wider truncate" :class="session.realizedLoss > session._maxSessionRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                      {{ session.realizedLoss > 0 ? '-$' + session.realizedLoss.toFixed(2) : '$0.00' }}
+                    </span>
+                    <span class="w-[16%] text-right tracking-wider truncate" :class="session.positionRisk > session._maxSessionRiskDollars ? '!text-red-500 !opacity-80 font-bold' : '!text-green-500 !opacity-80 font-bold'">
+                      {{ session.positionRisk > 0 ? '-$' + session.positionRisk.toFixed(2) : '$0.00' }}
+                    </span>
+                    <span class="w-[16%] flex justify-end opacity-40">
+                      <svg v-if="expandedSessions.has(session.date)" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+                      <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </span>
                   </div>
                   <!-- Session Violating Trades -->
-                  <div v-if="expandedSessions.has(session.date)" class="my-2 ml-2 pl-6 border-l border-black/20 dark:border-white/20 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
+                  <div v-if="expandedSessions.has(session.date)" class="my-2 -mx-6 px-6 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
                     <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
                       <div class="w-[15%] flex items-center space-x-3">
                         <span>Direction</span>
