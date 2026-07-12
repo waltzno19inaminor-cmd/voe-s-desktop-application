@@ -893,29 +893,34 @@
                   <!-- EXPANDED EMOTIONS -->
                   <div v-if="expandedNeuralTrades.has(trade.id)" class="my-2 -mx-6 px-6 flex flex-col space-y-3.5 py-3 opacity-80 animate-[fadeIn_0.2s_ease-out]">
                     <div class="flex items-center justify-between pb-3 border-b border-black/10 dark:border-white/10 text-[10px] opacity-40 uppercase tracking-widest px-2">
-                      <div class="w-[30%] flex items-center space-x-3">
+                      <div class="w-[25%] flex items-center space-x-3">
                         <span>Emotion</span>
                       </div>
-                      <span class="w-[35%] text-right">Frequency</span>
-                      <span class="w-[35%] text-right">Profit Factor</span>
+                      <span class="w-[25%]">Type</span>
+                      <span class="w-[25%] text-right">Frequency</span>
+                      <span class="w-[25%] text-right">Profit Factor</span>
                     </div>
 
                     <div v-for="emotion in (trade.emotions || [])" :key="typeof emotion === 'string' ? emotion : emotion.name" class="flex flex-col group transition-opacity duration-150 border-b border-black/5 dark:border-white/5 pb-2">
                       <div class="flex items-center justify-between py-3 px-2 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <div class="w-[30%] flex items-center space-x-3 truncate">
+                        <div class="w-[25%] flex items-center space-x-3 truncate">
                           <span
                             class="w-1 h-1 rounded-full shrink-0"
-                            :class="(EMOTION_WEIGHTS_STABILITY[(typeof emotion === 'string' ? emotion : (emotion.name || '')).toUpperCase() as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-red-500'"
+                            :class="getEmotionWeight(emotion) >= 0 ? 'bg-black dark:bg-[#F9F6F0]' : 'bg-red-500'"
                           ></span>
                           <span class="font-bold uppercase tracking-widest"
-                                :class="(EMOTION_WEIGHTS_STABILITY[(typeof emotion === 'string' ? emotion : (emotion.name || '')).toUpperCase() as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0) < 0 ? 'text-red-500' : 'nier-text-primary'">
+                                :class="getEmotionWeight(emotion) < 0 ? 'text-red-500' : 'nier-text-primary'">
                             {{ typeof emotion === 'string' ? emotion : emotion.name }}
                           </span>
                         </div>
-                        <span class="w-[35%] text-right font-mono font-bold text-[11px] uppercase tracking-wider truncate opacity-80">
+                        <span class="w-[25%] font-bold uppercase tracking-wider truncate text-[10px]"
+                              :class="getEmotionWeight(emotion) > 0 ? 'text-green-500 opacity-60' : getEmotionWeight(emotion) < 0 ? 'text-red-500 opacity-80' : 'text-yellow-500 opacity-60'">
+                          {{ getEmotionWeight(emotion) > 0 ? 'POSITIVE' : getEmotionWeight(emotion) < 0 ? 'NEGATIVE' : 'NEUTRAL' }}
+                        </span>
+                        <span class="w-[25%] text-right font-mono font-bold text-[11px] uppercase tracking-wider truncate opacity-80">
                           {{ (getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).freq * 100).toFixed(1) }}%
                         </span>
-                        <span class="w-[35%] text-right font-mono font-bold text-[11px] tracking-wider truncate" :class="getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).pf >= 1 ? 'text-green-500' : 'text-red-500'">
+                        <span class="w-[25%] text-right font-mono font-bold text-[11px] tracking-wider truncate" :class="getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).pf >= 1 ? 'text-green-500' : 'text-red-500'">
                           {{ getStats(typeof emotion === 'string' ? emotion : emotion.name, currentTrades).pf.toFixed(2) }}
                         </span>
                       </div>
@@ -2174,6 +2179,12 @@ const toggleNeuralTrade = (tradeId: string) => {
   if (newSet.has(tradeId)) newSet.delete(tradeId);
   else newSet.add(tradeId);
   expandedNeuralTrades.value = newSet;
+};
+
+const getEmotionWeight = (emotion: any) => {
+  if (!emotion) return 0;
+  const key = (typeof emotion === 'string' ? emotion : (emotion.name || '')).toUpperCase();
+  return EMOTION_WEIGHTS_STABILITY[key as keyof typeof EMOTION_WEIGHTS_STABILITY] || 0;
 };
 
 const emotionalStatus = computed(() => {
