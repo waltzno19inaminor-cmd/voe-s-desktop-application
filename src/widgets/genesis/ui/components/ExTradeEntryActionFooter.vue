@@ -6,6 +6,21 @@ import ExPanel from '~/shared/ui/ExPanel.vue';
 const emit = defineEmits(['close']);
 const { locale } = useI18n();
 
+const assetTypeLocales = {
+  'ALL': { en: 'ALL', ru: 'ВСЕ' },
+  'US Equities': { en: 'US Equities', ru: 'АКЦИИ' },
+  'Crypto': { en: 'Crypto', ru: 'КРИПТО' },
+  'Forex': { en: 'Forex', ru: 'ФОРЕКС' },
+  'Commodities': { en: 'Commodities', ru: 'СЫРЬЕ' },
+  'Indices': { en: 'Indices', ru: 'ИНДЕКСЫ' },
+  'Stocks': { en: 'Stocks', ru: 'АКЦИИ' }
+};
+
+const getAssetTypeLoc = (type) => {
+  if (!type) return '';
+  return assetTypeLocales[type]?.[locale.value] || type;
+};
+
 
 const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
 </script>
@@ -47,7 +62,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <!-- BLOCK: ID -->
           <div class="flex items-center gap-6 pr-8 border-r border-white/10 w-[240px] shrink-0">
             <div class="flex flex-col gap-0.5 text-left relative asset-select-container">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">System_ID</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ID_СИСТЕМЫ' : 'System_ID' }}</span>
               <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
                 <div v-if="asset && currentAssetData" 
                      class="w-5 h-5 rounded-full overflow-hidden border border-white/20 flex items-center justify-center shrink-0 transition-colors"
@@ -84,7 +99,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                                   @click="assetTypeFilter = t"
                                   class="text-[9px] uppercase tracking-[0.3em] font-bold transition-all whitespace-nowrap"
                                   :class="assetTypeFilter === t ? 'text-white border-b border-white pb-0.5' : 'text-white/40 hover:text-white/70'">
-                             {{ t === 'US Equities' && locale === 'ru' ? 'АКЦИИ' : t }}
+                             {{ getAssetTypeLoc(t) }}
                           </button>
                         </div>
                         
@@ -108,7 +123,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                               <span class="text-[10px] text-white/40 truncate uppercase tracking-tighter">{{ a.name }}</span>
                             </div>
                             <div class="shrink-0 text-[8px] uppercase tracking-[0.2em] text-white/20 group-hover/asset:text-white/60 border border-white/10 px-2 py-1 rounded-sm transition-colors">
-                              {{ a.type === 'US Equities' && locale === 'ru' ? 'STOCKS' : a.type }}
+                              {{ getAssetTypeLoc(a.type) }}
                             </div>
                           </div>
                           <div v-if="filteredAssets.length === 0" class="flex flex-col items-center justify-center h-full text-white/30 uppercase tracking-[0.3em] font-mono text-[10px] mt-10">
@@ -123,7 +138,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
             </div>
 
             <div class="flex flex-col gap-0.5 text-left">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Vector</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ВЕКТОР' : 'Vector' }}</span>
               <button @click="side = side === 'long' ? 'short' : 'long'"
                       class="text-[11px] font-bold tracking-widest uppercase transition-colors"
                       :class="side === 'long' ? 'text-emerald-400' : 'text-rose-400'">
@@ -138,21 +153,21 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <div v-if="activeSector === 'core'" :key="'core'" class="flex items-center gap-10">
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                     {{ entryMethodEnabled ? 'Avg_Entry_Lvl' : 'Entry_Lvl' }}
+                     {{ entryMethodEnabled ? (locale === 'ru' ? 'СРЕДНИЙ_ВХОД' : 'Avg_Entry_Lvl') : (locale === 'ru' ? 'УРОВЕНЬ_ВХОДА' : 'Entry_Lvl') }}
                   </span>
                   <input v-if="!entryMethodEnabled" v-model="entry" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="exitMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl' }}
+                    {{ exitMethodEnabled ? (locale === 'ru' ? 'СРЕДНИЙ_ВЫХОД' : 'Avg_Exit_Lvl') : (locale === 'ru' ? 'УРОВЕНЬ_ВЫХОДА' : 'Exit_Lvl') }}
                   </span>
                   <input v-if="!exitMethodEnabled" v-model="exit" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ entryMethodEnabled ? 'Total_Vol' : (isForex ? 'Lot_Size' : 'Unit_Qty') }}
+                    {{ entryMethodEnabled ? (locale === 'ru' ? 'ОБЩИЙ_ОБЪЕМ' : 'Total_Vol') : (isForex ? (locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size') : (locale === 'ru' ? 'КОЛ_ВО_ШТ' : 'Unit_Qty')) }}
                   </span>
                   <input v-if="!entryMethodEnabled" v-model="size" type="number" step="0.01" :placeholder="isForex ? '0.01' : '1.0'" class="nier-input w-16 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
@@ -162,7 +177,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <div v-else-if="activeSector === 'risk'" :key="'risk'" class="flex items-center gap-8">
                 <div class="flex items-center gap-10">
                   <div class="flex flex-col gap-0.5 text-left">
-                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">Stop_Loss</span>
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">{{ locale === 'ru' ? 'СТОП_ЛОСС' : 'Stop_Loss' }}</span>
                     <input
                       v-model="stopLoss"
                       type="number"
@@ -177,7 +192,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                     />
                   </div>
                   <div class="flex flex-col gap-0.5 text-left">
-                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">{{ locale === 'ru' ? 'ТЕЙК_ПРОФИТ' : 'Take_Profit' }}</span>
                     <input
                       v-model="takeProfit"
                       type="number"
@@ -198,7 +213,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 <div v-for="t in ['open', 'exit']" :key="t" 
                      @click="openTemporal(t)"
                      class="flex flex-col gap-1 cursor-pointer group/time hover:translate-y-[-2px] transition-all">
-                  <span class="text-[7px] uppercase tracking-[0.3em] font-bold text-white/30 group-hover/time:text-white/60 transition-colors">{{ t.toUpperCase() }}_SYNC</span>
+                  <span class="text-[7px] uppercase tracking-[0.3em] font-bold text-white/30 group-hover/time:text-white/60 transition-colors">{{ t === 'open' ? (locale === 'ru' ? 'СИНХР_ОТКРЫТИЯ' : 'OPEN_SYNC') : (locale === 'ru' ? 'СИНХР_ЗАКРЫТИЯ' : 'EXIT_SYNC') }}</span>
                   <div class="flex items-center gap-3 font-mono text-[11px] text-white/80 group-hover/time:text-white">
                     <span>{{ formatPart(t === 'open' ? openDate : exitDate, 'year') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'month') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'day') }}</span>
                     <span class="opacity-20">/</span>
@@ -234,7 +249,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <!-- BLOCK: OUTPUT -->
           <div class="flex items-center gap-10 pl-8 border-l border-white/10 w-[240px] shrink-0 justify-end">
             <div class="flex flex-col items-end gap-0.5">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ПРОГНОЗ_ПРИБЫЛИ' : 'Yield_Est' }}</span>
               <div v-if="resultMode === 'manual'" class="flex items-center">
                 <input v-model.number="pnl" 
                        type="number" 
