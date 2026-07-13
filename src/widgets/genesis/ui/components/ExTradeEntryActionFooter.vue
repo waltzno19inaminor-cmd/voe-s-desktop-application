@@ -62,7 +62,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <!-- BLOCK: ID -->
           <div class="flex items-center gap-6 pr-8 border-r border-white/10 w-[240px] shrink-0">
             <div class="flex flex-col gap-0.5 text-left relative asset-select-container">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ID_СИСТЕМЫ' : 'System_ID' }}</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
               <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
                 <div v-if="asset && currentAssetData" 
                      class="w-5 h-5 rounded-full overflow-hidden border border-white/20 flex items-center justify-center shrink-0 transition-colors"
@@ -138,7 +138,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
             </div>
 
             <div class="flex flex-col gap-0.5 text-left">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ВЕКТОР' : 'Vector' }}</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Vector</span>
               <button @click="side = side === 'long' ? 'short' : 'long'"
                       class="text-[11px] font-bold tracking-widest uppercase transition-colors"
                       :class="side === 'long' ? 'text-emerald-400' : 'text-rose-400'">
@@ -153,21 +153,21 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <div v-if="activeSector === 'core'" :key="'core'" class="flex items-center gap-10">
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                     {{ entryMethodEnabled ? (locale === 'ru' ? 'СРЕДНИЙ_ВХОД' : 'Avg_Entry_Lvl') : (locale === 'ru' ? 'УРОВЕНЬ_ВХОДА' : 'Entry_Lvl') }}
+                     {{ entryMethodEnabled ? 'Avg_Entry_Lvl' : 'Entry_Lvl' }}
                   </span>
                   <input v-if="!entryMethodEnabled" v-model="entry" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="exitMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ exitMethodEnabled ? (locale === 'ru' ? 'СРЕДНИЙ_ВЫХОД' : 'Avg_Exit_Lvl') : (locale === 'ru' ? 'УРОВЕНЬ_ВЫХОДА' : 'Exit_Lvl') }}
+                    {{ exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl' }}
                   </span>
                   <input v-if="!exitMethodEnabled" v-model="exit" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ entryMethodEnabled ? (locale === 'ru' ? 'ОБЩИЙ_ОБЪЕМ' : 'Total_Vol') : (isForex ? (locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size') : (locale === 'ru' ? 'КОЛ_ВО_ШТ' : 'Unit_Qty')) }}
+                    {{ entryMethodEnabled ? 'Total_Vol' : (isForex ? 'Lot_Size' : 'Unit_Qty') }}
                   </span>
                   <input v-if="!entryMethodEnabled" v-model="size" type="number" step="0.01" :placeholder="isForex ? '0.01' : '1.0'" class="nier-input w-16 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
@@ -177,7 +177,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <div v-else-if="activeSector === 'risk'" :key="'risk'" class="flex items-center gap-8">
                 <div class="flex items-center gap-10">
                   <div class="flex flex-col gap-0.5 text-left">
-                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">{{ locale === 'ru' ? 'СТОП_ЛОСС' : 'Stop_Loss' }}</span>
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">Stop_Loss</span>
                     <input
                       v-model="stopLoss"
                       type="number"
@@ -192,7 +192,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                     />
                   </div>
                   <div class="flex flex-col gap-0.5 text-left">
-                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">{{ locale === 'ru' ? 'ТЕЙК_ПРОФИТ' : 'Take_Profit' }}</span>
+                    <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
                     <input
                       v-model="takeProfit"
                       type="number"
@@ -213,7 +213,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 <div v-for="t in ['open', 'exit']" :key="t" 
                      @click="openTemporal(t)"
                      class="flex flex-col gap-1 cursor-pointer group/time hover:translate-y-[-2px] transition-all">
-                  <span class="text-[7px] uppercase tracking-[0.3em] font-bold text-white/30 group-hover/time:text-white/60 transition-colors">{{ t === 'open' ? (locale === 'ru' ? 'СИНХР_ОТКРЫТИЯ' : 'OPEN_SYNC') : (locale === 'ru' ? 'СИНХР_ЗАКРЫТИЯ' : 'EXIT_SYNC') }}</span>
+                  <span class="text-[7px] uppercase tracking-[0.3em] font-bold text-white/30 group-hover/time:text-white/60 transition-colors">{{ t.toUpperCase() }}_SYNC</span>
                   <div class="flex items-center gap-3 font-mono text-[11px] text-white/80 group-hover/time:text-white">
                     <span>{{ formatPart(t === 'open' ? openDate : exitDate, 'year') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'month') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'day') }}</span>
                     <span class="opacity-20">/</span>
@@ -249,7 +249,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <!-- BLOCK: OUTPUT -->
           <div class="flex items-center gap-10 pl-8 border-l border-white/10 w-[240px] shrink-0 justify-end">
             <div class="flex flex-col items-end gap-0.5">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'ПРОГНОЗ_ПРИБЫЛИ' : 'Yield_Est' }}</span>
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
               <div v-if="resultMode === 'manual'" class="flex items-center">
                 <input v-model.number="pnl" 
                        type="number" 
