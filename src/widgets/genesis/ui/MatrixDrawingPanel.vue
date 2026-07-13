@@ -3,29 +3,17 @@
     <Transition name="fade">
       <div v-if="drawing.activeDrawingNode.value"
            class="fixed inset-0 z-[2147483000] bg-nier-white dark:bg-nier-black text-nier-text-light dark:text-nier-text-dark p-8 pb-32 flex flex-col pointer-events-auto"
-           @mousedown.stop
+           @pointerdown.stop
            @click.stop>
-        <div :ref="(el) => { drawing.fullscreenDrawingBoard.value = el as HTMLElement }"
+        <div :ref="(el) => { drawing.fullscreenDrawingBoard.value = el as HTMLElement | null; drawing.renderFullscreenDrawing() }"
              class="relative flex-1 border border-nier-border-light dark:border-nier-border-dark cursor-none overflow-hidden bg-[linear-gradient(90deg,currentColor_1px,transparent_1px),linear-gradient(currentColor_1px,transparent_1px)] bg-[size:48px_48px] text-nier-text-light/[0.04] dark:text-nier-text-dark/[0.04]"
-             @mousedown.stop.prevent="drawing.startFullscreenDrawing"
-             @mousemove.stop.prevent="drawing.moveFullscreenDrawing"
-             @mouseup.stop.prevent="drawing.finishFullscreenDrawing"
-             @mouseenter.stop="drawing.isDrawingCursorVisible.value = true"
-             @mouseleave.stop.prevent="drawing.finishFullscreenDrawing">
-          <svg class="absolute inset-0 w-full h-full pointer-events-none text-nier-text-light dark:text-nier-text-dark"
-               viewBox="0 0 100 100"
-               preserveAspectRatio="none">
-            <polyline v-for="stroke in drawing.activeDrawingNode.value.params?.strokes || []"
-                      :key="stroke.id"
-                      :points="drawing.formatDrawingStroke(stroke)"
-                      fill="none"
-                      :stroke="stroke.color || 'currentColor'"
-                      :stroke-width="stroke.size || 2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      vector-effect="non-scaling-stroke"
-                      class="opacity-90" />
-          </svg>
+             @pointerdown.stop.prevent="drawing.startFullscreenDrawing"
+             @pointermove.stop.prevent="drawing.moveFullscreenDrawing"
+             @pointerup.stop.prevent="drawing.finishFullscreenDrawing"
+             @pointerenter.stop="drawing.isDrawingCursorVisible.value = true"
+             @pointerleave.stop.prevent="drawing.finishFullscreenDrawing">
+          <canvas :ref="(el) => { drawing.fullscreenDrawingCanvas.value = el as HTMLCanvasElement | null; drawing.renderFullscreenDrawing() }"
+                  class="absolute inset-0 h-full w-full pointer-events-none"></canvas>
           <div v-if="!drawing.activeDrawingNode.value.params?.strokes?.length"
                class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span class="text-[10px] font-mono tracking-[0.45em] uppercase opacity-25">Press_And_Draw</span>
@@ -83,7 +71,7 @@
                      :style="{ width: `${Math.min(18, Math.max(5, drawing.drawingSize.value))}px`, height: `${Math.min(18, Math.max(5, drawing.drawingSize.value))}px` }"></div>
               </div>
               <div class="relative w-14 h-4 flex items-center cursor-pointer"
-                   @mousedown.stop.prevent="drawing.startDrawingSizeDrag">
+                   @pointerdown.stop.prevent="drawing.startDrawingSizeDrag">
                 <div class="w-full h-px bg-nier-text-light/20 dark:bg-nier-text-dark/20"></div>
                 <div class="absolute left-0 h-px bg-nier-text-light dark:bg-nier-text-dark"
                      :style="{ width: `${drawing.drawingSizePercent.value}%` }"></div>

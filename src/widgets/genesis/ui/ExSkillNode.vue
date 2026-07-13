@@ -247,7 +247,13 @@
 
                <div v-if="isDrawingPanel"
                     class="relative flex-1 m-3 border border-dashed border-nier-border-light dark:border-nier-border-dark bg-[linear-gradient(90deg,currentColor_1px,transparent_1px),linear-gradient(currentColor_1px,transparent_1px)] bg-[size:18px_18px] text-nier-text-light/10 dark:text-nier-text-dark/10 overflow-hidden">
-                  <svg class="absolute inset-0 w-full h-full pointer-events-none text-nier-text-light dark:text-nier-text-dark"
+                  <img v-if="node.params?.preview"
+                       :src="node.params.preview"
+                       alt=""
+                       class="absolute inset-0 h-full w-full object-fill pointer-events-none"
+                       draggable="false" />
+                  <svg v-else
+                       class="absolute inset-0 w-full h-full pointer-events-none text-nier-text-light dark:text-nier-text-dark"
                        viewBox="0 0 100 100"
                        preserveAspectRatio="none">
                      <polyline v-for="stroke in node.params?.strokes || []"
@@ -1171,6 +1177,7 @@ watch(
 )
 
 function formatPanelStroke(stroke: any) {
+  if (stroke.tool === 'eraser') return ''
   return (stroke.points || []).map((point: any) => `${point.x},${point.y}`).join(' ')
 }
 
