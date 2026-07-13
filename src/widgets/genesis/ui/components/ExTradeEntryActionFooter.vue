@@ -70,15 +70,12 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <!-- Asset Modal -->
               <Teleport to="body">
                 <Transition name="nier-fade">
-                  <div v-if="showAssetMenu" class="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showAssetMenu = false">
-                    <div class="w-[600px] max-w-[90vw] max-h-[80vh] flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.8)]">
-                      <ExPanel variant="light" :no-padding="true" class="h-[600px] max-h-[80vh] flex flex-col bg-black/80">
+                  <div v-if="showAssetMenu" class="fixed inset-0 z-[100000] flex items-center justify-center bg-transparent" @click.self="showAssetMenu = false">
+                    <div class="w-[800px] max-w-[95vw] max-h-[80vh] flex flex-col relative" @click.stop>
+                      <ExPanel variant="light" :no-padding="true" :no-shadow="true" class="h-[500px] max-h-[80vh] flex flex-col bg-black/80">
                         <!-- Search Header -->
                         <div class="p-6 border-b border-white/10 flex items-center gap-4 shrink-0 bg-black/20">
                           <input v-model="assetSearch" :placeholder="locale === 'ru' ? 'ПОИСК_АКТИВОВ...' : 'SEARCH_ASSETS...'" class="w-full uppercase text-xl font-black tracking-widest bg-transparent border-0 outline-none text-white placeholder-white/20 font-mono" autofocus />
-                          <button @click="showAssetMenu = false" class="text-white/40 hover:text-white transition-colors shrink-0">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                          </button>
                         </div>
                         
                         <!-- Filter row -->
