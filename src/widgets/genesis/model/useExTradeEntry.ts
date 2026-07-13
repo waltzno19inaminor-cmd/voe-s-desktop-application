@@ -112,13 +112,19 @@ const closeCmeNotice = () => {
 const showAssetMenu = ref(false)
 const asset = ref('')
 const assetSearch = ref('')
+const assetTypeFilter = ref('ALL')
 const filteredAssets = computed(() => {
-  const q = asset.value.toUpperCase()
-  if (!q) return allAssets.slice(0, 10)
+  const q = assetSearch.value.toUpperCase()
+  let baseAssets = allAssets
+  if (assetTypeFilter.value !== 'ALL') {
+    baseAssets = baseAssets.filter(a => (a.type || '').toUpperCase() === assetTypeFilter.value.toUpperCase())
+  }
+  
+  if (!q) return baseAssets.slice(0, 50)
   
   const searchLower = q.toLowerCase()
   
-  return allAssets.filter(a => 
+  return baseAssets.filter(a => 
     a.symbol.toLowerCase().includes(searchLower) || 
     (a.name && a.name.toLowerCase().includes(searchLower))
   ).sort((a, b) => {
@@ -2010,6 +2016,7 @@ const submit = async () => {
     showAssetMenu,
     asset,
     assetSearch,
+    assetTypeFilter,
     filteredAssets,
     currentAssetData,
     selectAsset,

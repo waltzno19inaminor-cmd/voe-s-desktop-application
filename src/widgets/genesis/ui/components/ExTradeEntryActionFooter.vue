@@ -2,11 +2,12 @@
 
 import { inject } from 'vue';
 import { useI18n } from '~/shared/i18n/useI18n';
+import ExPanel from '~/shared/ui/ExPanel.vue';
 const emit = defineEmits(['close']);
 const { locale } = useI18n();
 
 
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
 </script>
 
 <template>
@@ -47,60 +48,81 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <div class="flex items-center gap-6 pr-8 border-r border-white/10 w-[240px] shrink-0">
             <div class="flex flex-col gap-0.5 text-left relative asset-select-container">
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">System_ID</span>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
                 <div v-if="asset && currentAssetData" 
                      class="w-5 h-5 rounded-full overflow-hidden border border-white/20 flex items-center justify-center shrink-0 transition-colors"
-                     :class="currentAssetData.type === 'Stocks' ? 'bg-white' : 'bg-white/5'">
+                     :class="currentAssetData.type === 'Stocks' || currentAssetData.type === 'US Equities' ? 'bg-white' : 'bg-white/5'">
                   <img v-if="currentAssetData.icon && !failedIcons.has(currentAssetData.symbol)" 
                        :src="currentAssetData.icon" 
                        @error="handleIconError(currentAssetData.symbol)"
                        class="w-full h-full object-contain" />
                   <span v-else 
                         class="text-[10px] font-bold uppercase transition-colors"
-                        :class="currentAssetData.type === 'Stocks' ? 'text-black' : 'text-white'">
+                        :class="currentAssetData.type === 'Stocks' || currentAssetData.type === 'US Equities' ? 'text-black' : 'text-white'">
                     {{ currentAssetData.symbol[0] }}
                   </span>
                 </div>
-                <input v-model="asset" 
-                       @focus="showAssetMenu = true"
-                       @input="showAssetMenu = true"
-                       @click="showAssetMenu = true"
-                       @keydown.esc="showAssetMenu = false"
-                       placeholder="UNTITLED" 
-                       class="nier-input w-full uppercase truncate"/>
+                <span class="text-[12px] font-mono font-bold tracking-widest uppercase transition-colors group-hover/asset-btn:text-white" :class="asset ? 'text-white' : 'text-white/40'">
+                  {{ asset || (locale === 'ru' ? 'БЕЗ_НАЗВАНИЯ' : 'UNTITLED') }}
+                </span>
               </div>
 
-              <!-- Asset Dropdown Menu -->
-              <Transition name="nier-fade">
-                <div v-if="showAssetMenu" class="absolute bottom-full mb-4 left-0 w-64 bg-black border border-white/30 shadow-[0_-10px_30px_rgba(0,0,0,0.8)] z-[200]">
-                  <div class="px-4 py-2 border-b border-white/10 flex items-center justify-between">
-                    <span class="text-[8px] uppercase tracking-widest text-white/40">Registry_Archive</span>
-                    <span class="text-[8px] text-white/20">{{ filteredAssets.length }}_Results</span>
-                  </div>
-                  <div class="max-h-60 overflow-y-auto custom-scrollbar">
-                    <div v-for="a in filteredAssets" :key="a.symbol"
-                         @click="selectAsset(a)"
-                         class="group/asset flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/20 transition-all">
-                      <div class="w-7 h-7 rounded-full overflow-hidden border border-white/10 group-hover/asset:border-black flex items-center justify-center shrink-0 transition-colors"
-                           :class="a.type === 'Stocks' ? 'bg-white' : 'bg-white/5'">
-                        <img v-if="a.icon && !failedIcons.has(a.symbol)" 
-                             :src="a.icon" 
-                             @error="handleIconError(a.symbol)"
-                             class="w-full h-full object-contain" />
-                        <span v-else 
-                              class="text-[12px] font-black uppercase transition-colors"
-                              :class="a.type === 'Stocks' ? 'text-black' : 'text-white'">
-                          {{ a.symbol[0] }}
-                        </span>
-                      </div>
-                      <div class="flex flex-col flex-1 min-w-0">
-                        <span class="text-[10px] font-bold tracking-widest text-white">{{ a.symbol }}</span>
-                        <span class="text-[8px] text-white/40 truncate  uppercase tracking-tighter">{{ a.name }}</span>
-                      </div>
+              <!-- Asset Modal -->
+              <Teleport to="body">
+                <Transition name="nier-fade">
+                  <div v-if="showAssetMenu" class="fixed inset-0 z-[100000] flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showAssetMenu = false">
+                    <div class="w-[600px] max-w-[90vw] max-h-[80vh] flex flex-col relative shadow-[0_0_100px_rgba(0,0,0,0.8)]">
+                      <ExPanel variant="light" :no-padding="true" class="h-[600px] max-h-[80vh] flex flex-col bg-black/80">
+                        <!-- Search Header -->
+                        <div class="p-6 border-b border-white/10 flex items-center gap-4 shrink-0 bg-black/20">
+                          <input v-model="assetSearch" :placeholder="locale === 'ru' ? 'ПОИСК_АКТИВОВ...' : 'SEARCH_ASSETS...'" class="w-full uppercase text-xl font-black tracking-widest bg-transparent border-0 outline-none text-white placeholder-white/20 font-mono" autofocus />
+                          <button @click="showAssetMenu = false" class="text-white/40 hover:text-white transition-colors shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                          </button>
+                        </div>
+                        
+                        <!-- Filter row -->
+                        <div class="flex items-center gap-6 px-6 py-4 border-b border-white/10 overflow-x-auto custom-scrollbar shrink-0 bg-black/20">
+                          <button v-for="t in ['ALL', 'US Equities', 'Crypto', 'Forex', 'Commodities', 'Indices']" :key="t"
+                                  @click="assetTypeFilter = t"
+                                  class="text-[9px] uppercase tracking-[0.3em] font-bold transition-all whitespace-nowrap"
+                                  :class="assetTypeFilter === t ? 'text-white border-b border-white pb-0.5' : 'text-white/40 hover:text-white/70'">
+                             {{ t === 'US Equities' && locale === 'ru' ? 'АКЦИИ' : t }}
+                          </button>
+                        </div>
+                        
+                        <!-- Vertical list -->
+                        <div class="flex-1 overflow-y-auto custom-scrollbar py-2">
+                          <div v-for="a in filteredAssets" :key="a.symbol"
+                               @click="selectAsset(a)"
+                               class="group/asset flex items-center justify-start gap-4 px-6 py-4 cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/10 transition-all text-left w-full">
+                            <div class="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover/asset:border-white/40 flex items-center justify-center shrink-0 transition-colors"
+                                 :class="a.type === 'US Equities' || a.type === 'Stocks' ? 'bg-white' : 'bg-white/5'">
+                              <img v-if="a.icon && !failedIcons.has(a.symbol)" 
+                                   :src="a.icon" 
+                                   @error="handleIconError(a.symbol)"
+                                   class="w-full h-full object-contain" />
+                              <span v-else class="text-[14px] font-black uppercase transition-colors" :class="a.type === 'US Equities' || a.type === 'Stocks' ? 'text-black' : 'text-white'">
+                                {{ a.symbol[0] }}
+                              </span>
+                            </div>
+                            <div class="flex flex-col min-w-0 flex-1 gap-0.5">
+                              <span class="text-[14px] font-bold tracking-widest text-white">{{ a.symbol }}</span>
+                              <span class="text-[10px] text-white/40 truncate uppercase tracking-tighter">{{ a.name }}</span>
+                            </div>
+                            <div class="shrink-0 text-[8px] uppercase tracking-[0.2em] text-white/20 group-hover/asset:text-white/60 border border-white/10 px-2 py-1 rounded-sm transition-colors">
+                              {{ a.type === 'US Equities' && locale === 'ru' ? 'STOCKS' : a.type }}
+                            </div>
+                          </div>
+                          <div v-if="filteredAssets.length === 0" class="flex flex-col items-center justify-center h-full text-white/30 uppercase tracking-[0.3em] font-mono text-[10px] mt-10">
+                            {{ locale === 'ru' ? 'АКТИВЫ НЕ НАЙДЕНЫ' : 'NO_ASSETS_FOUND' }}
+                          </div>
+                        </div>
+                      </ExPanel>
                     </div>
                   </div>
-                </div>
-              </Transition>
+                </Transition>
+              </Teleport>
             </div>
 
             <div class="flex flex-col gap-0.5 text-left">
