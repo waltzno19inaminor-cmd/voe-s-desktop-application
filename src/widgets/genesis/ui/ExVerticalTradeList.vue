@@ -100,7 +100,10 @@
                   class="w-full px-2.5 py-2 text-left text-[10px] uppercase tracking-wider transition-colors flex items-center justify-between gap-3 border-b border-black/5 dark:border-white/5 last:border-0"
                   :class="isDropdownOptionActive(filter.id, item.id) ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black font-bold' : 'opacity-65 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/5'"
                 >
-                  <span class="truncate">{{ item.label }}</span>
+                  <span class="flex min-w-0 flex-col">
+                    <span class="truncate">{{ item.label }}</span>
+                    <span v-if="(item as any).description" class="text-[8px] opacity-45 normal-case tracking-normal">{{ (item as any).description }}</span>
+                  </span>
                   <span v-if="isDropdownOptionActive(filter.id, item.id)" class="text-[8px] opacity-60">{{ locale === 'ru' ? 'АКТИВНО' : 'ACTIVE' }}</span>
                 </button>
               </div>
@@ -664,6 +667,7 @@ const activeFilterChips = computed(() => {
   }
   if (hasYearRangeFilter.value) chips.push({ id: 'yearRange', type: 'YEAR', label: formatRangeLabel(yearFrom.value, yearTo.value) })
   if (hasDayRangeFilter.value) chips.push({ id: 'dayRange', type: 'DAY', label: formatRangeLabel(dayFrom.value, dayTo.value) })
+  if (selectedMarketSession.value !== 'ALL') chips.push({ id: 'marketSession', type: 'SESSION', label: marketSessionOptions.value.find(x => x.id === selectedMarketSession.value)?.label || selectedMarketSession.value })
   if (hasTimeWindowFilter.value) chips.push({ id: 'timeWindow', type: 'TIME', label: timeWindowLabel.value })
   if (hasDurationWindowFilter.value) chips.push({ id: 'durationWindow', type: 'DURATION', label: durationWindowLabel.value })
   return chips
@@ -691,6 +695,7 @@ const removeFilterChip = (id: string) => {
     dayFrom.value = null
     dayTo.value = null
   }
+  if (id === 'marketSession') selectedMarketSession.value = 'ALL'
   if (id === 'timeWindow') resetFilterById('time')
   if (id === 'durationWindow') resetFilterById('duration')
 }
@@ -755,6 +760,239 @@ const setManualTime = (edge: 'min' | 'max', event: Event) => {
   } else {
     maxTimeMinute.value = normalizeTimeMax(Math.max(parsed, minTimeMinute.value))
   }
+}
+
+type MarketSessionId = 'ALL' | 'SYDNEY' | 'TOKYO' | 'FRANKFURT' | 'LONDON' | 'NEW_YORK'
+type MarketSessionOption = {
+  id: MarketSessionId
+  label: string
+  description: string
+  timeZone: string
+  min: number
+  max: number
+}
+
+const selectedMarketSession = ref<MarketSessionId>('ALL')
+
+const parseFixedOffsetTimeZone = (timeZone: string) => {
+  const normalized = String(timeZone || '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '')
+
+  const match = normalized.match(/^(?:GMT|UTC)?([+-])(\d{1,2})(?::?(\d{2}))?$/)
+  if (!match) return null
+
+  const sign = match[1] === '-' ? -1 : 1
+  const hours = Number(match[2] || 0)
+  const minutes = Number(match[3] || 0)
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+  return sign * (hours * 60 + minutes)
+}
+
+const getTimeZoneOffsetMinutes = (timeZone: string, date: Date) => {
+  const fixedOffset = parseFixedOffsetTimeZone(timeZone)
+  if (fixedOffset !== null) return fixedOffset
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      timeZoneName: 'shortOffset'
+    }).formatToParts(date)
+    const label = parts.find(part => part.type === 'timeZoneName')?.value || 'GMT'
+    const match = label.match(/^GMT([+-])?(\d{1,2})?(?::?(\d{2}))?$/)
+    if (!match) return 0
+    const sign = match[1] === '-' ? -1 : 1
+    const hours = Number(match[2] || 0)
+    const minutes = Number(match[3] || 0)
+    return sign * (hours * 60 + minutes)
+  } catch (e) {
+    return 0
+  }
+}
+
+const getZonedDateParts = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date)
+
+  return {
+    year: Number(parts.find(part => part.type === 'year')?.value || date.getUTCFullYear()),
+    month: Number(parts.find(part => part.type === 'month')?.value || date.getUTCMonth() + 1),
+    day: Number(parts.find(part => part.type === 'day')?.value || date.getUTCDate())
+  }
+}
+
+const getSessionBoundaryDate = (timeZone: string, minute: number, addDay = 0) => {
+  const now = new Date()
+  const localParts = getZonedDateParts(now, timeZone)
+  const hour = Math.floor(minute / 60)
+  const min = minute % 60
+  const utcGuess = new Date(Date.UTC(localParts.year, localParts.month - 1, localParts.day + addDay, hour, min))
+  const offsetMinutes = getTimeZoneOffsetMinutes(timeZone, utcGuess)
+  return new Date(utcGuess.getTime() - offsetMinutes * 60000)
+}
+
+const formatSessionTimeInUTC = (date: Date) => {
+  return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+    timeZone: 'UTC',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date)
+}
+
+const formatMarketSessionDescription = (timeZone: string, min: number, max: number) => {
+  const start = getSessionBoundaryDate(timeZone, min)
+  const end = getSessionBoundaryDate(timeZone, max, max <= min ? 1 : 0)
+  return `${formatSessionTimeInUTC(start)} .. ${formatSessionTimeInUTC(end)} UTC`
+}
+
+const marketSessionOptions = computed<MarketSessionOption[]>(() => [
+  {
+    id: 'ALL',
+    label: locale.value === 'ru' ? 'Все сессии' : 'All Sessions',
+    description: '00:00 .. 24:00 UTC',
+    timeZone: 'UTC',
+    min: 0,
+    max: 1440
+  },
+  {
+    id: 'SYDNEY',
+    label: locale.value === 'ru' ? 'Сиднейская' : 'Sydney',
+    description: formatMarketSessionDescription('Australia/Sydney', 8 * 60, 17 * 60),
+    timeZone: 'Australia/Sydney',
+    min: 8 * 60,
+    max: 17 * 60
+  },
+  {
+    id: 'TOKYO',
+    label: locale.value === 'ru' ? 'Токийская' : 'Tokyo',
+    description: formatMarketSessionDescription('Asia/Tokyo', 9 * 60, 18 * 60),
+    timeZone: 'Asia/Tokyo',
+    min: 9 * 60,
+    max: 18 * 60
+  },
+  {
+    id: 'FRANKFURT',
+    label: locale.value === 'ru' ? 'Франкфуртская' : 'Frankfurt',
+    description: formatMarketSessionDescription('Europe/Berlin', 8 * 60, 17 * 60),
+    timeZone: 'Europe/Berlin',
+    min: 8 * 60,
+    max: 17 * 60
+  },
+  {
+    id: 'LONDON',
+    label: locale.value === 'ru' ? 'Лондонская' : 'London',
+    description: formatMarketSessionDescription('Europe/London', 8 * 60, 17 * 60),
+    timeZone: 'Europe/London',
+    min: 8 * 60,
+    max: 17 * 60
+  },
+  {
+    id: 'NEW_YORK',
+    label: locale.value === 'ru' ? 'Нью-Йоркская' : 'New York',
+    description: formatMarketSessionDescription('America/New_York', 8 * 60, 17 * 60),
+    timeZone: 'America/New_York',
+    min: 8 * 60,
+    max: 17 * 60
+  }
+])
+
+const sessionMinuteFormatters = new Map<string, Intl.DateTimeFormat>()
+
+const getSessionMinuteFormatter = (timeZone: string) => {
+  const zone = String(timeZone || 'UTC')
+  const cached = sessionMinuteFormatters.get(zone)
+  if (cached) return cached
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+  sessionMinuteFormatters.set(zone, formatter)
+  return formatter
+}
+
+const getZonedMinuteOfDay = (date: Date, timeZone: string) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null
+
+  try {
+    const parts = getSessionMinuteFormatter(timeZone).formatToParts(date)
+    const rawHour = Number(parts.find(part => part.type === 'hour')?.value)
+    const minute = Number(parts.find(part => part.type === 'minute')?.value)
+    if (!Number.isFinite(rawHour) || !Number.isFinite(minute)) return null
+    const hour = rawHour === 24 ? 0 : rawHour
+    return hour * 60 + minute
+  } catch (e) {
+    return null
+  }
+}
+
+const isMinuteInWindow = (minute: number, min: number, max: number) => {
+  if (max >= min) return minute >= min && minute < max
+  return minute >= min || minute < max
+}
+
+const getTradeEntryDate = (trade: any) => {
+  const entryExecution = Array.isArray(trade?.executions)
+    ? trade.executions.find((exec: any) => exec?.type === 'entry' && exec?.date)
+    : null
+  const rawDate = entryExecution?.date || trade?.dateRaw || trade?.dateObj || trade?.date || trade?.dateTime
+  const date = rawDate instanceof Date ? rawDate : new Date(rawDate)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const getWallClockInstantInTimeZone = (rawDate: any, timeZone: string) => {
+  const date = rawDate instanceof Date ? rawDate : new Date(rawDate)
+  if (Number.isNaN(date.getTime())) return null
+
+  const zone = String(timeZone || '').trim()
+  if (!zone) return date
+
+  const utcWallGuess = new Date(Date.UTC(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    date.getHours(),
+    date.getMinutes(),
+    date.getSeconds(),
+    date.getMilliseconds()
+  ))
+
+  const firstOffset = getTimeZoneOffsetMinutes(zone, utcWallGuess)
+  const firstInstant = new Date(utcWallGuess.getTime() - firstOffset * 60000)
+  const finalOffset = getTimeZoneOffsetMinutes(zone, firstInstant)
+  return new Date(utcWallGuess.getTime() - finalOffset * 60000)
+}
+
+const getTradeEntryInstant = (trade: any) => {
+  const entryExecution = Array.isArray(trade?.executions)
+    ? trade.executions.find((exec: any) => exec?.type === 'entry' && exec?.date)
+    : null
+  const rawDate = entryExecution?.date || trade?.dateRaw || trade?.dateObj || trade?.date || trade?.dateTime
+  const tradeTimeZone = entryExecution?.timeZone || trade?.timeZone || trade?.timezone || ''
+
+  return getWallClockInstantInTimeZone(rawDate, tradeTimeZone) || getTradeEntryDate(trade)
+}
+
+const isTradeInMarketSession = (trade: any) => {
+  if (selectedMarketSession.value === 'ALL') return true
+  const session = marketSessionOptions.value.find(item => item.id === selectedMarketSession.value)
+  if (!session) return true
+
+  const entryDate = getTradeEntryInstant(trade)
+  if (!entryDate) return false
+
+  const sessionMinute = getZonedMinuteOfDay(entryDate, session.timeZone)
+  if (sessionMinute === null) return false
+
+  return isMinuteInWindow(sessionMinute, session.min, session.max)
 }
 
 const ABS_MIN_DURATION = 0
@@ -957,7 +1195,7 @@ const mockTrades = ref([
     durationMinutes: 32,
     status: 'WIN',
     asset: 'AVAX/USD',
-    session: 'ASIA',
+    session: 'TOKYO',
     direction: 'SHORT',
     notes: [
       { id: 'n4-1', text: 'Aggressive absorption at session low. Short entry executed.', timestamp: '13.05 // 20:06', author: 'TRADER' },
@@ -1030,7 +1268,7 @@ const mockTrades = ref([
     durationMinutes: 20,
     status: 'LOSS',
     asset: 'BTC/USD',
-    session: 'ASIA',
+    session: 'TOKYO',
     direction: 'LONG',
     notes: [
       { id: 'n8-1', text: 'Attempted long on liquidity grab.', timestamp: '16.05 // 13:41', author: 'TRADER' },
@@ -1102,7 +1340,7 @@ const mockTrades = ref([
     durationMinutes: 110,
     status: 'WIN',
     asset: 'BTC/USD',
-    session: 'ASIA',
+    session: 'TOKYO',
     direction: 'LONG',
     notes: [
       { id: 'n12-1', text: 'Massive short squeeze reclamation setup.', timestamp: '17.05 // 23:46', author: 'SYSTEM_DELTA' },
@@ -1122,6 +1360,7 @@ const activeFilterCount = computed(() => {
   if (hasYearRangeFilter.value) count++
   if (selectedProfitTier.value !== 'ALL') count++
   if (hasDayRangeFilter.value) count++
+  if (selectedMarketSession.value !== 'ALL') count++
   if (minTimeMinute.value > ABS_MIN_TIME_MIN || maxTimeMinute.value < ABS_MAX_TIME_MIN) count++
   if (minDuration.value > ABS_MIN_DURATION || maxDuration.value < ABS_MAX_DURATION) count++
   return count
@@ -1140,6 +1379,7 @@ const resetAllFilters = () => {
   customProfitMax.value = null
   dayFrom.value = null
   dayTo.value = null
+  selectedMarketSession.value = 'ALL'
   minTimeMinute.value = ABS_MIN_TIME_MIN
   maxTimeMinute.value = ABS_MAX_TIME_MIN
   minDuration.value = ABS_MIN_DURATION
@@ -1234,6 +1474,8 @@ const activeTrades = computed(() => {
         timeValue: 50,
         dateTime: t.date ? new Date(t.date).toLocaleDateString() : '10.05.2026',
         dateObj: t.date ? new Date(t.date) : new Date(),
+        dateRaw: t.date,
+        timeZone: t.timeZone,
         duration: durStr,
         durationMinutes: diffMins,
         status: currencyProfit > 0 ? 'WIN' : currencyProfit < 0 ? 'LOSS' : 'SCRATCH',
@@ -1253,7 +1495,9 @@ const activeTrades = computed(() => {
     profitInCurrency: (t as any).profitInCurrency || t.profitValue,
     dateEntryStr: (t as any).dateEntryStr || '10.05.2026, 14:30:00',
     dateExitStr: (t as any).dateExitStr || '10.05.2026, 15:15:00',
-    dateObj: new Date(2026, 4, parseInt((t.dateTime || '10.05.2026').split('.')[0] || '10', 10))
+    dateObj: new Date(2026, 4, parseInt((t.dateTime || '10.05.2026').split('.')[0] || '10', 10)),
+    dateRaw: new Date(2026, 4, parseInt((t.dateTime || '10.05.2026').split('.')[0] || '10', 10), Number((t as any).timeValue || 12) <= 24 ? Number((t as any).timeValue || 12) : Math.floor(Number((t as any).timeValue || 12 * 60) / 60), Number((t as any).timeValue || 0) > 24 ? Number((t as any).timeValue || 0) % 60 : 0),
+    timeZone: (t as any).timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   }))
 })
 const matrixNodes = ref<any[]>([])
@@ -1530,6 +1774,7 @@ const filterDropdowns = computed(() => [
   { id: 'profit', label: locale.value === 'ru' ? 'Уровень прибыли' : 'Profit Tier', type: 'custom', options: [], isActive: selectedProfitTier.value !== 'ALL' },
   { id: 'year', label: locale.value === 'ru' ? 'Диапазон лет' : 'Year Range', type: 'range', options: [], isActive: hasYearRangeFilter.value },
   { id: 'day', label: locale.value === 'ru' ? 'Диапазон дней' : 'Day Range', type: 'range', options: [], isActive: hasDayRangeFilter.value },
+  { id: 'session', label: locale.value === 'ru' ? 'Сессия' : 'Session', type: 'options', options: marketSessionOptions.value, isActive: selectedMarketSession.value !== 'ALL' },
   { id: 'time', label: locale.value === 'ru' ? 'Временное окно' : 'Time Window', type: 'custom', options: [], isActive: hasTimeWindowFilter.value },
   { id: 'duration', label: locale.value === 'ru' ? 'Длительность' : 'Duration Window', type: 'custom', options: [], isActive: hasDurationWindowFilter.value }
 ])
@@ -1543,6 +1788,7 @@ const filterButtonLabel = (id: string) => {
   if (id === 'profit') return selectedProfitTier.value === 'ALL' ? (locale.value === 'ru' ? 'Уровень прибыли' : 'Profit Tier') : selectedProfitTier.value === 'CUSTOM' ? (locale.value === 'ru' ? 'Польз. Прибыль' : 'Custom Profit') : profitTierOptions.value.find(x => x.id === selectedProfitTier.value)?.label || selectedProfitTier.value
   if (id === 'year') return hasYearRangeFilter.value ? `${locale.value === 'ru' ? 'Год' : 'Year'} ${formatRangeLabel(yearFrom.value, yearTo.value)}` : (locale.value === 'ru' ? 'Диапазон лет' : 'Year Range')
   if (id === 'day') return hasDayRangeFilter.value ? `${locale.value === 'ru' ? 'День' : 'Day'} ${formatRangeLabel(dayFrom.value, dayTo.value)}` : (locale.value === 'ru' ? 'Диапазон дней' : 'Day Range')
+  if (id === 'session') return selectedMarketSession.value === 'ALL' ? (locale.value === 'ru' ? 'Сессия' : 'Session') : marketSessionOptions.value.find(x => x.id === selectedMarketSession.value)?.label || selectedMarketSession.value
   if (id === 'time') return hasTimeWindowFilter.value ? timeWindowLabel.value : (locale.value === 'ru' ? 'Временное окно' : 'Time Window')
   if (id === 'duration') return hasDurationWindowFilter.value ? durationWindowLabel.value : (locale.value === 'ru' ? 'Длительность' : 'Duration Window')
   return id
@@ -1554,6 +1800,7 @@ const isDropdownOptionActive = (filterId: string, optionId: string) => {
   if (filterId === 'direction') return selectedDirection.value === optionId
   if (filterId === 'asset') return selectedAsset.value === optionId
   if (filterId === 'status') return selectedStatus.value === optionId
+  if (filterId === 'session') return selectedMarketSession.value === optionId
   return false
 }
 
@@ -1569,6 +1816,7 @@ const selectDropdownOption = (filterId: string, optionId: string) => {
   if (filterId === 'direction') selectedDirection.value = selectedDirection.value === optionId ? 'ALL' : optionId
   if (filterId === 'asset') selectedAsset.value = selectedAsset.value === optionId ? 'ALL' : optionId
   if (filterId === 'status') selectedStatus.value = selectedStatus.value === optionId ? 'ALL' : optionId
+  if (filterId === 'session') selectedMarketSession.value = selectedMarketSession.value === optionId ? 'ALL' : optionId as MarketSessionId
 }
 
 const resetFilterById = (id: string) => {
@@ -1590,6 +1838,7 @@ const resetFilterById = (id: string) => {
     dayFrom.value = null
     dayTo.value = null
   }
+  if (id === 'session') selectedMarketSession.value = 'ALL'
   if (id === 'time') {
     minTimeMinute.value = ABS_MIN_TIME_MIN
     maxTimeMinute.value = ABS_MAX_TIME_MIN
@@ -1688,6 +1937,8 @@ const filteredTrades = computed(() => {
     }
 
     if (hasDayRangeFilter.value && !isWithinRange(getTradeDay(trade), dayFrom.value, dayTo.value)) return false
+
+    if (!isTradeInMarketSession(trade)) return false
 
     const tm = getTradeTimeMinutes(trade)
     if (minTimeMinute.value > ABS_MIN_TIME_MIN && tm < minTimeMinute.value) return false
