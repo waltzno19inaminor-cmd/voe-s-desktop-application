@@ -148,7 +148,7 @@
             <div
               v-if="viewType === 'list'"
               key="vertical-list-content"
-              class="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 md:px-8"
+              class="min-h-0 flex-1 overflow-y-auto custom-scrollbar px-4 pb-40 md:px-8 md:pb-48"
             >
               <ExVerticalTradeList
                 :trades="timeTreeSourceTrades"
@@ -165,10 +165,10 @@
             <div
               v-else
               key="time-tree-content"
-              class="relative min-h-0 flex-1 overflow-y-auto custom-scrollbar"
+              class="relative min-h-0 flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-32"
               :class="isTimeTreeFullscreen ? 'time-tree-scroll--fullscreen' : ''"
             >
-              <div v-if="timeTreeGroups.length" class="relative mx-auto w-full max-w-7xl pb-24 pt-2">
+              <div v-if="timeTreeGroups.length" class="relative mx-auto w-full max-w-7xl pb-12 pt-2">
                 <div class="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/15 dark:bg-white/15"></div>
 
                 <div
