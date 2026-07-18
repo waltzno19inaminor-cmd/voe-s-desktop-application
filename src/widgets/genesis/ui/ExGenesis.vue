@@ -148,10 +148,6 @@
            </Transition>
         </div>
 
-        <!-- Bottom Left Label -->
-        <div v-if="currentMode" class="fixed bottom-8 left-8 text-[10px] font-mono tracking-widest uppercase opacity-40 pointer-events-none z-[100]">
-          Click Left Arrow to Go back
-        </div>
       </div>
 
     </Transition>

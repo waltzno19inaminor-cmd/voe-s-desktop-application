@@ -1,5 +1,5 @@
 <template>
-  <div class="h-full flex flex-col p-12 max-w-7xl mx-auto space-y-12 relative">
+  <div class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 px-6 lg:px-10 lg:py-2">
     <!-- Update Notification Widget -->
     <div v-if="updateNotification.showUpdate" class="absolute top-0 left-12 right-12 z-[250] nier-bg-inverted p-5 flex justify-between items-center overflow-hidden group shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
       
@@ -61,22 +61,18 @@
     </div>
 
     <!-- 1. Header / Global Status -->
-    <header class="flex justify-between items-start z-[200] relative">
-      <div class="flex flex-col space-y-2">
-        <ExHeading level="h1" variant="cinematic" class="!text-3xl">{{ t('dashboard.title') }}</ExHeading>
-        <div class="flex items-center space-x-4">
-           <ExTag>v{{ appVersion.toUpperCase().replace('-', '_') }}</ExTag>
-           <span class="text-[9px] font-mono uppercase tracking-[0.45em] px-3 py-1 border-l border-theme-border/70 text-theme-text/45 bg-transparent">
-             {{ demoBadgeLabel }}
-           </span>
-           <ExTag v-if="patchBadge">HOTFIX_{{ patchBadge }}</ExTag>
-         
-        </div>
+    <header class="dashboard-top-bar absolute left-6 right-6 top-1.5 z-[200] flex min-h-14 items-center justify-between px-4 py-2 backdrop-blur-md lg:left-10 lg:right-10 lg:top-2 lg:px-5">
+      <div class="flex min-w-0 items-center gap-4">
+        <ExTag class="shrink-0">v{{ appVersion.toUpperCase().replace('-', '_') }}</ExTag>
+        <span class="hidden text-[9px] font-mono uppercase tracking-[0.45em] px-3 py-1 border-l border-theme-border/70 text-theme-text/45 bg-transparent sm:inline-flex">
+          {{ demoBadgeLabel }}
+        </span>
+        <ExTag v-if="patchBadge" class="hidden sm:inline-flex">HOTFIX_{{ patchBadge }}</ExTag>
       </div>
 
-      <div class="flex items-center space-x-12">
+      <div class="flex shrink-0 items-center gap-4 sm:gap-8">
         <!-- Language Selector -->
-        <div class="flex items-center space-x-4 border-r border-theme-border pr-8">
+        <div class="flex items-center gap-3 border-r border-theme-border pr-4 sm:gap-4 sm:pr-6">
           <button 
             v-for="l in ['en', 'ru']" 
             :key="l"
@@ -91,7 +87,7 @@
 
 
         <!-- Utility Group: Identity, Report, Theme -->
-        <div class="flex items-center space-x-6">
+        <div class="flex items-center gap-4 sm:gap-6">
           <!-- User Identity (clickable → sign-out popover) -->
           <div class="relative" ref="identityRef">
             <button @click="toggleMenu" class="focus:outline-none cursor-pointer">
@@ -146,7 +142,7 @@
 
           <!-- Theme Toggle -->
           <button
-            class="w-5 opacity-30 hover:opacity-100 transition-all duration-300"
+            class="dashboard-icon-toggle opacity-30 hover:opacity-100 transition-all duration-300"
             @click="themeStore.toggleDark"
           >
             <template v-if="themeStore.isReady">
@@ -162,50 +158,49 @@
       </div>
     </header>
 
-    <!-- 2. The Module Grid (Central Hub) -->
-    <main class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-8 z-10">
-      <div v-for="module in dashboardModules" :key="module.id" class="relative group h-full ">
-        <button 
-          @click="$emit('navigate', module.id)"
-          class="w-full h-full text-left flex flex-col p-8 border border-theme-border bg-theme-bg/40 backdrop-blur-sm transition-all duration-700 hover:border-theme-text/40 hover:bg-theme-bg/60 relative overflow-hidden"
+    <!-- 2. Central Stage -->
+    <main
+      class="dashboard-center-stage absolute inset-0 z-10 flex items-center justify-center"
+      :class="activeDashboardPanel === 'activity' ? 'is-activity px-0' : 'px-8'"
+    >
+      <Transition name="dashboard-center-fade" mode="out-in">
+        <div
+          v-if="activeDashboardPanel === 'activity'"
+          key="activity-monitor"
+          class="dashboard-activity-stage pointer-events-auto h-full w-full"
         >
-          <!-- Background Accents -->
-          <div class="absolute -top-12 -right-12 w-32 h-32 border border-theme-text opacity-60 rotate-45 group-hover:rotate-[135deg] transition-transform duration-1000"></div>
-          
-          <div class="flex flex-col h-full space-y-8 relative z-10">
-            <div class="flex justify-between items-start">
-               <div class="w-10 h-10 border border-theme-border flex items-center justify-center group-hover:border-theme-text transition-colors">
-                  <ExText variant="telemetry" class="!opacity-100 text-[#2C3E50]/45 dark:text-white/40 group-hover:text-[#2C3E50] dark:group-hover:text-white/90">{{ module.code }}</ExText>
-               </div>
-               <div class="w-1.5 h-1.5 bg-theme-accent rotate-45 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            </div>
+          <ExActivityMonitor @exit="activeDashboardPanel = null" />
+        </div>
 
-            <div class="flex flex-col space-y-2">
-              <ExHeading level="h3" variant="cinematic" class="!text-xl !opacity-100 text-[#2C3E50]/60 dark:text-white/50 group-hover:text-[#2C3E50] dark:group-hover:text-white/90 transition-all duration-700 whitespace-pre-line">{{ t(module.titleKey) }}</ExHeading>
-              <ExText variant="small" class="!opacity-100 leading-relaxed text-[#2C3E50]/45 dark:text-white/40">{{ t(module.descriptionKey) }}</ExText>
-            </div>
-
-            <div class="mt-auto pt-6 border-t border-theme-border opacity-0 group-hover:opacity-100 transition-opacity duration-700">
-               <div class="flex items-center space-x-2">
-                  <div class="w-1 h-1 bg-theme-text"></div>
-                  <ExText variant="telemetry" class="!opacity-100 tracking-widest text-[#2C3E50]/45 dark:text-white/45">{{ t('dashboard.ui.accessProtocol') }}</ExText>
-               </div>
-            </div>
+        <div v-else key="dashboard-logo" class="dashboard-core-logo pointer-events-none flex flex-col items-center text-center">
+          <div class="relative flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
+            <div class="absolute inset-0 border-2 border-theme-text/40 animate-[spin_10s_linear_infinite]"></div>
+            <div class="absolute inset-4 border border-theme-text/60 animate-[spin_6s_linear_infinite_reverse]"></div>
+            <div class="h-2 w-2 rotate-45 animate-pulse nier-bg-inverted"></div>
+            <div class="absolute -left-2 -top-2 h-3 w-3 border-l-2 border-t-2 border-theme-text"></div>
+            <div class="absolute -bottom-2 -right-2 h-3 w-3 border-b-2 border-r-2 border-theme-text"></div>
           </div>
-          
-          <!-- Hover Edge Slide -->
-          <div class="absolute bottom-0 left-0 w-full h-0.5 bg-theme-text transform scale-x-0 group-hover:scale-x-100 transition-transform duration-700 origin-left"></div>
-        </button>
-      </div>
+        </div>
+      </Transition>
     </main>
 
-    <!-- 3. Bottom Utility Bar -->
-    <footer class="flex justify-between items-center z-10 opacity-100 pt-8 border-t border-theme-border">
-      
-      <div class="flex space-x-4">
-         <div v-for="i in 4" :key="i" class="w-1 h-1 border border-theme-text rotate-45"></div>
-      </div>
-    </footer>
+    <!-- 3. Bottom Navigation Bar -->
+    <nav
+      class="dashboard-bottom-nav absolute bottom-2 left-1/2 z-[200] flex w-[min(920px,calc(100vw-48px))] -translate-x-1/2 items-center justify-center gap-2 p-2 backdrop-blur-md"
+      aria-label="Tactical dashboard pages"
+    >
+      <ExButton
+        v-for="module in dashboardModules"
+        :key="module.id"
+        variant="ghost"
+        size="none"
+        class="dashboard-page-button min-h-10 flex-1 !border-transparent !bg-transparent px-4 py-2 text-center text-[9px] tracking-[0.26em]"
+        :class="activeDashboardPanel === module.id ? ['is-active opacity-100', themeStore.settings.isDark ? 'is-active-dark' : ''] : 'opacity-50 hover:opacity-100'"
+        @click="handleDashboardModuleClick(module.id)"
+      >
+        {{ t(module.titleKey) }}
+      </ExButton>
+    </nav>
 
     <ExProfileOverlay :open="showProfileOverlay" @close="closeProfileOverlay" />
 
@@ -280,6 +275,7 @@ import ExButton from "~/shared/ui/ExButton.vue"
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExProfileOverlay from '~/widgets/profile/ui/ExProfileOverlay.vue'
+import ExActivityMonitor from '~/widgets/dashboard/ui/ExActivityMonitor.vue'
 
 const emit = defineEmits(['navigate', 'signed-out'])
 
@@ -294,6 +290,7 @@ const identityRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 const menuStyle = ref<Record<string, string>>({})
 const showProfileOverlay = ref(false)
+const activeDashboardPanel = ref<string | null>(null)
 
 const toggleMenu = () => {
   if (!userMenuOpen.value && identityRef.value) {
@@ -450,6 +447,16 @@ const dashboardModules = [
   }
 ]
 
+const handleDashboardModuleClick = (moduleId: string) => {
+  if (moduleId === 'activity') {
+    activeDashboardPanel.value = activeDashboardPanel.value === moduleId ? null : moduleId
+    return
+  }
+
+  activeDashboardPanel.value = null
+  emit('navigate', moduleId)
+}
+
 // Premium Unlocked Logic
 const dismissPremiumUnlocked = () => {
   if (authStore.user && premiumUpdatedAt.value) {
@@ -462,6 +469,79 @@ const dismissPremiumUnlocked = () => {
 </script>
 
 <style scoped>
+.dashboard-page-button {
+  transition: opacity 260ms ease, transform 260ms ease, box-shadow 260ms ease;
+}
+
+.dashboard-page-button:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 -1px 0 var(--theme-text);
+}
+
+.dashboard-page-button:active {
+  transform: translateY(0);
+}
+
+.dashboard-page-button.is-active {
+  box-shadow: 0 0 18px rgb(var(--theme-accent-rgb) / 0.18);
+  color: var(--theme-text);
+}
+
+.dashboard-page-button.is-active :deep(> div) {
+  transform: translateX(0) !important;
+}
+
+.dashboard-page-button.is-active :deep(> span) {
+  color: rgb(255 255 255) !important;
+}
+
+.dashboard-page-button.is-active-dark :deep(> span) {
+  color: rgb(5 5 5) !important;
+}
+
+.dashboard-center-stage {
+  padding-bottom: 84px;
+  padding-top: 84px;
+}
+
+.dashboard-center-stage.is-activity {
+  padding-bottom: 120px;
+  padding-top: 40px;
+}
+
+.dashboard-activity-stage {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  max-width: min(1180px, calc(100vw - 64px));
+}
+
+.dashboard-center-fade-enter-active,
+.dashboard-center-fade-leave-active {
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+
+.dashboard-center-fade-enter-from,
+.dashboard-center-fade-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.dashboard-icon-toggle {
+  align-items: center;
+  color: var(--theme-text);
+  display: inline-flex;
+  height: 20px;
+  justify-content: center;
+  width: 20px;
+}
+
+.dashboard-icon-toggle img {
+  display: block;
+  height: 20px;
+  width: 20px;
+}
+
 .menu-drop-enter-active,
 .menu-drop-leave-active {
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
