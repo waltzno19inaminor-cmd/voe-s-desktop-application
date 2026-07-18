@@ -109,18 +109,20 @@
                   variant="light"
                   no-padding
                   no-shadow
-                  class="w-[360px] min-h-[320px] !border-red-500/30 dark:!border-red-400/30"
+                  class="!border-red-500/30 dark:!border-red-400/30"
+                  :style="riskPanelPanelStyle"
                   :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden, 'risk-panel-theme-light': !themeStore.settings.isDark }">
                   <div v-if="isRiskPanelContentHidden" class="risk-panel-hatch"></div>
-                  <div class="relative z-10 flex items-center justify-between border-b nier-border-primary px-4 py-2 bg-red-500/[0.03]">
-                    <div class="flex items-center gap-3">
-                      <div class="w-2 h-2 rotate-45 bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]"></div>
-                      <span class="text-[9px] font-mono uppercase tracking-[0.28em] font-black nier-text-primary">Risk_Management</span>
+                  <div class="relative z-10 flex items-center justify-between border-b nier-border-primary bg-red-500/[0.03]"
+                       :style="{ padding: `${scaledRiskPx(8)} ${scaledRiskPx(16)}` }">
+                    <div class="flex items-center" :style="{ gap: scaledRiskPx(12) }">
+                      <div class="rotate-45 bg-red-500 shadow-[0_0_12px_rgba(239,68,68,0.7)]" :style="{ width: scaledRiskPx(8), height: scaledRiskPx(8) }"></div>
+                      <span class="font-mono uppercase tracking-[0.28em] font-black nier-text-primary" :style="{ fontSize: scaledRiskPx(9), lineHeight: scaledRiskPx(12) }">Risk_Management</span>
                     </div>
-                    <span class="text-[8px] font-mono uppercase tracking-[0.18em] text-red-500/70">Panel</span>
+                    <span class="font-mono uppercase tracking-[0.18em] text-red-500/70" :style="{ fontSize: scaledRiskPx(8), lineHeight: scaledRiskPx(10) }">Panel</span>
                   </div>
 
-                  <div v-show="!isRiskPanelContentHidden" class="flex flex-col gap-3 p-4 pb-7">
+                  <div v-show="!isRiskPanelContentHidden" class="flex flex-col" :style="{ gap: scaledRiskPx(12), padding: `${scaledRiskPx(16)} ${scaledRiskPx(16)} ${scaledRiskPx(28)}` }">
                     <label class="risk-panel-field">
                       <span>Risk / Trade</span>
                       <div class="risk-panel-control">
@@ -334,14 +336,8 @@
                      </div>
                   </div>
                   <div class="flex-1 min-h-0 relative overflow-hidden w-full">
-                     <div class="matrix-table-grid absolute top-0 left-0 grid" 
-                          :style="{
-                             ...tableGridStyle,
-                             transform: `scale(${scale})`,
-                             transformOrigin: 'top left',
-                             width: `${100 / scale}%`,
-                             height: `${100 / scale}%`
-                          }">
+                     <div class="matrix-table-grid absolute top-0 left-0 grid h-full w-full"
+                          :style="tableGridStyle">
                         <input v-for="cell in tableCells"
                                :key="`${cell.row}-${cell.col}`"
                                :value="tableDraft[cell.row]?.[cell.col] || ''"
@@ -350,8 +346,8 @@
                                @blur="finishTableEditing"
                                @mousedown.stop
                                @click.stop
-                               class="matrix-table-input w-full h-full min-w-0 min-h-0 bg-transparent border-r border-b border-nier-border-light dark:border-nier-border-dark px-2 py-0 font-mono outline-none text-nier-text-light dark:text-nier-text-dark"
-                               :style="{ fontSize: '11px' }" />
+                               class="matrix-table-input w-full h-full min-w-0 min-h-0 bg-transparent border-r border-b border-nier-border-light dark:border-nier-border-dark font-mono outline-none text-nier-text-light dark:text-nier-text-dark"
+                               :style="tableInputStyle" />
                      </div>
                   </div>
                </div>
@@ -379,11 +375,7 @@
                         :data-placeholder="textPanelPlaceholder"
                         :style="{ 
                            ...textPanelEditorStyle, 
-                           fontSize: '16px',
-                           transform: `scale(${scale})`,
-                           transformOrigin: 'top left',
-                           width: `${100 / scale}%`,
-                           height: `${100 / scale}%`
+                           ...textPanelScaleStyle
                         }"
                         @mousedown.stop
                         @click.stop="$emit('doubleclick')"
@@ -391,7 +383,7 @@
                         @blur="blurTextPanel"
                         @beforeinput="handleTextPanelBeforeInput"
                         @input="updateTextPanelHtml"
-                        class="matrix-text-rich absolute top-0 left-0 bg-transparent px-3 py-2 font-mono tracking-wide text-nier-text-light dark:text-nier-text-dark outline-none custom-scrollbar select-text cursor-text overflow-y-auto"></div>
+                        class="matrix-text-rich absolute inset-0 bg-transparent font-mono tracking-wide text-nier-text-light dark:text-nier-text-dark outline-none custom-scrollbar select-text cursor-text overflow-y-auto"></div>
                </div>
 
                <div v-if="!isTablePanel"
@@ -564,37 +556,43 @@
       <!-- Scaling Entry Subtitle -->
        <div v-if="node.type === 'scaling-entry'"
             v-show="scale > 0.25"
-            class="absolute top-full left-1/2 mt-4 flex flex-col items-center pointer-events-none z-50"
-            :style="{ transform: `translate(-50%, 0) scale(${scale})`, transformOrigin: 'top center' }">
-          <div class="px-5 py-2 bg-nier-white dark:bg-nier-black border-[1.5px] border-nier-border-light dark:border-nier-border-dark flex items-center space-x-2 shadow-[0_15px_35px_rgba(0,0,0,0.4)] relative">
+            class="absolute top-full left-1/2 flex flex-col items-center pointer-events-none z-50 -translate-x-1/2"
+            :style="{ marginTop: scaledPx(16) }">
+          <div class="bg-nier-white dark:bg-nier-black border-[1.5px] border-nier-border-light dark:border-nier-border-dark flex items-center shadow-[0_15px_35px_rgba(0,0,0,0.4)] relative"
+               :style="{ padding: `${scaledPx(8)} ${scaledPx(20)}`, gap: scaledPx(8) }">
              <div class="absolute -top-1 -left-1 w-2 h-2 border-t border-l border-nier-text-light dark:border-nier-text-dark opacity-40"></div>
              <div class="absolute -bottom-1 -right-1 w-2 h-2 border-b border-r border-nier-text-light dark:border-nier-text-dark opacity-40"></div>
 
-             <span class="text-[13px] font-mono font-black tracking-[0.06em] text-nier-text-light dark:text-nier-text-dark uppercase leading-none whitespace-nowrap">
+             <span class="font-mono font-black tracking-[0.06em] text-nier-text-light dark:text-nier-text-dark uppercase whitespace-nowrap"
+                   :style="{ fontSize: scaledPx(13), lineHeight: scaledPx(13) }">
                {{ node.params.lotsMode === 'PERCENT' ? (locale === 'ru' ? node.params.lots + '%депо' : node.params.lots + '%cap') : (locale === 'ru' ? node.params.lots + ' ЛОТОВ' : node.params.lots + ' LOTS') }}
              </span>
-             <span class="text-[10px] font-mono opacity-35 leading-none">{{ locale === 'ru' ? 'в' : 'in' }}</span>
-             <span class="text-[13px] font-mono font-bold tracking-tight text-nier-text-light dark:text-nier-text-dark/60 uppercase leading-none whitespace-nowrap">{{ node.params.step === 0 && node.params.unit === '$' ? (locale === 'ru' ? 'ВХОД' : 'ENTRY') : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}</span>
+             <span class="font-mono opacity-35" :style="{ fontSize: scaledPx(10), lineHeight: scaledPx(10) }">{{ locale === 'ru' ? 'в' : 'in' }}</span>
+             <span class="font-mono font-bold tracking-tight text-nier-text-light dark:text-nier-text-dark/60 uppercase whitespace-nowrap"
+                   :style="{ fontSize: scaledPx(13), lineHeight: scaledPx(13) }">{{ node.params.step === 0 && node.params.unit === '$' ? (locale === 'ru' ? 'ВХОД' : 'ENTRY') : `${node.params.step > 0 ? '+' : ''}${node.params.step}${node.params.unit}` }}</span>
           </div>
       </div>
 
       <!-- Risk Element Overlay -->
       <div v-if="node.type === 'risk-element' && node.params"
            v-show="scale > 0.25"
-           class="absolute top-full left-1/2 mt-3 flex flex-col items-center pointer-events-none min-w-max"
-           :style="{ transform: `translate(-50%, 0) scale(${scale})`, transformOrigin: 'top center' }">
+           class="absolute top-full left-1/2 flex flex-col items-center pointer-events-none min-w-max -translate-x-1/2"
+           :style="{ marginTop: scaledPx(12) }">
          <!-- Connector Line -->
-         <div class="w-0.5 h-3 bg-red-500/40"></div>
-         <div class="px-5 py-2 bg-red-500/10 border-2 border-red-500/40 backdrop-blur-md flex flex-col items-center shadow-[0_10px_30px_rgba(239,68,68,0.25)] relative overflow-hidden">
+         <div class="bg-red-500/40" :style="{ width: scaledPx(2), height: scaledPx(12) }"></div>
+         <div class="bg-red-500/10 border-2 border-red-500/40 backdrop-blur-md flex flex-col items-center shadow-[0_10px_30px_rgba(239,68,68,0.25)] relative overflow-hidden"
+              :style="{ padding: `${scaledPx(8)} ${scaledPx(20)}` }">
             <!-- Glitch Scanning Line -->
             <div class="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/5 to-transparent h-1/2 animate-scan pointer-events-none"></div>
-            <ExText variant="telemetry" class="!text-red-500 !opacity-100 font-black tracking-[0.2em] whitespace-nowrap !text-[12px]">
+            <ExText variant="telemetry" class="!text-red-500 !opacity-100 font-black tracking-[0.2em] whitespace-nowrap"
+                    :style="{ fontSize: scaledPx(12), lineHeight: scaledPx(14) }">
               <template v-if="node.params.riskType === 'trade'">RISK PER TRADE</template>
               <template v-else-if="node.params.riskType === 'day'">RISK PER SESSION</template>
               <template v-else-if="node.params.riskType === 'rr'">RISK REWARD RATIO</template>
               <template v-else>{{ node.label }}</template>
             </ExText>
-            <ExText variant="telemetry" class="!text-red-500/60 !opacity-100 font-mono tracking-[0.12em] whitespace-nowrap !text-[11px] mt-0.5">
+            <ExText variant="telemetry" class="!text-red-500/60 !opacity-100 font-mono tracking-[0.12em] whitespace-nowrap"
+                    :style="{ fontSize: scaledPx(11), lineHeight: scaledPx(13), marginTop: scaledPx(2) }">
               <template v-if="node.params.riskType === 'trade'">{{ node.params.value }}{{ node.params.unit }}</template>
               <template v-else-if="node.params.riskType === 'day'">{{ node.params.unit === '$' ? '$' : '' }}{{ node.params.value }}{{ node.params.unit === '%' ? '%' : '' }}</template>
               <template v-else-if="node.params.riskType === 'rr'">1:{{ node.params.value }}</template>
@@ -608,8 +606,8 @@
      <!-- Custom Labels Container -->
       <div v-if="['condition', 'scenario', 'strategy'].includes(node.type) && (node.params?.customName || node.params?.isEditingName || node.params?.customDescription || node.params?.isEditingDescription)"
            v-show="scale > 0.25"
-           class="absolute top-full left-1/2 mt-2 flex flex-col items-center gap-2 z-50"
-           :style="{ transform: `translate(-50%, 0) scale(${scale})`, transformOrigin: 'top center' }">
+           class="absolute top-full left-1/2 flex flex-col items-center z-50 -translate-x-1/2"
+           :style="{ marginTop: scaledPx(8), gap: scaledPx(8) }">
            
        <!-- Custom Identity Label -->
        <template v-if="node.params?.customName || node.params?.isEditingName">
@@ -639,13 +637,15 @@
        <!-- End Custom Labels -->
       </div>
 
-      <!-- Emotion State Label -->
+       <!-- Emotion State Label -->
        <div v-if="node.type === 'emotion-state' && node.label"
             v-show="scale > 0.25"
-            class="absolute top-full left-1/2 mt-2 flex flex-col items-center z-50"
-            :style="{ transform: `translate(-50%, 0) scale(${scale})`, transformOrigin: 'top center' }">
-         <div class="min-w-full w-max bg-nier-text-light dark:bg-nier-text-dark border border-nier-white dark:border-nier-black shadow-[0_5px_15px_rgba(0,0,0,0.3)] pointer-events-none relative text-center px-4 py-1.5 flex flex-col items-center">
-            <ExText variant="telemetry" class="!text-nier-white dark:!text-nier-black !opacity-100 font-black">{{ node.label }}</ExText>
+            class="absolute top-full left-1/2 flex flex-col items-center z-50 -translate-x-1/2"
+            :style="{ marginTop: scaledPx(8) }">
+         <div class="min-w-full w-max bg-nier-text-light dark:bg-nier-text-dark border border-nier-white dark:border-nier-black shadow-[0_5px_15px_rgba(0,0,0,0.3)] pointer-events-none relative text-center flex flex-col items-center"
+              :style="{ padding: `${scaledPx(6)} ${scaledPx(16)}` }">
+            <ExText variant="telemetry" class="!text-nier-white dark:!text-nier-black !opacity-100 font-black"
+                    :style="{ fontSize: scaledPx(10), lineHeight: scaledPx(12) }">{{ node.label }}</ExText>
             <!-- Mini Corners -->
             <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-nier-white/40 dark:border-nier-black/40"></div>
             <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-nier-white/40 dark:border-nier-black/40"></div>
@@ -681,12 +681,10 @@
           <Transition name="callout-pop" appear>
             <div class="bg-nier-white dark:bg-nier-black border border-nier-border-light dark:border-nier-border-dark relative group flex flex-col overflow-hidden"
                  :style="{
-                    width: (comment.width || 450) + 'px',
-                    height: comment.isEditing ? 'auto' : (comment.height || 280) + 'px',
-                    minWidth: '450px',
-                    minHeight: '280px',
-                    transform: `scale(${scale})`,
-                    transformOrigin: 'top left'
+                    width: scaledPx(comment.width || 450),
+                    height: comment.isEditing ? 'auto' : scaledPx(comment.height || 280),
+                    minWidth: scaledPx(450),
+                    minHeight: scaledPx(280)
                  }">
 
                <!-- ExPanel Corners -->
@@ -694,10 +692,11 @@
                <div class="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-nier-text-light dark:border-nier-text-dark opacity-30 pointer-events-none"></div>
 
                <!-- Tactical Header -->
-               <div class="flex-shrink-0 flex items-center justify-between bg-nier-black dark:bg-nier-white text-nier-white dark:text-nier-black px-4 py-2 cursor-move border-b border-nier-white/10"
+               <div class="flex-shrink-0 flex items-center justify-between bg-nier-black dark:bg-nier-white text-nier-white dark:text-nier-black cursor-move border-b border-nier-white/10"
+                    :style="{ padding: `${scaledPx(8)} ${scaledPx(16)}` }"
                     @mousedown.stop="startCommentDrag($event, comment)">
-                  <div class="flex items-center space-x-3">
-                     <span class="font-black tracking-[0.4em] uppercase font-sans" :style="{ fontSize: '13px' }">Comment {{ Number(idx) + 1 }}</span>
+                  <div class="flex items-center" :style="{ gap: scaledPx(12) }">
+                     <span class="font-black tracking-[0.4em] uppercase font-sans" :style="{ fontSize: scaledPx(13), lineHeight: scaledPx(16) }">Comment {{ Number(idx) + 1 }}</span>
                   </div>
                   <button @mousedown.stop.prevent
                           @click.stop="removeComment(comment.id)"
@@ -711,7 +710,7 @@
                <!-- Content Region -->
                <div class="flex-1 flex flex-col overflow-hidden">
                   <!-- Editing State -->
-                  <div v-if="comment.isEditing" class="flex-1 p-6">
+                  <div v-if="comment.isEditing" class="flex-1" :style="{ padding: scaledPx(24) }">
                      <textarea v-model="comment.text"
                                @blur="comment.isEditing = false"
                                @keyup.enter.shift="comment.isEditing = false"
@@ -719,14 +718,15 @@
                                v-autofocus
                                placeholder="ENTRY_DATA_REQUIRED..."
                                class="w-full bg-transparent text-nier-text-light dark:text-nier-text-dark font-mono outline-none resize-none uppercase tracking-wide leading-relaxed p-0 overflow-hidden"
-                               :style="{ height: 'auto', minHeight: '180px', fontSize: '22px' }"></textarea>
+                               :style="{ height: 'auto', minHeight: scaledPx(180), fontSize: scaledPx(22), lineHeight: scaledPx(34) }"></textarea>
                   </div>
 
                   <!-- Display State -->
                   <div v-else @click="comment.isEditing = true"
-                       class="flex-1 p-6 overflow-y-auto custom-scrollbar cursor-pointer">
+                       class="flex-1 overflow-y-auto custom-scrollbar cursor-pointer"
+                       :style="{ padding: scaledPx(24) }">
                      <p class="font-mono text-nier-text-light dark:text-nier-text-dark uppercase tracking-wide whitespace-pre-wrap leading-relaxed"
-                        :style="{ fontSize: '22px' }">
+                        :style="{ fontSize: scaledPx(22), lineHeight: scaledPx(34) }">
                         {{ comment.text || '[ NO_DATA_AVAILABLE ]' }}
                      </p>
                   </div>
@@ -787,6 +787,9 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['click', 'start-output', 'pickup-input', 'drop', 'remove', 'moved', 'doubleclick', 'clear-input', 'clear-output', 'contextmenu', 'merge', 'comment-drag-start', 'comment-drag-end', 'open-file'])
+
+const scaledNumber = (value: number, min = 1) => Math.max(min, value * props.scale)
+const scaledPx = (value: number, min = 1) => `${scaledNumber(value, min)}px`
 
 function isTextEditingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
@@ -875,6 +878,8 @@ const isTablePanel = computed(() => props.node.type === 'table-panel')
 const isRiskPanel = computed(() => props.node.type === 'risk')
 const isRiskPanelContentHidden = computed(() => props.scale <= 0.25)
 const riskPanelVisualScale = computed(() => Math.min(Math.max(props.scale, 0.01), 1))
+const scaledRiskNumber = (value: number, min = 1) => Math.max(min, value * riskPanelVisualScale.value)
+const scaledRiskPx = (value: number, min = 1) => `${scaledRiskNumber(value, min)}px`
 const embedImageUrl = computed(() => (
   typeof props.node.params?.embedUrl === 'string' ? props.node.params.embedUrl.trim() : ''
 ))
@@ -885,10 +890,13 @@ const riskPanelShellStyle = computed(() => ({
   overflow: 'visible'
 }))
 const riskPanelScalerStyle = computed(() => ({
-  width: '360px',
-  minHeight: `${riskPanelBaseHeight}px`,
-  transform: `scale(${riskPanelVisualScale.value})`,
-  transformOrigin: 'top left'
+  width: `${360 * riskPanelVisualScale.value}px`,
+  minHeight: `${riskPanelBaseHeight * riskPanelVisualScale.value}px`,
+  fontSize: `${12 * riskPanelVisualScale.value}px`
+}))
+const riskPanelPanelStyle = computed(() => ({
+  width: `${360 * riskPanelVisualScale.value}px`,
+  minHeight: `${riskPanelBaseHeight * riskPanelVisualScale.value}px`
 }))
 const configNodeCode = computed(() => (props.node.label || 'CFG').slice(0, 3).toUpperCase())
 const matrixNodeTypeSuffix = computed(() => {
@@ -1045,6 +1053,12 @@ const tableGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${tableCols.value || 1}, minmax(0, 1fr))`,
   gridTemplateRows: `repeat(${tableRows.value || 1}, minmax(0, 1fr))`
 }))
+const tableInputStyle = computed(() => ({
+  paddingLeft: scaledPx(8),
+  paddingRight: scaledPx(8),
+  fontSize: scaledPx(11),
+  lineHeight: scaledPx(14)
+}))
 const textPanelPlaceholder = computed(() => {
   return t('ENTER_SCENARIO_DETAILS...')
 })
@@ -1062,6 +1076,11 @@ const textPanelEditorStyle = computed(() => {
     caretColor: color && color !== 'currentColor' ? color : defaultColor
   }
 })
+const textPanelScaleStyle = computed(() => ({
+  padding: `${scaledPx(8)} ${scaledPx(12)}`,
+  fontSize: scaledPx(16),
+  lineHeight: scaledPx(24)
+}))
 
 function syncTextEditorFromNode() {
   if (props.node.type !== 'text-panel') return

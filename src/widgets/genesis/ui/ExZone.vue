@@ -11,27 +11,30 @@
     </div>
 
     <!-- Telemetry Header & Controls (2x Buffer) -->
-    <div class="absolute bottom-full left-0 flex items-center space-x-4 pointer-events-auto z-10"
-         :style="{ transform: `scale(${scale})`, transformOrigin: 'bottom left', marginBottom: `${8 * scale}px` }">
+    <div class="absolute bottom-full left-0 flex items-center pointer-events-auto z-10"
+         :style="zoneHeaderStyle">
        <button @click.stop="$emit('remove', zone.id)"
-               class="tactical-button w-[48px] h-[48px] border-[2px] border-current/20 flex items-center justify-center hover:bg-nier-text-light dark:hover:bg-nier-text-dark hover:text-nier-white dark:hover:text-nier-black transition-all text-[16px] font-mono opacity-40 hover:opacity-100">
+               class="tactical-button border-[2px] border-current/20 flex items-center justify-center hover:bg-nier-text-light dark:hover:bg-nier-text-dark hover:text-nier-white dark:hover:text-nier-black transition-all font-mono opacity-40 hover:opacity-100"
+               :style="zoneHeaderIconButtonStyle">
           X
        </button>
        
        <button @click.stop="$emit('cycle-type', zone.id)"
-               class="tactical-button px-[24px] h-[48px] border-[2px] border-current/20 flex items-center justify-center hover:bg-nier-text-light dark:hover:bg-nier-text-dark hover:text-nier-white dark:hover:text-nier-black transition-all text-[16px] font-mono opacity-40 hover:opacity-100 uppercase tracking-widest whitespace-nowrap">
+               class="tactical-button border-[2px] border-current/20 flex items-center justify-center hover:bg-nier-text-light dark:hover:bg-nier-text-dark hover:text-nier-white dark:hover:text-nier-black transition-all font-mono opacity-40 hover:opacity-100 uppercase tracking-widest whitespace-nowrap"
+               :style="zoneHeaderButtonStyle">
           {{ locale === 'ru' && t(zone.type) ? t(zone.type) : zone.type }}
        </button>
 
-       <div class="w-[16px] h-[16px] rotate-45 border-[2px] border-current opacity-40 ml-4"></div>
+       <div class="rotate-45 border-[2px] border-current opacity-40" :style="zoneHeaderDiamondStyle"></div>
        
        <!-- Temporal Icon -->
-       <svg v-if="zone.type === 'session'" class="w-[24px] h-[24px] opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+       <svg v-if="zone.type === 'session'" class="opacity-60" :style="zoneHeaderIconStyle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
          <circle cx="12" cy="12" r="10" />
          <path d="M12 6v6l4 2" />
        </svg>
 
-       <span class="text-[18px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+       <span class="font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+             :style="zoneHeaderLabelStyle">
          {{ zone.type === 'session' ? localizedSessionLabel : (locale === 'ru' && t(zone.label) && t(zone.label) !== zone.label ? t(zone.label) : zone.label) }}
        </span>
     </div>
@@ -83,6 +86,9 @@ const emit = defineEmits(['drag-start', 'resize-start', 'remove', 'cycle-type'])
 
 import { useI18n } from '~/shared/i18n/useI18n'
 const { locale, t } = useI18n()
+
+const scaledNumber = (value: number, min = 1) => Math.max(min, value * props.scale)
+const scaledPx = (value: number, min = 1) => `${scaledNumber(value, min)}px`
 
 const sessionReferences: Record<string, { start: number, end: number }> = {
   SYDNEY: { start: 21, end: 6 },
@@ -150,6 +156,42 @@ const zoneStyle = computed(() => {
     border: borderStyles[props.zone.type]
   }
 })
+
+const zoneHeaderStyle = computed(() => ({
+  gap: scaledPx(16),
+  marginBottom: scaledPx(8)
+}))
+
+const zoneHeaderIconButtonStyle = computed(() => ({
+  width: scaledPx(48),
+  height: scaledPx(48),
+  fontSize: scaledPx(16),
+  lineHeight: scaledPx(18)
+}))
+
+const zoneHeaderButtonStyle = computed(() => ({
+  height: scaledPx(48),
+  paddingLeft: scaledPx(24),
+  paddingRight: scaledPx(24),
+  fontSize: scaledPx(16),
+  lineHeight: scaledPx(18)
+}))
+
+const zoneHeaderDiamondStyle = computed(() => ({
+  width: scaledPx(16),
+  height: scaledPx(16),
+  marginLeft: scaledPx(16)
+}))
+
+const zoneHeaderIconStyle = computed(() => ({
+  width: scaledPx(24),
+  height: scaledPx(24)
+}))
+
+const zoneHeaderLabelStyle = computed(() => ({
+  fontSize: scaledPx(18),
+  lineHeight: scaledPx(22)
+}))
 </script>
 
 <style scoped>
