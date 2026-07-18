@@ -1,9 +1,11 @@
+import { tradeMatchesProtocol } from './scenarioConditionScope'
+
 export interface TacticalHistory {
   pf: number[]
   freq: number[]
 }
 
-export function calculateTacticalHistory(id: string, allTrades: any[]): TacticalHistory {
+export function calculateTacticalHistory(id: string, allTrades: any[], scenarioId?: string | null): TacticalHistory {
   const sortedTrades = [...allTrades].sort((a, b) => {
     const dateA = a.date ? new Date(a.date).getTime() : 0
     const dateB = b.date ? new Date(b.date).getTime() : 0
@@ -11,14 +13,7 @@ export function calculateTacticalHistory(id: string, allTrades: any[]): Tactical
   })
 
   // Find when this protocol was first used
-  const firstOccurrenceIndex = sortedTrades.findIndex(tr => 
-    tr.boardScenarioEntry?.id === id || 
-    tr.boardScenarioExit?.id === id ||
-    tr.boardConditions?.some((c: any) => (typeof c === 'string' ? c === id : c.id === id)) ||
-    tr.boardScenarioEntry?.info?.conditions?.some((c: any) => c.id === id) ||
-    tr.boardScenarioExit?.info?.conditions?.some((c: any) => c.id === id) ||
-    (tr.emotions && Array.isArray(tr.emotions) && tr.emotions.includes(id))
-  )
+  const firstOccurrenceIndex = sortedTrades.findIndex(tr => tradeMatchesProtocol(tr, id, scenarioId))
 
   const exactPf: number[] = []
   const exactFreq: number[] = []
@@ -30,14 +25,7 @@ export function calculateTacticalHistory(id: string, allTrades: any[]): Tactical
   // 1. Calculate exact points starting ONLY from the first time it was used
   for (let i = firstOccurrenceIndex; i < sortedTrades.length; i++) {
     const slice = sortedTrades.slice(0, i + 1)
-    const presentIn = slice.filter(tr => 
-      tr.boardScenarioEntry?.id === id || 
-      tr.boardScenarioExit?.id === id ||
-      tr.boardConditions?.some((c: any) => (typeof c === 'string' ? c === id : c.id === id)) ||
-      tr.boardScenarioEntry?.info?.conditions?.some((c: any) => c.id === id) ||
-      tr.boardScenarioExit?.info?.conditions?.some((c: any) => c.id === id) ||
-      (tr.emotions && Array.isArray(tr.emotions) && tr.emotions.includes(id))
-    )
+    const presentIn = slice.filter(tr => tradeMatchesProtocol(tr, id, scenarioId))
     
     const count = presentIn.length
     const freq = slice.length > 0 ? (count / slice.length) * 100 : 0
