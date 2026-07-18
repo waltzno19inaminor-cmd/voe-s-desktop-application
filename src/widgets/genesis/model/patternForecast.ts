@@ -170,6 +170,17 @@ const MAX_MATCHES = 60
 const MAX_MATCHES_PER_FILE = 2
 const HORIZONS = [10, 20] as const
 
+export const PATTERN_FORECAST_LIMITS = {
+  minUserTrades: MIN_USER_TRADES,
+  historicalProfiles: 216,
+  maxMatches: MAX_MATCHES,
+  maxMatchesPerFile: MAX_MATCHES_PER_FILE,
+  horizons: HORIZONS,
+  confidenceTradeTarget: 40,
+  confidenceBlockTarget: 3,
+  confidenceSourceFileTarget: 25
+} as const
+
 let historicalPatternTimelinesPromise: Promise<HistoricalPatternTimeline[]> | null = null
 
 export function calculatePatternForecastCurrentCapital(trades: DiaryEntry[], initialCapital: number) {
