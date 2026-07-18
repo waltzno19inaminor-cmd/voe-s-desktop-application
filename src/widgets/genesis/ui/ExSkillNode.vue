@@ -1793,7 +1793,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-panel-field > span {
-  color: rgb(255 255 255 / 0.72);
+  color: rgb(0 0 0 / 0.58);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-size: calc(8px * var(--risk-panel-scale, 1));
   font-weight: 800;
@@ -1801,6 +1801,11 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   text-transform: uppercase;
 }
 
+.risk-panel-theme-light .risk-panel-field > span {
+  color: rgb(0 0 0 / 0.58);
+}
+
+.risk-panel-theme-dark .risk-panel-field > span,
 :global(html.dark) .risk-panel-field > span {
   color: rgb(255 255 255 / 0.72);
 }
@@ -1809,16 +1814,18 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-style-control {
   align-items: center;
   background: rgb(0 0 0 / 0.035);
-  border: 1px solid rgb(255 255 255 / 0.16);
+  border: 1px solid rgb(0 0 0 / 0.14);
   display: flex;
   height: calc(38px * var(--risk-panel-scale, 1));
   min-width: 0;
 }
 
+.risk-panel-theme-dark .risk-panel-control,
+.risk-panel-theme-dark .risk-style-control,
 :global(html.dark) .risk-panel-control,
 :global(html.dark) .risk-style-control {
   background: rgb(255 255 255 / 0.035);
-  border-color: rgb(255 255 255 / 0.16);
+  border-color: rgb(255 255 255 / 0.22);
 }
 
 .risk-panel-control input {
@@ -1856,7 +1863,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-panel-control button {
-  border-left: 1px solid rgb(0 0 0 / 0.16);
+  border-left: 1px solid rgb(0 0 0 / 0.2);
   color: rgb(0 0 0 / 0.9);
   flex: 0 0 calc(34px * var(--risk-panel-scale, 1));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -1866,8 +1873,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
+.risk-panel-theme-dark .risk-panel-control button,
 :global(html.dark) .risk-panel-control button {
-  border-left-color: rgb(255 255 255 / 0.14);
+  border-left-color: rgb(255 255 255 / 0.28);
   color: rgb(255 255 255 / 0.9);
 }
 
@@ -1876,7 +1884,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-panel-prefix {
-  border-right: 1px solid rgb(0 0 0 / 0.12);
+  border-right: 1px solid rgb(0 0 0 / 0.2);
   color: rgb(0 0 0 / 0.78);
   flex: 0 0 calc(38px * var(--risk-panel-scale, 1));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
@@ -1886,9 +1894,10 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   text-align: center;
 }
 
+.risk-panel-theme-dark .risk-panel-prefix,
 :global(html.dark) .risk-panel-prefix {
-  border-right-color: rgb(255 255 255 / 0.14);
-  color: rgb(255 255 255 / 0.78);
+  border-right-color: rgb(255 255 255 / 0.28);
+  color: rgb(255 255 255 / 0.9);
 }
 
 .risk-style-control {
@@ -1941,6 +1950,11 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-style-control button.is-active {
   background: rgb(239 68 68 / 0.18);
   box-shadow: inset 0 0 0 1px rgb(239 68 68 / 0.45), 0 0 18px rgb(239 68 68 / 0.18);
+  color: #000;
+}
+
+.risk-panel-theme-dark .risk-style-control button.is-active,
+:global(html.dark) .risk-style-control button.is-active {
   color: #fff;
 }
 
