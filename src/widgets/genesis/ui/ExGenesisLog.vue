@@ -3,7 +3,7 @@
     
     
 
-    <div v-show="!showNodeMap" class="contents">
+    <div class="contents">
 
       <!-- CANVAS LAYER (Shared) -->
       <canvas v-show="viewType === 'cube'"
@@ -431,7 +431,7 @@
     <!-- TACTICAL PROTOCOL INSIGHT (FIXED RIGHT - ARCHIVE) -->
     <Teleport to="body">
        <Transition name="panel-slide" mode="out-in">
-          <div v-if="selectedTrade && !showExtraDetails && !showNodeMap && !isTradeEntryOpen && !isTimeTreeFullscreen" 
+          <div v-if="selectedTrade && !showExtraDetails && !isTradeEntryOpen && !isTimeTreeFullscreen" 
                key="trade-archive-insight"
                class="fixed right-12 top-1/2 -translate-y-1/2 w-[440px] z-[10005] transition-colors duration-500 shadow-[16px_16px_0_0_rgba(0,0,0,0.25)] dark:shadow-[16px_16px_0_0_rgba(0,0,0,0.5)]">
              
@@ -555,7 +555,7 @@
                     <ExButton 
                       variant="ghost" 
                       class="flex-1" 
-                      @click="openNodeMap"
+                      @click="openTradeArchiveAnalysis()"
                     >
                        {{ t('genesis.virtualLog.showDetails') }}
                     </ExButton>
@@ -589,20 +589,28 @@
        </Transition>
     </Teleport>
     
-    <!-- NODE MAP VISUALIZATION OVERLAY -->
-    <ExTacticalNodeMap 
-      v-if="showNodeMap" 
-      :is-open="showNodeMap" 
-      :trade="mappedTradeForAnalysis"
-      :is-dark="isDark"
-      :initial-page="panelInitialPage"
-      :initial-expanded-note-id="panelInitialNoteId"
-      :open-analytics-on-mount="showExtraDetails"
-      @close="showNodeMap = false; showExtraDetails = false" 
-    />
+    <!-- TRADE ARCHIVE ANALYSIS OVERLAY -->
+    <Teleport to="body">
+      <Transition name="trade-analysis-overlay">
+        <div
+          v-if="showTradeArchiveAnalysis"
+          class="fixed inset-0 z-[10040] flex items-center justify-center pointer-events-none"
+        >
+          <div class="w-[1100px] h-[85vh] pointer-events-auto">
+            <ExTradeAnalysisPanel
+              :trade="mappedTradeForAnalysis"
+              :initial-page="panelInitialPage"
+              :initial-expanded-note-id="panelInitialNoteId"
+              archive-only
+              @close="closeTradeArchiveAnalysis"
+            />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
-    <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
+    <div v-if="viewType === 'cube' && showComplianceStatus && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
        <ExPanel
          variant="light"
          :show-corners="true"
@@ -941,7 +949,7 @@
     </div>
 
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
-    <div v-if="!showNodeMap && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700">
+    <div v-if="isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700">
        
        <!-- The Dropdown Menu -->
 
@@ -1125,7 +1133,6 @@ import { tradeMatchesProtocol } from '~/shared/utils/scenarioConditionScope'
 import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
 import globalAssets from '~/shared/data/global_assets.json'
 import { getIconForAsset } from '~/shared/api/asset.service'
-import ExTacticalNodeMap from '~/widgets/genesis/ui/ExTacticalNodeMap.vue'
 import ExTradeEntry from '~/widgets/genesis/ui/ExTradeEntry.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -1335,7 +1342,7 @@ const editTrade = (trade: any) => {
 const showExtraDetails = ref(false)
 const panelInitialPage = ref<number | undefined>(undefined)
 const panelInitialNoteId = ref<string | undefined>(undefined)
-const showNodeMap = ref(false)
+const showTradeArchiveAnalysis = ref(false)
 const isHudVisible = ref(true)
 const showComplianceStatus = ref(false)
 const activeComplianceMetricKey = ref('riskPerTrade')
@@ -1348,16 +1355,22 @@ watch(isHudVisible, (val) => {
 })
 const showPaywall = ref(false)
 
-const openNodeMap = () => {
-  showNodeMap.value = true
+const openTradeArchiveAnalysis = (page = 5, noteId?: string) => {
+  panelInitialPage.value = page
+  panelInitialNoteId.value = noteId
+  showTradeArchiveAnalysis.value = true
+}
+
+const closeTradeArchiveAnalysis = () => {
+  showTradeArchiveAnalysis.value = false
+  showExtraDetails.value = false
+  panelInitialPage.value = undefined
+  panelInitialNoteId.value = undefined
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
   selectedTradeId.value = payload.tradeId
-  panelInitialPage.value = 5
-  panelInitialNoteId.value = payload.noteId
-  showExtraDetails.value = true
-  showNodeMap.value = true
+  openTradeArchiveAnalysis(5, payload.noteId)
   emit('openNote', payload)
 }
 
@@ -1366,11 +1379,11 @@ const handleOpenTrade = (payload: { tradeId: string }) => {
   panelInitialPage.value = undefined
   panelInitialNoteId.value = undefined
   showExtraDetails.value = false
-  showNodeMap.value = false
+  showTradeArchiveAnalysis.value = false
   emit('openTrade', payload)
 }
 
-watch(showNodeMap, (val) => {
+watch(showTradeArchiveAnalysis, (val) => {
   emit('nodeMapState', val)
 })
 
@@ -2236,7 +2249,7 @@ const showCubeSearchText = ref(false)
 let cubeSearchTimeout: any = null
 
 const handleGlobalKeydown = (e: KeyboardEvent) => {
-  if (showNodeMap.value || showExtraDetails.value || viewType.value !== 'cube') return
+  if (showTradeArchiveAnalysis.value || showExtraDetails.value || viewType.value !== 'cube') return
   
   const target = e.target as HTMLElement
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return
@@ -3533,10 +3546,7 @@ const handleMouseDown = (e: MouseEvent) => {
            if (nearest.node.isNote && nearest.node.parentId) {
               selectedTradeId.value = nearest.node.parentId
               const noteId = nearest.node.id.split('_').slice(2).join('_')
-              panelInitialPage.value = 5
-              panelInitialNoteId.value = noteId
-              showExtraDetails.value = true
-              showNodeMap.value = true
+              openTradeArchiveAnalysis(5, noteId)
            } else {
               selectedTradeId.value = nearest.id
               showExtraDetails.value = false
@@ -3578,9 +3588,7 @@ const handleDoubleClick = (e: MouseEvent) => {
            selectedTradeId.value = nearest.node.parentId
            // Extract actual note ID from the composed string "note_tradeId_noteId"
            const noteId = nearest.node.id.split('_').slice(2).join('_')
-           panelInitialPage.value = 5
-           panelInitialNoteId.value = noteId
-           showExtraDetails.value = true
+           openTradeArchiveAnalysis(5, noteId)
         }
      }
   }
@@ -3764,6 +3772,21 @@ canvas { image-rendering: pixelated; }
 }
 .panel-slide-enter-to, .panel-slide-leave-from {
   transform: translateX(0) translateY(-50%);
+  opacity: 1;
+}
+
+.trade-analysis-overlay-enter-active,
+.trade-analysis-overlay-leave-active {
+  transition: opacity 0.24s ease;
+}
+
+.trade-analysis-overlay-enter-from,
+.trade-analysis-overlay-leave-to {
+  opacity: 0;
+}
+
+.trade-analysis-overlay-enter-to,
+.trade-analysis-overlay-leave-from {
   opacity: 1;
 }
 

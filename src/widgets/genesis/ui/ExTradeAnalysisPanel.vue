@@ -63,6 +63,7 @@ interface TradeAnalysisProps {
   globalStability?: number; // 0 to 100
   initialPage?: number;
   initialExpandedNoteId?: string;
+  archiveOnly?: boolean;
 }
 
 const props = withDefaults(defineProps<TradeAnalysisProps>(), {
@@ -720,11 +721,29 @@ const enrichedTrade = computed(() => {
   };
 });
 
-const currentPage = ref(props.initialPage || 3);
-watch(() => props.initialPage, (newPage) => {
-  if (newPage) {
-    currentPage.value = newPage;
+type AnalysisPage = 3 | 4 | 5;
+
+const normalizeAnalysisPage = (page?: number): AnalysisPage => {
+  if (props.archiveOnly) {
+    return page === 4 ? 4 : 5;
   }
+
+  return page === 4 || page === 5 ? page : 3;
+};
+
+const analysisTabs = computed(() => {
+  const tabs = [
+    { id: 3 as AnalysisPage, label: 'REPORT', icon: 'M9 17H15M9 13H15M9 9H10M13 3H14.6C15.7201 3 16.2802 3 16.708 3.21799C17.0843 3.40973 17.3903 3.71569 17.582 4.09202C17.8 4.51984 17.8 5.07989 17.8 6.2V17.8C17.8 18.9201 17.8 19.4802 17.582 19.908C17.3903 20.2843 17.0843 20.5903 16.708 20.782C16.2802 21 15.7201 21 14.6 21H9.4C8.2798 21 7.71984 21 7.29202 20.782C6.91569 20.5903 6.60973 20.2843 6.41799 19.908C6.2 19.4802 6.2 18.9201 6.2 17.8V6.2C6.2 5.07989 6.2 4.51984 6.41799 4.09202C6.60973 3.71569 6.91569 3.40973 7.29202 3.21799C7.71984 3 8.27989 3 9.4 3H10.2M12 3V5' },
+    { id: 5 as AnalysisPage, label: 'NOTES', icon: 'M11 4H4C2.89543 4 2 4.89543 2 6V20C2 21.1046 2.89543 22 4 22H18C19.1046 22 20 21.1046 20 20V13M18.5 2.5C19.3284 1.67157 20.6716 1.67157 21.5 2.5C22.3284 3.32843 22.3284 4.67157 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z' },
+    { id: 4 as AnalysisPage, label: 'IMAGES', icon: 'M15 8H15.01M7 16H17M7 11L10.29 7.71C10.68 7.32 11.31 7.32 11.7 7.71L14.59 10.6M14.59 10.6L16.29 8.9C16.68 8.51 17.31 8.51 17.7 8.9L21 12.2M4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20Z' }
+  ];
+
+  return props.archiveOnly ? tabs.filter(tab => tab.id !== 3) : tabs;
+});
+
+const currentPage = ref<AnalysisPage>(normalizeAnalysisPage(props.initialPage));
+watch(() => [props.initialPage, props.archiveOnly] as const, ([newPage]) => {
+  currentPage.value = normalizeAnalysisPage(newPage);
 }, { immediate: true });
 const totalPages = 2;
 
@@ -1956,11 +1975,7 @@ const simpleMetricInsights = computed(() => {
       <!-- MINIMALIST NAVIGATION SIDEBAR (INTERNAL) -->
       <div class="w-12 h-full flex flex-col items-center py-6 border-r border-black/5 dark:border-white/5 bg-black/[0.02] dark:bg-white/[0.02] z-20 shrink-0">
         <div class="flex flex-col space-y-6">
-          <button v-for="(tab, idx) in [
-            { id: 3, label: 'REPORT', icon: 'M9 17H15M9 13H15M9 9H10M13 3H14.6C15.7201 3 16.2802 3 16.708 3.21799C17.0843 3.40973 17.3903 3.71569 17.582 4.09202C17.8 4.51984 17.8 5.07989 17.8 6.2V17.8C17.8 18.9201 17.8 19.4802 17.582 19.908C17.3903 20.2843 17.0843 20.5903 16.708 20.782C16.2802 21 15.7201 21 14.6 21H9.4C8.2798 21 7.71984 21 7.29202 20.782C6.91569 20.5903 6.60973 20.2843 6.41799 19.908C6.2 19.4802 6.2 18.9201 6.2 17.8V6.2C6.2 5.07989 6.2 4.51984 6.41799 4.09202C6.60973 3.71569 6.91569 3.40973 7.29202 3.21799C7.71984 3 8.27989 3 9.4 3H10.2M12 3V5' },
-            { id: 4, label: 'VISUALS', icon: 'M15 8H15.01M7 16H17M7 11L10.29 7.71C10.68 7.32 11.31 7.32 11.7 7.71L14.59 10.6M14.59 10.6L16.29 8.9C16.68 8.51 17.31 8.51 17.7 8.9L21 12.2M4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20Z' },
-            { id: 5, label: 'NOTES', icon: 'M11 4H4C2.89543 4 2 4.89543 2 6V20C2 21.1046 2.89543 22 4 22H18C19.1046 22 20 21.1046 20 20V13M18.5 2.5C19.3284 1.67157 20.6716 1.67157 21.5 2.5C22.3284 3.32843 22.3284 4.67157 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z' }
-          ]" :key="tab.id"
+          <button v-for="tab in analysisTabs" :key="tab.id"
           @click="currentPage = tab.id"
           class="relative w-8 h-8 flex items-center justify-center transition-all duration-300 group/nav-item"
           :class="[currentPage === tab.id ? 'opacity-100 scale-110' : 'opacity-20 hover:opacity-50 hover:scale-105']">
