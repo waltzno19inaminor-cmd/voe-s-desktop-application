@@ -599,31 +599,6 @@ const formatDateTactical = (dateStr) => {
       <Transition name="nier-fade">
         <div v-if="!showConditionLibrary && !showEmotionSelector && !showEntryMethod" 
              class="fixed left-10 top-1/2 -translate-y-1/2 flex flex-col gap-10 z-[9999]">
-        <!-- UNIFIED MATRIX TOGGLE -->
-        <button @click="showConditionLibrary = !showConditionLibrary" 
-                :disabled="commitState === 'loading'"
-                class="group relative opacity-35 hover:opacity-100 focus-visible:opacity-100 transition-opacity duration-300 disabled:cursor-not-allowed">
-           <div class="relative flex items-center justify-center w-12 h-12">
-              <div class="absolute inset-0 border border-black/20 dark:border-white/20 rotate-45 group-hover:bg-black dark:group-hover:bg-white group-hover:border-black dark:group-hover:border-white transition-all duration-500 shadow-xl"
-                   :class="{ 'nier-bg-inverted border-black dark:border-white': showConditionLibrary }"></div>
-              <div class="w-3 h-3 flex items-center justify-center relative z-10 transition-all duration-700 group-hover:text-white dark:group-hover:text-black"
-                   :class="showConditionLibrary ? 'nier-text-primary' : 'nier-text-primary'">
-                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                   <rect x="3" y="3" width="7" height="7" />
-                   <rect x="14" y="3" width="7" height="7" />
-                   <rect x="14" y="14" width="7" height="7" />
-                   <rect x="3" y="14" width="7" height="7" />
-                 </svg>
-              </div>
-              <div class="absolute left-full ml-8 opacity-0 group-hover:opacity-100 transition-all duration-500 -translate-x-4 group-hover:translate-x-0 whitespace-nowrap pointer-events-none">
-                 <div class="flex flex-col items-start">
-                    <span class="text-[8px] font-mono tracking-[0.5em] uppercase font-black nier-text-primary">GENESIS_MATRIX_PROTOCOL</span>
-                    <div class="h-px w-0 group-hover:w-full nier-bg-inverted transition-all duration-500 mt-1 opacity-40"></div>
-                 </div>
-              </div>
-           </div>
-        </button>
-
         <!-- ENTRY METHOD BUTTON -->
         <button @click="showEntryMethod = true" 
                 :disabled="commitState === 'loading'"

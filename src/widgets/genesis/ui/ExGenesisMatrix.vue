@@ -435,6 +435,7 @@ function handleNodeDive(node: any) {
     if (!node.subGraph) {
        node.subGraph = { nodes: [], connections: [], zones: [] }
     }
+    state.selectNode(null)
     state.navigateTo([...state.navigationStack.value, node.id])
   } else if (node.type === 'image') {
     uploads.triggerImageUpload(node.id)

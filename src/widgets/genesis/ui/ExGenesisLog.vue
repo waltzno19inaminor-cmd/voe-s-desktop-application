@@ -9,7 +9,6 @@
       <canvas v-show="viewType === 'cube'"
               ref="canvasRef"
               class="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing z-30 transition-all duration-300"
-              :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
               @mousedown="handleMouseDown"
               @mousemove="handleMouseMove"
               @mouseup="handleMouseUp"
@@ -78,23 +77,13 @@
               </div>
            </button>
 
-           <button @click="toggleCapitalForecast()" 
-                   class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer"
-                   :class="showCapitalForecast
-                            ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]'
-                            : canOpenCapitalForecast
-                              ? 'bg-white/5 dark:bg-black/5 text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10'
-                              : 'bg-white/5 dark:bg-black/5 text-black/20 dark:text-white/20 hover:bg-black/10 dark:hover:bg-white/10 ring-1 ring-dashed ring-black/10 dark:ring-white/10'"
-                   :title="canOpenCapitalForecast
-                      ? 'Toggle Capital Forecast'
-                      : (locale === 'ru' ? 'Нужен премиум-доступ' : 'Premium access required')">
+           <button @click="showPaywall = true" 
+                   class="relative w-8 h-8 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer bg-white/5 dark:bg-black/5 text-black/40 dark:text-white/40 hover:bg-black/10 dark:hover:bg-white/10"
+                   :title="locale === 'ru' ? 'Нужен премиум-доступ' : 'Premium access required'">
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                  <path d="M3 17l5-5 4 4 8-9"></path>
                  <path d="M17 7h3v3"></path>
               </svg>
-              <div v-if="patternForecastLoading"
-                   class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.55)]">
-              </div>
            </button>
         </div>
         <!-- Cube Search Query Overlay -->
@@ -111,7 +100,6 @@
         v-if="viewType === 'list' || viewType === 'timeTree'"
         class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
         :class="[
-          showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : '',
           isTimeTreeFullscreen ? '!fixed !inset-0 !z-[10080]' : ''
         ]"
       >
@@ -267,7 +255,6 @@
       <div
         v-if="viewType === 'distribution'"
         class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
-        :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
         <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
         <div class="relative z-10 flex h-full w-full flex-col py-20 md:py-28">
@@ -332,7 +319,6 @@
       <div
         v-if="isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen"
         class="absolute bottom-12 left-12 z-[10000] flex flex-col space-y-3 pointer-events-auto transition-all duration-300"
-        :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
       >
          <div class="relative flex items-center gap-2 border nier-border-primary bg-white/5 p-1.5 backdrop-blur-xl dark:bg-black/5">
             <!-- Brackets -->
@@ -387,7 +373,6 @@
       <div
         v-if="isHudVisible && !isTradeEntryOpen && viewType === 'distribution'"
         class="absolute bottom-12 right-12 z-[10000] pointer-events-auto transition-all duration-300"
-        :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''"
       >
         <div class="relative flex items-center gap-2 border nier-border-primary bg-white/5 p-1.5 font-mono text-[9px] uppercase tracking-[0.24em] backdrop-blur-xl dark:bg-black/5">
           <div class="absolute -top-px -left-px h-1.5 w-1.5 border-l border-t border-black/40 dark:border-white/40"></div>
@@ -617,7 +602,7 @@
     />
 
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
-    <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
+    <div v-if="!showNodeMap && viewType === 'cube' && showComplianceStatus && isHudVisible" class="absolute top-8 left-1/2 -translate-x-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
        <ExPanel
          variant="light"
          :show-corners="true"
@@ -955,22 +940,8 @@
        </ExPanel>
     </div>
 
-    <div
-      v-if="!showNodeMap && viewType === 'cube' && showCapitalForecast && isHudVisible && canOpenCapitalForecast"
-      class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[8990] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500"
-    >
-      <ExPatternForecastPanel
-        :visible="showCapitalForecast"
-        :trades="currentTrades"
-        :initial-capital="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
-        :strategy-id="selectedStrategyId"
-        :strategy-name="selectedStrategy.name"
-        @loading-change="patternForecastLoading = $event"
-      />
-    </div>
-
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
-    <div v-if="!showNodeMap && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700" :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75' : ''">
+    <div v-if="!showNodeMap && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700">
        
        <!-- The Dropdown Menu -->
 
@@ -1139,100 +1110,6 @@
     </Transition>
   </Teleport>
 
-  <Teleport to="body">
-    <Transition name="fade-blur">
-      <div
-        v-if="showCapitalForecastIntro"
-        class="fixed inset-0 z-[10040] flex items-center justify-center bg-black/45 p-8 backdrop-blur-md"
-        @click.self="rejectCapitalForecastIntro"
-      >
-        <ExPanel
-          variant="light"
-          :no-padding="true"
-          :no-shadow="true"
-          :show-corners="true"
-          class="w-full max-w-[560px] !border-black/15 dark:!border-white/15"
-        >
-          <div class="px-8 py-7 nier-text-primary">
-            <div class="mb-5 flex items-center justify-between gap-6 border-b border-black/10 pb-4 dark:border-white/10">
-              <div>
-                <div class="text-[8px] font-mono uppercase tracking-[0.42em] opacity-45">
-                  {{ locale === 'ru' ? 'ПРОГНОЗ_ПАТТЕРНОВ' : 'PATTERN_FORECAST' }}
-                </div>
-                <h2 class="mt-2 text-lg font-mono font-black uppercase tracking-[0.18em]">
-                  {{ locale === 'ru' ? 'Предупреждение перед запуском' : 'Forecast Preview Notice' }}
-                </h2>
-              </div>
-              <div class="flex h-10 w-10 shrink-0 items-center justify-center border nier-border-primary">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 17l5-5 4 4 8-9"></path>
-                  <path d="M17 7h3v3"></path>
-                </svg>
-              </div>
-            </div>
-
-            <div class="font-mono text-[10px] uppercase tracking-[0.12em] leading-relaxed">
-              <div class="grid grid-cols-2 gap-3 border-b border-black/10 pb-4 dark:border-white/10">
-                <div>
-                  <div class="opacity-40">{{ locale === 'ru' ? 'ВАШИ_СДЕЛКИ' : 'YOUR_TRADES' }}</div>
-                  <div class="mt-1 text-base font-black">{{ patternForecastIntroStats.userTrades }}</div>
-                </div>
-                <div>
-                  <div class="opacity-40">{{ locale === 'ru' ? 'ИСТОРИИ_ТРЕЙДЕРОВ' : 'TRADER_HISTORIES' }}</div>
-                  <div class="mt-1 text-base font-black">{{ patternForecastIntroStats.historicalProfiles }}</div>
-                </div>
-              </div>
-
-              <ol class="mt-5 space-y-3">
-                <li class="grid grid-cols-[32px_1fr] gap-3">
-                  <span class="font-black opacity-35">01</span>
-                  <span>
-                    {{ locale === 'ru'
-                      ? `Берем ваши закрытые сделки: сейчас ${patternForecastIntroStats.userTrades}, минимум для запуска ${patternForecastIntroStats.minTrades}.`
-                      : `We read your closed trades: ${patternForecastIntroStats.userTrades} now, ${patternForecastIntroStats.minTrades} minimum to run.` }}
-                  </span>
-                </li>
-                <li class="grid grid-cols-[32px_1fr] gap-3">
-                  <span class="font-black opacity-35">02</span>
-                  <span>
-                    {{ locale === 'ru'
-                      ? `Сравниваем вашу динамику, риск, длительность сделок, серии win/loss и структурные блоки с ${patternForecastIntroStats.historicalProfiles} историями других трейдеров.`
-                      : `We compare your performance path, risk, trade duration, win/loss streaks, and structural blocks with ${patternForecastIntroStats.historicalProfiles} histories from other traders.` }}
-                  </span>
-                </li>
-                <li class="grid grid-cols-[32px_1fr] gap-3">
-                  <span class="font-black opacity-35">03</span>
-                  <span>
-                    {{ locale === 'ru'
-                      ? `Выбираем до ${patternForecastIntroStats.maxMatches} ближайших исторических совпадений и строим прогноз на ${patternForecastIntroStats.horizonsLabel} следующих сделок.`
-                      : `We select up to ${patternForecastIntroStats.maxMatches} closest historical matches and build a forecast for the next ${patternForecastIntroStats.horizonsLabel} trades.` }}
-                  </span>
-                </li>
-                <li class="grid grid-cols-[32px_1fr] gap-3 opacity-70">
-                  <span class="font-black opacity-45">04</span>
-                  <span>
-                    {{ locale === 'ru'
-                      ? 'На выходе вы получите вероятный диапазон капитала, confidence, похожие исторические сценарии и слабые места модели. Это проверка сценария, не торговый сигнал.'
-                      : 'Output: probable capital range, confidence, similar historical scenarios, and weak points in the model. This is scenario review, not a trade signal.' }}
-                  </span>
-                </li>
-              </ol>
-            </div>
-
-            <div class="mt-7 flex items-center justify-end gap-3">
-              <ExButton variant="ghost" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="rejectCapitalForecastIntro">
-                {{ locale === 'ru' ? 'Отклонить' : 'Decline' }}
-              </ExButton>
-              <ExButton variant="solid" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="acceptCapitalForecastIntro">
-                {{ locale === 'ru' ? 'Принять' : 'Accept' }}
-              </ExButton>
-            </div>
-          </div>
-        </ExPanel>
-      </div>
-    </Transition>
-  </Teleport>
-
   <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
 </template>
 
@@ -1254,8 +1131,6 @@ import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/ExPaywallOverlay.vue'
-import ExPatternForecastPanel from '~/widgets/genesis/ui/ExPatternForecastPanel.vue'
-import { PATTERN_FORECAST_LIMITS } from '~/widgets/genesis/model/patternForecast'
 import { useAuthStore } from '~/entities/user/auth.store'
 import OpenStrategyMetrics from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
 import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
@@ -1327,9 +1202,6 @@ const scopeTradesToSelectedVersion = <T,>(trades: T[]) => {
 
 const showShareCardModal = ref(false)
 const isGeneratingPng = ref(false)
-const showCapitalForecast = ref(false)
-const showCapitalForecastIntro = ref(false)
-const patternForecastLoading = ref(false)
 
 const tradeEfficiency = computed(() => {
   return mappedTradeForAnalysis.value?.percentileRank ?? 0
@@ -1475,9 +1347,6 @@ watch(isHudVisible, (val) => {
   emit('hudState', val)
 })
 const showPaywall = ref(false)
-const canOpenCapitalForecast = computed(() => {
-  return true
-})
 
 const openNodeMap = () => {
   showNodeMap.value = true
@@ -1784,22 +1653,6 @@ const timeTreeGroups = computed(() => {
       trades: group.trades.sort((left, right) => left.timestamp - right.timestamp)
     }))
 })
-
-const patternForecastClosedTradesCount = computed(() => {
-  return currentTrades.value.filter((trade: any) => {
-    return Number.isFinite(new Date(trade?.date).getTime()) &&
-      Number.isFinite(new Date(trade?.dateExit).getTime()) &&
-      Number.isFinite(Number(trade?.profitInCurrency))
-  }).length
-})
-
-const patternForecastIntroStats = computed(() => ({
-  userTrades: patternForecastClosedTradesCount.value,
-  minTrades: PATTERN_FORECAST_LIMITS.minUserTrades,
-  historicalProfiles: PATTERN_FORECAST_LIMITS.historicalProfiles,
-  maxMatches: PATTERN_FORECAST_LIMITS.maxMatches,
-  horizonsLabel: PATTERN_FORECAST_LIMITS.horizons.join('/')
-}))
 
 const getTradePnlValue = (trade: any) => {
   const raw = trade?.profitInCurrency ?? trade?.pnl ?? trade?.result ?? 0
@@ -2326,29 +2179,6 @@ const complianceDotColor = computed(() => {
   if (v.riskPerTrade < 85 || v.riskPerSession < 85 || v.tradingStyle < 85 || v.emotionalStateScore < 60) return 'bg-[#fbbf24] dark:bg-[#fcd34d]';
   return null;
 })
-
-const toggleCapitalForecast = () => {
-  if (!canOpenCapitalForecast.value) {
-    showPaywall.value = true
-    return
-  }
-
-  if (showCapitalForecast.value) {
-    showCapitalForecast.value = false
-    return
-  }
-
-  showCapitalForecastIntro.value = true
-}
-
-const acceptCapitalForecastIntro = () => {
-  showCapitalForecastIntro.value = false
-  showCapitalForecast.value = true
-}
-
-const rejectCapitalForecastIntro = () => {
-  showCapitalForecastIntro.value = false
-}
 
 const calculateRR = (trade: any) => {
   if (!trade || !trade.entry || !trade.stopLoss || !trade.takeProfit) return '0.00'
@@ -2916,17 +2746,6 @@ const handleRemoveTrade = async (tradeId: string) => {
     selectedTradeId.value = null
   }
 }
-
-watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
-  if (loading) return
-  const cores = (nodes as any[])
-    .filter(n => n.type === 'strategy' || n.type === 'system')
-    .map(n => ({
-      id: n.id,
-      name: (n.params?.customName || n.label).toUpperCase()
-    }))
-  tradeStore.syncStrategies(cores)
-}, { immediate: true, deep: true })
 
 const activeFaceIndices = computed(() => {
   return facesTrades.value

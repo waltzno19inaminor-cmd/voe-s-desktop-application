@@ -109,9 +109,9 @@
                   variant="light"
                   no-padding
                   no-shadow
-                  class="!border-red-500/30 dark:!border-red-400/30"
+                  class="risk-panel-frame !border-red-500/30 dark:!border-red-400/30"
                   :style="riskPanelPanelStyle"
-                  :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden, 'risk-panel-theme-light': !themeStore.settings.isDark }">
+                  :class="{ 'risk-panel-collapsed': isRiskPanelContentHidden, 'risk-panel-theme-light': !themeStore.settings.isDark, 'risk-panel-theme-dark': themeStore.settings.isDark }">
                   <div v-if="isRiskPanelContentHidden" class="risk-panel-hatch"></div>
                   <div class="relative z-10 flex items-center justify-between border-b nier-border-primary bg-red-500/[0.03]"
                        :style="{ padding: `${scaledRiskPx(8)} ${scaledRiskPx(16)}` }">
@@ -896,7 +896,8 @@ const riskPanelScalerStyle = computed(() => ({
 }))
 const riskPanelPanelStyle = computed(() => ({
   width: `${360 * riskPanelVisualScale.value}px`,
-  minHeight: `${riskPanelBaseHeight * riskPanelVisualScale.value}px`
+  minHeight: `${riskPanelBaseHeight * riskPanelVisualScale.value}px`,
+  '--risk-panel-scale': riskPanelVisualScale.value
 }))
 const configNodeCode = computed(() => (props.node.label || 'CFG').slice(0, 3).toUpperCase())
 const matrixNodeTypeSuffix = computed(() => {
@@ -1746,8 +1747,20 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-panel-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(6px * var(--risk-panel-scale, 1));
   min-width: 0;
+}
+
+.risk-panel-frame :deep(> .absolute.inset-0.pointer-events-none.overflow-visible.z-50) {
+  inset: 0 !important;
+  position: absolute !important;
+}
+
+.risk-panel-frame :deep(> .absolute.inset-0.pointer-events-none.overflow-visible.z-50 > div) {
+  height: calc(2rem * var(--risk-panel-scale, 1)) !important;
+  margin: calc(-0.5rem * var(--risk-panel-scale, 1)) !important;
+  position: absolute !important;
+  width: calc(2rem * var(--risk-panel-scale, 1)) !important;
 }
 
 .risk-panel-collapsed {
@@ -1773,7 +1786,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
     transparent 1px,
     transparent 12px
   );
-  inset: 30px 0 0 0;
+  inset: 0;
   pointer-events: none;
   position: absolute;
   z-index: 1;
@@ -1782,7 +1795,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-panel-field > span {
   color: rgb(255 255 255 / 0.72);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 8px;
+  font-size: calc(8px * var(--risk-panel-scale, 1));
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
@@ -1798,7 +1811,7 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   background: rgb(0 0 0 / 0.035);
   border: 1px solid rgb(255 255 255 / 0.16);
   display: flex;
-  height: 38px;
+  height: calc(38px * var(--risk-panel-scale, 1));
   min-width: 0;
 }
 
@@ -1815,15 +1828,19 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
   color: #000;
   flex: 1 1 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 12px;
+  font-size: calc(12px * var(--risk-panel-scale, 1));
   font-weight: 900;
   min-width: 0;
   outline: none;
-  padding: 0 10px;
+  padding: 0 calc(10px * var(--risk-panel-scale, 1));
   text-align: center;
 }
 
 :global(html.dark) .risk-panel-control input {
+  color: #fff;
+}
+
+.risk-panel-theme-dark .risk-panel-control input {
   color: #fff;
 }
 
@@ -1841,9 +1858,9 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-panel-control button {
   border-left: 1px solid rgb(0 0 0 / 0.16);
   color: rgb(0 0 0 / 0.9);
-  flex: 0 0 34px;
+  flex: 0 0 calc(34px * var(--risk-panel-scale, 1));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
+  font-size: calc(11px * var(--risk-panel-scale, 1));
   font-weight: 900;
   height: 100%;
   transition: background-color 0.2s ease, color 0.2s ease;
@@ -1861,11 +1878,11 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 .risk-panel-prefix {
   border-right: 1px solid rgb(0 0 0 / 0.12);
   color: rgb(0 0 0 / 0.78);
-  flex: 0 0 38px;
+  flex: 0 0 calc(38px * var(--risk-panel-scale, 1));
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 11px;
+  font-size: calc(11px * var(--risk-panel-scale, 1));
   font-weight: 900;
-  line-height: 38px;
+  line-height: calc(38px * var(--risk-panel-scale, 1));
   text-align: center;
 }
 
@@ -1875,40 +1892,45 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 }
 
 .risk-style-control {
-  gap: 4px;
+  gap: calc(4px * var(--risk-panel-scale, 1));
   height: auto;
-  padding: 4px;
+  padding: calc(4px * var(--risk-panel-scale, 1));
 }
 
 .risk-style-control button {
   color: rgb(0 0 0 / 0.6);
   flex: 1 1 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-  font-size: 9px;
+  font-size: calc(9px * var(--risk-panel-scale, 1));
   font-weight: 900;
-  height: 32px;
+  height: calc(32px * var(--risk-panel-scale, 1));
   letter-spacing: 0.12em;
   min-width: 0;
   overflow: hidden;
-  padding: 0 6px;
+  padding: 0 calc(6px * var(--risk-panel-scale, 1));
   position: relative;
   text-transform: uppercase;
   transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
   white-space: nowrap;
 }
 
+.risk-panel-theme-dark .risk-style-control button,
+:global(html.dark) .risk-style-control button {
+  color: rgb(255 255 255 / 0.62);
+}
+
 .risk-style-control button::before {
   border-left: 1px solid rgb(0 0 0 / 0.16);
   border-top: 1px solid rgb(0 0 0 / 0.16);
   content: '';
-  height: 6px;
+  height: calc(6px * var(--risk-panel-scale, 1));
   left: 0;
   opacity: 0;
   pointer-events: none;
   position: absolute;
   top: 0;
   transition: opacity 0.2s ease;
-  width: 6px;
+  width: calc(6px * var(--risk-panel-scale, 1));
 }
 
 :global(html.dark) .risk-style-control button::before {
@@ -1924,6 +1946,10 @@ input, textarea, .matrix-text-rich, .matrix-table-input {
 
 .risk-style-control button:not(.is-active):hover {
   color: rgb(0 0 0 / 0.9);
+}
+
+.risk-panel-theme-dark .risk-style-control button:not(.is-active):hover {
+  color: rgb(255 255 255 / 0.86);
 }
 :global(html.dark) .risk-style-control button:not(.is-active):hover {
   color: rgb(255 255 255 / 0.78);

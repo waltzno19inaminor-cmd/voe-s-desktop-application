@@ -534,9 +534,9 @@
 
         <!-- WINRATE TARGET MENU BUTTON -->
         <button v-if="!showMetricsPanel && !showDistribution3D && !showCalendarMode"
-                @click="showWinrateMenu = true"
+                @click="showPaywall = true"
                 class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
-                :class="showWinrateMenu ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white opacity-60 hover:opacity-100'">
+                :class="'border-transparent text-white opacity-60 hover:opacity-100'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
             <line x1="8" y1="6" x2="21" y2="6"></line>
             <line x1="8" y1="12" x2="21" y2="12"></line>
@@ -552,7 +552,7 @@
 
         <!-- BROKER / EXCHANGE CONNECTORS -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showBrokerConnectPanel = true"
+                @click="showPaywall = true"
                 class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
@@ -565,26 +565,23 @@
 
         <!-- SYNC TRADES FROM API -->
         <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="syncCurrentStrategyApi"
-                :disabled="isApiSyncing"
-                :title="apiSyncButtonTitle"
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-25"
-                :class="isApiSyncing ? 'bg-white/10 opacity-100 border-white/20' : ''">
+                @click="showPaywall = true"
+                :title="isRu ? 'Нужен премиум-доступ' : 'Premium access required'"
+                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
           <svg viewBox="0 0 24 24"
                fill="none"
                stroke="currentColor"
                stroke-width="1.5"
                stroke-linecap="round"
                stroke-linejoin="round"
-               class="w-4 h-4"
-               :class="isApiSyncing ? 'animate-spin' : ''">
+               class="w-4 h-4">
             <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
             <path d="M3 21v-5h5" />
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
             <path d="M16 8h5V3" />
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-             {{ isApiSyncing ? (isRu ? '[ СИНХРОНИЗАЦИЯ_СДЕЛОК ]' : '[ SYNCING_TRADES ]') : (isRu ? '[ СИНХРОНИЗИРОВАТЬ_СДЕЛКИ_API ]' : '[ SYNC_TRADES_FROM_API ]') }}
+             {{ isRu ? '[ СИНХРОНИЗИРОВАТЬ_СДЕЛКИ_API ]' : '[ SYNC_TRADES_FROM_API ]' }}
            </div>
          </button>
 

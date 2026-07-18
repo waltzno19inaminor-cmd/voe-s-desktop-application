@@ -67,15 +67,6 @@ function getRiskValue(riskNode: any, key: string, fallbackKey: string) {
   return params[key] ?? riskData[fallbackKey]
 }
 
-export function getMatrixStrategiesForTradeStore(nodes: any[] = []) {
-  return flattenMatrixNodes(nodes)
-    .filter(isStrategyNode)
-    .map((node: any) => ({
-      id: node.id,
-      name: getMatrixStrategyName(node).toUpperCase()
-    }))
-}
-
 export function getMatrixStrategyOptions(data: any): MatrixStrategyProfile[] {
   const strategies: MatrixStrategyProfile[] = []
 

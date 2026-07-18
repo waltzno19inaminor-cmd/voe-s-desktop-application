@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col space-y-6 font-mono select-none nier-text-primary">
+  <div class="flex flex-col font-mono select-none nier-text-primary" :class="showFilters ? 'space-y-6' : ''">
     <!-- FILTER BAR -->
-    <div ref="filterBarRef" class="relative z-30 flex flex-col gap-3 pb-4 border-b nier-border-primary">
+    <div v-if="showFilters" ref="filterBarRef" class="relative z-30 flex flex-col gap-3 pb-4 border-b nier-border-primary">
       <div class="flex items-center justify-between gap-4 text-xs">
         <div class="flex items-center gap-3 min-w-0">
           <span class="font-black uppercase tracking-widest">{{ locale === 'ru' ? 'Фильтры' : 'Filters' }}</span>
@@ -11,6 +11,24 @@
           </button>
         </div>
         <div class="flex items-center space-x-3 shrink-0">
+          <div class="flex items-center gap-1 pr-3 border-r nier-border-primary">
+            <button
+              @click="emit('list-view-mode-change', 'timeTree')"
+              class="h-5 px-1.5 border text-[9px] font-bold uppercase tracking-[0.14em] transition-colors"
+              :class="activeListViewMode === 'timeTree' ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
+              :title="locale === 'ru' ? 'Дерево времени' : 'Time tree'"
+            >
+              TREE
+            </button>
+            <button
+              @click="emit('list-view-mode-change', 'list')"
+              class="h-5 px-1.5 border text-[9px] font-bold uppercase tracking-[0.14em] transition-colors"
+              :class="activeListViewMode === 'list' ? 'bg-black text-white dark:bg-[#F9F6F0] dark:text-black border-black dark:border-white' : 'border-black/20 dark:border-white/20 opacity-45 hover:opacity-100'"
+              :title="locale === 'ru' ? 'Вертикальный список' : 'Vertical list'"
+            >
+              LIST
+            </button>
+          </div>
           <div class="flex items-center gap-1 pr-3 border-r nier-border-primary">
             <button
               @click="setResultDisplayMode('currency')"
@@ -264,7 +282,7 @@
     </div>
 
     <!-- VERTICAL TRADE REGISTRY -->
-    <div class="flex flex-col space-y-3 font-mono text-xs pt-2 select-none">
+    <div v-if="!filtersOnly" class="flex flex-col space-y-3 font-mono text-xs pt-2 select-none">
       <!-- TABLE CONTROLS & HEADER GRID -->
       <div class="flex items-center justify-between pb-1 text-[10px] opacity-60 uppercase tracking-widest px-2">
         <div class="flex items-center space-x-3">
