@@ -37,29 +37,39 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
   const isLoading = ref(true)
   const isInitialized = ref(false)
 
+  const _hiddenStrategies = ref<StrategyProfile[]>([])
+  const _hiddenTradesByStrategy = ref<Record<string, DiaryEntry[]>>({})
+  const _hiddenInitialDeposits = ref<Record<string, number>>({})
+  const _hiddenHiddenTradeIds = ref<Record<string, string[]>>({})
+
   function enforceDemoMainDiaryOnly() {
-    const mainDiaryTrades = [...(tradesByStrategy.value['MAIN_DIARY'] || [])]
+    const mainDiaryTrades = tradesByStrategy.value['MAIN_DIARY'] || []
+    
+    // Preserve other strategies in hidden state instead of deleting or merging them
+    _hiddenStrategies.value = strategies.value.filter(s => s.id !== 'MAIN_DIARY')
+    
     Object.entries(tradesByStrategy.value).forEach(([strategyId, trades]) => {
       if (strategyId !== 'MAIN_DIARY') {
-        mainDiaryTrades.push(...trades.map(trade => ({
-          ...trade,
-          strategyId: 'MAIN_DIARY',
-          tradingStyle: 'Main Diary'
-        })))
+        _hiddenTradesByStrategy.value[strategyId] = trades
+      }
+    })
+    
+    Object.entries(hiddenTradeIdsByStrategy.value).forEach(([strategyId, tradeIds]) => {
+      if (strategyId !== 'MAIN_DIARY') {
+        _hiddenHiddenTradeIds.value[strategyId] = tradeIds
       }
     })
 
-    const mainDiaryHidden = new Set(hiddenTradeIdsByStrategy.value['MAIN_DIARY'] || [])
-    Object.entries(hiddenTradeIdsByStrategy.value).forEach(([strategyId, tradeIds]) => {
+    Object.entries(initialDepositsByStrategy.value).forEach(([strategyId, deposit]) => {
       if (strategyId !== 'MAIN_DIARY') {
-        tradeIds.forEach(id => mainDiaryHidden.add(id))
+        _hiddenInitialDeposits.value[strategyId] = deposit
       }
     })
 
     const initialDeposit = initialDepositsByStrategy.value['MAIN_DIARY'] ?? 1000
     strategies.value = [{ ...MAIN_DIARY_STRATEGY }]
     tradesByStrategy.value = { 'MAIN_DIARY': mainDiaryTrades }
-    hiddenTradeIdsByStrategy.value = { 'MAIN_DIARY': Array.from(mainDiaryHidden) }
+    hiddenTradeIdsByStrategy.value = { 'MAIN_DIARY': hiddenTradeIdsByStrategy.value['MAIN_DIARY'] || [] }
     initialDepositsByStrategy.value = { 'MAIN_DIARY': initialDeposit }
     selectedStrategyId.value = 'MAIN_DIARY'
   }
@@ -120,10 +130,10 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
 
   async function save() {
     const data: StrategyTradesData = {
-      strategies: strategies.value,
-      tradesByStrategy: tradesByStrategy.value,
-      initialDepositsByStrategy: initialDepositsByStrategy.value,
-      hiddenTradeIdsByStrategy: hiddenTradeIdsByStrategy.value
+      strategies: [...strategies.value, ..._hiddenStrategies.value],
+      tradesByStrategy: { ...tradesByStrategy.value, ..._hiddenTradesByStrategy.value },
+      initialDepositsByStrategy: { ...initialDepositsByStrategy.value, ..._hiddenInitialDeposits.value },
+      hiddenTradeIdsByStrategy: { ...hiddenTradeIdsByStrategy.value, ..._hiddenHiddenTradeIds.value }
     }
     // Save to both Main and Backup for safety
     await saveToDisk('strategy_trades_v1', data)
@@ -133,7 +143,7 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
   function getTradesForStrategy(strategyId: string) {
     const trades = tradesByStrategy.value[strategyId] || []
     const hiddenIds = new Set(hiddenTradeIdsByStrategy.value[strategyId] || [])
-    return trades.filter(trade => !hiddenIds.has(trade.id))
+    return trades.filter(trade => !trade.id || !hiddenIds.has(trade.id))
   }
 
   function getAllTradesForStrategy(strategyId: string) {
