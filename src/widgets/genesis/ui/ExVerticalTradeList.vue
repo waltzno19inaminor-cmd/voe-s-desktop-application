@@ -526,7 +526,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 
-const { locale } = useI18n()
+const { locale, t } = useI18n()
+const openTradeText = () => t('genesis.virtualLog.openTrade')
+const isClosedTradeRecord = (trade: any) => trade?.isClosed !== false && String(trade?.status || '').toLowerCase() !== 'open'
 
 const props = defineProps<{
   trades?: any[]
@@ -638,12 +640,16 @@ const onNoteClick = (tradeId: string, noteId: string) => {
 }
 
 const getResultMetricValue = (trade: any) => {
+  if (!isClosedTradeRecord(trade)) return Number.NaN
   return resultDisplayMode.value === 'currency' ? Number(trade.profitInCurrency || 0) : Number(trade.profitValue || 0)
 }
 
 const resultMetricLabel = computed(() => resultDisplayMode.value === 'currency' ? '$' : '%')
 
 const formatTradeResult = (trade: any) => {
+  if (!isClosedTradeRecord(trade)) {
+    return openTradeText()
+  }
   const rawValue = getResultMetricValue(trade)
   const value = Number.isFinite(rawValue) ? rawValue : 0
   const sign = value > 0 ? '+' : ''
@@ -653,6 +659,7 @@ const formatTradeResult = (trade: any) => {
 }
 
 const resultColorClass = (trade: any) => {
+  if (!isClosedTradeRecord(trade)) return colorMode.value === 'colorful' ? 'text-yellow-500' : ''
   if (colorMode.value !== 'colorful') return ''
   const value = getResultMetricValue(trade)
   return value > 0 ? 'text-green-500' : value < 0 ? 'text-red-500' : 'text-yellow-500'
@@ -1068,7 +1075,8 @@ const statusList = computed(() => [
   { id: 'ALL', label: locale.value === 'ru' ? 'ВСЕ' : 'ALL' },
   { id: 'WIN', label: locale.value === 'ru' ? 'ПРИБЫЛЬ' : 'WIN' },
   { id: 'LOSS', label: locale.value === 'ru' ? 'УБЫТОК' : 'LOSS' },
-  { id: 'SCRATCH', label: locale.value === 'ru' ? 'БЕЗУБЫТОК' : 'SCRATCH' }
+  { id: 'SCRATCH', label: locale.value === 'ru' ? 'БЕЗУБЫТОК' : 'SCRATCH' },
+  { id: 'OPEN', label: openTradeText() }
 ])
 
 const directionList = computed(() => [
@@ -1434,11 +1442,12 @@ const activeTrades = computed(() => {
 
       let runningCapital = strategyStore.getInitialDeposit(sId)
       for (const t of stratTrades) {
+        const closed = isClosedTradeRecord(t)
         const currencyProfit = t.profitInCurrency !== undefined ? t.profitInCurrency : (t.pnl !== undefined ? t.pnl : (t.result || 0))
         const capAtTrade = runningCapital > 0 ? runningCapital : 1000
-        const calcPercent = Math.round((currencyProfit / capAtTrade) * 10000) / 100
+        const calcPercent = closed ? Math.round((currencyProfit / capAtTrade) * 10000) / 100 : 0
         
-        runningCapital += currencyProfit
+        if (closed) runningCapital += currencyProfit
 
         enrichedTradesMap[t.id || 'TRD-XX'] = { currencyProfit, calcPercent }
       }
@@ -1452,12 +1461,13 @@ const activeTrades = computed(() => {
       }
       const currencyProfit = enriched.currencyProfit
       const calcPercent = enriched.calcPercent
+      const isClosed = isClosedTradeRecord(t)
 
       const start = t.date ? new Date(t.date).getTime() : Date.now()
-      const end = t.dateExit ? new Date(t.dateExit).getTime() : start + 45 * 60000
+      const end = isClosed && t.dateExit ? new Date(t.dateExit).getTime() : start
       const diffMins = Math.max(0, Math.floor((end - start) / 60000))
       const hours = Math.floor(diffMins / 60)
-      const durStr = hours > 0 ? `${hours}h ${diffMins % 60}m` : `${diffMins}m`
+      const durStr = isClosed ? (hours > 0 ? `${hours}h ${diffMins % 60}m` : `${diffMins}m`) : openTradeText()
       
       const notesArr = Array.isArray(t.notesList)
         ? t.notesList
@@ -1480,14 +1490,15 @@ const activeTrades = computed(() => {
         conditions: t.conditions,
         boardConditions: t.boardConditions,
         entryPrice: t.entry !== undefined ? t.entry : (t.entryPrice || 0),
-        exitPrice: t.exit !== undefined ? t.exit : (t.exitPrice || 0),
+        exitPrice: isClosed ? (t.exit !== undefined ? t.exit : (t.exitPrice || 0)) : '—',
         size: t.size !== undefined ? t.size : (t.positionSize || 1),
         stopLoss: t.stopLoss !== undefined ? t.stopLoss : 0,
         takeProfit: t.takeProfit !== undefined ? t.takeProfit : 0,
         profitInCurrency: currencyProfit,
+        isClosed,
         executions: Array.isArray(t.executions) ? t.executions : [],
         dateEntryStr: t.date ? new Date(t.date).toLocaleString() : '10.05.2026, 14:30:00',
-        dateExitStr: t.dateExit ? new Date(t.dateExit).toLocaleString() : '10.05.2026, 15:15:00',
+        dateExitStr: isClosed && t.dateExit ? new Date(t.dateExit).toLocaleString() : openTradeText(),
         profitValue: calcPercent,
         timeValue: 50,
         dateTime: t.date ? new Date(t.date).toLocaleDateString() : '10.05.2026',
@@ -1496,7 +1507,7 @@ const activeTrades = computed(() => {
         timeZone: t.timeZone,
         duration: durStr,
         durationMinutes: diffMins,
-        status: currencyProfit > 0 ? 'WIN' : currencyProfit < 0 ? 'LOSS' : 'SCRATCH',
+        status: isClosed ? (currencyProfit > 0 ? 'WIN' : currencyProfit < 0 ? 'LOSS' : 'SCRATCH') : 'OPEN',
         asset: t.asset || 'BTC/USD',
         direction: t.side ? t.side.toUpperCase() : 'LONG',
         notes: notesArr
@@ -1938,6 +1949,7 @@ const filteredTrades = computed(() => {
     if (hasYearRangeFilter.value && !isWithinRange(getTradeYear(trade), yearFrom.value, yearTo.value)) return false
 
     if (selectedProfitTier.value !== 'ALL') {
+      if (!isClosedTradeRecord(trade)) return false
       const p = getResultMetricValue(trade)
       if (selectedProfitTier.value === 'CUSTOM') {
         if (customProfitMin.value !== null && customProfitMin.value !== undefined && customProfitMin.value !== '' as any) {

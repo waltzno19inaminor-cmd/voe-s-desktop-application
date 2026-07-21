@@ -33,6 +33,8 @@ export interface DiaryEntry {
     exitFee?: number;
     feeType?: '%' | string;
     result?: number;
+    isClosed?: boolean;
+    status?: 'open' | 'closed' | string;
     notes?: string;
     notesList?: DiaryNote[];
     images?: DiaryImage[];

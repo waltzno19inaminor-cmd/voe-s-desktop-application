@@ -464,7 +464,7 @@
                    </div>
                  </div>
                  
-                 <div v-if="selectedTrade" class="flex items-baseline space-x-3">
+                 <div v-if="selectedTrade && isClosedDiaryTrade(selectedTrade)" class="flex items-baseline space-x-3">
                    <span class="text-4xl font-bold font-mono tracking-tighter bg-clip-text text-transparent"
                          :class="(Number(selectedTrade.profitInCurrency) || 0) >= 0 ? 'bg-gradient-to-br from-green-500 to-green-300 dark:from-green-400 dark:to-green-600' : 'bg-gradient-to-br from-red-500 to-red-300 dark:from-red-400 dark:to-red-600'">
                      {{ (Number(selectedTrade.profitInCurrency) || 0) >= 0 ? '+$' : '-$' }}{{ Math.abs(Number(selectedTrade.profitInCurrency) || 0).toFixed(2) }}
@@ -472,6 +472,11 @@
                    <span class="text-xl font-bold font-mono tracking-widest opacity-80"
                          :class="(Number(selectedTrade.profitInCurrency) || 0) >= 0 ? 'text-green-500' : 'text-red-500'">
                      {{ (Number(selectedTrade.profitInCurrency) || 0) >= 0 ? '+' : '' }}{{ (((Number(selectedTrade.profitInCurrency) || 0) / Math.max(1, selectedTradeBalanceBefore)) * 100).toFixed(3) }}%
+                   </span>
+                 </div>
+                 <div v-else-if="selectedTrade" class="flex items-baseline space-x-3">
+                   <span class="text-3xl font-bold font-mono tracking-[0.18em] uppercase text-amber-500/80">
+                     {{ openTradeText() }}
                    </span>
                  </div>
                   <div class="h-px w-full bg-gradient-to-r from-black/10 via-transparent to-transparent dark:from-white/10"></div>
@@ -490,8 +495,8 @@
                     <div class="flex flex-col">
                       <span v-if="hasMultipleExits" class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ locale === 'ru' ? 'СРЕДНИЙ_ВЫХОД' : 'AVERAGE_EXIT' }}</span>
                       <span v-else class="text-[8px] font-mono opacity-40 uppercase tracking-[0.4em] nier-text-primary">{{ t('genesis.virtualLog.exitPrice') }}</span>
-                      <span class="font-mono font-bold nier-text-primary mt-2 leading-none" :class="getDynamicPriceClass(selectedTrade?.exit)">{{ formatFullPrice(selectedTrade?.exit) }}</span>
-                      <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') }}</span>
+                      <span class="font-mono font-bold nier-text-primary mt-2 leading-none" :class="getDynamicPriceClass(selectedTrade?.exit)">{{ isClosedDiaryTrade(selectedTrade) ? formatFullPrice(selectedTrade?.exit) : '—' }}</span>
+                      <span class="text-[12px] font-mono opacity-50 nier-text-primary mt-2 leading-tight uppercase">{{ isClosedDiaryTrade(selectedTrade) ? formatFullDate(selectedTrade?.dateExit).replace('\n', ' // ') : openTradeText() }}</span>
                     </div>
 
                     <div v-if="selectedTradeTimeZone" class="col-span-2 flex justify-start">
@@ -1154,6 +1159,7 @@ const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openT
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore?.settings?.isDark ?? false)
 const { t, locale } = useI18n()
+const openTradeText = () => t('genesis.virtualLog.openTrade')
 const authStore = useAuthStore()
 const {
   nodes: matrixStateNodes,
@@ -1465,9 +1471,14 @@ const getDynamicPriceClass = (price: unknown) => {
 
 const translateTemporalUnit = (unit: string) => t(`genesis.virtualLog.units.${unit}`)
 
+const isClosedDiaryTrade = (trade: any) => trade?.isClosed !== false && String(trade?.status || '').toLowerCase() !== 'open'
 
 const currentTrades = computed(() => {
   return scopeTradesToSelectedVersion(tradeStore.getTradesForStrategy(selectedStrategyId.value))
+})
+
+const closedCurrentTrades = computed(() => {
+  return currentTrades.value.filter(isClosedDiaryTrade)
 })
 
 const currentTradesForList = computed(() => {
@@ -1575,6 +1586,7 @@ const formatSignedPercent = (value: number) => {
 }
 
 const getTradeResultPercent = (trade: any) => {
+  if (!isClosedDiaryTrade(trade)) return Number.NaN
   const explicitResult = Number(trade?.result)
   if (Number.isFinite(explicitResult)) return explicitResult
 
@@ -1622,6 +1634,7 @@ const getTimeTreeResultColor = (value: number) => {
 }
 
 const formatTimeTreeResult = (percentValue: number, currencyValue: number) => {
+  if (!Number.isFinite(percentValue) && !Number.isFinite(currencyValue)) return openTradeText()
   if (listResultDisplayMode.value === 'currency') return formatDistributionCurrency(currencyValue)
   return formatSignedPercent(percentValue)
 }
@@ -1641,7 +1654,8 @@ const timeTreeGroups = computed(() => {
     if (!groups.has(key)) {
       groups.set(key, { key, timestamp, trades: [] })
     }
-    const pnl = getTradePnlValue(trade)
+    const isClosedTrade = isClosedDiaryTrade(trade)
+    const pnl = isClosedTrade ? getTradePnlValue(trade) : Number.NaN
     const resultValue = getTradeResultPercent(trade)
     groups.get(key)!.trades.push({
       id: String(trade?.id || `${key}-${groups.get(key)!.trades.length}`),
@@ -1650,7 +1664,7 @@ const timeTreeGroups = computed(() => {
       side: getTimeTreeSide(trade?.side || trade?.direction),
       pnl,
       resultLabel: formatTimeTreeResult(resultValue, pnl),
-      resultColor: getTimeTreeResultColor(listResultDisplayMode.value === 'currency' ? pnl : resultValue),
+      resultColor: isClosedTrade ? getTimeTreeResultColor(listResultDisplayMode.value === 'currency' ? pnl : resultValue) : 'hsl(45 80% 58%)',
       time: formatTimeTreeTime(timestamp),
       timestamp
     })
@@ -1694,7 +1708,7 @@ const formatDistributionValue = (value: number, withMetricLabel = false) => {
 const tradeOverallScoreMap = computed(() => {
   const strategyId = selectedStrategyId.value
   const deposit = tradeStore.getInitialDeposit(strategyId) || 1000
-  const scoredTrades = currentTrades.value
+  const scoredTrades = closedCurrentTrades.value
     .map((trade) => ({
       id: String(trade?.id || ''),
       rawScore: getTradeScore(trade, deposit)
@@ -1726,7 +1740,8 @@ const tradeDistributionBars = computed(() => {
     return getTradePnlValue(trade)
   }
 
-  const sortedTrades = [...filteredTrades.value]
+  const sortedTrades = filteredTrades.value
+    .filter(isClosedDiaryTrade)
     .map((trade) => ({
       trade,
       pnl: getTradePnlValue(trade),
@@ -1843,7 +1858,7 @@ const tradeViolatesRiskLimit = (trade: any, limit: number) => {
 }
 
 const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number, tradingStyle: number }>(() => {
-  const trades = currentTrades.value;
+  const trades = closedCurrentTrades.value;
   if (trades.length === 0) return { riskPerTrade: 100, riskPerSession: 100, tradingStyle: 100 };
 
   let compliantTradeCount = 0;
@@ -1919,7 +1934,7 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
 });
 
 const complianceViolations = computed(() => {
-  const trades = currentTrades.value;
+  const trades = closedCurrentTrades.value;
   if (trades.length === 0) return { violatingTrades: [], violatingSessions: [], violatingStyleTrades: [], violatingNeuralTrades: [] };
 
   const initDep = tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000;
@@ -2067,7 +2082,7 @@ const getEmotionWeight = (emotion: any) => {
 };
 
 const emotionalStatus = computed(() => {
-  const trades = currentTrades.value;
+  const trades = closedCurrentTrades.value;
   
   if (trades.length === 0) return { score: 60, label: 'NEUTRAL', colorClass: 'bg-yellow-500', textClass: 'text-yellow-500' };
 
@@ -2410,6 +2425,7 @@ const filteredTrades = computed(() => {
     if (filterAsset.value !== 'ALL' && t.asset !== filterAsset.value) return false
     
     // PnL Filter
+    if (!isClosedDiaryTrade(t) && filterPnL.value !== 'ALL') return false
     const pnl = t.profitInCurrency || 0
     if (filterPnL.value === 'PROFIT' && pnl < 0) return false
     if (filterPnL.value === 'LOSS' && pnl >= 0) return false
@@ -2522,7 +2538,7 @@ const selectedTradeBalanceBefore = computed(() => {
   const currentTradeId = selectedTrade.value.id;
   const startBalance = tradeStore.getInitialDeposit(strategyId) || 1000;
   
-  const priorTrades = currentTrades.value
+  const priorTrades = closedCurrentTrades.value
     .filter((trade: any) => {
       if (currentTradeId && trade?.id === currentTradeId) return false;
       const tradeExitTs = new Date(trade?.dateExit || trade?.date || 0).getTime();
@@ -2568,6 +2584,7 @@ interface TradeNode {
   neighbors?: number[]
   date?: string | Date
   isNote?: boolean
+  isOpenTrade?: boolean
   parentId?: string
 }
 
@@ -2593,6 +2610,11 @@ const tradeStore = useStrategyTradesStore()
 const selectedStrategyId = computed({
   get: () => tradeStore.selectedStrategyId,
   set: (val) => { tradeStore.selectedStrategyId = val }
+})
+
+watch(selectedStrategyId, () => {
+  timeTreeFilteredTrades.value = null
+  selectedTradeId.value = null
 })
 
 const isMainDiaryStrategy = computed(() => selectedStrategyId.value === 'MAIN_DIARY')
@@ -2697,7 +2719,7 @@ const mappedTradeForAnalysis = computed(() => {
   const t = selectedTrade.value as any
   if (!t) return undefined
   
-  const allTrades = currentTrades.value
+  const allTrades = closedCurrentTrades.value
   const totalCount = allTrades.length
 
   const stratId = t.strategyId || selectedStrategyId.value
@@ -2918,7 +2940,7 @@ const initTrades = () => {
   cubePages.forEach((realTradesForThisFace, i) => {
     const nodes: TradeNode[] = []
     
-    realTradesForThisFace.forEach((t) => {
+    realTradesForThisFace.forEach((trade) => {
       let localX = 0
       let localY = 0
       let attempts = 0
@@ -2941,33 +2963,38 @@ const initTrades = () => {
          attempts++
       }
 
+      const isOpenTrade = !isClosedDiaryTrade(trade)
+
       nodes.push({
-        id: t.id!,
-        label: `${formatCubeTradeAssetLabel(t.asset)} [${(t.profitInCurrency ?? 0) >= 0 ? '+' : ''}${Number(t.profitInCurrency ?? 0).toFixed(2)}$]`,
+        id: trade.id!,
+        label: isOpenTrade
+          ? `${formatCubeTradeAssetLabel(trade.asset)} [${openTradeText()}]`
+          : `${formatCubeTradeAssetLabel(trade.asset)} [${(trade.profitInCurrency ?? 0) >= 0 ? '+' : ''}${Number(trade.profitInCurrency ?? 0).toFixed(2)}$]`,
         faceIndex: i,
         localPos: { x: localX, y: localY },
         worldPos: calculateWorldPos(i, localX, localY),
-        date: t.date,
-        isNote: false
+        date: trade.date,
+        isNote: false,
+        isOpenTrade
       })
 
       // Add child nodes for notes
-      if (t.notesList && t.notesList.length > 0) {
-        t.notesList.forEach((note: any, noteIdx: number) => {
+      if (trade.notesList && trade.notesList.length > 0) {
+        trade.notesList.forEach((note: any, noteIdx: number) => {
           const offsetRadius = 25 + Math.random() * 10
-          const angle = (Math.PI * 2 / t.notesList!.length) * noteIdx
+          const angle = (Math.PI * 2 / trade.notesList!.length) * noteIdx
           
           const nLocalX = localX + Math.cos(angle) * offsetRadius
           const nLocalY = localY + Math.sin(angle) * offsetRadius
 
           nodes.push({
-             id: `note_${t.id}_${note.id}`,
+             id: `note_${trade.id}_${note.id}`,
              label: note.title || 'POST_MORTEM',
              faceIndex: i,
              localPos: { x: nLocalX, y: nLocalY },
              worldPos: calculateWorldPos(i, nLocalX, nLocalY),
              isNote: true,
-             parentId: t.id
+             parentId: trade.id
           })
         })
       }
@@ -3473,7 +3500,14 @@ const update = () => {
           const baseSize = 8 * focusMultiplier * (0.72 + reveal.icon * 0.28)
           const thinWidth = baseSize * 0.6
           
-          ctx.fillStyle = isDark.value ? '#ffffff' : '#334155' 
+          const primaryNodeColor = node.isOpenTrade
+            ? (isDark.value ? '#facc15' : '#ca8a04')
+            : (isDark.value ? '#ffffff' : '#334155')
+          const secondaryNodeColor = node.isOpenTrade
+            ? (isDark.value ? '#fde68a' : '#f59e0b')
+            : '#94a3b8'
+
+          ctx.fillStyle = primaryNodeColor
           ctx.beginPath()
           ctx.moveTo(proj.x, proj.y - revealLift - baseSize)
           ctx.lineTo(proj.x + thinWidth, proj.y - revealLift)
@@ -3482,7 +3516,7 @@ const update = () => {
           ctx.closePath()
           ctx.fill()
           
-          ctx.fillStyle = isDark.value ? '#94a3b8' : '#94a3b8'
+          ctx.fillStyle = secondaryNodeColor
           ctx.beginPath()
           const offX = proj.x + 1
           ctx.moveTo(offX, proj.y - revealLift - baseSize)
@@ -3492,7 +3526,7 @@ const update = () => {
           ctx.closePath()
           ctx.fill()
         } else {
-          ctx.globalAlpha = proj.opacity * 0.4; ctx.fillStyle = isDark.value ? '#64748b' : '#334155'
+          ctx.globalAlpha = proj.opacity * 0.4; ctx.fillStyle = node.isOpenTrade ? (isDark.value ? '#eab308' : '#ca8a04') : (isDark.value ? '#64748b' : '#334155')
           const baseSize = 4 * focusMultiplier
           const thinWidth = baseSize * 0.6
           ctx.beginPath()
@@ -3505,7 +3539,7 @@ const update = () => {
         }
         
         if (isCurrentFace && proj.opacity > 0.5 && reveal.label > 0.01) {
-          ctx.globalAlpha = reveal.label; ctx.fillStyle = isDark.value ? '#ffffff' : '#1e293b'
+          ctx.globalAlpha = reveal.label; ctx.fillStyle = node.isOpenTrade ? (isDark.value ? '#fde68a' : '#a16207') : (isDark.value ? '#ffffff' : '#1e293b')
           const dynamicFontSize = Math.floor(12 * focusMultiplier)
           ctx.font = `bold ${dynamicFontSize}px Inter`
           ctx.fillText(node.label, proj.x + (14 * focusMultiplier), proj.y + (5 * focusMultiplier) + (1 - reveal.label) * 6)

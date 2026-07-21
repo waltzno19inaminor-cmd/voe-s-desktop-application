@@ -4,7 +4,8 @@ import { inject } from 'vue';
 import { useI18n } from '~/shared/i18n/useI18n';
 import ExPanel from '~/shared/ui/ExPanel.vue';
 const emit = defineEmits(['close']);
-const { locale } = useI18n();
+const { locale, t } = useI18n();
+const openTradeText = () => t('genesis.virtualLog.openTrade');
 
 const assetTypeLocales = {
   'ALL': { en: 'ALL', ru: 'ВСЕ' },
@@ -22,7 +23,7 @@ const getAssetTypeLoc = (type) => {
 };
 
 
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, isClosed, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
 </script>
 
 <template>
@@ -45,8 +46,8 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
         </div>
 
         <div class="flex gap-0.5 bg-black/60 p-1 border-t border-l border-r border-white/30 shrink-0">
-          <button @click="resultMode = 'auto'" :class="resultMode === 'auto' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'АВТО' : 'AUTO' }}</button>
-          <button @click="resultMode = 'manual'" :class="resultMode === 'manual' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black">{{ locale === 'ru' ? 'РУЧНАЯ' : 'MANUAL' }}</button>
+          <button @click="isClosed && (resultMode = 'auto')" :class="resultMode === 'auto' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black" :disabled="!isClosed">{{ locale === 'ru' ? 'АВТО' : 'AUTO' }}</button>
+          <button @click="isClosed && (resultMode = 'manual')" :class="resultMode === 'manual' ? 'bg-white text-black' : 'bg-[#0a0a0a]/80 text-white/70 hover:bg-[#222] hover:text-white'" class="px-4 py-1.5 transition-all relative group text-[8px] uppercase tracking-[0.4em] font-black" :disabled="!isClosed">{{ locale === 'ru' ? 'РУЧНАЯ' : 'MANUAL' }}</button>
         </div>
       </div>
 
@@ -145,6 +146,22 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 {{ side }}
               </button>
             </div>
+
+            <label class="flex flex-col gap-1 text-left cursor-pointer select-none">
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">isClosed?</span>
+              <span class="flex items-center gap-2">
+                <span
+                  class="relative grid h-4 w-4 place-items-center border transition-colors"
+                  :class="isClosed ? 'border-emerald-400 bg-emerald-400/15' : 'border-amber-400/70 bg-amber-400/10'"
+                >
+                  <span v-if="isClosed" class="h-1.5 w-1.5 bg-emerald-300"></span>
+                </span>
+                <input v-model="isClosed" type="checkbox" class="sr-only" />
+                <span class="text-[9px] font-mono font-black uppercase tracking-[0.18em]" :class="isClosed ? 'text-emerald-300/80' : 'text-amber-300/80'">
+                  {{ isClosed ? 'Closed' : 'Open' }}
+                </span>
+              </span>
+            </label>
           </div>
 
           <!-- BLOCK: DYNAMIC DATA STREAM -->
@@ -158,11 +175,11 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                   <input v-if="!entryMethodEnabled" v-model="entry" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
                 </div>
-                <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled }">
+                <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled || !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="exitMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl' }}
+                    {{ !isClosed ? openTradeText() : (exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl') }}
                   </span>
-                  <input v-if="!exitMethodEnabled" v-model="exit" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
+                  <input v-if="!exitMethodEnabled || !isClosed" v-model="exit" type="number" placeholder="0.00" class="nier-input w-20 font-mono" :disabled="!isClosed"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
@@ -211,13 +228,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
 
               <div v-else-if="activeSector === 'time'" :key="'time'" class="flex items-center gap-12">
                 <div v-for="t in ['open', 'exit']" :key="t" 
-                     @click="openTemporal(t)"
-                     class="flex flex-col gap-1 cursor-pointer group/time hover:translate-y-[-2px] transition-all">
+                     @click="t === 'exit' && !isClosed ? null : openTemporal(t)"
+                     class="flex flex-col gap-1 cursor-pointer group/time hover:translate-y-[-2px] transition-all"
+                     :class="{ 'opacity-40 pointer-events-none': t === 'exit' && !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.3em] font-bold text-white/30 group-hover/time:text-white/60 transition-colors">{{ t.toUpperCase() }}_SYNC</span>
                   <div class="flex items-center gap-3 font-mono text-[11px] text-white/80 group-hover/time:text-white">
-                    <span>{{ formatPart(t === 'open' ? openDate : exitDate, 'year') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'month') }}.{{ formatPart(t === 'open' ? openDate : exitDate, 'day') }}</span>
+                    <span>{{ t === 'exit' && !isClosed ? '--' : `${formatPart(t === 'open' ? openDate : exitDate, 'year')}.${formatPart(t === 'open' ? openDate : exitDate, 'month')}.${formatPart(t === 'open' ? openDate : exitDate, 'day')}` }}</span>
                     <span class="opacity-20">/</span>
-                    <span class="tracking-widest">{{ formatPart(t === 'open' ? openDate : exitDate, 'hour') }}:{{ formatPart(t === 'open' ? openDate : exitDate, 'minute') }}</span>
+                    <span class="tracking-widest">{{ t === 'exit' && !isClosed ? '--' : `${formatPart(t === 'open' ? openDate : exitDate, 'hour')}:${formatPart(t === 'open' ? openDate : exitDate, 'minute')}` }}</span>
                   </div>
                 </div>
               </div>
@@ -236,7 +254,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                   <input v-model="entryFee" type="number" placeholder="0.00" class="nier-input w-20 font-mono text-amber-400"/>
                 </div>
                 
-                <div class="flex flex-col gap-0.5 text-left">
+                <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-40 pointer-events-none': !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-amber-500/60">
                     {{ locale === 'ru' ? 'ВЫХОДНАЯ КОМ.' : 'EXIT_FEE' }}
                   </span>
@@ -249,8 +267,11 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           <!-- BLOCK: OUTPUT -->
           <div class="flex items-center gap-10 pl-8 border-l border-white/10 w-[240px] shrink-0 justify-end">
             <div class="flex flex-col items-end gap-0.5">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
-              <div v-if="resultMode === 'manual'" class="flex items-center">
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ isClosed ? 'Yield_Est' : (locale === 'ru' ? 'СТАТУС' : 'STATUS') }}</span>
+              <div v-if="!isClosed" class="text-[10px] font-mono font-black uppercase tracking-[0.24em] text-white/45">
+                {{ openTradeText() }}
+              </div>
+              <div v-else-if="resultMode === 'manual'" class="flex items-center">
                 <input v-model.number="pnl" 
                        type="number" 
                        step="1"

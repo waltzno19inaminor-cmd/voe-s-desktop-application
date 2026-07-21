@@ -14,6 +14,7 @@ export interface GenesisTreeTradeSummary {
   date: string
   pnl: number
   pnlLabel: string
+  isOpenTrade?: boolean
 }
 
 export interface GenesisTreeScenarioNode {
@@ -158,6 +159,8 @@ export const useGenesisTree = () => {
   const authStore = useAuthStore()
   const appBootStore = useAppBootStore()
   const { locale, t } = useI18n()
+  const openTradeText = () => t('genesis.virtualLog.openTrade')
+  const isClosedTrade = (trade: any) => trade?.isClosed !== false && String(trade?.status || '').toLowerCase() !== 'open'
 
   const matrixNodes = shallowRef<any[]>([])
   const matrixConnections = shallowRef<any[]>([])
@@ -421,20 +424,22 @@ export const useGenesisTree = () => {
     const count = presentIn.length
     const freq = allTrades.length > 0 ? count / allTrades.length : 0
 
+    const closedTrades = presentIn.filter(isClosedTrade)
     let gProf = 0
     let gLoss = 0
     let wins = 0
     let netPnl = 0
-    presentIn.forEach((tr) => {
+    closedTrades.forEach((tr) => {
       const p = tr.profitInCurrency || 0
       netPnl += p
       if (p > 0) gProf += p
       else gLoss += Math.abs(p)
       if (p > 0) wins += 1
     })
-    const pf = count === 0 ? 0 : gLoss === 0 ? (gProf > 0 ? Infinity : 0) : gProf / gLoss
-    const winrate = count > 0 ? wins / count : 0
-    const sortedByPnl = [...presentIn].sort((a, b) => Number(b.profitInCurrency || 0) - Number(a.profitInCurrency || 0))
+    const closedCount = closedTrades.length
+    const pf = closedCount === 0 ? 0 : gLoss === 0 ? (gProf > 0 ? Infinity : 0) : gProf / gLoss
+    const winrate = closedCount > 0 ? wins / closedCount : 0
+    const sortedByPnl = [...closedTrades].sort((a, b) => Number(b.profitInCurrency || 0) - Number(a.profitInCurrency || 0))
     const sortedByDate = [...presentIn].sort((a, b) => getTradeTimestamp(b) - getTradeTimestamp(a))
 
     return {
@@ -460,7 +465,8 @@ export const useGenesisTree = () => {
   const summarizeTrade = (trade: any): GenesisTreeTradeSummary | null => {
     if (!trade) return null
 
-    const pnl = Number(trade.profitInCurrency || 0)
+    const isOpenTrade = !isClosedTrade(trade)
+    const pnl = isOpenTrade ? Number.NaN : Number(trade.profitInCurrency || 0)
     const timestamp = getTradeTimestamp(trade)
 
     return {
@@ -469,7 +475,8 @@ export const useGenesisTree = () => {
       asset: String(trade.asset || 'UNKNOWN').toUpperCase(),
       date: timestamp ? new Date(timestamp).toLocaleDateString(locale.value === 'ru' ? 'ru-RU' : 'en-GB') : 'UNKNOWN',
       pnl,
-      pnlLabel: formatMoney(pnl)
+      pnlLabel: isOpenTrade ? openTradeText() : formatMoney(pnl),
+      isOpenTrade
     }
   }
 
@@ -513,20 +520,22 @@ export const useGenesisTree = () => {
     const totalTrades = globalTreeTrades.value.length
     const freq = totalTrades > 0 ? strategyTrades.length / totalTrades : 0
 
+    const closedStrategyTrades = strategyTrades.filter(isClosedTrade)
     let gProf = 0
     let gLoss = 0
     let wins = 0
     let netPnl = 0
-    strategyTrades.forEach((trade) => {
+    closedStrategyTrades.forEach((trade) => {
       const p = trade.profitInCurrency || 0
       netPnl += p
       if (p > 0) gProf += p
       else gLoss += Math.abs(p)
       if (p > 0) wins += 1
     })
-    const pf = strategyTrades.length === 0 ? 0 : gLoss === 0 ? (gProf > 0 ? Infinity : 0) : gProf / gLoss
-    const winrate = strategyTrades.length > 0 ? wins / strategyTrades.length : 0
-    const sortedByPnl = [...strategyTrades].sort((a, b) => Number(b.profitInCurrency || 0) - Number(a.profitInCurrency || 0))
+    const closedCount = closedStrategyTrades.length
+    const pf = closedCount === 0 ? 0 : gLoss === 0 ? (gProf > 0 ? Infinity : 0) : gProf / gLoss
+    const winrate = closedCount > 0 ? wins / closedCount : 0
+    const sortedByPnl = [...closedStrategyTrades].sort((a, b) => Number(b.profitInCurrency || 0) - Number(a.profitInCurrency || 0))
     const sortedByDate = [...strategyTrades].sort((a, b) => getTradeTimestamp(b) - getTradeTimestamp(a))
 
     return {

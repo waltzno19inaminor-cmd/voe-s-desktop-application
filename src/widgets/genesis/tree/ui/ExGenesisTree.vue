@@ -658,6 +658,7 @@ const nodeSurfaceClass = (node: any) => {
 }
 
 const tradePnlClass = (trade: any) => {
+  if (trade?.isOpenTrade) return 'text-amber-500'
   const pnl = Number(trade?.pnl || 0)
   if (pnl > 0) return 'text-emerald-600 dark:text-emerald-400'
   if (pnl < 0) return 'text-rose-600 dark:text-rose-400'
