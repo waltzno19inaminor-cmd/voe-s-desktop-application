@@ -29,10 +29,9 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
 <template>
 <!-- BOTTOM PANEL (NIER CHASSIS) -->
     <Transition name="nier-fade">
-      <div v-if="!showEntryMethod" class="fixed bottom-0 mb-4 left-1/2 -translate-x-1/2 z-[1100] font-sans">
-        
+      <div v-if="!showEntryMethod" class="fixed bottom-0 mb-4 left-1/2 -translate-x-1/2 z-[1100] w-fit max-w-[calc(100vw-2rem)] font-sans">
         <!-- NIER SECTOR TABS AND SWITCHER -->
-      <div class="flex justify-between items-end w-full px-2 max-w-6xl">
+      <div class="flex justify-between items-end w-full px-2">
         <div class="flex gap-0.5 bg-black/60 p-1 border-t border-l border-r border-white/30">
           <button 
             v-for="sector in sectors" 
@@ -52,16 +51,16 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
       </div>
 
       <!-- MAIN CHASSIS -->
-      <div class="relative flex items-center bg-[#0a0a0a]/80 border border-white/30 px-8 h-16 max-w-6xl w-full transition-all duration-500 ">
+      <div class="relative inline-flex max-w-full items-center bg-[#0a0a0a]/80 border border-white/30 px-8 h-16 transition-all duration-500 ">
         
         <div class="absolute inset-0 pointer-events-none opacity-[0.08] overflow-hidden">
           <div class="w-full h-px bg-white animate-scan"></div>
         </div>
 
-        <div class="flex items-center gap-8 flex-1 relative z-10">
+        <div class="flex items-center gap-6 relative z-10">
           
           <!-- BLOCK: ID -->
-          <div class="flex items-center gap-6 pr-8 border-r border-white/10 w-[340px] shrink-0">
+          <div class="flex items-center gap-6 pr-6 border-r border-white/10 shrink-0">
             <div class="flex flex-col gap-0.5 text-left relative asset-select-container">
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
               <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
@@ -147,24 +146,12 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               </button>
             </div>
 
-            <label class="flex flex-col gap-0.5 text-left cursor-pointer select-none">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">isClosed?</span>
-              <span
-                class="grid h-4 w-4 place-items-center border border-white/35 bg-transparent text-black transition-colors"
-                :class="isClosed ? 'border-emerald-400 bg-emerald-400 text-black' : 'border-amber-400/70 bg-transparent'"
-              >
-                <svg v-if="isClosed" class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                </svg>
-              </span>
-              <input v-model="isClosed" type="checkbox" class="sr-only" />
-            </label>
           </div>
 
           <!-- BLOCK: DYNAMIC DATA STREAM -->
           <div class="flex-1">
             <Transition name="sector-swap" mode="out-in">
-              <div v-if="activeSector === 'core'" :key="'core'" class="flex items-center gap-12 min-w-[370px]">
+              <div v-if="activeSector === 'core'" :key="'core'" class="flex items-center gap-8">
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
                      {{ entryMethodEnabled ? 'Avg_Entry_Lvl' : 'Entry_Lvl' }}
@@ -262,13 +249,10 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           </div>
 
           <!-- BLOCK: OUTPUT -->
-          <div class="flex items-center gap-10 pl-8 border-l border-white/10 w-[240px] shrink-0 justify-end">
+          <div class="flex items-center gap-6 pl-6 border-l border-white/10 shrink-0 justify-end">
             <div class="flex flex-col items-end gap-0.5">
-              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ isClosed ? 'Yield_Est' : (locale === 'ru' ? 'СТАТУС' : 'STATUS') }}</span>
-              <div v-if="!isClosed" class="text-[10px] font-mono font-black uppercase tracking-[0.24em] text-white/45">
-                {{ openTradeText() }}
-              </div>
-              <div v-else-if="resultMode === 'manual'" class="flex items-center">
+              <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
+              <div v-if="isClosed && resultMode === 'manual'" class="flex items-center">
                 <input v-model.number="pnl" 
                        type="number" 
                        step="1"

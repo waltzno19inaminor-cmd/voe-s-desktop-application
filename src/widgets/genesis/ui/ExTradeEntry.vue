@@ -1,7 +1,9 @@
 <script setup>
 import { provide } from 'vue'
 import { useExTradeEntry } from '../model/useExTradeEntry'
+import { useI18n } from '~/shared/i18n/useI18n'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
+import ExTooltip from '~/shared/ui/ExTooltip.vue'
 
 import ExTradeEntryCmeNotice from './components/ExTradeEntryCmeNotice.vue'
 import ExTradeEntryProtocolSelect from './components/ExTradeEntryProtocolSelect.vue'
@@ -22,7 +24,8 @@ const props = defineProps({
 const state = useExTradeEntry(props, emit)
 provide('tradeState', state)
 
-const { isDark, scrollContainer } = state
+const { locale } = useI18n()
+const { isDark, isClosed, scrollContainer } = state
 </script>
 
 <template>
@@ -36,6 +39,38 @@ const { isDark, scrollContainer } = state
      <ExTradeEntryMiddleSection />
      <ExTradeEntryRightToggle />
      <ExTradeEntryEmotionMatrix />
+     <div class="fixed bottom-6 left-6 z-[1105]">
+       <ExTooltip
+         :is-dark="isDark"
+         :title="locale === 'ru' ? 'РЕЖИМ_ЗАКРЫТИЯ' : 'CLOSE_MODE'"
+         placement="top"
+         variant="basic"
+       >
+         <template #trigger>
+           <button
+             type="button"
+             class="group flex items-center gap-3 border border-white/30 bg-black/70 px-4 py-3 text-left transition-colors hover:border-white/70 hover:bg-black/85"
+             @click="isClosed = !isClosed"
+           >
+             <span class="flex flex-col gap-1">
+               <span class="text-[9px] uppercase tracking-[0.36em] font-black text-white/55">isClosed?</span>
+               <span class="text-[10px] uppercase tracking-[0.28em] font-mono font-black" :class="isClosed ? 'text-white' : 'text-white/45'">
+                 {{ isClosed ? (locale === 'ru' ? 'ЗАКРЫТА' : 'CLOSED') : (locale === 'ru' ? 'ОТКРЫТА' : 'OPEN') }}
+               </span>
+             </span>
+             <span class="relative grid h-6 w-6 shrink-0 place-items-center border border-white/55 bg-transparent transition-colors group-hover:border-white">
+               <svg v-if="isClosed" class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path stroke-linecap="square" stroke-linejoin="miter" stroke-width="2.4" d="M5 13l4 4L19 7"></path>
+               </svg>
+             </span>
+           </button>
+         </template>
+         {{ locale === 'ru'
+           ? 'Включено: сделка закрыта, можно вводить цену выхода и результат. Выключено: сделка остается открытой и не влияет на дневник.'
+           : 'On: the trade is closed, exit price and result are available. Off: the trade stays open and does not affect the diary.'
+         }}
+       </ExTooltip>
+     </div>
      <ExTradeEntryActionFooter />
      <ExTradeEntryMethodMatrix />
   </div>
