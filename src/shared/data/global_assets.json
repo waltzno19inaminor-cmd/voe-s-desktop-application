@@ -29928,7 +29928,7 @@
     "symbol": "XAU/USD",
     "name": "Gold",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/gold-bars.png",
+    "icon": "/assets_icons/commodity-gold-bars.png",
     "description": "Global Commodity / Future",
     "contractSize": 100,
     "currency": "USD"
@@ -29937,7 +29937,7 @@
     "symbol": "XAG/USD",
     "name": "Silver",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/silver-bars.png",
+    "icon": "/assets_icons/commodity-silver-bars.svg",
     "description": "Global Commodity / Future",
     "contractSize": 5000,
     "currency": "USD"
@@ -29957,14 +29957,14 @@
     "name": "Crude Oil WTI",
     "type": "Metals",
     "description": "Global energy benchmark",
-    "icon": "/assets_icons/USOIL.png"
+    "icon": "/assets_icons/commodity-oil-industry.png"
   },
   {
     "symbol": "UKOIL",
     "name": "Crude Oil Brent",
     "type": "Metals",
     "description": "Global energy benchmark",
-    "icon": "/assets_icons/UKOIL.png"
+    "icon": "/assets_icons/commodity-oil-storage.svg"
   },
   {
     "symbol": "CAD/JPY",
@@ -30144,7 +30144,7 @@
     "symbol": "WTI",
     "name": "Crude Oil WTI",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/oil-industry.png",
+    "icon": "/assets_icons/commodity-oil-industry.png",
     "description": "Global Commodity / Future",
     "contractSize": 1000,
     "currency": "USD"
@@ -30153,7 +30153,7 @@
     "symbol": "BRENT",
     "name": "Brent Crude Oil",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/oil-storage.png",
+    "icon": "/assets_icons/commodity-oil-storage.svg",
     "description": "Global Commodity / Future",
     "contractSize": 1000,
     "currency": "USD"
@@ -30162,7 +30162,7 @@
     "symbol": "NATGAS",
     "name": "Natural Gas",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/gas.png",
+    "icon": "/assets_icons/commodity-gas.png",
     "description": "Global Commodity / Future",
     "contractSize": 10000,
     "currency": "USD"
@@ -30171,7 +30171,7 @@
     "symbol": "SOYBN",
     "name": "Soybeans",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/soy.png",
+    "icon": "/assets_icons/commodity-soy.png",
     "description": "Global Commodity / Future",
     "contractSize": 5000,
     "currency": "USD"
@@ -30180,7 +30180,7 @@
     "symbol": "WHEAT",
     "name": "Wheat",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/wheat.png",
+    "icon": "/assets_icons/commodity-wheat.png",
     "description": "Global Commodity / Future",
     "contractSize": 5000,
     "currency": "USD"
@@ -30189,7 +30189,7 @@
     "symbol": "CORN",
     "name": "Corn",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/corn.png",
+    "icon": "/assets_icons/commodity-corn.png",
     "description": "Global Commodity / Future",
     "contractSize": 5000,
     "currency": "USD"
@@ -30198,7 +30198,7 @@
     "symbol": "COFFEE",
     "name": "Coffee",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/coffee-beans.png",
+    "icon": "/assets_icons/commodity-coffee-beans.svg",
     "description": "Global Commodity / Future",
     "contractSize": 37500,
     "currency": "USD"
@@ -30207,7 +30207,7 @@
     "symbol": "SUGAR",
     "name": "Sugar",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/sugar-cube.png",
+    "icon": "/assets_icons/commodity-sugar-cube.png",
     "description": "Global Commodity / Future",
     "contractSize": 112000,
     "currency": "USD"
@@ -30216,7 +30216,7 @@
     "symbol": "COTTON",
     "name": "Cotton",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/cotton-plant.png",
+    "icon": "/assets_icons/commodity-cotton-plant.svg",
     "description": "Global Commodity / Future",
     "contractSize": 50000,
     "currency": "USD"
@@ -30225,7 +30225,7 @@
     "symbol": "COPPER",
     "name": "Copper",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/copper-ingots.png",
+    "icon": "/assets_icons/commodity-copper-ingots.svg",
     "description": "Global Commodity / Future",
     "contractSize": 25000,
     "currency": "USD"
@@ -30234,7 +30234,7 @@
     "symbol": "COCOA",
     "name": "Cocoa Spot",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/cocoa-beans.png",
+    "icon": "/assets_icons/commodity-cocoa-beans.svg",
     "description": "Global Commodity / Future",
     "contractSize": 10,
     "currency": "USD"
@@ -30243,7 +30243,7 @@
     "symbol": "LIVCAT",
     "name": "Live Cattle",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/cow.png",
+    "icon": "/assets_icons/commodity-cow.png",
     "description": "Global Commodity / Future",
     "contractSize": 40000,
     "currency": "USD"
@@ -30252,7 +30252,7 @@
     "symbol": "FDRCAT",
     "name": "Feeder Cattle",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/cow.png",
+    "icon": "/assets_icons/commodity-cow.png",
     "description": "Global Commodity / Future",
     "contractSize": 50000,
     "currency": "USD"
@@ -30261,7 +30261,7 @@
     "symbol": "LN_HOG",
     "name": "Lean Hogs",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/pig.png",
+    "icon": "/assets_icons/commodity-pig.png",
     "description": "Global Commodity / Future",
     "contractSize": 40000,
     "currency": "USD"
@@ -30270,7 +30270,7 @@
     "symbol": "ORNG_J",
     "name": "Orange Juice",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/orange.png",
+    "icon": "/assets_icons/commodity-orange.png",
     "description": "Global Commodity / Future",
     "contractSize": 15000,
     "currency": "USD"
@@ -30279,7 +30279,7 @@
     "symbol": "RICE",
     "name": "Rough Rice",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/rice-bowl.png",
+    "icon": "/assets_icons/commodity-rice-bowl.png",
     "description": "Global Commodity / Future",
     "contractSize": 2000,
     "currency": "USD"
@@ -30288,7 +30288,7 @@
     "symbol": "LUMBER",
     "name": "Lumber",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/wood.png",
+    "icon": "/assets_icons/commodity-wood.png",
     "description": "Global Commodity / Future",
     "contractSize": 110,
     "currency": "USD"
@@ -30297,7 +30297,7 @@
     "symbol": "PALLAD",
     "name": "Palladium",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/metal-bars.png",
+    "icon": "/assets_icons/commodity-metal-bars.svg",
     "description": "Global Commodity / Future",
     "contractSize": 100,
     "currency": "USD"
@@ -30306,7 +30306,7 @@
     "symbol": "PLATIN",
     "name": "Platinum",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/metal-bars.png",
+    "icon": "/assets_icons/commodity-metal-bars.svg",
     "description": "Global Commodity / Future",
     "contractSize": 50,
     "currency": "USD"
@@ -30315,7 +30315,7 @@
     "symbol": "HEAT_O",
     "name": "Heating Oil",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/oil-pump.png",
+    "icon": "/assets_icons/commodity-oil-pump.svg",
     "description": "Global Commodity / Future",
     "contractSize": 42000,
     "currency": "USD"
@@ -30324,7 +30324,7 @@
     "symbol": "GASOLN",
     "name": "RBOB Gasoline",
     "type": "Commodities",
-    "icon": "https://img.icons8.com/ios-filled/50/ffffff/gas-station.png",
+    "icon": "/assets_icons/commodity-gas-station.png",
     "description": "Global Commodity / Future",
     "contractSize": 42000,
     "currency": "USD"

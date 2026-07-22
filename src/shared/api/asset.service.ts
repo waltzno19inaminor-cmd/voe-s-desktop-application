@@ -195,11 +195,11 @@ export function getIconForAsset(symbol: string, type: AssetType): string | undef
     }
     if (type === 'Metals') {
         const s = (symbol || '').toUpperCase();
-        if (s.includes('XAU')) return 'https://s3-symbol-logo.tradingview.com/gold--big.png';
-        if (s.includes('XAG')) return 'https://s3-symbol-logo.tradingview.com/silver--big.png';
-        if (s.includes('XPT')) return 'https://s3-symbol-logo.tradingview.com/platinum--big.png';
-        if (s.includes('XPD')) return 'https://s3-symbol-logo.tradingview.com/palladium--big.png';
-        if (s.includes('HG')) return 'https://s3-symbol-logo.tradingview.com/copper--big.png';
+        if (s.includes('XAU')) return '/assets_icons/commodity-gold-bars.png';
+        if (s.includes('XAG')) return '/assets_icons/commodity-silver-bars.svg';
+        if (s.includes('XPT')) return '/assets_icons/commodity-metal-bars.svg';
+        if (s.includes('XPD')) return '/assets_icons/commodity-metal-bars.svg';
+        if (s.includes('HG')) return '/assets_icons/commodity-copper-ingots.svg';
     }
     if (type === 'Crypto') {
         const s = (symbol || '').toUpperCase();

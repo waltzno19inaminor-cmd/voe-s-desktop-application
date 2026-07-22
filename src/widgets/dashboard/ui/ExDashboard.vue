@@ -378,6 +378,10 @@ onMounted(() => {
     if (docSnap.exists()) {
       updateNotification.value = docSnap.data() as any
     }
+  }, (error) => {
+    if (error?.code !== 'permission-denied') {
+      console.warn('[Dashboard] Update notification listener stopped:', error)
+    }
   })
 
   if (authStore.user?.uid) {
@@ -409,6 +413,10 @@ onMounted(() => {
             }
           }
         }
+      }
+    }, (error) => {
+      if (error?.code !== 'permission-denied') {
+        console.warn('[Dashboard] User listener stopped:', error)
       }
     })
   }

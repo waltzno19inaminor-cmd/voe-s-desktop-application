@@ -37,6 +37,19 @@ export const useNotificationStore = defineStore('notification', {
           this.notifications = this._buffer
           this.isReady = true
         }, 250)
+      }, (error) => {
+        this.isListening = false
+        this.isReady = true
+        this.unsubscribe = null
+
+        if (this._debounceTimer) {
+          clearTimeout(this._debounceTimer)
+          this._debounceTimer = null
+        }
+
+        if (error?.code !== 'permission-denied') {
+          console.warn('[Notifications] Snapshot listener stopped:', error)
+        }
       })
 
       this.isListening = true
