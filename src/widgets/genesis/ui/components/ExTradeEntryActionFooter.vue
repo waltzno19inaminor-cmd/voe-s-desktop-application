@@ -61,7 +61,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           
           <!-- BLOCK: ID -->
           <div class="flex items-center gap-6 pr-6 border-r border-white/10 shrink-0">
-            <div class="flex flex-col gap-0.5 text-left relative asset-select-container">
+            <div class="flex min-w-[150px] max-w-[220px] flex-col gap-0.5 text-left relative asset-select-container">
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
               <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
                 <div v-if="asset && currentAssetData" 
@@ -77,7 +77,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                     {{ currentAssetData.symbol[0] }}
                   </span>
                 </div>
-                <span class="text-[12px] font-mono font-bold tracking-widest uppercase transition-colors group-hover/asset-btn:text-white" :class="asset ? 'text-white' : 'text-white/40'">
+                <span class="truncate text-[12px] font-mono font-bold tracking-widest uppercase transition-colors group-hover/asset-btn:text-white" :class="asset ? 'text-white' : 'text-white/40'">
                   {{ asset || (locale === 'ru' ? 'БЕЗ_НАЗВАНИЯ' : 'UNTITLED') }}
                 </span>
               </div>
