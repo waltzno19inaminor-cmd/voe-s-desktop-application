@@ -4,8 +4,7 @@ import { inject } from 'vue';
 import { useI18n } from '~/shared/i18n/useI18n';
 import ExPanel from '~/shared/ui/ExPanel.vue';
 const emit = defineEmits(['close']);
-const { locale, t } = useI18n();
-const openTradeText = () => t('genesis.virtualLog.openTrade');
+const { locale } = useI18n();
 
 const assetTypeLocales = {
   'ALL': { en: 'ALL', ru: 'ВСЕ' },
@@ -161,7 +160,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled || !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="exitMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
-                    {{ !isClosed ? openTradeText() : (exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl') }}
+                    {{ exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl' }}
                   </span>
                   <input v-if="!exitMethodEnabled || !isClosed" v-model="exit" type="text" inputmode="decimal" placeholder="0.00" class="nier-input w-20 font-mono" :disabled="!isClosed" @input="sanitizeTradeNumberInput($event, 'exit')"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
