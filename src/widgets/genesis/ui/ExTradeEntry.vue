@@ -26,6 +26,26 @@ provide('tradeState', state)
 
 const { locale } = useI18n()
 const { isDark, isClosed, scrollContainer } = state
+
+const closeModeText = (key) => {
+  const map = {
+    en: {
+      title: 'CLOSE_MODE',
+      label: 'IS_CLOSED',
+      closed: 'CLOSED',
+      open: 'OPEN',
+      hint: 'On: the trade is closed, exit price and result are available. Off: the trade stays open and does not affect the diary.'
+    },
+    ru: {
+      title: 'РЕЖИМ_ЗАКРЫТИЯ',
+      label: 'СДЕЛКА_ЗАКРЫТА',
+      closed: 'ЗАКРЫТА',
+      open: 'ОТКРЫТА',
+      hint: 'Включено: сделка закрыта, можно вводить цену выхода и результат. Выключено: сделка остается открытой и не влияет на дневник.'
+    }
+  }
+  return map[locale.value]?.[key] || map.en[key] || key
+}
 </script>
 
 <template>
@@ -42,7 +62,7 @@ const { isDark, isClosed, scrollContainer } = state
      <div class="fixed bottom-6 left-6 z-[1105]">
        <ExTooltip
          :is-dark="isDark"
-         :title="locale === 'ru' ? 'РЕЖИМ_ЗАКРЫТИЯ' : 'CLOSE_MODE'"
+         :title="closeModeText('title')"
          placement="top"
          variant="basic"
        >
@@ -53,9 +73,9 @@ const { isDark, isClosed, scrollContainer } = state
              @click="isClosed = !isClosed"
            >
              <span class="flex flex-col gap-1">
-               <span class="text-[9px] uppercase tracking-[0.36em] font-black text-white/55">isClosed?</span>
+               <span class="text-[9px] uppercase tracking-[0.36em] font-black text-white/55">{{ closeModeText('label') }}</span>
                <span class="text-[10px] uppercase tracking-[0.28em] font-mono font-black" :class="isClosed ? 'text-white' : 'text-white/45'">
-                 {{ isClosed ? (locale === 'ru' ? 'ЗАКРЫТА' : 'CLOSED') : (locale === 'ru' ? 'ОТКРЫТА' : 'OPEN') }}
+                 {{ isClosed ? closeModeText('closed') : closeModeText('open') }}
                </span>
              </span>
              <span class="relative grid h-6 w-6 shrink-0 place-items-center border border-white/55 bg-transparent transition-colors group-hover:border-white">
@@ -65,10 +85,7 @@ const { isDark, isClosed, scrollContainer } = state
              </span>
            </button>
          </template>
-         {{ locale === 'ru'
-           ? 'Включено: сделка закрыта, можно вводить цену выхода и результат. Выключено: сделка остается открытой и не влияет на дневник.'
-           : 'On: the trade is closed, exit price and result are available. Off: the trade stays open and does not affect the diary.'
-         }}
+         {{ closeModeText('hint') }}
        </ExTooltip>
      </div>
      <ExTradeEntryActionFooter />

@@ -6,7 +6,7 @@ const emit = defineEmits(['close']);
 const { locale } = useI18n();
 
 import ExPanel from '~/shared/ui/ExPanel.vue';
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, tradeTimeZone, supportedTimeZones, tradeTimeZoneOffset, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, setActiveTemporalToNow, cloneOpenTemporalToExit, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, tradeTimeZone, supportedTimeZones, tradeTimeZoneOffset, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, setActiveTemporalToNow, cloneOpenTemporalToExit, scrollContainer, pnl, commitState, resetForm, submit, sanitizeTradeNumberInput } = inject('tradeState');
 const timeZoneMenuOpen = ref(false);
 const timeZoneSearch = ref('');
 
@@ -37,6 +37,21 @@ const selectTimeZone = (zone) => {
   tradeTimeZone.value = zone;
   timeZoneSearch.value = zone;
   timeZoneMenuOpen.value = false;
+};
+
+const sanitizeInlineNumberInput = (event, target, key) => {
+  const raw = String(event?.target?.value ?? '').replace(',', '.');
+  let seenDot = false;
+  const sanitized = raw.split('').filter((char) => {
+    if (/\d/.test(char)) return true;
+    if (char === '.' && !seenDot) {
+      seenDot = true;
+      return true;
+    }
+    return false;
+  }).join('');
+  if (event?.target && event.target.value !== sanitized) event.target.value = sanitized;
+  if (target && key) target[key] = sanitized;
 };
 
 watch(tradeTimeZone, (zone) => {
@@ -91,11 +106,11 @@ watch(tradeTimeZone, (zone) => {
                      <span class="text-[8px] font-mono opacity-40 font-black tracking-widest w-6">#{{ idx + 1 }}</span>
                      <div class="flex-1 flex flex-col gap-1">
                         <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'УРОВЕНЬ_ЦЕНЫ' : 'Price_Lvl' }}</span>
-                        <input v-model="ent.price" type="number" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
+                        <input v-model="ent.price" type="text" inputmode="decimal" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" @input="sanitizeInlineNumberInput($event, ent, 'price')" />
                      </div>
                      <div class="flex-1 flex flex-col gap-1">
                         <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
-                        <input v-model="ent.size" type="number" step="0.01" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
+                        <input v-model="ent.size" type="text" inputmode="decimal" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" @input="sanitizeInlineNumberInput($event, ent, 'size')" />
                      </div>
                      <button @click="removeMultipleEntry(ent.id)" class="w-8 h-8 flex items-center justify-center border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-all mt-4">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -118,11 +133,11 @@ watch(tradeTimeZone, (zone) => {
                     <div class="flex items-center gap-3">
                       <div class="flex-1">
                         <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 nier-text-primary mb-1">{{ locale === 'ru' ? 'Базовая_Цена' : 'Base_Price' }}</span>
-                        <input v-model="autoEntryBasePrice" type="number" placeholder="Price..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" />
+                        <input v-model="autoEntryBasePrice" type="text" inputmode="decimal" placeholder="Price..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" @input="sanitizeTradeNumberInput($event, 'autoEntryBasePrice')" />
                       </div>
                       <div class="flex-1">
                         <span class="block text-[7px] uppercase tracking-[0.4em] font-bold opacity-60 nier-text-primary mb-1">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
-                        <input v-model="autoEntryBaseLots" type="number" step="0.01" placeholder="Lots..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" />
+                        <input v-model="autoEntryBaseLots" type="text" inputmode="decimal" placeholder="Lots..." class="nier-input !text-black dark:!text-white border-b border-black/30 dark:border-white/30 pb-1 w-full bg-transparent focus:border-black dark:focus:border-white focus:outline-none" @input="sanitizeTradeNumberInput($event, 'autoEntryBaseLots')" />
                       </div>
                     </div>
                     <div class="flex items-center justify-end gap-2">
@@ -142,11 +157,11 @@ watch(tradeTimeZone, (zone) => {
                      <span class="text-[8px] font-mono opacity-40 font-black tracking-widest w-6">#{{ idx + 1 }}</span>
                      <div class="flex-1 flex flex-col gap-1">
                         <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'Уровень_Выхода' : 'Exit_Lvl' }}</span>
-                        <input v-model="ent.price" type="number" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
+                        <input v-model="ent.price" type="text" inputmode="decimal" placeholder="0.00" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" @input="sanitizeInlineNumberInput($event, ent, 'price')" />
                      </div>
                      <div class="flex-1 flex flex-col gap-1">
                         <span class="text-[7px] uppercase tracking-[0.4em] font-bold opacity-40 nier-text-primary">{{ locale === 'ru' ? 'РАЗМЕР_ЛОТА' : 'Lot_Size' }}</span>
-                        <input v-model="ent.size" type="number" step="0.01" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" />
+                        <input v-model="ent.size" type="text" inputmode="decimal" placeholder="0.01" class="nier-input !text-black dark:!text-white border-b border-black/20 dark:border-white/20 pb-1 w-full" @input="sanitizeInlineNumberInput($event, ent, 'size')" />
                      </div>
                      <button @click="removeExitEntry(ent.id)" class="w-8 h-8 flex items-center justify-center border border-rose-500/30 text-rose-500 hover:bg-rose-500 hover:text-white transition-all mt-4">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>

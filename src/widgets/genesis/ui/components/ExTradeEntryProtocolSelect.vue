@@ -8,6 +8,31 @@ const { locale } = useI18n();
 import { SystemProtocolSelect } from '~/widgets/system-protocol-select';
 import ExTooltip from '~/shared/ui/ExTooltip.vue';
 const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showEmotionSelector, registrySearchQuery, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+
+const labels = {
+  en: {
+    panelRisk: 'Panel_Risk',
+    tradeStyle: 'Trade_Style',
+    unlinked: 'UNLINKED',
+    protocolConstraints: 'Protocol Constraints',
+    requiredRR: 'Required R:R:',
+    maxRiskPerTrade: 'Max Risk Per Trade:',
+    actualRR: 'Actual R:R:',
+    actualRisk: 'Actual Risk:'
+  },
+  ru: {
+    panelRisk: 'РИСК_ПАНЕЛИ',
+    tradeStyle: 'СТИЛЬ_СДЕЛКИ',
+    unlinked: 'НЕ_СВЯЗАНО',
+    protocolConstraints: 'Ограничения протокола',
+    requiredRR: 'Требуемый R:R:',
+    maxRiskPerTrade: 'Макс. риск на сделку:',
+    actualRR: 'Факт. R:R:',
+    actualRisk: 'Факт. риск:'
+  }
+}
+
+const l = (key) => labels[locale.value]?.[key] || labels.en[key] || key
 </script>
 
 <template>
@@ -68,36 +93,36 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
              <template #trigger>
                <div class="flex gap-8 cursor-default" :class="riskViolationMessage ? 'ring-1 ring-rose-500/30 px-2 -mx-2 py-1 -my-1 rounded-sm' : ''">
                  <div class="flex flex-col">
-                    <span class="text-[7px] font-mono uppercase tracking-[0.3em] font-bold transition-colors" :class="riskViolationMessage ? 'text-rose-400/80' : 'text-white'">Panel_Risk</span>
+                    <span class="text-[7px] font-mono uppercase tracking-[0.3em] font-bold transition-colors" :class="riskViolationMessage ? 'text-rose-400/80' : 'text-white'">{{ l('panelRisk') }}</span>
                     <span class="text-[12px] font-mono font-bold tabular-nums transition-colors" :class="riskViolationMessage ? 'text-rose-500' : 'text-white'">
                        {{ actualRiskPercent !== null ? actualRiskPercent.toFixed(2) + '%' : '--%' }} / {{ actualRR !== null ? `1:${actualRR.toFixed(2)}` : 'RR_--' }}
                     </span>
                  </div>
                  <div class="flex flex-col">
-                    <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em] font-bold">Trade_Style</span>
+                    <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em] font-bold">{{ l('tradeStyle') }}</span>
                     <span class="text-[12px] font-mono font-bold nier-text-primary truncate max-w-[100px]">
-                       {{ activeRiskManagement.tradingStyle || 'UNLINKED' }}
+                       {{ activeRiskManagement.tradingStyle || l('unlinked') }}
                     </span>
                  </div>
                </div>
              </template>
              <div class="flex flex-col gap-2 min-w-[200px]">
-               <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-white/40 mb-1">Protocol Constraints</span>
+               <span class="text-[9px] font-mono uppercase tracking-[0.3em] text-white/40 mb-1">{{ l('protocolConstraints') }}</span>
                <div v-if="activeRiskManagement.riskRewardRatio" class="flex items-center justify-between gap-6">
-                 <span class="opacity-70 text-[11px]">Required R:R:</span>
+                 <span class="opacity-70 text-[11px]">{{ l('requiredRR') }}</span>
                  <span class="font-black text-[11px] text-white">1 / {{ activeRiskManagement.riskRewardRatio }}</span>
                </div>
                <div v-if="activeRiskManagement.riskPerTradeValue" class="flex items-center justify-between gap-6">
-                 <span class="opacity-70 text-[11px]">Max Risk Per Trade:</span>
+                 <span class="opacity-70 text-[11px]">{{ l('maxRiskPerTrade') }}</span>
                  <span class="font-black text-[11px] text-white">{{ activeRiskManagement.riskPerTradeValue }}{{ activeRiskManagement.riskPerTradeUnit }}</span>
                </div>
                <div class="h-px bg-white/10 my-1"></div>
                <div v-if="actualRR !== null" class="flex items-center justify-between gap-6">
-                 <span class="opacity-70 text-[11px]">Actual R:R:</span>
+                 <span class="opacity-70 text-[11px]">{{ l('actualRR') }}</span>
                  <span class="font-black text-[11px]" :class="violatesRR ? 'text-rose-400' : 'text-emerald-400'">1 / {{ actualRR.toFixed(2) }}</span>
                </div>
                <div v-if="actualRiskPercent !== null" class="flex items-center justify-between gap-6">
-                 <span class="opacity-70 text-[11px]">Actual Risk:</span>
+                 <span class="opacity-70 text-[11px]">{{ l('actualRisk') }}</span>
                  <span class="font-black text-[11px]" :class="violatesRiskPerTrade ? 'text-rose-400' : 'text-emerald-400'">{{ actualRiskPercent.toFixed(2) }}%</span>
                </div>
              </div>

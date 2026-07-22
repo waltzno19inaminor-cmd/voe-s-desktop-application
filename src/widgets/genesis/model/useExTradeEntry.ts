@@ -883,6 +883,58 @@ const exitFee = ref('')
 const feeType = ref('%')
 const resultMode = ref('auto')
 
+const sanitizeDecimalInputValue = (value, options = {}) => {
+  const normalized = String(value ?? '').replace(',', '.')
+  let seenDot = false
+  let seenMinus = false
+  return normalized
+    .split('')
+    .filter((char, index) => {
+      if (/\d/.test(char)) return true
+      if (options.allowNegative && char === '-' && index === 0 && !seenMinus) {
+        seenMinus = true
+        return true
+      }
+      if (char === '.' && !seenDot) {
+        seenDot = true
+        return true
+      }
+      return false
+    })
+    .join('')
+}
+
+const getNumberInputSanitizeOptions = (field) => ({
+  allowNegative: field === 'overridePnl'
+})
+
+const getTradeNumberInputRef = (field) => ({
+  entry,
+  exit,
+  size,
+  entryFee,
+  exitFee,
+  stopLoss,
+  takeProfit,
+  overridePnl,
+  autoEntryBasePrice,
+  autoEntryBaseLots
+})[field]
+
+const sanitizeTradeNumberInput = (event, targetRefOrField) => {
+  const target = event?.target
+  const options = typeof targetRefOrField === 'string'
+    ? getNumberInputSanitizeOptions(targetRefOrField)
+    : {}
+  const sanitized = sanitizeDecimalInputValue(target?.value ?? '', options)
+  if (target && target.value !== sanitized) target.value = sanitized
+
+  const targetRef = typeof targetRefOrField === 'string'
+    ? getTradeNumberInputRef(targetRefOrField)
+    : targetRefOrField
+  if (targetRef) targetRef.value = sanitized
+}
+
 // Entry & Exit Protocol
 const showEntryMethod = ref(false)
 const activeProtocolTab = ref('PYRAMIDING') // 'PYRAMIDING', 'AVERAGING_DOWN', or 'EXIT'
@@ -1362,49 +1414,6 @@ const normalizeRiskInputs = () => {
 }
 
 watch([side, tradeEntryPrice], normalizeRiskInputs)
-
-const getCandidateInputValue = (event) => {
-  const target = event.target
-  const current = target?.value ?? ''
-  const data = event.data ?? event.clipboardData?.getData('text') ?? ''
-  const start = target?.selectionStart ?? current.length
-  const end = target?.selectionEnd ?? current.length
-  return current.slice(0, start) + data + current.slice(end)
-}
-
-const integerDigitCount = (value) => {
-  const [integerPart = ''] = String(value).replace('-', '').split('.')
-  const normalized = integerPart.replace(/^0+(?=\d)/, '')
-  return normalized.length
-}
-
-const isRiskInputAllowed = (field, rawValue) => {
-  const raw = String(rawValue ?? '').trim()
-  if (raw === '' || raw === '.' || raw === '0.') return true
-
-  const value = toPositiveTradeNumber(raw)
-  const entryPrice = tradeEntryPrice.value
-  if (!Number.isFinite(value) || !Number.isFinite(entryPrice) || entryPrice <= 0) return true
-
-  const needsAboveEntry = (field === 'stopLoss' && side.value === 'short') || (field === 'takeProfit' && side.value === 'long')
-  const isDirectionallyValid = needsAboveEntry ? value > entryPrice : value < entryPrice
-  if (isDirectionallyValid) return true
-
-  const entryDigits = integerDigitCount(Math.floor(Math.abs(entryPrice)))
-  const valueDigits = integerDigitCount(raw)
-  return valueDigits < entryDigits
-}
-
-const blockInvalidRiskInput = (event, field) => {
-  if (event.inputType?.startsWith('delete')) return
-  const nextValue = getCandidateInputValue(event)
-  if (!isRiskInputAllowed(field, nextValue)) event.preventDefault()
-}
-
-const blockInvalidRiskPaste = (event, field) => {
-  const nextValue = getCandidateInputValue(event)
-  if (!isRiskInputAllowed(field, nextValue)) event.preventDefault()
-}
 
 // Time Data
 const detectUserTimeZone = () => {
@@ -2054,8 +2063,7 @@ const submit = async () => {
     riskInputViolationMessage,
     hasRiskInputViolation,
     normalizeRiskInputs,
-    blockInvalidRiskInput,
-    blockInvalidRiskPaste,
+    sanitizeTradeNumberInput,
     getReachableNodes,
     getNodeZoneType,
     showStrategyMenu,

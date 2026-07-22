@@ -23,7 +23,7 @@ const getAssetTypeLoc = (type) => {
 };
 
 
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, blockInvalidRiskInput, blockInvalidRiskPaste, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, isClosed, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, sanitizeTradeNumberInput, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, isClosed, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
 </script>
 
 <template>
@@ -156,21 +156,21 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
                      {{ entryMethodEnabled ? 'Avg_Entry_Lvl' : 'Entry_Lvl' }}
                   </span>
-                  <input v-if="!entryMethodEnabled" v-model="entry" type="number" placeholder="0.00" class="nier-input w-20 font-mono"/>
+                  <input v-if="!entryMethodEnabled" v-model="entry" type="text" inputmode="decimal" placeholder="0.00" class="nier-input w-20 font-mono" @input="sanitizeTradeNumberInput($event, 'entry')"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageEntry > 0 ? averageEntry.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': exitMethodEnabled || !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="exitMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
                     {{ !isClosed ? openTradeText() : (exitMethodEnabled ? 'Avg_Exit_Lvl' : 'Exit_Lvl') }}
                   </span>
-                  <input v-if="!exitMethodEnabled || !isClosed" v-model="exit" type="number" placeholder="0.00" class="nier-input w-20 font-mono" :disabled="!isClosed"/>
+                  <input v-if="!exitMethodEnabled || !isClosed" v-model="exit" type="text" inputmode="decimal" placeholder="0.00" class="nier-input w-20 font-mono" :disabled="!isClosed" @input="sanitizeTradeNumberInput($event, 'exit')"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ averageExit > 0 ? averageExit.toFixed(5) : '0.00' }}</span>
                 </div>
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-50 pointer-events-none': entryMethodEnabled }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold transition-colors" :class="entryMethodEnabled ? 'text-amber-500/80' : 'text-white/40'">
                     {{ entryMethodEnabled ? 'Total_Vol' : (isForex ? 'Lot_Size' : 'Unit_Qty') }}
                   </span>
-                  <input v-if="!entryMethodEnabled" v-model="size" type="number" step="0.01" :placeholder="isForex ? '0.01' : '1.0'" class="nier-input w-16 font-mono"/>
+                  <input v-if="!entryMethodEnabled" v-model="size" type="text" inputmode="decimal" :placeholder="isForex ? '0.01' : '1.0'" class="nier-input w-16 font-mono" @input="sanitizeTradeNumberInput($event, 'size')"/>
                   <span v-else class="text-[11px] font-mono font-bold tracking-[0.15em] text-white">{{ totalSize > 0 ? totalSize.toFixed(2) : '0.00' }}</span>
                 </div>
               </div>
@@ -181,13 +181,11 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-rose-500/60">Stop_Loss</span>
                     <input
                       v-model="stopLoss"
-                      type="number"
+                      type="text"
+                      inputmode="decimal"
                       placeholder="0.00"
                       class="nier-input w-24 font-mono text-rose-400"
-                      :min="side === 'short' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
-                      :max="side === 'long' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
-                      @beforeinput="blockInvalidRiskInput($event, 'stopLoss')"
-                      @paste="blockInvalidRiskPaste($event, 'stopLoss')"
+                      @input="sanitizeTradeNumberInput($event, 'stopLoss')"
                       @change="normalizeRiskInputs"
                       @blur="normalizeRiskInputs"
                     />
@@ -196,13 +194,11 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                     <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-emerald-500/60">Take_Profit</span>
                     <input
                       v-model="takeProfit"
-                      type="number"
+                      type="text"
+                      inputmode="decimal"
                       placeholder="0.00"
                       class="nier-input w-24 font-mono text-emerald-400"
-                      :min="side === 'long' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
-                      :max="side === 'short' ? ((entryMethodEnabled ? averageEntry : +entry) || undefined) : undefined"
-                      @beforeinput="blockInvalidRiskInput($event, 'takeProfit')"
-                      @paste="blockInvalidRiskPaste($event, 'takeProfit')"
+                      @input="sanitizeTradeNumberInput($event, 'takeProfit')"
                       @change="normalizeRiskInputs"
                       @blur="normalizeRiskInputs"
                     />
@@ -235,14 +231,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-amber-500/60">
                     {{ locale === 'ru' ? 'ВХОДНАЯ КОМ.' : 'ENTRY_FEE' }}
                   </span>
-                  <input v-model="entryFee" type="number" placeholder="0.00" class="nier-input w-20 font-mono text-amber-400"/>
+                  <input v-model="entryFee" type="text" inputmode="decimal" placeholder="0.00" class="nier-input w-20 font-mono text-amber-400" @input="sanitizeTradeNumberInput($event, 'entryFee')"/>
                 </div>
                 
                 <div class="flex flex-col gap-0.5 text-left" :class="{ 'opacity-40 pointer-events-none': !isClosed }">
                   <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-amber-500/60">
                     {{ locale === 'ru' ? 'ВЫХОДНАЯ КОМ.' : 'EXIT_FEE' }}
                   </span>
-                  <input v-model="exitFee" type="number" placeholder="0.00" class="nier-input w-20 font-mono text-amber-400"/>
+                  <input v-model="exitFee" type="text" inputmode="decimal" placeholder="0.00" class="nier-input w-20 font-mono text-amber-400" @input="sanitizeTradeNumberInput($event, 'exitFee')"/>
                 </div>
               </div>
             </Transition>
@@ -253,11 +249,12 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
             <div class="flex flex-col items-end gap-0.5">
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
               <div v-if="isClosed && resultMode === 'manual'" class="flex items-center">
-                <input v-model.number="pnl" 
-                       type="number" 
-                       step="1"
+                <input v-model="pnl"
+                       type="text"
+                       inputmode="decimal"
                        class="nier-input w-24 text-right pr-1 font-mono" 
-                       :class="pnl >= 0 ? 'text-white' : '!text-rose-400'" />
+                       :class="pnl >= 0 ? 'text-white' : '!text-rose-400'"
+                       @input="sanitizeTradeNumberInput($event, 'overridePnl')" />
               </div>
               <div v-else class="text-sm font-mono font-bold tabular-nums tracking-tighter" :class="pnl >= 0 ? 'text-white' : 'text-rose-400'">
                 {{ pnl > 0 ? '+' : '' }}{{ pnl.toFixed(2) }}
