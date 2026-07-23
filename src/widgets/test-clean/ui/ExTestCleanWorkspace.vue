@@ -117,6 +117,30 @@
 
                <div class="absolute right-4 flex h-full items-center gap-2">
                  <div class="genesis-bottom-tool">
+                   <div class="genesis-bottom-language-switch" role="group" :aria-label="genesisBottomTooltip('language')">
+                     <button
+                       type="button"
+                       class="genesis-bottom-language-button text-theme-text"
+                       :class="locale === 'ru' ? 'opacity-100' : 'opacity-35 hover:opacity-100'"
+                       :aria-pressed="locale === 'ru'"
+                       @click="setLocale('ru')"
+                     >
+                       RU
+                     </button>
+                     <button
+                       type="button"
+                       class="genesis-bottom-language-button text-theme-text"
+                       :class="locale === 'en' ? 'opacity-100' : 'opacity-35 hover:opacity-100'"
+                       :aria-pressed="locale === 'en'"
+                       @click="setLocale('en')"
+                     >
+                       EN
+                     </button>
+                   </div>
+                   <span class="genesis-bottom-tooltip tooltip-right">{{ genesisBottomTooltip('language') }}</span>
+                 </div>
+
+                 <div class="genesis-bottom-tool">
                    <button
                      type="button"
                      class="genesis-bottom-icon-button text-theme-text opacity-35 hover:opacity-100"
@@ -191,7 +215,7 @@ import { storeToRefs } from 'pinia'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import { useI18n } from '~/shared/i18n/useI18n'
 const themeStore = useThemeStore()
-const { locale } = useI18n()
+const { locale, setLocale } = useI18n()
 const isDark = computed({
   get: () => themeStore.settings.isDark,
   set: () => themeStore.toggleDark()
@@ -224,6 +248,7 @@ const genesisBottomTooltip = (key) => {
     matrix: 'Матрица генезиса',
     log: 'Журнал генезиса',
     theme: themeStore.settings.isDark ? 'Светлая тема' : 'Темная тема',
+    language: 'Язык интерфейса',
     hide: 'Скрыть панель',
     show: 'Показать панель'
   }
@@ -233,6 +258,7 @@ const genesisBottomTooltip = (key) => {
     matrix: 'Ex Genesis Matrix',
     log: 'Ex Genesis Log',
     theme: themeStore.settings.isDark ? 'Light Theme' : 'Dark Theme',
+    language: 'Interface Language',
     hide: 'Hide Bar',
     show: 'Show Bar'
   }
@@ -475,6 +501,30 @@ onUnmounted(() => {
 }
 
 .genesis-bottom-icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.genesis-bottom-language-switch {
+  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(2, 2rem);
+  height: 2.5rem;
+}
+
+.genesis-bottom-language-button {
+  display: grid;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  height: 2.5rem;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  place-items: center;
+  transition: opacity 240ms ease, transform 240ms ease;
+  width: 2rem;
+}
+
+.genesis-bottom-language-button:hover {
   transform: translateY(-1px);
 }
 
