@@ -133,7 +133,7 @@ const formatDateTactical = (dateStr) => {
 <template>
 <!-- MIDDLE SECTION: TACTICAL MENUS OR JOURNAL -->
     <div class="w-full flex justify-center">
-      <div class="max-w-6xl w-full px-6 pb-12 py-8">
+      <div class="w-[calc(100vw-5rem)] min-w-0 max-w-[1180px] pb-12 py-8 sm:w-[calc(100vw-8rem)] md:w-[calc(100vw-12rem)] xl:w-[76vw] 2xl:w-[72vw]">
         <Transition name="sector-swap" mode="out-in">
           <div v-if="viewMode === 'tactical'" key="tactical" class="flex flex-col space-y-12">
             <!-- CONDITION CONFIGURATION PANEL (LEGACY DESCRIPTION AESTHETIC) -->
