@@ -1872,8 +1872,8 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
   const sessionRiskUnit = activeMatrixNodes.value.riskPerSessionUnit;
   const sessionRiskVal = activeMatrixNodes.value.riskPerSessionValue;
 
-  const styleLimits: Record<number, { max?: number, min?: number }> = {
-    0: { max: 1 },
+  const styleLimits: Record<number, { max?: number, min?: number, maxExclusive?: boolean }> = {
+    0: { max: 1, maxExclusive: true },
     1: { min: 1, max: 14 },
     2: { min: 14 }
   };
@@ -1899,7 +1899,7 @@ const complianceStats = computed<{ riskPerTrade: number, riskPerSession: number,
       const limit = styleLimits[extraType as keyof typeof styleLimits];
       if (limit) {
         if (limit.min !== undefined && durationDays < limit.min) styleCompliant = false;
-        if (limit.max !== undefined && durationDays > limit.max) styleCompliant = false;
+        if (limit.max !== undefined && (limit.maxExclusive ? durationDays >= limit.max : durationDays > limit.max)) styleCompliant = false;
       }
     }
     if (styleCompliant) compliantStyleCount++;
@@ -1948,8 +1948,8 @@ const complianceViolations = computed(() => {
   const sortedTrades = [...trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   let currentBalance = initDep;
 
-  const styleLimits: Record<number, { max?: number, min?: number }> = {
-    0: { max: 1 },
+  const styleLimits: Record<number, { max?: number, min?: number, maxExclusive?: boolean }> = {
+    0: { max: 1, maxExclusive: true },
     1: { min: 1, max: 14 },
     2: { min: 14 }
   };
@@ -1983,14 +1983,14 @@ const complianceViolations = computed(() => {
       const limit = styleLimits[extraType as keyof typeof styleLimits];
       if (limit) {
         if (limit.min !== undefined && durationDays < limit.min) styleCompliant = false;
-        if (limit.max !== undefined && durationDays > limit.max) styleCompliant = false;
+        if (limit.max !== undefined && (limit.maxExclusive ? durationDays >= limit.max : durationDays > limit.max)) styleCompliant = false;
       }
     }
     if (!styleCompliant) {
       violatingStyleTrades.push({
         ...t,
-        _durationStr: (t as any).duration || 'N/A',
-        _expectedStyle: extraType === 0 ? (locale.value === 'ru' ? '< 1Д (СКАЛЬПИНГ)' : '< 1D (Scalping)') : (extraType === 1 ? (locale.value === 'ru' ? '1-14Д (ВНУТРИДНЕВНАЯ)' : '1-14D (Intraday)') : (locale.value === 'ru' ? '> 14Д (СВИНГ)' : '> 14D (Swing)')),
+        _durationStr: (t as any).duration || calculateDuration(t),
+        _expectedStyle: extraType === 0 ? (locale.value === 'ru' ? '< 1Д' : '< 1D') : (extraType === 1 ? (locale.value === 'ru' ? '1-14Д (ВНУТРИДНЕВНАЯ)' : '1-14D (Intraday)') : (locale.value === 'ru' ? '> 14Д (СВИНГ)' : '> 14D (Swing)')),
       });
     }
 
@@ -2239,6 +2239,7 @@ const calculateDuration = (trade: any) => {
   if (!trade || !trade.date || !trade.dateExit) return t('genesis.virtualLog.notAvailable')
   const start = new Date(trade.date).getTime()
   const end = new Date(trade.dateExit).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return t('genesis.virtualLog.notAvailable')
   const diff = end - start
   if (diff < 0) return '0M'
   
