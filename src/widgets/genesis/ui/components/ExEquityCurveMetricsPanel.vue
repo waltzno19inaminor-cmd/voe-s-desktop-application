@@ -65,7 +65,7 @@
                     <span class="text-[10px] font-serif font-light tracking-[0.3em] uppercase opacity-50 italic">Econometric_Definition</span>
                     <div class="text-lg font-serif font-light leading-relaxed nier-text-primary tracking-wide space-y-2">
                       <p class="opacity-90">
-                        {{ allAvailableConfigs.find(c => c.key === selectedDeepDiveMetricKey)!.desc }}
+                        {{ metricDisplayDesc(allAvailableConfigs.find(c => c.key === selectedDeepDiveMetricKey)!) }}
                       </p>
                       <p class="opacity-70 italic text-[13px]">
                         {{ getMetricRationale(selectedDeepDiveMetricKey) }}
@@ -175,7 +175,7 @@
                     </div>
                     <p class="text-[10px] font-mono leading-relaxed transition-colors mt-1"
                        :class="activeMetricKeys.includes(cfg.key) ? 'text-white/90 dark:text-black/90' : 'nier-text-primary opacity-70'">
-                      {{ cfg.desc }}
+                      {{ metricDisplayDesc(cfg) }}
                     </p>
                     <span class="text-[9px] font-mono transition-colors mt-1"
                           :class="activeMetricKeys.includes(cfg.key) ? 'text-white/60 dark:text-black/60' : 'opacity-40'">
@@ -239,7 +239,8 @@ const {
   getMetricDeepDiveVariables,
   getMetricCalculationSteps,
   getMetricRationale,
-  metricDisplayLabel
+  metricDisplayLabel,
+  metricDisplayDesc
 } = props.panel
 
 const openDeepDive = (metricKey: string) => {

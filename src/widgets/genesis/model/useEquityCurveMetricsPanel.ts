@@ -58,7 +58,7 @@ const metricLabelRuByKey: Record<string, string> = {
   marRatio: 'MAR коэффициент',
   gainToPainRatio: 'Прибыль к боли',
   tailRatio: 'Хвостовой коэффициент',
-  commonSenseRatio: 'Common Sense коэффициент',
+  commonSenseRatio: 'Коэффициент здравого смысла',
   profitFactorStrategy: 'PF по стратегии',
   profitFactorMarket: 'PF по рынку',
   profitFactorTimeframe: 'PF по таймфрейму',
@@ -79,7 +79,7 @@ const metricLabelRuByKey: Record<string, string> = {
   kurtosis: 'Эксцесс доходностей',
   medianTradeResult: 'Медианный результат сделки',
   medianWinLossRatio: 'Медиана побед/убытков',
-  valueAtRisk: 'Value at Risk',
+  valueAtRisk: 'Риск потерь (VaR)',
   cvar: 'Условный VaR',
   expectedShortfall: 'Ожидаемый дефицит',
   mae: 'Макс. движение против',
@@ -90,7 +90,7 @@ const metricLabelRuByKey: Record<string, string> = {
   monteCarloDrawdown: 'MC оценка просадки',
   monteCarloRiskOfRuin: 'MC риск разорения',
   monteCarloExpectedReturn: 'MC ожидаемая доходность',
-  bootstrapConfidenceInterval: 'Bootstrap интервал',
+  bootstrapConfidenceInterval: 'Бутстрэп-интервал',
   ciExpectedValue: 'ДИ ожидаемого значения',
   ciWinRate: 'ДИ винрейта',
   bayesianWinRate: 'Байесовский винрейт',
@@ -101,7 +101,7 @@ const metricLabelRuByKey: Record<string, string> = {
   sqn: 'SQN',
   tTest: 'T-тест средней сделки',
   pValue: 'P-значение преимущества',
-  informationRatio: 'Information Ratio',
+  informationRatio: 'Информационный коэффициент',
   treynorRatio: 'Коэффициент Трейнора',
   jensensAlpha: 'Альфа Дженсена',
   betaToBenchmark: 'Бета к бенчмарку',
@@ -119,6 +119,109 @@ const metricLabelRuByKey: Record<string, string> = {
   edgeHalfLife: 'Период полураспада преимущества',
   outlierImpactRatio: 'Влияние выбросов',
   distributionRobustness: 'Устойчивость распределения'
+}
+
+const metricDescRuByKey: Record<string, string> = {
+  netProfit: 'Итоговая реализованная прибыль или убыток по всем закрытым сделкам стратегии.',
+  grossProfit: 'Суммарная прибыль всех прибыльных сделок в архиве стратегии.',
+  grossLoss: 'Суммарный убыток всех убыточных сделок в архиве стратегии.',
+  winRate: 'Доля исполненных сделок, которые завершились положительным результатом.',
+  lossRate: 'Доля исполненных сделок, которые завершились отрицательным результатом.',
+  avgWin: 'Средний финансовый результат одной прибыльной сделки.',
+  avgLoss: 'Средний финансовый убыток одной убыточной сделки.',
+  avgTrade: 'Средний ожидаемый результат по одной исполненной сделке.',
+  payoffRatio: 'Соотношение среднего размера прибыльной сделки к среднему размеру убыточной.',
+  riskRewardRatio: 'Средний плановый Risk/Reward по сделкам с валидными входом, стопом и тейком. Нулевые и некорректные значения исключаются.',
+  realizedRR: 'Фактически реализованный Risk/Reward после закрытия сделки.',
+  expectedValue: 'Математическое ожидание будущего результата на одну исполненную сделку.',
+  profitFactor: 'Соотношение общей валовой прибыли к общему валовому убытку.',
+  beWinRate: 'Минимальный процент прибыльных сделок, необходимый для выхода в ноль.',
+  numTrades: 'Общее количество полностью закрытых сделок в архиве стратегии.',
+  numWin: 'Количество исполненных сделок с положительным финансовым результатом.',
+  numLoss: 'Количество исполненных сделок с отрицательным финансовым результатом.',
+  largestWin: 'Самая крупная прибыльная сделка за всю историю стратегии.',
+  largestLoss: 'Самая крупная убыточная сделка за всю историю стратегии.',
+  maxConsWins: 'Самая длинная непрерывная серия прибыльных сделок в хронологическом порядке.',
+  maxConsLosses: 'Самая длинная непрерывная серия убыточных сделок в хронологическом порядке.',
+  avgHoldingTimeStr: 'Среднее время между открытием сделки и ее полным закрытием.',
+  avgProfitPerDay: 'Средняя чистая прибыль за активный день, неделю и месяц в архиве.',
+  maxDrawdownNum: 'Максимальное падение капитала от исторического пика до последующего минимума.',
+  avgDrawdownPct: 'Средняя глубина всех зафиксированных просадок капитала в истории стратегии.',
+  drawdownDurationStr: 'Самый длинный период нахождения капитала в просадке до обновления максимума.',
+  recoveryFactor: 'Соотношение чистой прибыли к максимальной исторической просадке.',
+  returnOnCapital: 'Совокупная процентная доходность относительно начального капитала.',
+  returnPerTrade: 'Средний чистый финансовый результат на одну исполненную сделку.',
+  riskPerTrade: 'Средний финансовый риск, заложенный в одну торговую установку.',
+  sharpeRatio: 'Избыточная доходность на единицу общей волатильности результата. Показывает эффективность доходности.',
+  sortinoRatio: 'Избыточная доходность на единицу отрицательной волатильности. Отделяет вредную волатильность от общей.',
+  calmarRatio: 'Соотношение годовой сложной доходности к максимальной исторической просадке.',
+  sterlingRatio: 'Соотношение годовой сложной доходности к средней исторической просадке.',
+  omegaRatio: 'Вероятностно-взвешенное соотношение прибыли и убытков выше заданного порога доходности.',
+  ulcerIndex: 'Оценка глубины и длительности просадок от предыдущих пиков. Чем ниже, тем меньше стресс.',
+  marRatio: 'Соотношение CAGR к максимальной просадке, часто используемое институциональными управляющими.',
+  gainToPainRatio: 'Метрика Джека Швагера: сумма всех доходностей, деленная на абсолютную сумму отрицательных доходностей.',
+  tailRatio: 'Соотношение 95-го процентиля прибыльных результатов к абсолютному 5-му процентилю убыточных.',
+  commonSenseRatio: 'Комбинированная метрика Tail Ratio и Gain-to-Pain Ratio для оценки устойчивой асимметрии преимущества.',
+  profitFactorStrategy: 'Фактор прибыли только по сделкам, относящимся к текущему активному протоколу стратегии.',
+  profitFactorMarket: 'Лучший фактор прибыли среди всех торгуемых инструментов и классов активов стратегии.',
+  profitFactorTimeframe: 'Лучший фактор прибыли среди всех торговых таймфреймов и интервалов исполнения.',
+  avgTradeExpectancy: 'Ожидаемая долларовая ценность одной сделки на основе винрейта и средних исходов.',
+  expectancyScore: 'Нормализованная оценка ожидания как отношение expected value к среднему размеру убытка.',
+  latestRMultiple: 'R-множитель, реализованный в последней закрытой сделке стратегии.',
+  avgRMultiple: 'Средний реализованный R-множитель по всему архиву сделок стратегии.',
+  rMultipleDist: 'Доля сделок, которые смогли реализовать R-множитель 2.0R или выше.',
+  riskOfRuin: 'Математическая вероятность полного истощения капитала при текущем винрейте и payoff ratio.',
+  slope: 'Наклон линейной регрессии кривой капитала, отражающий скорость роста equity.',
+  equityCurveVolatility: 'Стандартное отклонение отклонений equity от линии регрессии. Показывает плавность кривой.',
+  equityCurveStability: 'Коэффициент R² для линейной регрессии equity-кривой. Показывает стабильность тренда.',
+  equityCurveCorrelation: 'Корреляция Пирсона между порядком сделок и балансом капитала. Показывает структурный рост.',
+  stdPnL: 'Стандартное отклонение результатов отдельных сделок относительно среднего результата.',
+  varPnL: 'Дисперсия результатов отдельных сделок, то есть квадрат стандартного отклонения.',
+  coeffOfVariation: 'Коэффициент вариации, показывающий относительный разброс результатов на единицу ожидания.',
+  skewness: 'Асимметрия распределения доходностей. Положительная асимметрия означает частые малые убытки и крупные выигрыши.',
+  kurtosis: 'Эксцесс распределения доходностей. Высокое значение указывает на толстые хвосты и риск экстремальных исходов.',
+  medianTradeResult: 'Медианный долларовый результат сделки без искажения от экстремальных выбросов.',
+  medianWinLossRatio: 'Соотношение медианной прибыльной сделки к абсолютной медианной убыточной сделке.',
+  valueAtRisk: 'Максимальный ожидаемый долларовый убыток за один день при доверительном уровне 95% по исторической симуляции.',
+  cvar: 'Ожидаемый убыток сверх порога Value at Risk. Показывает тяжесть хвостового риска.',
+  expectedShortfall: 'Conditional VaR в процентах от начального депозита. Показывает риск капитала в худших 5% случаев.',
+  mae: 'Среднее максимальное движение против позиции во время открытых сделок до их закрытия.',
+  mfe: 'Среднее максимальное движение в пользу позиции во время открытых сделок до их закрытия.',
+  maeMfeRatio: 'Соотношение среднего MAE к среднему MFE. Показывает эффективность входа и сопровождения.',
+  zScore: 'Z-оценка последовательности побед и убытков. Проверяет случайность или кластеризацию серий.',
+  runsTest: 'Тест серий Вальда-Вольфовица для проверки независимости последовательности результатов.',
+  monteCarloDrawdown: 'Средняя максимальная просадка по 500 Monte Carlo симуляциям equity через ресемплинг сделок.',
+  monteCarloRiskOfRuin: 'Вероятность потери 90% капитала по 500 Monte Carlo симуляциям ресемплинга сделок.',
+  monteCarloExpectedReturn: 'Средняя совокупная процентная доходность по 500 Monte Carlo симуляциям equity.',
+  bootstrapConfidenceInterval: '95% bootstrap-интервал для среднего PnL сделки по 500 ресемплированным симуляциям.',
+  ciExpectedValue: '95% доверительный интервал математического ожидания сделки через стандартную ошибку среднего.',
+  ciWinRate: '95% доверительный интервал винрейта стратегии через нормальную аппроксимацию биномиального распределения.',
+  bayesianWinRate: 'Байесовская оценка винрейта с нейтральным Beta(1,1) prior, чтобы снизить искажения малой выборки.',
+  bayesianExpectedValue: 'Байесовское ожидание с притяжением к нулю, сглаживающее ранние всплески результата.',
+  kellyCriterion: 'Оптимальная доля капитала для риска в сделке, максимизирующая долгосрочный сложный рост.',
+  fractionalKelly: 'Половина критерия Келли, используемая для снижения волатильности и риска просадки.',
+  optimalF: 'Optimal f Ральфа Винса: доля капитала для максимального геометрического роста.',
+  sqn: 'System Quality Number Ван Тарпа: оценка качества системы через ожидание, разброс и размер выборки.',
+  tTest: 't-статистика Стьюдента, проверяющая, отличается ли средний PnL сделки от нуля статистически значимо.',
+  pValue: 'Двустороннее p-value для t-статистики. Показывает вероятность получить текущий результат случайно.',
+  informationRatio: 'Отношение активной доходности сверх бенчмарка к волатильности стратегии как локальному tracking error.',
+  treynorRatio: 'Избыточная годовая доходность сверх безрисковой ставки на единицу системного рыночного риска beta.',
+  jensensAlpha: 'Альфа Дженсена: годовая избыточная доходность сверх ожидания CAPM.',
+  betaToBenchmark: 'Оценочный коэффициент beta, показывающий чувствительность стратегии к движениям рыночного бенчмарка.',
+  alphaToBenchmark: 'Абсолютное годовое превосходство стратегии над базовой доходностью рыночного бенчмарка.',
+  returnAutocorrelation: 'Автокорреляция PnL с лагом 1. Показывает последовательную устойчивость или возврат к среднему.',
+  volatilityClustering: 'Автокорреляция абсолютного PnL с лагом 1. Показывает наличие кластеров волатильности и турбулентных режимов.',
+  hurstExponent: 'Экспонента Херста H. H > 0.5 указывает на трендовость, H < 0.5 — на возврат к среднему.',
+  regimeStabilityScore: 'Композитная оценка стабильности режима, показывающая устойчивость equity в разных рыночных условиях.',
+  rollingSharpe: 'Средний Sharpe Ratio по скользящим окнам из 10 сделок. Показывает динамику risk-adjusted эффективности.',
+  rollingProfitFactor: 'Средний Profit Factor по скользящим окнам из 10 сделок. Показывает динамику асимметрии win/loss.',
+  rollingExpectancy: 'Среднее долларовое ожидание по скользящим окнам из 10 сделок. Отслеживает локальные режимы прибыльности.',
+  rollingDrawdown: 'Средняя процентная просадка equity по скользящим окнам из 10 сделок. Показывает локальный стресс капитала.',
+  rollingWinRate: 'Средний винрейт по скользящим окнам из 10 сделок. Показывает локальные циклы точности.',
+  strategyDecayRate: 'Наклон регрессии скользящих Sharpe Ratio во времени. Отрицательные значения указывают на угасание alpha.',
+  edgeHalfLife: 'Оценка горизонта в месяцах, за который преимущество стратегии сократится наполовину при текущем темпе угасания.',
+  outlierImpactRatio: 'Доля чистой прибыли, которую дали только верхние 5% крупнейших прибыльных сделок.',
+  distributionRobustness: 'Композитная оценка устойчивости распределения: нормальность, хвостовой риск и зависимость от выбросов.'
 }
 
 const formatMetricLabel = (label: string) => label.replaceAll('_', ' ')
@@ -1816,6 +1919,11 @@ export function useEquityCurveMetricsPanel() {
     return formatMetricLabel(cfg.label)
   }
 
+  const metricDisplayDesc = (cfg: MetricConfig) => {
+    if (locale.value === 'ru') return metricDescRuByKey[cfg.key] || cfg.desc
+    return cfg.desc
+  }
+
   const saveMetricsLayout = async () => {
     await saveToDisk('custom_metrics_layout_v1', activeMetricKeys.value)
   }
@@ -1850,7 +1958,7 @@ export function useEquityCurveMetricsPanel() {
         cfg.label.replaceAll('_', ' ').toLowerCase().includes(q) || 
         cfg.label.replaceAll('_', '').toLowerCase().includes(q) || 
         cfg.label.toLowerCase().includes(q) || 
-        cfg.desc.toLowerCase().includes(q) || 
+        metricDisplayDesc(cfg).toLowerCase().includes(q) ||
         cfg.sub.toLowerCase().includes(q) || 
         cfg.formula.toLowerCase().includes(q);
       return matchesCategory && matchesSearch;
@@ -2534,6 +2642,9 @@ export function useEquityCurveMetricsPanel() {
   
   const getMetricRationale = (key: string | null): string => {
     if (!key) return '';
+    if (locale.value === 'ru') {
+      return 'Используется как диагностический сигнал: помогает понять качество преимущества, устойчивость результата и зоны риска, которые стоит учитывать при управлении стратегией.'
+    }
     const rationales: Record<string, string> = {
       // Primary Metrics
       netProfit: "Determines the absolute bottom-line monetary value generated by the strategy after accounting for all losses and fees, validating basic financial viability.",
@@ -2694,7 +2805,7 @@ export function useEquityCurveMetricsPanel() {
       evalText: cfg.evalStr(mVals).toUpperCase(),
       color: isFullZero ? metricTonePalette.neutral : getMetricToneColor(cfg, mVals),
       valStr: fullValString,
-      desc: cfg.desc,
+      desc: metricDisplayDesc(cfg),
       benchmarks: cfg.benchmarks.map(b => b.label + ' (' + b.eval + ')'),
       isBenchMetric: ['informationRatio', 'treynorRatio', 'jensensAlpha', 'alphaToBenchmark', 'betaToBenchmark'].includes(cfg.key),
       isRiskFreeMetric: ['sharpeRatio', 'sortinoRatio', 'treynorRatio', 'jensensAlpha'].includes(cfg.key),
@@ -3015,6 +3126,7 @@ export function useEquityCurveMetricsPanel() {
     filteredAvailableConfigs,
     activeMetricsConfigs,
     metricDisplayLabel,
+    metricDisplayDesc,
     saveMetricsLayout,
     loadMetricsLayout,
     toggleMetric,
