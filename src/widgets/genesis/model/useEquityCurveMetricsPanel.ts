@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
+import { useI18n } from '~/shared/i18n/useI18n'
 
 export interface MetricConfig {
   key: string;
@@ -16,6 +17,111 @@ export interface MetricConfig {
   benchmarks: { label: string; eval: string; class: string }[];
   category?: string;
 }
+
+const metricLabelRuByKey: Record<string, string> = {
+  netProfit: 'Чистая прибыль',
+  grossProfit: 'Валовая прибыль',
+  grossLoss: 'Валовый убыток',
+  winRate: 'Процент побед',
+  lossRate: 'Процент убытков',
+  avgWin: 'Средняя прибыль',
+  avgLoss: 'Средний убыток',
+  avgTrade: 'Средняя сделка',
+  payoffRatio: 'Коэффициент выплат',
+  riskRewardRatio: 'Риск/прибыль',
+  realizedRR: 'Реализованный R/R',
+  expectedValue: 'Ожидаемое значение',
+  profitFactor: 'Фактор прибыли',
+  beWinRate: 'Безубыточный винрейт',
+  numTrades: 'Количество сделок',
+  numWin: 'Прибыльные сделки',
+  numLoss: 'Убыточные сделки',
+  largestWin: 'Самая прибыльная сделка',
+  largestLoss: 'Самая убыточная сделка',
+  maxConsWins: 'Серия побед',
+  maxConsLosses: 'Серия убытков',
+  avgHoldingTimeStr: 'Среднее время удержания',
+  avgProfitPerDay: 'Скорость прибыли',
+  maxDrawdownNum: 'Максимальная просадка',
+  avgDrawdownPct: 'Средняя просадка',
+  drawdownDurationStr: 'Длительность просадки',
+  recoveryFactor: 'Фактор восстановления',
+  returnOnCapital: 'Доходность капитала',
+  returnPerTrade: 'Доходность на сделку',
+  riskPerTrade: 'Риск на сделку',
+  sharpeRatio: 'Коэффициент Шарпа',
+  sortinoRatio: 'Коэффициент Сортино',
+  calmarRatio: 'Коэффициент Калмара',
+  sterlingRatio: 'Коэффициент Стерлинга',
+  omegaRatio: 'Коэффициент Омега',
+  ulcerIndex: 'Индекс язвы',
+  marRatio: 'MAR коэффициент',
+  gainToPainRatio: 'Прибыль к боли',
+  tailRatio: 'Хвостовой коэффициент',
+  commonSenseRatio: 'Common Sense коэффициент',
+  profitFactorStrategy: 'PF по стратегии',
+  profitFactorMarket: 'PF по рынку',
+  profitFactorTimeframe: 'PF по таймфрейму',
+  avgTradeExpectancy: 'Ожидание сделки',
+  expectancyScore: 'Оценка ожидания',
+  latestRMultiple: 'R-множитель',
+  avgRMultiple: 'Средний R-множитель',
+  rMultipleDist: 'Распределение R',
+  riskOfRuin: 'Риск разорения',
+  slope: 'Наклон эквити',
+  equityCurveVolatility: 'Волатильность эквити',
+  equityCurveStability: 'Стабильность эквити',
+  equityCurveCorrelation: 'Корреляция эквити',
+  stdPnL: 'Стд. отклонение результата',
+  varPnL: 'Дисперсия результата',
+  coeffOfVariation: 'Коэффициент вариации',
+  skewness: 'Асимметрия доходностей',
+  kurtosis: 'Эксцесс доходностей',
+  medianTradeResult: 'Медианный результат сделки',
+  medianWinLossRatio: 'Медиана побед/убытков',
+  valueAtRisk: 'Value at Risk',
+  cvar: 'Условный VaR',
+  expectedShortfall: 'Ожидаемый дефицит',
+  mae: 'Макс. движение против',
+  mfe: 'Макс. движение в плюс',
+  maeMfeRatio: 'MAE/MFE коэффициент',
+  zScore: 'Z-оценка серии',
+  runsTest: 'Тест серий',
+  monteCarloDrawdown: 'MC оценка просадки',
+  monteCarloRiskOfRuin: 'MC риск разорения',
+  monteCarloExpectedReturn: 'MC ожидаемая доходность',
+  bootstrapConfidenceInterval: 'Bootstrap интервал',
+  ciExpectedValue: 'ДИ ожидаемого значения',
+  ciWinRate: 'ДИ винрейта',
+  bayesianWinRate: 'Байесовский винрейт',
+  bayesianExpectedValue: 'Байесовское ожидание',
+  kellyCriterion: 'Критерий Келли',
+  fractionalKelly: 'Дробный Келли',
+  optimalF: 'Оптимальный F',
+  sqn: 'SQN',
+  tTest: 'T-тест средней сделки',
+  pValue: 'P-значение преимущества',
+  informationRatio: 'Information Ratio',
+  treynorRatio: 'Коэффициент Трейнора',
+  jensensAlpha: 'Альфа Дженсена',
+  betaToBenchmark: 'Бета к бенчмарку',
+  alphaToBenchmark: 'Альфа к бенчмарку',
+  returnAutocorrelation: 'Автокорреляция доходности',
+  volatilityClustering: 'Кластеризация волатильности',
+  hurstExponent: 'Экспонента Херста',
+  regimeStabilityScore: 'Стабильность режима',
+  rollingSharpe: 'Скользящий Шарп',
+  rollingProfitFactor: 'Скользящий PF',
+  rollingExpectancy: 'Скользящее ожидание',
+  rollingDrawdown: 'Скользящая просадка',
+  rollingWinRate: 'Скользящий винрейт',
+  strategyDecayRate: 'Скорость угасания стратегии',
+  edgeHalfLife: 'Период полураспада преимущества',
+  outlierImpactRatio: 'Влияние выбросов',
+  distributionRobustness: 'Устойчивость распределения'
+}
+
+const formatMetricLabel = (label: string) => label.replaceAll('_', ' ')
 
 const primaryMetricsConfigs: MetricConfig[] = [
   {
@@ -1691,6 +1797,7 @@ const normalizeMetricValueString = (cfg: MetricConfig, mVals: any) => {
 }
 
 export function useEquityCurveMetricsPanel() {
+  const { locale } = useI18n()
   const activeMetricKeys = ref<string[]>(['netProfit', 'riskRewardRatio', 'expectedValue', 'winRate', 'lossRate', 'profitFactor'])
   const isEditMode = ref(false)
   const showAddModal = ref(false)
@@ -1704,6 +1811,10 @@ export function useEquityCurveMetricsPanel() {
   const hoveredMetricIndex = ref<number | null>(null)
   const hoveredMetricScreenPos = ref<{ x: number; y: number } | null>(null)
   const latestStrategyMetrics = ref<any>({})
+  const metricDisplayLabel = (cfg: MetricConfig) => {
+    if (locale.value === 'ru') return metricLabelRuByKey[cfg.key] || formatMetricLabel(cfg.label)
+    return formatMetricLabel(cfg.label)
+  }
 
   const saveMetricsLayout = async () => {
     await saveToDisk('custom_metrics_layout_v1', activeMetricKeys.value)
@@ -1732,7 +1843,10 @@ export function useEquityCurveMetricsPanel() {
     const filtered = allAvailableConfigs.value.filter(cfg => {
       const matchesCategory = selectedCategoryFilter.value === 'ALL' || cfg.category === selectedCategoryFilter.value;
       const q = searchQuery.value.trim().toLowerCase();
+      const displayLabel = metricDisplayLabel(cfg).toLowerCase();
       const matchesSearch = !q || 
+        displayLabel.includes(q) ||
+        displayLabel.replaceAll(' ', '').toLowerCase().includes(q) ||
         cfg.label.replaceAll('_', ' ').toLowerCase().includes(q) || 
         cfg.label.replaceAll('_', '').toLowerCase().includes(q) || 
         cfg.label.toLowerCase().includes(q) || 
@@ -2576,7 +2690,7 @@ export function useEquityCurveMetricsPanel() {
     const isFullZero = cleanFullVal.length > 0 && cleanFullVal.split('').every(c => c === '0' || c === '.')
 
     return {
-      label: cfg.label.replace('_', ' '),
+      label: metricDisplayLabel(cfg),
       evalText: cfg.evalStr(mVals).toUpperCase(),
       color: isFullZero ? metricTonePalette.neutral : getMetricToneColor(cfg, mVals),
       valStr: fullValString,
@@ -2592,7 +2706,7 @@ export function useEquityCurveMetricsPanel() {
     ctx.textBaseline = 'middle'
     ctx.fillStyle = 'rgba(255,255,255,0.75)'
     ctx.font = 'bold 45px monospace'
-    ctx.fillText(cfg.label.replace('_', ' '), 0, -65)
+    ctx.fillText(metricDisplayLabel(cfg), 0, -65)
 
     const { valString, isZero } = normalizeMetricValueString(cfg, mVals)
     ctx.fillStyle = isZero ? metricTonePalette.neutral : metricTone
@@ -2900,6 +3014,7 @@ export function useEquityCurveMetricsPanel() {
     allAvailableConfigs,
     filteredAvailableConfigs,
     activeMetricsConfigs,
+    metricDisplayLabel,
     saveMetricsLayout,
     loadMetricsLayout,
     toggleMetric,

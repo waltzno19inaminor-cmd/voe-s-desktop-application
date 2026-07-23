@@ -47,7 +47,7 @@
               <div class="flex items-center justify-between border-b nier-border-primary pb-6 mb-6 relative z-10 shrink-0">
                 <div class="flex items-center space-x-4">
                   <span class="text-2xl font-serif font-light uppercase tracking-[0.3em] nier-text-primary">
-                    {{ allAvailableConfigs.find(c => c.key === selectedDeepDiveMetricKey)!.label.replaceAll('_', ' ') }}
+                    {{ metricDisplayLabel(allAvailableConfigs.find(c => c.key === selectedDeepDiveMetricKey)!) }}
                   </span>
                   <span class="text-[10px] font-serif font-light px-3 py-1 border nier-border-primary text-black/60 dark:text-white/60 tracking-widest uppercase">
                     {{ allAvailableConfigs.find(c => c.key === selectedDeepDiveMetricKey)!.category }}
@@ -162,7 +162,7 @@
                     <div class="flex items-center space-x-3">
                       <span class="text-xs font-mono font-bold uppercase tracking-widest transition-colors"
                             :class="activeMetricKeys.includes(cfg.key) ? 'nier-text-primary font-extrabold' : 'nier-text-primary'">
-                        {{ cfg.label.replaceAll('_', ' ') }}
+                        {{ metricDisplayLabel(cfg) }}
                       </span>
                       <span class="text-[9px] font-mono px-2 py-0.5 border transition-colors"
                             :class="activeMetricKeys.includes(cfg.key) ? 'border-white/30 dark:border-black/30 nier-text-primary bg-white/10 dark:bg-black/10 font-bold' : (cfg.category === 'Expert' ? 'border-purple-500/30 text-purple-600 dark:text-purple-400 bg-purple-500/5' : (cfg.category === 'Advanced' ? 'border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5' : 'border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5'))">
@@ -238,7 +238,8 @@ const {
   toggleMetric,
   getMetricDeepDiveVariables,
   getMetricCalculationSteps,
-  getMetricRationale
+  getMetricRationale,
+  metricDisplayLabel
 } = props.panel
 
 const openDeepDive = (metricKey: string) => {
