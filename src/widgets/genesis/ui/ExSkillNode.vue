@@ -626,8 +626,10 @@
          </div>
          <!-- Display Mode -->
          <div v-else-if="node.params?.customName"
-              class="min-w-full w-max bg-nier-white dark:bg-nier-black border border-nier-border-light dark:border-nier-border-dark shadow-[0_5px_15px_rgba(0,0,0,0.5)] pointer-events-none relative text-center px-4 py-1.5 flex flex-col items-center">
-            <ExText variant="telemetry" class="!opacity-100 font-black">{{ node.params.customName }}</ExText>
+              class="min-w-full w-max bg-nier-white dark:bg-nier-black border border-nier-border-light dark:border-nier-border-dark shadow-[0_5px_15px_rgba(0,0,0,0.5)] pointer-events-none relative text-center flex flex-col items-center"
+              :style="{ padding: `${scaledPx(6)} ${scaledPx(16)}` }">
+            <ExText variant="telemetry" class="!opacity-100 font-black"
+                    :style="{ fontSize: scaledPx(9), lineHeight: scaledPx(12) }">{{ node.params.customName }}</ExText>
             <!-- Mini Corners -->
             <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-nier-border-light dark:border-nier-border-dark"></div>
             <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-nier-border-light dark:border-nier-border-dark"></div>
