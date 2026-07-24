@@ -589,7 +589,7 @@
             <div class="relative w-full max-w-sm">
                <ExInput v-model="menu.assetSearchQuery.value"
                         placeholder="ESTABLISH_DATA_LINK // ENTER_TICKER..."
-                        @input="menu.handleAssetSearch" />
+                        @update:modelValue="menu.handleAssetSearch" />
                <div class="absolute right-2 top-1/2 -translate-y-1/2 flex space-x-1">
                   <div v-for="i in 3" :key="i" class="w-1 h-3 border-r border-nier-text-light dark:border-nier-text-dark opacity-10" :class="{ 'animate-pulse opacity-40': menu.isSearchingAssets.value }"></div>
                </div>

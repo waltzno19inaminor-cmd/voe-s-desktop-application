@@ -101,6 +101,16 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   }
 
   const resetView = () => {
+    const rootNode = state.nodes.value.find(n => n.isRoot) || state.nodes.value[0]
+    if (rootNode && canvasWrapper.value) {
+      const rect = canvasWrapper.value.getBoundingClientRect()
+      state.viewState.value.scale = 1
+      state.viewState.value.panX = (rect.width / 2) - rootNode.x
+      state.viewState.value.panY = (rect.height / 2) - rootNode.y
+      state.lastSelectedId.value = rootNode.id
+      return
+    }
+
     state.viewState.value.panX = 0
     state.viewState.value.panY = 0
   }
