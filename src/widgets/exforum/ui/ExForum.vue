@@ -1961,7 +1961,7 @@
       <div class="flex-grow relative z-10 pb-0">
 
         <!-- Loading State -->
-        <div v-if="forumStore.loading" class="flex flex-col items-center justify-center py-32 opacity-50 space-y-4">
+        <div v-if="isForumJournalLoading" class="flex flex-col items-center justify-center py-32 opacity-50 space-y-4">
           <svg class="w-8 h-8 animate-spin text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
           </svg>
@@ -2050,12 +2050,22 @@
                    <h2 class="text-xs font-mono tracking-[0.3em] uppercase opacity-50">{{ journalLabels.signals }}</h2>
                 </div>
                 <div class="space-y-1">
-                  <ExNodeCard
+                  <button
                     v-for="node in pagedSignals.slice(0, 4)"
                     :key="node.id"
-                    :node="node"
-                    class="journal-signal-card"
-                  />
+                    type="button"
+                    class="journal-signal-card group/signal w-full text-left"
+                    @click="navigateToNode(node.id)"
+                  >
+                    <span class="journal-signal-asset">{{ getSignalCardAsset(node) }}</span>
+                    <span class="journal-signal-prices">
+                      <span class="journal-signal-target">{{ getSignalCardTargetPrice(node) }}</span>
+                      <span class="journal-signal-current">
+                        <span class="journal-signal-current-label">{{ locale === 'ru' ? 'ТЕК.' : 'CUR.' }}</span>
+                        {{ getSignalCardCurrentPrice(node) }}
+                      </span>
+                    </span>
+                  </button>
                 </div>
               </div>
             </section>
@@ -2251,6 +2261,7 @@ const themeStore = useThemeStore()
 const authStore = useAuthStore()
 const forumStore = useForumStore()
 const strategyTradesStore = useStrategyTradesStore()
+const isInitialJournalLoading = ref(true)
 
 // Archival State
 const searchQuery = ref('')
@@ -2495,6 +2506,32 @@ const getThreadSignal = (thread: Thread & Record<string, any>): ExNodeSignal | u
   }
 }
 
+const formatSignalCardPrice = (value: unknown, precision?: number) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return '—'
+
+  const safePrecision = Number.isFinite(Number(precision))
+    ? Math.max(0, Math.min(8, Number(precision)))
+    : 0
+
+  return new Intl.NumberFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+    minimumFractionDigits: safePrecision,
+    maximumFractionDigits: safePrecision
+  }).format(numeric)
+}
+
+const getSignalCardAsset = (node: ExNode & Record<string, any>) => {
+  return String(node.signal?.asset || node.title || boardUiLabels.value.assetFallback).toUpperCase()
+}
+
+const getSignalCardTargetPrice = (node: ExNode & Record<string, any>) => {
+  return formatSignalCardPrice(node.signal?.targetPrice, node.signal?.pricePrecision)
+}
+
+const getSignalCardCurrentPrice = (node: ExNode & Record<string, any>) => {
+  return formatSignalCardPrice(node.signal?.entryPrice, node.signal?.pricePrecision)
+}
+
 const threadToJournalNode = (thread: Thread & Record<string, any>): ExNode => {
   const mode = getThreadMode(thread)
   const description = getThreadDescription(thread)
@@ -2718,6 +2755,8 @@ const myArticleThreads = computed(() => {
 const journalNodes = computed(() => journalThreads.value
   .map(threadToJournalNode)
   .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()))
+
+const isForumJournalLoading = computed(() => isInitialJournalLoading.value || forumStore.loading)
 
 const filteredNodes = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -3775,9 +3814,17 @@ function resetTextColor() {
 }
 
 onMounted(() => {
-  void forumStore.fetchThreadList(100, 'createdAt').catch((error) => {
-    console.error('Failed to load ExForum threads:', error)
-  })
+  void (async () => {
+    isInitialJournalLoading.value = true
+    try {
+      await forumStore.fetchThreadList(100, 'createdAt')
+    } catch (error) {
+      console.error('Failed to load ExForum threads:', error)
+    } finally {
+      isInitialJournalLoading.value = false
+    }
+  })()
+
   void strategyTradesStore.init()
   window.addEventListener('pointerdown', closeNodeContextMenu)
   document.addEventListener('selectionchange', saveTextSelection)
@@ -5363,8 +5410,69 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   position: relative;
 }
 
-:deep(.journal-signal-card) {
-  border: 0 !important;
+.journal-signal-card {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  padding: 15px 0;
+  background: transparent;
+  color: currentColor;
+  transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
+}
+
+.journal-signal-card:hover {
+  border-color: color-mix(in srgb, currentColor 24%, transparent);
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.journal-signal-asset {
+  min-width: 0;
+  overflow: hidden;
+  color: color-mix(in srgb, currentColor 82%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.journal-signal-prices {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1;
+}
+
+.journal-signal-target {
+  color: color-mix(in srgb, currentColor 92%, transparent);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.journal-signal-current {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: color-mix(in srgb, currentColor 46%, transparent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.journal-signal-current-label {
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  opacity: 0.55;
 }
 
 .journal-filter-list {
