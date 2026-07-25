@@ -2,21 +2,21 @@
   <div class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 px-6 lg:px-10 lg:py-2">
     <!-- Update Notification Widget -->
     <div v-if="updateNotification.showUpdate" class="absolute top-0 left-12 right-12 z-[250] nier-bg-inverted p-5 flex justify-between items-center overflow-hidden group shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
-      
+
       <!-- Animated Background Scanline -->
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 dark:via-black/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1500ms] ease-in-out"></div>
-      
+
       <!-- Decorative Tactical Elements -->
       <div class="absolute top-0 left-0 w-12 h-12 border-t-2 border-l-2 border-white/20 dark:border-black/20 pointer-events-none"></div>
       <div class="absolute bottom-0 right-0 w-12 h-12 border-b-2 border-r-2 border-white/20 dark:border-black/20 pointer-events-none"></div>
-      
+
       <!-- Left side: Text & Icon -->
       <div class="flex items-center space-x-6 relative z-10">
         <div class="flex flex-col items-center space-y-1.5">
           <div class="w-2 h-2 bg-theme-accent animate-pulse shadow-[0_0_8px_rgba(var(--theme-accent-rgb),0.8)]"></div>
           <div class="text-[6px] text-white/40 dark:text-black/40 font-mono tracking-widest">SYS</div>
         </div>
-        
+
         <div class="flex flex-col">
           <div class="flex items-center space-x-3">
             <ExText variant="telemetry" class="!opacity-100 uppercase tracking-[0.2em] !text-white dark:!text-black font-bold">
@@ -40,14 +40,14 @@
            <span class="text-[7px] font-mono text-white/30 dark:text-black/30 tracking-[0.3em]">0xUPDATE_SEQ_INIT</span>
            <span class="text-[7px] font-mono text-white/30 dark:text-black/30 tracking-[0.3em]">{{ new Date().toISOString().split('T')[1]?.substring(0, 8) }}Z</span>
         </div>
-        
-        <button 
-          @click="handleDownload(updateNotification.downloadLink)" 
+
+        <button
+          @click="handleDownload(updateNotification.downloadLink)"
           class="relative px-8 py-3.5 bg-transparent border border-white/20 dark:border-black/20 nier-text-primary text-[10px] font-mono uppercase tracking-[0.25em] overflow-hidden group/btn hover:border-white dark:hover:border-black transition-colors duration-300 cursor-pointer"
         >
           <!-- Button background slide -->
           <div class="absolute inset-0 nier-bg-panel transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-500 origin-left"></div>
-          
+
           <span class="relative z-10 flex items-center space-x-3 group-hover/btn:text-black dark:group-hover/btn:text-white transition-colors duration-500 font-bold">
             <span>{{ t('dashboard.ui.download') }}</span>
             <svg class="w-3.5 h-3.5 transform group-hover/btn:translate-y-0.5 transition-all duration-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -73,8 +73,8 @@
       <div class="flex shrink-0 items-center gap-4 sm:gap-8">
         <!-- Language Selector -->
         <div class="flex items-center gap-3 border-r border-theme-border pr-4 sm:gap-4 sm:pr-6">
-          <button 
-            v-for="l in ['en', 'ru']" 
+          <button
+            v-for="l in ['en', 'ru']"
             :key="l"
             @click="setLocale(l)"
             class="text-[10px] font-mono tracking-widest uppercase transition-all duration-300"
@@ -161,18 +161,37 @@
     <!-- 2. Central Stage -->
     <main
       class="dashboard-center-stage absolute inset-0 z-10 flex items-center justify-center"
-      :class="activeDashboardPanel === 'activity' ? 'is-activity px-0' : 'px-8'"
+      :class="[
+        isDashboardFullBleedPanel ? 'px-0' : 'px-8',
+        activeDashboardPanel === 'activity' ? 'is-activity' : ''
+      ]"
     >
-      <Transition name="dashboard-center-fade" mode="out-in">
+      <Transition
+        name="dashboard-center-fade"
+        mode="out-in"
+        @before-leave="handleDashboardCenterBeforeLeave"
+        @after-leave="handleDashboardCenterAfterLeave"
+        @leave-cancelled="handleDashboardCenterAfterLeave"
+      >
         <div
           v-if="activeDashboardPanel === 'activity'"
           key="activity-monitor"
           class="dashboard-activity-stage pointer-events-auto h-full w-full"
+          data-dashboard-panel="activity"
         >
           <ExActivityMonitor @exit="activeDashboardPanel = null" />
         </div>
 
-        <div v-else key="dashboard-logo" class="dashboard-core-logo pointer-events-none flex flex-col items-center text-center">
+        <div
+          v-else-if="activeDashboardPanel === 'forum'"
+          key="forum-monitor"
+          class="pointer-events-auto h-full w-full"
+          data-dashboard-panel="forum"
+        >
+          <ExForum />
+        </div>
+
+        <div v-else key="dashboard-logo" class="dashboard-core-logo pointer-events-none flex flex-col items-center text-center" data-dashboard-panel="logo">
           <div class="relative flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
             <div class="absolute inset-0 border-2 border-theme-text/40 animate-[spin_10s_linear_infinite]"></div>
             <div class="absolute inset-4 border border-theme-text/60 animate-[spin_6s_linear_infinite_reverse]"></div>
@@ -207,13 +226,13 @@
     <!-- Premium Unlocked Overlay -->
     <Teleport to="body">
       <Transition name="premium-modal">
-        <div v-if="showPremiumUnlocked" 
+        <div v-if="showPremiumUnlocked"
              class="fixed inset-0 z-[10050] flex flex-col items-center justify-center p-8 backdrop-blur-xl bg-white/30 dark:bg-black/60 transition-all duration-700"
              @click.self="dismissPremiumUnlocked">
-          
+
           <div class="w-full max-w-lg transform scale-100 transition-all duration-700">
-            <ExPanel 
-              :title="locale === 'ru' ? 'СИСТЕМНОЕ УВЕДОМЛЕНИЕ' : 'SYSTEM NOTIFICATION'" 
+            <ExPanel
+              :title="locale === 'ru' ? 'СИСТЕМНОЕ УВЕДОМЛЕНИЕ' : 'SYSTEM NOTIFICATION'"
               :telemetry="locale === 'ru' ? 'ПРИВИЛЕГИИ' : 'PRIVILEGES'"
               variant="standard"
             >
@@ -228,7 +247,7 @@
                 <ExHeading level="h2" variant="cinematic" class="!text-2xl mb-6 text-center text-emerald-600 dark:text-emerald-400">
                   {{ locale === 'ru' ? 'ДОСТУП ПРЕДОСТАВЛЕН' : 'ACCESS GRANTED' }}
                 </ExHeading>
-                
+
                 <div class="relative h-px w-24 bg-gradient-to-r from-transparent via-black/20 dark:via-white/20 to-transparent mb-8"></div>
 
                 <ExText class="text-center mb-12 !text-[11px] !leading-[2.5] uppercase tracking-widest text-black/70 dark:text-white/60">
@@ -243,7 +262,7 @@
                     FULL ACCESS TO THE GENESIS MATRIX AND ADVANCED DIARY ANALYTICS HAS BEEN ACTIVATED.
                   </span>
                 </ExText>
-                
+
                 <ExButton class="w-full" variant="tactical" @click="dismissPremiumUnlocked">
                   {{ locale === 'ru' ? 'ПОДТВЕРДИТЬ' : 'CONFIRM' }}
                 </ExButton>
@@ -276,6 +295,7 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExProfileOverlay from '~/widgets/profile/ui/ExProfileOverlay.vue'
 import ExActivityMonitor from '~/widgets/dashboard/ui/ExActivityMonitor.vue'
+import ExForum from '~/widgets/exforum/ui/ExForum.vue'
 
 const emit = defineEmits(['navigate', 'signed-out'])
 
@@ -291,6 +311,12 @@ const menuRef = ref<HTMLElement | null>(null)
 const menuStyle = ref<Record<string, string>>({})
 const showProfileOverlay = ref(false)
 const activeDashboardPanel = ref<string | null>(null)
+const isDashboardForumLeaving = ref(false)
+const isDashboardFullBleedPanel = computed(() => (
+  activeDashboardPanel.value === 'forum' ||
+  activeDashboardPanel.value === 'activity' ||
+  isDashboardForumLeaving.value
+))
 
 const toggleMenu = () => {
   if (!userMenuOpen.value && identityRef.value) {
@@ -402,11 +428,11 @@ onMounted(() => {
               fsUpdatedAt = new Date(data.updatedAt).getTime()
             }
           }
-          
+
           if (fsUpdatedAt > 0) {
             const ackKey = `premium_ack_time_${userId}`
             const localAck = localStorage.getItem(ackKey)
-            
+
             if (localAck !== String(fsUpdatedAt)) {
               premiumUpdatedAt.value = fsUpdatedAt
               showPremiumUnlocked.value = true
@@ -435,34 +461,50 @@ const displayName = computed(() => {
 })
 
 const dashboardModules = [
-  { 
-    id: 'forum', 
-    code: 'F1', 
-    titleKey: 'dashboard.modules.knowledge_matrix', 
-    descriptionKey: 'dashboard.descriptions.knowledge_matrix' 
+  {
+    id: 'forum',
+    code: 'F1',
+    titleKey: 'dashboard.modules.knowledge_matrix',
+    descriptionKey: 'dashboard.descriptions.knowledge_matrix'
   },
-  { 
-    id: 'activity', 
-    code: 'A2', 
-    titleKey: 'dashboard.modules.activity_monitor', 
-    descriptionKey: 'dashboard.descriptions.activity_monitor' 
+  {
+    id: 'activity',
+    code: 'A2',
+    titleKey: 'dashboard.modules.activity_monitor',
+    descriptionKey: 'dashboard.descriptions.activity_monitor'
   },
-  { 
-    id: 'genesis', 
-    code: 'G3', 
-    titleKey: 'dashboard.modules.genesis_protocol', 
-    descriptionKey: 'dashboard.descriptions.genesis_protocol' 
+  {
+    id: 'genesis',
+    code: 'G3',
+    titleKey: 'dashboard.modules.genesis_protocol',
+    descriptionKey: 'dashboard.descriptions.genesis_protocol'
   }
 ]
 
 const handleDashboardModuleClick = (moduleId: string) => {
-  if (moduleId === 'activity') {
+  if (moduleId === 'activity' || moduleId === 'forum') {
     activeDashboardPanel.value = activeDashboardPanel.value === moduleId ? null : moduleId
     return
   }
 
   activeDashboardPanel.value = null
   emit('navigate', moduleId)
+}
+
+const getDashboardPanelFromTransitionElement = (el: Element) => (
+  (el as HTMLElement).dataset.dashboardPanel || ''
+)
+
+const handleDashboardCenterBeforeLeave = (el: Element) => {
+  if (getDashboardPanelFromTransitionElement(el) === 'forum') {
+    isDashboardForumLeaving.value = true
+  }
+}
+
+const handleDashboardCenterAfterLeave = (el: Element) => {
+  if (getDashboardPanelFromTransitionElement(el) === 'forum') {
+    isDashboardForumLeaving.value = false
+  }
 }
 
 // Premium Unlocked Logic

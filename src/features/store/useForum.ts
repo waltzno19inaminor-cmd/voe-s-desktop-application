@@ -2,12 +2,17 @@ import { defineStore } from 'pinia'
 import {
   collection,
   doc,
+  setDoc,
   getDoc,
   getDocs,
   query,
   where,
   orderBy,
   limit,
+  updateDoc,
+  increment,
+  deleteDoc,
+  serverTimestamp
 } from 'firebase/firestore'
 import { db } from '@/shared/firebase.client'
 
@@ -29,6 +34,8 @@ export const useForumStore = defineStore('forum', {
     diaries: new Map<string, DiaryEntry[]>(),
     quotes: new Map(),
     loading: false,
+    userLikedThreadIds: new Set<string>(),
+    userSavedThreadIds: new Set<string>(),
   }),
 
   actions: {
@@ -37,10 +44,10 @@ export const useForumStore = defineStore('forum', {
       // Trigger deep reactivity by modifying the existing array, or creating a new map instance
       const currentDiary = this.diaries.get(authorId) || []
       const newDiary = [...currentDiary, entry]
-      
+
       this.diaries.set(authorId, newDiary)
       this.diaries = new Map(this.diaries) // FORCE REACTIVITY MAP UPDATE
-      
+
       // Also keep user profile in sync if it exists
       const user = this.users.get(authorId)
       if (user) {
@@ -51,7 +58,7 @@ export const useForumStore = defineStore('forum', {
     removeDiaryEntry(authorId: string, entryId: number) {
         const currentDiary = this.diaries.get(authorId) || []
         const newDiary = currentDiary.filter((_, index) => index !== entryId)
-        
+
         this.diaries.set(authorId, newDiary)
         this.diaries = new Map(this.diaries)
 
@@ -85,7 +92,7 @@ export const useForumStore = defineStore('forum', {
             currentDiary[entryId].images = newImages;
             this.diaries.set(authorId, [...currentDiary])
             this.diaries = new Map(this.diaries)
-            
+
             const user = this.users.get(authorId)
             if (user) {
                 this.users.set(authorId, { ...user, diary: [...currentDiary] })
@@ -99,7 +106,7 @@ export const useForumStore = defineStore('forum', {
             currentDiary[entryId].notes = newNote;
             this.diaries.set(authorId, [...currentDiary])
             this.diaries = new Map(this.diaries)
-            
+
             const user = this.users.get(authorId)
             if (user) {
                 this.users.set(authorId, { ...user, diary: [...currentDiary] })
@@ -113,14 +120,74 @@ export const useForumStore = defineStore('forum', {
         this.loading = true;
         try {
           const currentList = this.replies.get(reply.threadId) || [];
-    
+
           const newList = [...currentList, reply];
-        
+
           this.replies.set(reply.threadId, newList);
         }finally{
           this.loading = false;
         }
       },
+
+      async createReply(threadId: string, replyData: Omit<Reply, 'id' | 'threadId' | 'createdAt'>) {
+        try {
+          const replyRef = doc(collection(db, 'replies'))
+          const newReply: Reply = {
+            ...replyData,
+            id: replyRef.id,
+            threadId,
+            createdAt: serverTimestamp()
+          }
+          await setDoc(replyRef, newReply)
+
+          const threadRef = doc(db, 'threads', threadId)
+          await updateDoc(threadRef, {
+            repliesCount: increment(1)
+          })
+
+          this.addReply({
+            ...newReply,
+            createdAt: new Date() // Temporary local date
+          })
+
+          const thread = this.threads.get(threadId)
+          if (thread) {
+            thread.repliesCount = (thread.repliesCount || 0) + 1
+          }
+
+          return newReply
+        } catch (e) {
+          console.error("Error creating reply", e)
+          throw e
+        }
+      },
+
+      async softDeleteReply(reply: Reply) {
+        try {
+          const replyRef = doc(db, 'replies', reply.id)
+          await updateDoc(replyRef, {
+            status: 'hidden',
+            'content.text': 'Комментарий удален автором',
+            'content.blocks': []
+          })
+
+          const list = this.replies.get(reply.threadId)
+          if (list) {
+            const index = list.findIndex(r => r.id === reply.id)
+            const r = list[index]
+            if (index !== -1 && r) {
+              r.status = 'hidden'
+              if (!r.content) r.content = { text: '', blocks: [] }
+              r.content.text = 'Комментарий удален автором'
+              r.content.blocks = []
+            }
+          }
+        } catch (e) {
+          console.error("Error soft deleting reply", e)
+          throw e
+        }
+      },
+
 
       removeReply(threadId: string, replyId: string) {
         const list = this.replies.get(threadId)
@@ -140,13 +207,139 @@ export const useForumStore = defineStore('forum', {
 
       addThread(thread: Thread) {
         this.threads.set(thread.id, thread)
+        this.threads = new Map(this.threads)
+      },
+
+      async createThread(threadData: Omit<Thread, 'id'> & Record<string, any>): Promise<Thread> {
+        this.loading = true
+        try {
+          const threadRef = doc(collection(db, 'threads'))
+          const thread = {
+            id: threadRef.id,
+            ...threadData
+          } as Thread & Record<string, any>
+
+          await setDoc(threadRef, thread)
+          this.threads.set(thread.id, thread)
+          this.threads = new Map(this.threads)
+
+          return thread
+        } finally {
+          this.loading = false
+        }
+      },
+
+      async updateThread(threadId: string, threadData: Partial<Thread> & Record<string, any>): Promise<Thread> {
+        this.loading = true
+        try {
+          const threadRef = doc(db, 'threads', threadId)
+          await updateDoc(threadRef, threadData)
+
+          const currentThread = this.threads.get(threadId)
+          const updatedThread = {
+            ...(currentThread || {}),
+            ...threadData,
+            id: threadId
+          } as Thread
+
+          this.threads.set(threadId, updatedThread)
+          this.threads = new Map(this.threads)
+
+          return updatedThread
+        } finally {
+          this.loading = false
+        }
+      },
+
+      async toggleThreadLike(userId: string, threadId: string, isLiking: boolean) {
+        if (!userId || !threadId) return
+
+        try {
+          const threadRef = doc(db, 'threads', threadId)
+          await updateDoc(threadRef, {
+            likesCount: increment(isLiking ? 1 : -1)
+          })
+
+          const userLikeRef = doc(db, 'users', userId, 'likedThreads', threadId)
+          if (isLiking) {
+            await setDoc(userLikeRef, { likedAt: serverTimestamp(), threadId })
+            this.userLikedThreadIds.add(threadId)
+          } else {
+            await deleteDoc(userLikeRef)
+            this.userLikedThreadIds.delete(threadId)
+          }
+
+          // Update local state immediately
+          const thread = this.threads.get(threadId)
+          if (thread) {
+            thread.likesCount = Math.max(0, (thread.likesCount || 0) + (isLiking ? 1 : -1))
+            this.threads.set(threadId, thread)
+            this.threads = new Map(this.threads)
+          }
+        } catch (error) {
+          console.error("Error toggling like:", error)
+          throw error
+        }
+      },
+
+      async toggleThreadSave(userId: string, threadId: string, isSaving: boolean) {
+        if (!userId || !threadId) return
+
+        try {
+          const userSaveRef = doc(db, 'users', userId, 'savedThreads', threadId)
+          if (isSaving) {
+            await setDoc(userSaveRef, { savedAt: serverTimestamp(), threadId })
+            this.userSavedThreadIds.add(threadId)
+          } else {
+            await deleteDoc(userSaveRef)
+            this.userSavedThreadIds.delete(threadId)
+          }
+        } catch (error) {
+          console.error("Error toggling save:", error)
+          throw error
+        }
+      },
+      async isThreadLiked(userId: string, threadId: string): Promise<boolean> {
+        if (!userId || !threadId) return false
+        try {
+          const snap = await getDoc(doc(db, 'users', userId, 'likedThreads', threadId))
+          return snap.exists()
+        } catch {
+          return false
+        }
+      },
+
+      async isThreadSaved(userId: string, threadId: string): Promise<boolean> {
+        if (!userId || !threadId) return false
+        try {
+          const snap = await getDoc(doc(db, 'users', userId, 'savedThreads', threadId))
+          return snap.exists()
+        } catch {
+          return false
+        }
+      },
+
+      async fetchUserInteractions(userId: string) {
+        if (!userId) return;
+        try {
+          const likesSnap = await getDocs(collection(db, 'users', userId, 'likedThreads'));
+          const savedSnap = await getDocs(collection(db, 'users', userId, 'savedThreads'));
+
+          this.userLikedThreadIds.clear();
+          likesSnap.forEach(d => this.userLikedThreadIds.add(d.id));
+
+          this.userSavedThreadIds.clear();
+          savedSnap.forEach(d => this.userSavedThreadIds.add(d.id));
+        } catch (e) {
+          console.error('Error fetching user interactions', e);
+        }
       },
 
       getAuthor(userId: string) {
         const user = this.users.get(userId)
-       
+
         if (!user) return 'anonymous'
- 
+
         return user
       },
 
@@ -161,26 +354,31 @@ export const useForumStore = defineStore('forum', {
 
       const thread = snap.data()
       this.threads.set(thread.id, thread)
+      this.threads = new Map(this.threads)
       return thread
     },
 
-    async fetchThreadList(limitCount = 30): Promise<void> {
+    async fetchThreadList(limitCount = 30, orderField = 'lastActivityAt'): Promise<void> {
       this.loading = true
 
-      const q = query(
-        collection(db, 'threads').withConverter(threadConverter),
-        orderBy('lastActivityAt', 'desc'),
-        limit(limitCount)
-      )
+      try {
+        const q = query(
+          collection(db, 'threads').withConverter(threadConverter),
+          orderBy(orderField, 'desc'),
+          limit(limitCount)
+        )
 
-      const snap = await getDocs(q)
+        const snap = await getDocs(q)
 
-      snap.forEach(d => {
-        const thread = d.data()
-        this.threads.set(thread.id, thread)
-      })
+        snap.forEach(d => {
+          const thread = d.data()
+          this.threads.set(thread.id, thread)
+        })
+        this.threads = new Map(this.threads)
 
-      this.loading = false
+      } finally {
+        this.loading = false
+      }
     },
 
     async fetchFollowedThreads(followedIds: string[], limitCount = 30): Promise<void> {
@@ -220,7 +418,7 @@ export const useForumStore = defineStore('forum', {
 
       const snap = await getDocs(q)
 
-      
+
       snap.forEach(d => {
         const quote = d.data()
         this.quotes.set(d.id, quote)
@@ -320,5 +518,3 @@ export const useForumStore = defineStore('forum', {
     },
   },
 })
-
-

@@ -2,13 +2,10 @@
   <div class="journal-spotlight group cursor-pointer" @click="$emit('click')">
     <div class="flex flex-col space-y-8">
       <!-- Spotlight Header -->
-      <div class="flex items-center space-x-4 text-[8px] font-mono tracking-widest opacity-30 uppercase">
+      <div v-if="node.author" class="flex items-center space-x-4 text-[10px] font-mono tracking-[0.2em] font-semibold text-current/80 uppercase">
         <div class="flex items-center space-x-2">
-           <div class="w-1.5 h-1.5 bg-current opacity-40 transform rotate-45"></div>
-           <span>Featured_Analysis</span>
+           <span>{{ node.author }}</span>
         </div>
-        <span class="w-1 h-px bg-current opacity-10 flex-grow"></span>
-        <span>Node//{{ node.id.slice(-4).toUpperCase() }}</span>
       </div>
 
       <!-- Main Headline -->
@@ -22,18 +19,21 @@
       </p>
 
       <!-- Footer Info -->
-      <div class="flex items-center justify-between border-t border-current/10 pt-8">
-        <div class="flex items-center space-x-12 text-[10px] font-serif italic opacity-70 tracking-wide">
-          <span class="flex items-center space-x-2">
-            <span class="opacity-30">ECHOES:</span> {{ node.repliesCount }}
+      <div class="flex items-center justify-between pt-8">
+        <div class="flex flex-wrap items-center gap-x-10 gap-y-3 text-[10px] tracking-wide">
+          <span class="font-mono uppercase tracking-[0.28em] text-current/35">
+            {{ spotlightLabels.published }} {{ formatSpotlightDate(node.lastActivityAt) }}
           </span>
-          <span class="flex items-center space-x-2">
-            <span class="opacity-30">AFFINITY:</span> {{ node.likesCount }}
+          <span class="font-serif italic text-current/60">
+            {{ node.repliesCount }} {{ spotlightLabels.comments }}
+          </span>
+          <span class="font-mono text-[12px] font-semibold text-current/90">
+            {{ node.likesCount }} {{ spotlightLabels.likes }}
           </span>
         </div>
-        
+
         <div class="flex items-center space-x-4 group-hover:translate-x-2 transition-transform duration-700">
-          <span class="text-[9px] font-mono tracking-[0.4em] opacity-30 uppercase group-hover:opacity-100">Access_Node</span>
+          <span class="text-[9px] font-mono tracking-[0.4em] opacity-30 uppercase group-hover:opacity-100 transition-all duration-300 transform origin-left group-hover:scale-110 inline-block">{{ spotlightLabels.accessNode }}</span>
           <span class="text-2xl opacity-20 group-hover:opacity-100 pb-1">→</span>
         </div>
       </div>
@@ -42,6 +42,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from '~/shared/i18n/useI18n'
 import type { ExNode } from '../../../entities/exnode/model/exnode.types'
 
 defineProps<{
@@ -49,6 +51,29 @@ defineProps<{
 }>()
 
 defineEmits(['click'])
+
+const { locale } = useI18n()
+const spotlightLabels = computed(() => locale.value === 'ru'
+  ? {
+      featuredAnalysis: 'Избранная_аналитика',
+      comments: 'комментов',
+      likes: 'лайков',
+      published: 'Опубл.',
+      accessNode: 'Открыть_узел'
+    }
+  : {
+      featuredAnalysis: 'Featured_Analysis',
+      comments: 'comments',
+      likes: 'likes',
+      published: 'Pub.',
+      accessNode: 'Access_Node'
+    })
+
+const formatSpotlightDate = (value: string) => new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric'
+}).format(new Date(value))
 </script>
 
 <style scoped>
