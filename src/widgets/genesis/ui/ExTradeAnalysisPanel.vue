@@ -1049,6 +1049,7 @@ const balanceBeforeTrade = computed(() => {
   const priorTrades = allTrades.value
     .filter((trade: any) => {
       if (currentTradeId && trade?.id === currentTradeId) return false;
+      if (!isClosedAnalysisTrade(trade)) return false;
       const tradeExitTs = new Date(trade?.dateExit || trade?.date || 0).getTime();
       return tradeExitTs > 0 && tradeExitTs < currentEntryTs;
     })

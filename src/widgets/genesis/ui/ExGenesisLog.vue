@@ -1282,12 +1282,12 @@ const tradeNetResult = computed(() => {
 
 const hasMultipleEntries = computed(() => {
   if (!selectedTrade.value || !selectedTrade.value.executions) return false
-  return selectedTrade.value.executions.filter((e: any) => e.type === 'entry').length > 1
+  return selectedTrade.value.executions.filter((e: any) => String(e?.type || '').toLowerCase() === 'entry').length > 1
 })
 
 const hasMultipleExits = computed(() => {
   if (!selectedTrade.value || !selectedTrade.value.executions) return false
-  return selectedTrade.value.executions.filter((e: any) => e.type === 'exit').length > 1
+  return selectedTrade.value.executions.filter((e: any) => String(e?.type || '').toLowerCase() === 'exit').length > 1
 })
 
 const methodLabels = computed(() => {
@@ -2221,21 +2221,84 @@ const calculateRR = (trade: any) => {
   return (reward / risk).toFixed(2)
 }
 
-const getEntryFeeDisplay = (trade: any) => {
-  if (!trade || (!trade.entryFee && trade.entryFee !== 0)) return '0$'
-  if (trade.feeType === '%') {
-    return parseFloat((((+trade.entry * +trade.entryFee) / 100)).toFixed(8)).toString() + '$'
-  }
-  return parseFloat((+trade.entryFee).toFixed(8)).toString() + '$'
+const FEE_FALLBACK_RATES: Record<string, number> = {
+  EUR: 0.92,
+  GBP: 0.78,
+  JPY: 155,
+  AUD: 1.53,
+  CAD: 1.37,
+  CHF: 0.90,
+  NZD: 1.66
 }
 
-const getExitFeeDisplay = (trade: any) => {
-  if (!trade || (!trade.exitFee && trade.exitFee !== 0)) return '0$'
-  if (trade.feeType === '%') {
-    return parseFloat((((+trade.exit * +trade.exitFee) / 100)).toFixed(8)).toString() + '$'
-  }
-  return parseFloat((+trade.exitFee).toFixed(8)).toString() + '$'
+const getFeeConversionRate = (currency: string) => {
+  const normalized = String(currency || 'USD').toUpperCase()
+  if (normalized === 'USD') return 1
+  try {
+    const cached = typeof localStorage !== 'undefined'
+      ? JSON.parse(localStorage.getItem('genesis_forex_rates') || '{}')
+      : {}
+    const cachedRate = Number(cached?.[normalized])
+    if (Number.isFinite(cachedRate) && cachedRate > 0) return cachedRate
+  } catch (error) {}
+  return FEE_FALLBACK_RATES[normalized] || 1
 }
+
+const resolveTradeAssetData = (trade: any) => {
+  const variants = getAssetSymbolVariants(trade?.asset || trade?.symbol || trade?.ticker)
+  return (globalAssets as any[]).find((asset) => {
+    const symbol = normalizeAssetSymbol(asset?.symbol)
+    const name = normalizeAssetSymbol(asset?.name)
+    const compactSymbol = symbol.replace(/[^A-Z0-9]/g, '')
+    return variants.has(symbol) || variants.has(name) || variants.has(compactSymbol)
+  })
+}
+
+const getExecutionSizeForFee = (trade: any, executionType: 'entry' | 'exit') => {
+  const executions = Array.isArray(trade?.executions) ? trade.executions : []
+  const executionSize = executions
+    .filter((execution: any) => String(execution?.type || '').toLowerCase() === executionType)
+    .reduce((sum: number, execution: any) => {
+      const size = Number(execution?.size)
+      return sum + (Number.isFinite(size) && size > 0 ? size : 0)
+    }, 0)
+
+  if (executionSize > 0) return executionSize
+
+  const size = Number(trade?.size)
+  return Number.isFinite(size) && size > 0 ? size : 0
+}
+
+const formatFeeCurrency = (value: number) => {
+  if (!Number.isFinite(value)) return '0$'
+  return `${parseFloat(value.toFixed(8)).toString()}$`
+}
+
+const getTradeFeeDisplay = (trade: any, side: 'entry' | 'exit') => {
+  const rawFee = Number(side === 'entry' ? trade?.entryFee : trade?.exitFee)
+  if (!trade || !Number.isFinite(rawFee) || rawFee <= 0) return '0$'
+  if (trade.feeType !== '%') return formatFeeCurrency(rawFee)
+
+  const price = Number(side === 'entry' ? trade?.entry : trade?.exit)
+  const size = getExecutionSizeForFee(trade, side)
+  if (!Number.isFinite(price) || price <= 0 || size <= 0) return '0$'
+
+  const assetData = resolveTradeAssetData(trade)
+  let notional = price * size
+  if (assetData?.contractSize) {
+    notional *= Number(assetData.contractSize) || 1
+    const assetCurrency = String(assetData.currency || 'USD').toUpperCase()
+    if (assetCurrency !== 'USD') {
+      notional /= getFeeConversionRate(assetCurrency)
+    }
+  }
+
+  return formatFeeCurrency((notional * rawFee) / 100)
+}
+
+const getEntryFeeDisplay = (trade: any) => getTradeFeeDisplay(trade, 'entry')
+
+const getExitFeeDisplay = (trade: any) => getTradeFeeDisplay(trade, 'exit')
 
 const calculateDuration = (trade: any) => {
   if (!trade || !trade.date || !trade.dateExit) return t('genesis.virtualLog.notAvailable')
