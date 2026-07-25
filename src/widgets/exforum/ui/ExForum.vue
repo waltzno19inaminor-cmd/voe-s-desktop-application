@@ -221,9 +221,19 @@
 
       <header class="article-reader-header relative z-10">
         <div class="article-reader-toolbar">
-          <button @click="closeReader" class="article-reader-back group">
-            <span class="text-xl opacity-30 group-hover:-translate-x-1 transition-transform">←</span>
-            <span>{{ articleLabels.returnToJournal }}</span>
+          <button
+            @click="closeReader"
+            class="article-reader-back group"
+            :aria-label="articleLabels.returnToJournal"
+            :title="articleLabels.returnToJournal"
+          >
+            <span class="article-reader-back-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
+                <path d="M15 6L9 12L15 18" />
+                <path d="M9 12H21" />
+              </svg>
+            </span>
+            <span class="article-reader-back-label">{{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}</span>
           </button>
         </div>
 
@@ -5491,26 +5501,47 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 .article-reader-back {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  border: 1px solid rgba(44, 44, 42, 0.9);
-  padding: 12px 18px;
-  background: rgba(44, 44, 42, 0.9);
-  box-shadow: 0 8px 22px rgba(44, 44, 42, 0.15);
-  color: rgba(255, 255, 255, 0.9);
-  transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(44, 44, 42, 0.9);
+  transition: color 0.3s ease, opacity 0.3s ease, transform 0.3s ease;
 }
 
 .article-reader-back:hover {
-  border-color: rgba(44, 44, 42, 1);
-  background: rgba(44, 44, 42, 1);
-  color: #ffffff;
+  color: rgba(44, 44, 42, 1);
 }
 
-.article-reader-back span:last-child {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.26em;
+.article-reader-back-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  line-height: 1;
   text-transform: uppercase;
+}
+
+.article-reader-back-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  opacity: 0.75;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.article-reader-back-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.article-reader-back:hover .article-reader-back-icon {
+  opacity: 1;
+  transform: translateX(-4px);
 }
 
 .article-reader-kicker {
