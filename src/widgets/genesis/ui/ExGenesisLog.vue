@@ -532,10 +532,6 @@
                            <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ formatArchivalFunctionalLabel(t('genesis.virtualLog.rrRatio')) }}</span>
                            <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">1:{{ calculateRR(selectedTrade) }}</span>
                          </div>
-                         <div class="flex items-baseline justify-between">
-                           <span class="text-[8px] font-mono opacity-30 nier-text-primary uppercase">{{ formatArchivalFunctionalLabel(t('genesis.virtualLog.duration')) }}</span>
-                           <span class="text-sm font-mono font-bold nier-text-primary tracking-widest">{{ calculateDuration(selectedTrade) }}</span>
-                         </div>
                       </div>
                     </div>
 
@@ -552,6 +548,14 @@
                             <span class="text-sm font-mono font-bold text-amber-500/80 tracking-widest">{{ getExitFeeDisplay(selectedTrade) }}</span>
                          </div>
                       </div>
+                    </div>
+
+                    <!-- DURATION -->
+                    <div class="col-span-2 flex flex-col items-center justify-center border-t border-black/5 pt-4 text-center dark:border-white/5">
+                      <span class="text-[8px] font-mono uppercase tracking-[0.4em] opacity-40 nier-text-primary">{{ formatArchivalFunctionalLabel(t('genesis.virtualLog.duration')) }}</span>
+                      <span class="mt-2 inline-flex max-w-full flex-wrap items-baseline justify-center gap-x-2 gap-y-1 break-words text-center text-base font-mono font-black tracking-[0.22em] nier-text-primary">
+                        {{ calculateDuration(selectedTrade) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -2308,13 +2312,51 @@ const calculateDuration = (trade: any) => {
   const diff = end - start
   if (diff < 0) return '0M'
   
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-  
-  if (days > 0) return `${days}D ${hours % 24}H`
-  if (hours > 0) return `${hours}H ${minutes % 60}M`
-  return `${minutes}M`
+  const totalMinutes = Math.floor(diff / 60000)
+  if (totalMinutes <= 0) return '<1M'
+
+  const totalHours = Math.floor(totalMinutes / 60)
+  const totalDays = Math.floor(totalHours / 24)
+  const minutes = totalMinutes % 60
+  const hours = totalHours % 24
+
+  const buildDuration = (parts: Array<[number, string]>) => parts
+    .filter(([value]) => value > 0)
+    .slice(0, 2)
+    .map(([value, unit]) => `${value}${unit}`)
+    .join(' ')
+
+  if (totalDays >= 365) {
+    const years = Math.floor(totalDays / 365)
+    const months = Math.floor((totalDays % 365) / 30)
+    return buildDuration([[years, 'Y'], [months, 'MO']]) || `${years}Y`
+  }
+
+  if (totalDays >= 90) {
+    const months = Math.floor(totalDays / 30)
+    const weeks = Math.floor((totalDays % 30) / 7)
+    return buildDuration([[months, 'MO'], [weeks, 'W']]) || `${months}MO`
+  }
+
+  if (totalDays >= 14) {
+    const weeks = Math.floor(totalDays / 7)
+    const days = totalDays % 7
+    return buildDuration([[weeks, 'W'], [days, 'D']]) || `${weeks}W`
+  }
+
+  if (totalDays >= 1) {
+    return buildDuration([[totalDays, 'D'], [hours, 'H']]) || `${totalDays}D`
+  }
+
+  if (totalHours >= 6) {
+    return `${totalHours}H`
+  }
+
+  if (totalHours >= 1) {
+    return buildDuration([[totalHours, 'H'], [minutes, 'M']]) || `${totalHours}H`
+  }
+
+  return `${totalMinutes}M`
 }
 
 const filterSide = ref<'ALL' | 'Long' | 'Short'>('ALL')
