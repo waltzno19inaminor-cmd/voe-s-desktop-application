@@ -2050,22 +2050,12 @@
                    <h2 class="text-xs font-mono tracking-[0.3em] uppercase opacity-50">{{ journalLabels.signals }}</h2>
                 </div>
                 <div class="space-y-1">
-                  <button
+                  <ExNodeCard
                     v-for="node in pagedSignals.slice(0, 4)"
                     :key="node.id"
-                    type="button"
-                    class="journal-signal-card group/signal w-full text-left"
-                    @click="navigateToNode(node.id)"
-                  >
-                    <span class="journal-signal-asset">{{ getSignalCardAsset(node) }}</span>
-                    <span class="journal-signal-prices">
-                      <span class="journal-signal-target">{{ getSignalCardTargetPrice(node) }}</span>
-                      <span class="journal-signal-current">
-                        <span class="journal-signal-current-label">{{ locale === 'ru' ? 'ТЕК.' : 'CUR.' }}</span>
-                        {{ getSignalCardCurrentPrice(node) }}
-                      </span>
-                    </span>
-                  </button>
+                    :node="node"
+                    class="journal-signal-card"
+                  />
                 </div>
               </div>
             </section>
@@ -2504,32 +2494,6 @@ const getThreadSignal = (thread: Thread & Record<string, any>): ExNodeSignal | u
     description: getThreadDescription(thread),
     pricePrecision: Math.max(String(currentNode?.value || '').split('.')[1]?.length || 0, String(targetNode?.value || '').split('.')[1]?.length || 0)
   }
-}
-
-const formatSignalCardPrice = (value: unknown, precision?: number) => {
-  const numeric = Number(value)
-  if (!Number.isFinite(numeric)) return '—'
-
-  const safePrecision = Number.isFinite(Number(precision))
-    ? Math.max(0, Math.min(8, Number(precision)))
-    : 0
-
-  return new Intl.NumberFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
-    minimumFractionDigits: safePrecision,
-    maximumFractionDigits: safePrecision
-  }).format(numeric)
-}
-
-const getSignalCardAsset = (node: ExNode & Record<string, any>) => {
-  return String(node.signal?.asset || node.title || boardUiLabels.value.assetFallback).toUpperCase()
-}
-
-const getSignalCardTargetPrice = (node: ExNode & Record<string, any>) => {
-  return formatSignalCardPrice(node.signal?.targetPrice, node.signal?.pricePrecision)
-}
-
-const getSignalCardCurrentPrice = (node: ExNode & Record<string, any>) => {
-  return formatSignalCardPrice(node.signal?.entryPrice, node.signal?.pricePrecision)
 }
 
 const threadToJournalNode = (thread: Thread & Record<string, any>): ExNode => {
@@ -5410,69 +5374,8 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   position: relative;
 }
 
-.journal-signal-card {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  border: 0;
-  border-bottom: 1px solid color-mix(in srgb, currentColor 10%, transparent);
-  padding: 15px 0;
-  background: transparent;
-  color: currentColor;
-  transition: opacity 0.25s ease, transform 0.25s ease, border-color 0.25s ease;
-}
-
-.journal-signal-card:hover {
-  border-color: color-mix(in srgb, currentColor 24%, transparent);
-  opacity: 1;
-  transform: translateX(2px);
-}
-
-.journal-signal-asset {
-  min-width: 0;
-  overflow: hidden;
-  color: color-mix(in srgb, currentColor 82%, transparent);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.journal-signal-prices {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: baseline;
-  gap: 10px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  line-height: 1;
-}
-
-.journal-signal-target {
-  color: color-mix(in srgb, currentColor 92%, transparent);
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-.journal-signal-current {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  color: color-mix(in srgb, currentColor 46%, transparent);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-}
-
-.journal-signal-current-label {
-  font-size: 7px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  opacity: 0.55;
+:deep(.journal-signal-card) {
+  border: 0 !important;
 }
 
 .journal-filter-list {
