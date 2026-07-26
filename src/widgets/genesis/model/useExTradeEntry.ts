@@ -13,6 +13,7 @@ import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
+import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 
@@ -265,7 +266,7 @@ const currentCapital = computed(() => {
       const tradeExitTime = new Date(t?.dateExit || t?.exitTime || t?.date || 0).getTime()
       return Number.isFinite(tradeExitTime) && tradeExitTime > 0 && tradeExitTime < referenceOpenTime
     })
-  const totalPnl = historical.reduce((acc, t) => acc + (Number(t.profitInCurrency) || 0), 0)
+  const totalPnl = historical.reduce((acc, t) => acc + getTradeCashPnl(t, initialDeposit), 0)
   return initialDeposit + totalPnl
 })
 

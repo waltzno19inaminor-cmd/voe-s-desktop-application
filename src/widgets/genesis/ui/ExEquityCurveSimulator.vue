@@ -189,6 +189,7 @@ import { computed, ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useThemeStore } from '~/features/store/useTheme';
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue';
 import ExPanel from '~/shared/ui/ExPanel.vue';
+import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl';
 
 const themeStore = useThemeStore();
 
@@ -275,21 +276,7 @@ const getTradeTimestamp = (trade: any): number => {
 }
 
 const getTradePnl = (trade: any): number => {
-  const candidates = [
-    trade?.profitInCurrency,
-    trade?.pnl,
-    trade?.pnlNum,
-    trade?.result,
-    trade?.profit,
-    trade?.netProfit
-  ];
-
-  for (const candidate of candidates) {
-    const value = Number(candidate);
-    if (Number.isFinite(value)) return value;
-  }
-
-  return 0;
+  return getTradeCashPnl(trade, params.initialEquity || 1000);
 }
 
 const buildRegimeModel = (normalized = getNormalizedParams()): SimulationRegime[] => {

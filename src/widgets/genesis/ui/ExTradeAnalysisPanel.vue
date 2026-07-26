@@ -19,6 +19,7 @@ import {
   filterTradesBySelectedStrategyVersion,
   getSelectedStrategyVersionSnapshot
 } from '~/shared/utils/strategyVersionScope'
+import { getTradeCashPnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 
 interface Condition {
   id: string;
@@ -563,26 +564,21 @@ const allTrades = computed(() => {
   );
 });
 
+function isClosedAnalysisTrade(trade: any) {
+  return isClosedTradeForMetrics(trade);
+}
+
+const closedAllTrades = computed(() => allTrades.value.filter(isClosedAnalysisTrade));
+
 const getNormalizedPnl = (tr: any) => {
-  // Fallback chain: currency (if non-zero) -> result (%) -> pnl -> 0
-  let p = tr.profitInCurrency;
-  if (p === undefined || p === null || p === 0) {
-    p = tr.result ?? tr.pnl ?? 0;
-  }
-  
-  const val = typeof p === 'string' ? parseFloat(p) : p;
-  
-  // If we're using 'result' (percentage) and it's a small number, normalize to currency
-  if ((tr.profitInCurrency === undefined || tr.profitInCurrency === null || tr.profitInCurrency === 0) && 
-      Math.abs(val) < 100 && initialBalance.value > 1000) {
-    return (val / 100) * initialBalance.value;
-  }
-  return val;
+  return getTradeCashPnl(tr, initialBalance.value);
 };
 
+const currentTradePnl = computed(() => props.trade ? getNormalizedPnl(props.trade) : 0);
+
 const percentileRank = computed(() => {
-  const currentPnl = props.trade?.pnl || 0;
-  const pnls = allTrades.value.map(getNormalizedPnl).sort((a, b) => a - b);
+  const currentPnl = currentTradePnl.value;
+  const pnls = closedAllTrades.value.map(getNormalizedPnl).sort((a, b) => a - b);
   if (pnls.length === 0) return 0;
   const lower = pnls.filter(p => p < currentPnl).length;
   return Math.round((lower / pnls.length) * 100);
@@ -1042,8 +1038,7 @@ const balanceBeforeTrade = computed(() => {
   const startBalance = tradeStore.getInitialDeposit(strategyId);
 
   const toCashPnl = (trade: any) => {
-    const val = Number(trade?.profitInCurrency ?? trade?.pnl ?? 0);
-    return Number.isFinite(val) ? val : 0;
+    return getTradeCashPnl(trade, startBalance);
   };
 
   const priorTrades = allTrades.value
@@ -1145,10 +1140,10 @@ const currentTpDistPct = computed(() => {
 
 const strategyStats = computed(() => {
   if (!props.trade?.strategyId) return { avgPnl: 0, avgDuration: 0, avgRR: 0, avgVelocity: 0, avgAdherence: 0, avgSlDistPct: 0, avgTpDistPct: 0 };
-  const trades = allTrades.value;
+  const trades = closedAllTrades.value;
   if (trades.length === 0) return { avgPnl: 0, avgDuration: 0, avgRR: 0, avgVelocity: 0, avgAdherence: 0, avgSlDistPct: 0, avgTpDistPct: 0 };
   
-  const totalPnl = trades.reduce((acc, t) => acc + (t.profitInCurrency || t.result || 0), 0);
+  const totalPnl = trades.reduce((acc, t) => acc + getNormalizedPnl(t), 0);
   const totalRR = trades.reduce((acc, t) => acc + (t.riskReward || 0), 0);
   const totalConditions = trades.reduce((acc, t) => acc + (t.boardConditions?.length || 0), 0);
   
@@ -1184,8 +1179,9 @@ const tradeDetailStats = computed(() => {
   if (!props.trade) return { velocity: 0, yieldPct: 0, adherence: 0 };
   
   const durationHours = tradeDurationMinutes.value / 60;
-  const velocity = durationHours > 0 ? props.trade.pnl / durationHours : props.trade.pnl;
-  const yieldPct = (props.trade.pnl / balanceBeforeTrade.value) * 100;
+  const pnl = currentTradePnl.value;
+  const velocity = durationHours > 0 ? pnl / durationHours : pnl;
+  const yieldPct = (pnl / balanceBeforeTrade.value) * 100;
   
   // Total conditions across all scenarios
   const adherence = props.trade.scenarios?.reduce((acc, s) => acc + (s.conditions?.length || 0), 0) || 0;
@@ -1257,8 +1253,8 @@ const plannedStopRiskDollars = computed(() => {
 const realizedRiskDollars = computed(() => {
   const t = props.trade as any;
   if (!t) return 0;
-  const pnl = t.profitInCurrency ?? t.pnl ?? 0;
-  return pnl < 0 ? Math.abs(Number(pnl) || 0) : 0;
+  const pnl = getNormalizedPnl(t);
+  return pnl < 0 ? Math.abs(pnl) : 0;
 });
 
 const actualRiskDollars = computed(() => {
@@ -1398,7 +1394,7 @@ const protocolRecommendations = computed(() => {
 const tacticalAdvice = computed(() => {
   if (!props.trade) return { title: 'PENDING_ANALYSIS', message: 'Awaiting protocol data...', variant: 'neutral', ...protocolRecommendations.value };
   
-  const isProfitable = props.trade.pnl > 0;
+  const isProfitable = currentTradePnl.value > 0;
   const isHighAdherence = (tradeDetailStats.value.adherence || 0) >= (strategyStats.value.avgAdherence || 1);
   const isStable = emotionalStateScore.value >= 40;
   
@@ -1620,11 +1616,12 @@ const matrixAdherenceMetrics = computed(() => {
   const reqText = requiredStats.total > 0 ? `${requiredStats.used}/${requiredStats.total} Fulfilled` : '0/0';
 
   const avgPnl = strategyStats.value.avgPnl || 0;
-  const pnlDiff = tr.pnl - avgPnl;
+  const pnl = getNormalizedPnl(tr);
+  const pnlDiff = pnl - avgPnl;
   const addAlpha = addConditions.length > 0 ? (pnlDiff / (Math.abs(avgPnl) || 100)) * 100 : 0;
 
   const strictness = Math.min(10, (reqConditions.length * 2.5) + (addConditions.length * 1.5) || 8.5);
-  const condPnl = conditions.length > 0 ? tr.pnl / conditions.length : tr.pnl;
+  const condPnl = conditions.length > 0 ? pnl / conditions.length : pnl;
   const historicalRuleCounts = allTrades.value
     .filter((trade: any) => !scenarioId || trade?.boardScenarioEntry?.id === scenarioId)
     .map(getRuleCount)
@@ -1682,7 +1679,7 @@ const behaviouralMetrics = computed(() => {
 
   const avgPnl = strategyStats.value.avgPnl || 0;
   const estCleanPnl = avgPnl * 1.15;
-  const pnlDrag = frictionCount > 0 ? tr.pnl - estCleanPnl : 0;
+  const pnlDrag = frictionCount > 0 ? getNormalizedPnl(tr) - estCleanPnl : 0;
 
   return {
     stability,
@@ -1712,7 +1709,7 @@ const strategyExecutionMetrics = computed(() => {
   const exit = parsePositiveTradePrice(tr.exit);
   const sl = parsePositiveTradePrice(tr.stopLoss);
   const tp = parsePositiveTradePrice(tr.takeProfit);
-  const pnl = tr.profitInCurrency ?? tr.pnl ?? 0;
+  const pnl = getNormalizedPnl(tr);
   const direction = getTradeDirection(tr);
   const isLong = direction !== 'SHORT';
 
@@ -2654,8 +2651,8 @@ const simpleMetricInsights = computed(() => {
                               <span class="text-[8px] font-mono opacity-40 uppercase tracking-widest font-black group-hover:opacity-60 transition-opacity">Net_Result_Variance</span>
                               <div class="flex flex-col justify-center space-y-0.5 py-1">
                                  <div class="flex items-baseline space-x-2">
-                                    <span class="text-xl font-mono font-black" :class="props.trade.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
-                                       {{ props.trade.pnl >= 0 ? '+' : '' }}{{ props.trade.pnl.toFixed(2) }}$
+                                    <span class="text-xl font-mono font-black" :class="currentTradePnl >= 0 ? 'text-emerald-400' : 'text-rose-400'">
+                                       {{ currentTradePnl >= 0 ? '+' : '' }}{{ currentTradePnl.toFixed(2) }}$
                                     </span>
                                  </div>
                                  <span class="text-[8px] font-mono uppercase tracking-[0.15em] text-black/60 dark:text-white/60">
@@ -2682,8 +2679,8 @@ const simpleMetricInsights = computed(() => {
                            <div class="pt-2 border-t nier-border-primary flex items-center justify-between">
                               <span class="text-[9px] opacity-40 uppercase tracking-widest font-black">Evaluation</span>
                               <span class="text-[10px] font-mono font-black uppercase px-1.5 py-0.5 rounded bg-black/5 dark:bg-white/5"
-                                    :class="props.trade.pnl >= strategyStats.avgPnl ? 'text-emerald-500' : 'text-amber-500'">
-                                 {{ props.trade.pnl >= strategyStats.avgPnl ? 'Good' : 'Sub-Optimal' }}
+                                    :class="currentTradePnl >= strategyStats.avgPnl ? 'text-emerald-500' : 'text-amber-500'">
+                                 {{ currentTradePnl >= strategyStats.avgPnl ? 'Good' : 'Sub-Optimal' }}
                               </span>
                            </div>
                         </div>

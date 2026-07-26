@@ -23,7 +23,8 @@ const {
   showCalendarDayTooltip,
   moveCalendarDayTooltip,
   hideCalendarDayTooltip,
-  formatCalendarDayValue
+  formatCalendarDayValue,
+  getCalendarTradePnl
 } = useExCalendar(
   () => trades.value,
   initialDeposit,
@@ -117,8 +118,8 @@ const {
               <span class="opacity-40">{{ new Date(trade.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
               <span class="opacity-80 font-bold">{{ trade.asset || 'UNKNOWN' }}</span>
             </div>
-            <span class="font-black whitespace-nowrap" :class="(trade.profitInCurrency || 0) > 0 ? 'text-emerald-500' : (trade.profitInCurrency || 0) < 0 ? 'text-rose-500' : 'text-white'">
-              {{ (trade.profitInCurrency || 0) > 0 ? '+' : '' }}{{ (trade.profitInCurrency || 0).toFixed(2) }}
+            <span class="font-black whitespace-nowrap" :class="getCalendarTradePnl(trade) > 0 ? 'text-emerald-500' : getCalendarTradePnl(trade) < 0 ? 'text-rose-500' : 'text-white'">
+              {{ getCalendarTradePnl(trade) > 0 ? '+' : '' }}{{ getCalendarTradePnl(trade).toFixed(2) }}
             </span>
           </div>
         </div>

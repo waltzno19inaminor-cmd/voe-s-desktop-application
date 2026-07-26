@@ -1,10 +1,12 @@
 import { computed, type Ref } from 'vue'
 import { useThemeStore } from '~/features/store/useTheme'
+import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 
 export function useExRobustness(
   diagnosticStats: Ref<any>,
   strategyMetrics: Ref<any>,
-  getFilteredTrades: () => any[]
+  getFilteredTrades: () => any[],
+  getTradePnl: (trade: any) => number = (trade) => getTradeCashPnl(trade, strategyMetrics.value?.initialDeposit || 1000)
 ) {
   const themeStore = useThemeStore()
   const colors = computed(() => ({
@@ -283,11 +285,9 @@ export function useExRobustness(
       const dRaw = t.dateExit || t.date
       const d = dRaw instanceof Date ? dRaw : new Date(dRaw)
       if (Number.isNaN(d.getTime())) return
-      const pnlVal = t.profitInCurrency ?? t.result ?? (t as any).pnl ?? 0
-      const raw = typeof pnlVal === 'string' ? parseFloat(pnlVal) : Number(pnlVal)
       const key = `${d.getMonth()}-${d.getDay()}`
       const existing = cells.get(key) || { month: monthNames[d.getMonth()] || 'N/A', weekday: weekdays[d.getDay()] || 'N/A', pnl: 0, count: 0 }
-      existing.pnl += Number.isFinite(raw) ? raw : 0
+      existing.pnl += getTradePnl(t)
       existing.count += 1
       cells.set(key, existing)
     })

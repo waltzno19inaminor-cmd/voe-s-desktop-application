@@ -1,5 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
+import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 
 export interface CalendarDay {
   dateStr: string
@@ -90,6 +91,10 @@ export function useExCalendar(
     return `${sign}${day.pnlPercent.toFixed(2)}%`
   }
 
+  function getCalendarTradePnl(trade: any) {
+    return getTradeCashPnl(trade, initialDeposit.value || 1000)
+  }
+
   function setCalendarDayTooltip(event: MouseEvent, day: CalendarDay) {
     if (!day.isInMonth || day.tradesCount <= 0) {
       hoveredCalendarDayTooltip.value = null
@@ -142,7 +147,7 @@ export function useExCalendar(
         dayStats.set(day, { pnl: 0, count: 0, trades: [] })
       }
       const stat = dayStats.get(day)!
-      stat.pnl += (trade.profitInCurrency || 0)
+      stat.pnl += getCalendarTradePnl(trade)
       stat.count++
       stat.trades.push(trade)
     })
@@ -193,6 +198,7 @@ export function useExCalendar(
     showCalendarDayTooltip,
     moveCalendarDayTooltip,
     hideCalendarDayTooltip,
-    formatCalendarDayValue
+    formatCalendarDayValue,
+    getCalendarTradePnl
   }
 }

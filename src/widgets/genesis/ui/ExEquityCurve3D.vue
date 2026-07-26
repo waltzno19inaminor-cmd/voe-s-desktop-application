@@ -745,6 +745,7 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { SP500_BENCHMARK_RATE } from '~/shared/constants'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
+import { getTradeCashPnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 
 const authStore = useAuthStore()
 const sp500BenchmarkRate = ref(SP500_BENCHMARK_RATE)
@@ -936,7 +937,8 @@ const showWinrateCurve = ref(false)
 
 const getFilteredTrades = (strategyId?: string) => {
   const sId = strategyId || selectedStrategyId.value
-  return props.trades || tradeStore.getTradesForStrategy(sId) || []
+  return (props.trades || tradeStore.getTradesForStrategy(sId) || [])
+    .filter(isClosedTradeForMetrics)
 }
 const calendarValueMode = ref<'currency' | 'percentage'>('currency')
 
@@ -1002,15 +1004,7 @@ const getBenchmarkReturnsForStrategy = (strategyId: string) => {
   const trades = getFilteredTrades(strategyId)
 
   return trades.map(t => {
-    const pnlVal = t.profitInCurrency ?? t.result ?? (t as any).pnl ?? 0
-    const rawVal = typeof pnlVal === 'string' ? parseFloat(pnlVal) : Number(pnlVal)
-    const val = Number.isFinite(rawVal) ? rawVal : 0
-    const pnl = (t.profitInCurrency === undefined || t.profitInCurrency === null || t.profitInCurrency === 0) &&
-      Math.abs(val) < 100 &&
-      initialDep > 1000
-      ? (val / 100) * initialDep
-      : val
-
+    const pnl = getTradeCashPnl(t, initialDep)
     return initialDep > 0 ? pnl / initialDep : 0
   })
 }
@@ -1127,19 +1121,7 @@ const getTradeTimestamp = (trade: any): number => {
 }
 
 const getTradePnl = (trade: any, initialDeposit: number): number => {
-  const currencyPnl = toFiniteNumber(trade?.profitInCurrency, NaN)
-  const resultPct = toFiniteNumber(trade?.result, NaN)
-  const rawPnl = toFiniteNumber(trade?.pnl, NaN)
-
-  if (Number.isFinite(currencyPnl) && !(currencyPnl === 0 && Number.isFinite(resultPct) && resultPct !== 0)) {
-    return currencyPnl
-  }
-
-  if (Number.isFinite(resultPct)) {
-    return initialDeposit > 0 ? (resultPct / 100) * initialDeposit : 0
-  }
-
-  return Number.isFinite(rawPnl) ? rawPnl : 0
+  return getTradeCashPnl(trade, initialDeposit)
 }
 
 const mean = (values: number[]): number => {
@@ -1396,6 +1378,13 @@ const strategyMetrics = computed(() => {
   let totalRisk = 0;
   let riskCount = 0;
   trades.forEach(t => {
+    const storedRisk = toFiniteNumber((t as any).risk, NaN);
+    if (Number.isFinite(storedRisk) && storedRisk > 0) {
+      totalRisk += storedRisk;
+      riskCount++;
+      return;
+    }
+
     const entry = toFiniteNumber(t.entry, 0);
     const sl = toFiniteNumber(t.stopLoss, 0);
     const size = toFiniteNumber(t.size, 1);
@@ -1507,6 +1496,9 @@ const strategyMetrics = computed(() => {
 
   // R-Multiples
   const tradeRisks = trades.map(t => {
+    const storedRisk = toFiniteNumber((t as any).risk, NaN);
+    if (Number.isFinite(storedRisk) && storedRisk > 0) return storedRisk;
+
     const entry = toFiniteNumber(t.entry, 0);
     const sl = toFiniteNumber(t.stopLoss, 0);
     const size = toFiniteNumber(t.size, 1);
@@ -2328,7 +2320,7 @@ const initData = () => {
   let balances: number[] = [initialDeposit]
   let tempBal = initialDeposit
   sortedTrades.forEach(t => {
-    tempBal += (t.profitInCurrency ?? 0)
+    tempBal += getTradePnl(t, initialDeposit)
     balances.push(tempBal)
   })
   
@@ -2355,7 +2347,8 @@ const initData = () => {
   })
 
   sortedTrades.forEach((trade, i) => {
-    runningBalance += (trade.profitInCurrency ?? 0)
+    const tradePnl = getTradePnl(trade, initialDeposit)
+    runningBalance += tradePnl
     const x = -200 + (i + 1) * step
     const y = range === 0 ? 50 : 95 - (runningBalance - minBal) * yScaling
     const z = (Math.random() - 0.5) * 40
@@ -2371,7 +2364,7 @@ const initData = () => {
       isProjection: !!trade.isProjection
     })
 
-    if ((trade.profitInCurrency ?? 0) > 0) wins++
+    if (tradePnl > 0) wins++
     const winrate = (wins / (i + 1)) * 100
     const winrateY = 95 - (winrate / 100) * 135
 
@@ -2629,7 +2622,12 @@ const resetView = () => {
 
 const formatSentenceCase = (text: string) => text ? text.charAt(0).toUpperCase() + text.slice(1) : ''
 
-const { robustnessExplanation, robustnessVisualizationStatus } = useExRobustness(diagnosticStats, strategyMetrics, getFilteredTrades)
+const { robustnessExplanation, robustnessVisualizationStatus } = useExRobustness(
+  diagnosticStats,
+  strategyMetrics,
+  getFilteredTrades,
+  (trade: any) => getTradePnl(trade, strategyMetrics.value?.initialDeposit || tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000)
+)
 
 let rafId: number
 const update = () => {

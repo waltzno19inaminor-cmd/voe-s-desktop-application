@@ -96,6 +96,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { getTradeCashPnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 
 const props = defineProps<{
   trades: any[]
@@ -150,7 +151,7 @@ const points = computed(() => {
   
   // 1. Identify projection context
   const projectionTrade = props.trades.find(t => (t as any).isProjection)
-  let baseTrades = [...props.trades]
+  let baseTrades = [...props.trades].filter(isClosedTradeForMetrics)
   
   if (projectionTrade) {
     const projDate = new Date(projectionTrade.dateExit || projectionTrade.date).getTime()
@@ -172,7 +173,7 @@ const points = computed(() => {
   let runningBalance = initial
   const balances = [initial]
   sortedTrades.forEach(t => {
-    runningBalance += (t.profitInCurrency || 0)
+    runningBalance += getTradeCashPnl(t, initial)
     balances.push(runningBalance)
   })
 
