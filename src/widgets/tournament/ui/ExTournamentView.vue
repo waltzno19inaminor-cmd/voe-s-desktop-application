@@ -1,11 +1,10 @@
 <template>
-  <div 
-    class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none"
-    :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : 'justify-center overflow-hidden'"
-  >
-    
-    <!-- CAROUSEL MODE: PURE BANNER VIEW -->
-    <div v-if="!selectedEvent" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
+  <Transition name="exforum-page-reify" appear>
+    <div class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none overflow-y-auto scroll-minimal relative">
+      
+      <Transition name="fade-slide" mode="out-in">
+        <!-- CAROUSEL MODE: PURE BANNER VIEW -->
+        <div v-if="!selectedEvent" key="carousel" class="w-full min-h-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6 py-6">
       
       <!-- EMPTY STATE IF NO EVENTS -->
       <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
@@ -98,8 +97,8 @@
       </div>
     </div>
 
-    <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-    <div v-else class="w-full max-w-[1400px] mx-auto flex flex-col pt-2 sm:pt-4 px-3 sm:px-6 pb-16">
+        <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
+        <div v-else key="detail" class="w-full min-h-full max-w-[1400px] mx-auto flex flex-col justify-start pt-6 sm:pt-8 px-3 sm:px-6 pb-24">
       
       <!-- TOP NAVIGATION -->
       <div class="mb-4 flex items-center justify-between">
@@ -125,7 +124,7 @@
         <img 
           :src="targetEvent?.bannerUrl || targetEvent?.imageUrl" 
           :alt="getEventTitle(targetEvent)" 
-          class="w-full h-full object-cover object-center opacity-85 filter contrast-125"
+          class="block w-full h-full object-cover object-center opacity-90"
         />
         <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
       </div>
@@ -249,7 +248,9 @@
       </div>
 
     </div>
-  </div>
+      </Transition>
+    </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -509,4 +510,51 @@ onUnmounted(() => {
 
 .slide-right-enter-from { opacity: 0; transform: translateX(-40px); }
 .slide-right-leave-to { opacity: 0; transform: translateX(40px); }
+
+/* ExForum style transitions & minimal scrollbars */
+.scroll-minimal::-webkit-scrollbar { display: none; }
+.scroll-minimal { scrollbar-width: none; }
+
+.exforum-page-reify-enter-active,
+.exforum-page-reify-leave-active {
+  transition:
+    opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.exforum-page-reify-leave-active {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.exforum-page-reify-enter-from,
+.exforum-page-reify-leave-to {
+  opacity: 0;
+  transform: translateY(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exforum-page-reify-enter-active,
+  .exforum-page-reify-leave-active {
+    transition: opacity 0.2s ease;
+  }
+
+  .exforum-page-reify-enter-from,
+  .exforum-page-reify-leave-to {
+    opacity: 0;
+    transform: none;
+  }
+}
+
+.fade-slide-enter-active, .fade-slide-leave-active {
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+.fade-slide-enter-from { opacity: 0; transform: translateY(16px); }
+.fade-slide-leave-to { opacity: 0; transform: translateY(-16px); }
 </style>
