@@ -184,16 +184,16 @@
         </div>
         <div class="relative">
           <div class="space-y-4 font-mono text-xs sm:text-sm text-theme-text/85">
-            <div v-for="(rule, idx) in visibleRules" :key="idx" class="flex items-start space-x-3">
+            <div 
+              v-for="(rule, idx) in visibleRules" 
+              :key="idx" 
+              class="flex items-start space-x-3"
+              :class="(!showAllRules && idx === 1) ? 'blur-[2px] opacity-35 select-none pointer-events-none' : ''"
+            >
               <span class="text-theme-text/50 font-bold shrink-0 mt-0.5">0{{ idx + 1 }}.</span>
               <span class="leading-relaxed">{{ rule }}</span>
             </div>
           </div>
-          <!-- Blur Gradient Overlay over Rule 2 when collapsed -->
-          <div 
-            v-if="!showAllRules && getEventRules(targetEvent).length > 2"
-            class="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-theme-bg via-theme-bg/75 to-transparent backdrop-blur-[1.5px] pointer-events-none [mask-image:linear-gradient(to_bottom,transparent_10%,black_60%,black)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_10%,black_60%,black)]"
-          ></div>
         </div>
         <div v-if="getEventRules(targetEvent).length > 2">
           <button 
