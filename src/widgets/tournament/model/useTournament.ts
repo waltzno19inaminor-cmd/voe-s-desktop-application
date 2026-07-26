@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import type { TournamentEvent, TournamentParticipant } from './tournament.types'
 
@@ -80,15 +80,15 @@ export function initParticipantListener(userId?: string, eventId?: string) {
 
   if (!userId) return
 
-  // Automatically clear existing registration doc if present to reset registration state per user instructions
-  try {
-    const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
-    const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
-    deleteDoc(participantRef).catch(() => {})
-  } catch (err) {
-    console.warn('[Tournament] Error resetting registration:', err)
-  }
-  isUserRegistered.value = false
+  const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
+  const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+
+  participantUnsubscribe = onSnapshot(participantRef, (snapshot) => {
+    isUserRegistered.value = snapshot.exists()
+  }, (err) => {
+    isUserRegistered.value = false
+    console.warn('[Tournament] Error listening to participant registration:', err)
+  })
 }
 
 export async function seedDefaultTournament() {
@@ -111,9 +111,21 @@ export function toMillis(dateVal: any): number {
 }
 
 export async function registerForTournament(userId: string, userEmail?: string, eventId?: string) {
-  // Registration logic is currently disabled per user request
-  console.log('[Tournament] Registration logic disabled - button takes no action.')
-  return
+  if (!userId) {
+    throw new Error('A signed-in user is required to register for a tournament.')
+  }
+
+  const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
+  const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+
+  await setDoc(participantRef, {
+    userId,
+    registeredAt: serverTimestamp(),
+    ...(userEmail ? { userEmail } : {}),
+    status: 'active'
+  })
+
+  isUserRegistered.value = true
 }
 
 export function checkRegistrationOpen(event?: TournamentEvent | null): boolean {
@@ -146,4 +158,3 @@ export function terminateTournamentListeners() {
     participantUnsubscribe = null
   }
 }
-

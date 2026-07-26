@@ -431,9 +431,20 @@ const formatDate = (dateVal?: any) => {
 }
 
 const handleRegister = async () => {
-  // Registration logic is currently disabled per user instructions - button does nothing
-  console.log('[Tournament] Registration button clicked - action takes no effect.')
-  return
+  const user = authStore.user
+  const event = targetEvent.value
+
+  if (!user?.uid || !event?.id || !isAgreed.value || !isEventStarted.value) return
+
+  isRegistering.value = true
+  try {
+    await registerForTournament(user.uid, user.email ?? undefined, event.id)
+    isAgreed.value = false
+  } catch (err) {
+    console.error('[Tournament] Failed to register participant:', err)
+  } finally {
+    isRegistering.value = false
+  }
 }
 
 onMounted(() => {
