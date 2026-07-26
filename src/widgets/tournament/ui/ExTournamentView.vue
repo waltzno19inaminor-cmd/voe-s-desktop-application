@@ -234,12 +234,13 @@
             {{ locale === 'ru' ? 'ВЫ ЗАРЕГИСТРИРОВАНЫ' : 'REGISTERED' }}
           </div>
 
-          <!-- WHITE REGISTER BUTTON -->
+          <!-- REGISTER BUTTON (Dark in light theme, White in dark theme) -->
           <button
             v-else
             @click="handleRegister"
             :disabled="isRegistering || !isAgreed || !isEventStarted"
-            class="px-10 py-4 bg-white text-black border border-white font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black hover:text-white hover:border-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+            class="px-10 py-4 font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm border"
+            :class="!themeStore.settings.isDark ? 'bg-black text-white border-black hover:bg-white hover:text-black hover:border-black' : 'bg-white text-black border-white hover:bg-black hover:text-white hover:border-white'"
           >
             {{ !isEventStarted ? (locale === 'ru' ? 'ДОСТУПНО ПОСЛЕ СТАРТА' : 'LOCKED UNTIL START') : isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
           </button>
