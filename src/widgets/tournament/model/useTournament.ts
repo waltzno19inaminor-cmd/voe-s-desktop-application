@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { doc, collection, onSnapshot, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, collection, onSnapshot, setDoc, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import type { TournamentEvent, TournamentParticipant } from './tournament.types'
 
@@ -79,13 +79,15 @@ export function initParticipantListener(userId?: string, eventId?: string) {
 
   if (!userId) return
 
-  const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
-  const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
-  participantUnsubscribe = onSnapshot(participantRef, (docSnap) => {
-    isUserRegistered.value = docSnap.exists()
-  }, (err) => {
-    console.warn('[Tournament] Error listening to participant:', err)
-  })
+  // Automatically clear existing registration doc if present to reset registration state per user instructions
+  try {
+    const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
+    const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+    deleteDoc(participantRef).catch(() => {})
+  } catch (err) {
+    console.warn('[Tournament] Error resetting registration:', err)
+  }
+  isUserRegistered.value = false
 }
 
 export async function seedDefaultTournament() {
@@ -98,29 +100,6 @@ export async function seedDefaultTournament() {
   }
 }
 
-export async function registerForTournament(userId: string, userEmail?: string, eventId?: string) {
-  if (!userId) return
-  
-  isRegistering.value = true
-  try {
-    const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
-    const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
-    const participantData: TournamentParticipant = {
-      userId,
-      userEmail: userEmail || '',
-      registeredAt: new Date().toISOString(),
-      status: 'active'
-    }
-    await setDoc(participantRef, participantData, { merge: true })
-    isUserRegistered.value = true
-  } catch (err) {
-    console.error('[Tournament] Error registering for tournament:', err)
-    throw err
-  } finally {
-    isRegistering.value = false
-  }
-}
-
 export function toMillis(dateVal: any): number {
   if (!dateVal) return 0
   if (typeof dateVal === 'number') return dateVal
@@ -128,6 +107,12 @@ export function toMillis(dateVal: any): number {
   if (typeof dateVal === 'object' && typeof dateVal.toDate === 'function') return dateVal.toDate().getTime()
   const parsed = new Date(dateVal).getTime()
   return isNaN(parsed) ? 0 : parsed
+}
+
+export async function registerForTournament(userId: string, userEmail?: string, eventId?: string) {
+  // Registration logic is currently disabled per user request
+  console.log('[Tournament] Registration logic disabled - button takes no action.')
+  return
 }
 
 export function checkRegistrationOpen(event?: TournamentEvent | null): boolean {

@@ -105,9 +105,12 @@
       <div class="mb-4 flex items-center justify-between">
         <button 
           @click="selectedEvent = null" 
-          class="text-xs font-mono text-theme-text/70 hover:text-theme-text transition-colors uppercase tracking-[0.2em] font-bold cursor-pointer"
+          class="inline-flex items-center space-x-2 text-xs font-mono text-theme-text/70 hover:text-theme-text transition-colors uppercase tracking-[0.2em] font-bold group/back cursor-pointer"
         >
-          {{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}
+          <svg class="w-4 h-4 transform group-hover/back:-translate-x-1 transition-transform shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          <span>{{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}</span>
         </button>
         <span 
           v-if="targetEvent?.type !== 'classic'"
@@ -118,7 +121,7 @@
       </div>
 
       <!-- CROPPED TOP BANNER (~60px) -->
-      <div class="relative w-full h-[60px] border border-theme-border overflow-hidden mb-8 bg-black/80">
+      <div class="relative w-full h-[60px] border border-theme-border overflow-hidden mb-14 bg-black/80">
         <img 
           :src="targetEvent?.bannerUrl || targetEvent?.imageUrl" 
           :alt="getEventTitle(targetEvent)" 
@@ -127,37 +130,44 @@
         <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
       </div>
 
-      <!-- TOURNAMENT TITLE & SUBTITLE -->
-      <div class="mb-6 flex flex-col space-y-2">
+      <!-- TOURNAMENT TITLE & SUBTITLE (Centered) -->
+      <div class="mb-14 flex flex-col items-center justify-center text-center space-y-4 w-full mx-auto">
         <ExHeading 
           level="h1" 
           variant="cinematic" 
-          class="!text-3xl sm:!text-4xl md:!text-5xl !text-theme-text !leading-tight !mb-1 !p-0"
+          class="!text-3xl sm:!text-4xl md:!text-5xl !text-theme-text !leading-tight !mb-1 !p-0 !text-center w-full"
         >
           {{ getEventTitle(targetEvent) }}
         </ExHeading>
-        <p v-if="getEventSubtitle(targetEvent)" class="text-xs sm:text-sm font-mono uppercase tracking-[0.18em] text-theme-text/70">
+        <p v-if="getEventSubtitle(targetEvent)" class="text-xs sm:text-sm font-mono uppercase tracking-[0.18em] text-theme-text/70 text-center">
           {{ getEventSubtitle(targetEvent) }}
         </p>
       </div>
 
       <!-- DESCRIPTION -->
-      <div class="mb-8">
+      <div class="mb-16">
         <p class="text-sm sm:text-base font-mono leading-relaxed text-theme-text/85 text-justify tracking-wide">
           {{ getEventDescription(targetEvent) }}
         </p>
       </div>
 
-      <!-- RULES (Unboxed minimalist typography) -->
-      <div class="mb-12 space-y-4">
+      <!-- RULES (Unboxed minimalist typography with blur gradient when collapsed) -->
+      <div class="mb-20 space-y-6">
         <div class="text-xs font-mono uppercase tracking-[0.2em] font-bold text-theme-text/60">
           {{ locale === 'ru' ? 'ПРАВИЛА И РЕГЛАМЕНТ:' : 'RULES & REGULATIONS:' }}
         </div>
-        <div class="space-y-3 font-mono text-xs sm:text-sm text-theme-text/85">
-          <div v-for="(rule, idx) in visibleRules" :key="idx" class="flex items-start space-x-3">
-            <span class="text-theme-text/50 font-bold shrink-0 mt-0.5">0{{ idx + 1 }}.</span>
-            <span class="leading-relaxed">{{ rule }}</span>
+        <div class="relative">
+          <div class="space-y-4 font-mono text-xs sm:text-sm text-theme-text/85">
+            <div v-for="(rule, idx) in visibleRules" :key="idx" class="flex items-start space-x-3">
+              <span class="text-theme-text/50 font-bold shrink-0 mt-0.5">0{{ idx + 1 }}.</span>
+              <span class="leading-relaxed">{{ rule }}</span>
+            </div>
           </div>
+          <!-- Blur Gradient Overlay over Rule 2 when collapsed -->
+          <div 
+            v-if="!showAllRules && getEventRules(targetEvent).length > 2"
+            class="absolute bottom-0 inset-x-0 h-16 bg-gradient-to-t from-theme-bg via-theme-bg/75 to-transparent backdrop-blur-[1.5px] pointer-events-none [mask-image:linear-gradient(to_bottom,transparent_10%,black_60%,black)] [-webkit-mask-image:linear-gradient(to_bottom,transparent_10%,black_60%,black)]"
+          ></div>
         </div>
         <div v-if="getEventRules(targetEvent).length > 2">
           <button 
@@ -170,7 +180,7 @@
       </div>
 
       <!-- CENTERED REGISTRATION & AGREEMENT STAGE (Monochrome White & Black) -->
-      <div class="w-full flex flex-col items-center justify-center pt-8 mt-4 border-t border-theme-border/30 text-center">
+      <div class="w-full flex flex-col items-center justify-center pt-12 mt-6 border-t border-theme-border/30 text-center">
         
         <!-- CUSTOM CHECKBOX FOR AGREEMENT -->
         <label 
@@ -202,10 +212,10 @@
           <button
             v-else
             @click="handleRegister"
-            :disabled="isRegistering || !isAgreed"
+            :disabled="isRegistering || !isAgreed || !isEventStarted"
             class="px-10 py-4 bg-white text-black border border-white font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black hover:text-white hover:border-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
           >
-            {{ isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
+            {{ !isEventStarted ? (locale === 'ru' ? 'ДОСТУПНО ПОСЛЕ СТАРТА' : 'LOCKED UNTIL START') : isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
           </button>
 
           <!-- COUNTDOWN TIMER (if event hasn't started yet) -->
@@ -384,18 +394,9 @@ const formatDate = (dateVal?: any) => {
 }
 
 const handleRegister = async () => {
-  const userId = authStore.user?.uid
-  const userEmail = authStore.user?.email || undefined
-  const eventId = targetEvent.value?.id
-  if (!userId || !eventId) {
-    console.warn('[Tournament] User must be logged in and event must exist to register.')
-    return
-  }
-  try {
-    await registerForTournament(userId, userEmail, eventId)
-  } catch (err) {
-    console.error('[Tournament] Registration failure:', err)
-  }
+  // Registration logic is currently disabled per user instructions - button does nothing
+  console.log('[Tournament] Registration button clicked - action takes no effect.')
+  return
 }
 
 onMounted(() => {
