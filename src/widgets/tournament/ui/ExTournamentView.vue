@@ -99,199 +99,125 @@
     </div>
 
     <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-    <div v-else class="w-full max-w-[1400px] mx-auto flex flex-col pt-2 sm:pt-4 px-3 sm:px-6 pb-12">
+    <div v-else class="w-full max-w-[1400px] mx-auto flex flex-col pt-2 sm:pt-4 px-3 sm:px-6 pb-16">
       
-      <!-- TOP NAVIGATION BAR INSIDE EVENT -->
-      <div class="mb-6 flex items-center justify-between border-b border-theme-border/40 pb-4">
+      <!-- TOP NAVIGATION -->
+      <div class="mb-4 flex items-center justify-between">
         <button 
           @click="selectedEvent = null" 
-          class="flex items-center space-x-2.5 text-xs font-mono text-theme-text/80 hover:text-theme-text transition-colors uppercase tracking-[0.2em] group/back font-bold"
+          class="text-xs font-mono text-theme-text/70 hover:text-theme-text transition-colors uppercase tracking-[0.2em] font-bold cursor-pointer"
         >
-          <svg class="w-4 h-4 rotate-180 transform group-hover/back:-translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-          <span>[ {{ t('tournament.backToEvents') || 'ALL EVENTS' }} ]</span>
+          {{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}
         </button>
         <span 
           v-if="targetEvent?.type !== 'classic'"
-          class="px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em] border border-theme-text/40 bg-theme-text/5 text-theme-text"
+          class="px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em] border border-theme-text/30 text-theme-text"
         >
-          {{ targetEvent?.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} // PROTOCOL
+          {{ targetEvent?.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }}
         </span>
       </div>
 
-      <!-- HEADER STRIP -->
-      <div class="relative w-full border border-theme-border p-6 sm:p-8 bg-theme-panel dark:bg-[#121214] mb-8 shadow-sm">
-        <!-- Corner Accents -->
-        <div class="absolute -top-[1px] -left-[1px] w-4 h-4 border-t-2 border-l-2 border-theme-text pointer-events-none"></div>
-        <div class="absolute -top-[1px] -right-[1px] w-4 h-4 border-t-2 border-r-2 border-theme-text pointer-events-none"></div>
-        <div class="absolute -bottom-[1px] -left-[1px] w-4 h-4 border-b-2 border-l-2 border-theme-text pointer-events-none"></div>
-        <div class="absolute -bottom-[1px] -right-[1px] w-4 h-4 border-b-2 border-r-2 border-theme-text pointer-events-none"></div>
+      <!-- CROPPED TOP BANNER (~60px) -->
+      <div class="relative w-full h-[60px] border border-theme-border overflow-hidden mb-8 bg-black/80">
+        <img 
+          :src="targetEvent?.bannerUrl || targetEvent?.imageUrl" 
+          :alt="getEventTitle(targetEvent)" 
+          class="w-full h-full object-cover object-center opacity-85 filter contrast-125"
+        />
+        <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
+      </div>
 
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <!-- Title Group -->
-          <div class="flex flex-col space-y-2 max-w-3xl">
-            <span class="text-[10px] font-mono tracking-[0.3em] text-theme-text/60 uppercase flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
-              <span>{{ t('tournament.indicator') || 'PARTICIPATE IN EVENT:' }} #{{ targetEvent?.id?.toUpperCase() || 'CUP_2026' }}</span>
-            </span>
-            <h1 class="text-2xl sm:text-3xl md:text-4xl font-serif uppercase tracking-[0.12em] font-bold text-theme-text chromatic-glow">
-              {{ getEventTitle(targetEvent) }}
-            </h1>
-            <p class="text-xs sm:text-sm font-mono uppercase tracking-[0.18em] text-theme-text/70">
-              {{ getEventSubtitle(targetEvent) }}
-            </p>
-          </div>
+      <!-- TOURNAMENT TITLE & SUBTITLE -->
+      <div class="mb-6 flex flex-col space-y-2">
+        <ExHeading 
+          level="h1" 
+          variant="cinematic" 
+          class="!text-3xl sm:!text-4xl md:!text-5xl !text-theme-text !leading-tight !mb-1 !p-0"
+        >
+          {{ getEventTitle(targetEvent) }}
+        </ExHeading>
+        <p v-if="getEventSubtitle(targetEvent)" class="text-xs sm:text-sm font-mono uppercase tracking-[0.18em] text-theme-text/70">
+          {{ getEventSubtitle(targetEvent) }}
+        </p>
+      </div>
 
-          <!-- Prize Pool Tag -->
-          <div class="flex flex-col border border-theme-border bg-theme-bg p-4 min-w-[260px] text-left lg:text-right shrink-0">
-            <span class="text-[9px] font-mono uppercase tracking-[0.25em] text-theme-text/60">{{ t('tournament.prizePool') || 'TOTAL ALLOCATION_PRIZE' }}</span>
-            <span class="text-sm sm:text-base font-mono uppercase tracking-[0.1em] font-extrabold text-amber-500 dark:text-amber-400 mt-1">
-              {{ targetEvent?.prizePool || 'ARCHIVE ALLOCATION' }}
-            </span>
+      <!-- DESCRIPTION -->
+      <div class="mb-8">
+        <p class="text-sm sm:text-base font-mono leading-relaxed text-theme-text/85 text-justify tracking-wide">
+          {{ getEventDescription(targetEvent) }}
+        </p>
+      </div>
+
+      <!-- RULES (Unboxed minimalist typography) -->
+      <div class="mb-12 space-y-4">
+        <div class="text-xs font-mono uppercase tracking-[0.2em] font-bold text-theme-text/60">
+          {{ locale === 'ru' ? 'ПРАВИЛА И РЕГЛАМЕНТ:' : 'RULES & REGULATIONS:' }}
+        </div>
+        <div class="space-y-3 font-mono text-xs sm:text-sm text-theme-text/85">
+          <div v-for="(rule, idx) in visibleRules" :key="idx" class="flex items-start space-x-3">
+            <span class="text-theme-text/50 font-bold shrink-0 mt-0.5">0{{ idx + 1 }}.</span>
+            <span class="leading-relaxed">{{ rule }}</span>
           </div>
+        </div>
+        <div v-if="getEventRules(targetEvent).length > 2">
+          <button 
+            @click="showAllRules = !showAllRules" 
+            class="text-xs font-mono uppercase text-theme-text/70 hover:text-theme-text underline decoration-theme-text/30 underline-offset-4 tracking-widest cursor-pointer transition-colors mt-1"
+          >
+            {{ showAllRules ? (locale === 'ru' ? 'СКРЫТЬ' : 'HIDE') : (locale === 'ru' ? 'ПОКАЗАТЬ ВСЕ' : 'SHOW ALL') }}
+          </button>
         </div>
       </div>
 
-      <!-- MAIN COMPETITION DETAILS GRID -->
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+      <!-- CENTERED REGISTRATION & AGREEMENT STAGE (Monochrome White & Black) -->
+      <div class="w-full flex flex-col items-center justify-center pt-8 mt-4 border-t border-theme-border/30 text-center">
         
-        <!-- Left: Visual Asset & Chrono Matrix (5 cols) -->
-        <div class="lg:col-span-5 flex flex-col space-y-6">
-          <div class="relative w-full h-64 sm:h-72 border border-theme-border overflow-hidden group bg-black/40">
-            <img 
-              :src="targetEvent?.imageUrl || targetEvent?.bannerUrl" 
-              :alt="getEventTitle(targetEvent)" 
-              class="w-full h-full object-cover object-center filter contrast-125 transition-transform duration-700 group-hover:scale-105 opacity-90"
-            />
-            <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
-            <div class="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/90 to-transparent flex justify-between items-end">
-              <span class="text-[10px] font-mono uppercase text-white/80 tracking-widest">[ VISUAL_TELEMETRY // LIVE ]</span>
-              <span class="text-[10px] font-mono uppercase text-cyan-400 tracking-widest">{{ targetEvent?.status?.toUpperCase() || 'ANNOUNCED' }}</span>
-            </div>
+        <!-- CUSTOM CHECKBOX FOR AGREEMENT -->
+        <label 
+          v-if="!isUserRegistered"
+          class="flex items-center space-x-3 cursor-pointer select-none mb-6 text-xs font-mono uppercase tracking-[0.1em] text-theme-text/80 hover:text-theme-text transition-colors"
+        >
+          <div 
+            class="w-4 h-4 border border-theme-text/60 flex items-center justify-center transition-colors duration-200 shrink-0"
+            :class="isAgreed ? 'bg-theme-text text-theme-bg' : 'bg-transparent text-transparent'"
+          >
+            <svg class="w-3 h-3 stroke-current stroke-2 fill-none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
           </div>
+          <input type="checkbox" v-model="isAgreed" class="hidden" />
+          <span>{{ locale === 'ru' ? 'Я соглашаюсь с правилами турнира' : 'I agree to the tournament rules' }}</span>
+        </label>
 
-          <!-- Chrono Coordinate Matrix -->
-          <div class="border border-theme-border p-5 bg-theme-panel dark:bg-[#121214] space-y-4">
-            <div class="text-[11px] font-mono uppercase tracking-[0.2em] font-bold text-theme-text border-b border-theme-border/40 pb-2">
-              // CHRONO_COORDINATE_MATRIX
-            </div>
-
-            <div class="flex items-center justify-between text-xs font-mono py-1">
-              <span class="text-theme-text/60 uppercase tracking-[0.1em]">{{ t('tournament.dates.announce') || 'ANNOUNCE_DATE' }}:</span>
-              <span class="font-bold text-theme-text uppercase tracking-widest">{{ formatDate(targetEvent?.announceDate) }}</span>
-            </div>
-
-            <div class="flex items-center justify-between text-xs font-mono py-1 border-t border-theme-border/20">
-              <span class="text-theme-text/60 uppercase tracking-[0.1em]">{{ t('tournament.dates.start') || 'REGISTRATION / START' }}:</span>
-              <span class="font-bold text-amber-500 dark:text-amber-400 uppercase tracking-widest">{{ formatDate(targetEvent?.startDate) }}</span>
-            </div>
-
-            <div class="flex items-center justify-between text-xs font-mono py-1 border-t border-theme-border/20">
-              <span class="text-theme-text/60 uppercase tracking-[0.1em]">{{ t('tournament.dates.end') || 'CONCLUSION_DATE' }}:</span>
-              <span class="font-bold text-theme-text uppercase tracking-widest">{{ formatDate(targetEvent?.endDate) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Description & Rules Briefing (7 cols) -->
-        <div class="lg:col-span-7 flex flex-col space-y-6">
-          <div class="border border-theme-border p-6 sm:p-8 bg-theme-panel dark:bg-[#121214] flex-1 flex flex-col justify-between relative">
-            <div class="absolute top-0 right-0 p-3 opacity-20 pointer-events-none font-mono text-2xl font-extrabold select-none">///</div>
-            
-            <div class="space-y-6">
-              <div class="text-xs font-mono uppercase tracking-[0.25em] font-extrabold text-theme-text flex items-center gap-2">
-                <span class="w-1.5 h-4 bg-theme-text inline-block"></span>
-                <span>PROTOCOL BRIEFING & LORE</span>
-              </div>
-              
-              <p class="text-sm font-mono leading-relaxed text-theme-text/85 text-justify tracking-wide">
-                {{ getEventDescription(targetEvent) }}
-              </p>
-
-              <div class="border-t border-theme-border/40 pt-6 space-y-4">
-                <div class="text-[11px] font-mono uppercase tracking-[0.2em] font-bold text-theme-text/80">
-                  // SYSTEM_EVALUATION_PARAMETERS:
-                </div>
-                <ul class="space-y-2.5 text-xs font-mono text-theme-text/80">
-                  <li class="flex items-start space-x-3">
-                    <span class="text-amber-500 dark:text-amber-400 font-bold mt-0.5">&gt;</span>
-                    <span>{{ t('tournament.rules.param1') || 'Autonomous scenario & risk execution precision.' }}</span>
-                  </li>
-                  <li class="flex items-start space-x-3">
-                    <span class="text-amber-500 dark:text-amber-400 font-bold mt-0.5">&gt;</span>
-                    <span>{{ t('tournament.rules.param2') || 'Maximum adherence to predefined stop-loss protocols.' }}</span>
-                  </li>
-                  <li class="flex items-start space-x-3">
-                    <span class="text-amber-500 dark:text-amber-400 font-bold mt-0.5">&gt;</span>
-                    <span>{{ t('tournament.rules.param3') || 'Minimal cognitive friction during volatile market phases.' }}</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- BOTTOM REGISTRATION TACTICAL STAGE -->
-      <div class="w-full border-2 border-theme-text p-6 sm:p-8 bg-theme-bg relative mt-auto shadow-lg overflow-hidden">
-        <!-- Decorative Background Pattern -->
-        <div class="absolute -right-12 -bottom-12 text-[140px] font-serif font-extrabold text-theme-text/5 select-none pointer-events-none">APEX</div>
-
-        <div class="flex items-center justify-center w-full min-h-[64px]">
+        <!-- CENTERED BUTTON & TIMER TO THE RIGHT -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
           
-          <!-- STATE 1: ALREADY REGISTERED -->
-          <div v-if="isUserRegistered" class="flex flex-col sm:flex-row items-center justify-between w-full max-w-3xl z-10 gap-6">
-            <div class="flex items-center space-x-4">
-              <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
-              <div class="flex flex-col">
-                <span class="text-xs font-mono font-black tracking-[0.25em] text-emerald-500 dark:text-emerald-400 uppercase">{{ t('tournament.registration.registeredTitle') || 'REIFIED OPERATOR // REGISTERED' }}</span>
-                <span class="text-xs font-mono uppercase tracking-[0.1em] text-theme-text/80 mt-1">{{ t('tournament.registration.registeredSubtitle') || 'Your trading credentials have been synchronized for this cup.' }}</span>
-              </div>
-            </div>
-            <div class="px-6 py-2.5 border border-emerald-500/50 bg-emerald-500/10 text-emerald-400 font-mono text-[11px] uppercase tracking-widest font-bold">
-              [ LINK_VERIFIED // ACTIVE ]
-            </div>
+          <!-- REGISTERED STATE -->
+          <div 
+            v-if="isUserRegistered" 
+            class="px-10 py-4 border border-theme-text bg-theme-text text-theme-bg font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em]"
+          >
+            {{ locale === 'ru' ? 'ВЫ ЗАРЕГИСТРИРОВАНЫ' : 'REGISTERED' }}
           </div>
 
-          <!-- STATE 2: REGISTRATION LOCKED -->
-          <div v-else-if="!isOpen" class="flex flex-col sm:flex-row items-center justify-between w-full max-w-3xl z-10 gap-6 text-center sm:text-left">
-            <div class="flex items-center space-x-4">
-              <div class="w-3 h-3 rounded-full bg-amber-500/40 border border-amber-500 shrink-0">
-                <svg class="w-3 h-3 text-amber-500 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0110 0v4"/>
-                </svg>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-[10px] font-mono font-black tracking-[0.3em] text-amber-400 uppercase flex items-center justify-center sm:justify-start gap-2">
-                  <span>[ {{ t('tournament.registration.lockedTitle') || 'REGISTRATION PROTOCOL LOCKED' }} ]</span>
-                </span>
-                <span class="text-[11px] font-mono uppercase tracking-[0.15em] text-theme-text/80 mt-1">
-                  {{ t('tournament.registration.lockedSubtitle') || 'Access opens strictly on start date:' }} <strong class="text-amber-300 font-bold ml-1">{{ formatDate(targetEvent?.startDate) }}</strong>
-                </span>
-              </div>
-            </div>
-            <div class="px-6 py-2.5 border border-amber-500/30 bg-amber-500/5 text-amber-400/80 font-mono text-[10px] uppercase tracking-widest font-bold">
-              [ STATUS: STANDBY ]
-            </div>
-          </div>
+          <!-- WHITE REGISTER BUTTON -->
+          <button
+            v-else
+            @click="handleRegister"
+            :disabled="isRegistering || !isAgreed"
+            class="px-10 py-4 bg-white text-black border border-white font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black hover:text-white hover:border-white disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+          >
+            {{ isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
+          </button>
 
-          <!-- STATE 3: REGISTRATION OPEN -->
-          <div v-else class="flex flex-col sm:flex-row items-center justify-between w-full max-w-3xl z-10 gap-6">
-            <div class="flex flex-col text-center sm:text-left">
-              <span class="text-[9px] font-mono font-black tracking-[0.3em] text-cyan-400 dark:text-cyan-300 uppercase animate-pulse">{{ t('tournament.registration.openTitle') || 'PROTOCOL ACCESS // OPEN' }}</span>
-              <span class="text-sm font-mono uppercase font-bold tracking-[0.18em] text-theme-text mt-1">{{ t('tournament.registration.openSubtitle') || 'Initiate link to enter tactical competition' }}</span>
-            </div>
-            <button
-              @click="handleRegister"
-              :disabled="isRegistering"
-              class="relative px-8 py-3.5 border-2 border-theme-text bg-theme-text text-theme-bg font-mono text-xs uppercase tracking-[0.25em] font-extrabold overflow-hidden group/btn hover:bg-transparent hover:text-theme-text transition-all duration-300 shadow-[0_0_20px_rgba(255,255,255,0.2)] cursor-pointer disabled:opacity-50"
-            >
-              <span class="relative z-10">{{ isRegistering ? (t('common.loading') || 'REIFYING...') : (t('tournament.registration.actionButton') || 'REGISTER FOR TOURNAMENT') }}</span>
-            </button>
+          <!-- COUNTDOWN TIMER (if event hasn't started yet) -->
+          <div 
+            v-if="!isEventStarted && timeUntilStart > 0" 
+            class="flex flex-col items-start text-left font-mono border-l border-theme-text/30 pl-4 py-1"
+          >
+            <span class="text-[9px] uppercase tracking-[0.2em] text-theme-text/50">{{ locale === 'ru' ? 'ДО НАЧАЛА СОБЫТИЯ:' : 'STARTS IN:' }}</span>
+            <span class="text-sm font-black text-theme-text tracking-[0.15em] mt-0.5">{{ formattedCountdown }}</span>
           </div>
-
         </div>
+
       </div>
 
     </div>
@@ -311,6 +237,7 @@ import {
   isRegistering,
   isUserRegistered,
   checkRegistrationOpen,
+  toMillis,
   initTournamentListener,
   initParticipantListener,
   terminateTournamentListeners,
@@ -320,6 +247,11 @@ import {
 const emit = defineEmits(['exit'])
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+
+const showAllRules = ref(false)
+const isAgreed = ref(false)
+const nowMillis = ref(Date.now())
+let timerInterval: any = null
 
 const getEventTitle = (ev: TournamentEvent | null | undefined) => {
   if (!ev) return 'TOURNAMENT PROTOCOL'
@@ -334,6 +266,29 @@ const getEventSubtitle = (ev: TournamentEvent | null | undefined) => {
 const getEventDescription = (ev: TournamentEvent | null | undefined) => {
   if (!ev) return ''
   return (locale.value === 'ru' && ev.descriptionRu) ? ev.descriptionRu : ev.description
+}
+
+const defaultRulesEn = [
+  "Autonomous scenario & risk execution precision: All operations must adhere strictly to predefined algorithmic risk boundaries and scenario trees.",
+  "Maximum adherence to predefined stop-loss protocols: Breaching daily drawdown or stop-loss parameters results in immediate synchronization lock and tactical disqualification.",
+  "Minimal cognitive friction during volatile market phases: Emotional overrides and manual impulse actions penalize the operator's evaluation score.",
+  "Verified credential synchronization: Participants must maintain verified exchange credential linkage throughout the evaluation window.",
+  "Transparent volumetric telemetry: All executed trades must broadcast full execution logs, entry hypotheses, and exit criteria to the Genesis archive."
+]
+
+const defaultRulesRu = [
+  "Точное исполнение автономных сценариев и риск-менеджмента: Все операции должны строго соответствовать заданным алгоритмическим границам риска и деревьям сценариев.",
+  "Безусловное соблюдение протоколов стоп-лосс: Превышение дневной просадки или нарушение стоп-лосс параметров ведет к немедленной блокировке синхронизации и дисквалификации.",
+  "Минимальное когнитивное трение в фазах волатильного рынка: Эмоциональное вмешательство и импульсивные ручные действия снижают итоговый оценочный балл оператора.",
+  "Подтверждённая синхронность учетных данных: Участники обязаны поддерживать верифицированную привязку биржевых аккаунтов на протяжении всего периода оценки.",
+  "Прозрачная объемная телеметрия: Все совершенные сделки должны транслировать полные логи исполнения, торговые гипотезы и критерии выхода в архив Genesis."
+]
+
+const getEventRules = (ev: TournamentEvent | null | undefined): string[] => {
+  if (locale.value === 'ru') {
+    return (ev?.rulesRu && ev.rulesRu.length > 0) ? ev.rulesRu : defaultRulesRu
+  }
+  return (ev?.rules && ev.rules.length > 0) ? ev.rules : defaultRulesEn
 }
 
 const activeSlide = ref(0)
@@ -355,6 +310,39 @@ const isSingleEvent = computed(() => {
 
 const isOpen = computed(() => {
   return checkRegistrationOpen(targetEvent.value)
+})
+
+const visibleRules = computed(() => {
+  const all = getEventRules(targetEvent.value)
+  if (showAllRules.value) return all
+  return all.slice(0, 2)
+})
+
+const isEventStarted = computed(() => {
+  const start = toMillis(targetEvent.value?.startDate)
+  if (!start) return true
+  return nowMillis.value >= start
+})
+
+const timeUntilStart = computed(() => {
+  const start = toMillis(targetEvent.value?.startDate)
+  if (!start || nowMillis.value >= start) return 0
+  return start - nowMillis.value
+})
+
+const formattedCountdown = computed(() => {
+  const diff = timeUntilStart.value
+  if (diff <= 0) return '00:00:00:00'
+  const seconds = Math.floor((diff / 1000) % 60)
+  const minutes = Math.floor((diff / 1000 / 60) % 60)
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24)
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+  if (locale.value === 'ru') {
+    return `${days}д ${pad(hours)}ч ${pad(minutes)}м ${pad(seconds)}с`
+  }
+  return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
 })
 
 const selectEvent = (ev: TournamentEvent | null) => {
@@ -415,9 +403,14 @@ onMounted(() => {
   if (authStore.user?.uid && targetEvent.value?.id) {
     initParticipantListener(authStore.user.uid, targetEvent.value.id)
   }
+  timerInterval = setInterval(() => {
+    nowMillis.value = Date.now()
+  }, 1000)
 })
 
 watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEventId]) => {
+  showAllRules.value = false
+  isAgreed.value = false
   if (newUid && newEventId) {
     initParticipantListener(newUid, newEventId)
   }
@@ -425,6 +418,7 @@ watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEve
 
 onUnmounted(() => {
   terminateTournamentListeners()
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
 

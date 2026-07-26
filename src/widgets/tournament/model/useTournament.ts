@@ -11,6 +11,20 @@ export const DEFAULT_TOURNAMENT: TournamentEvent = {
   titleRu: 'GENESIS // ТАКТИЧЕСКИЙ КУБОК APEX',
   subtitleRu: 'ЧЕМПИОНАТ АВТОНОМНОЙ ЛОГИКИ И ОБЪЕМНЫХ ТОРГОВЫХ ПРОТОКОЛОВ',
   descriptionRu: 'Элитарная оценка конкурентных торговых протоколов. Операторы выставляют свои передовые стратегии, деревья сценариев и матрицы риск-менеджмента против алгоритмических бенчмарков на реальных рынках. Лидеры получают подтвержденный статус, нейро-телеметрические каналы и приоритет в распределении пула.',
+  rules: [
+    "Autonomous scenario & risk execution precision: All operations must adhere strictly to predefined algorithmic risk boundaries and scenario trees.",
+    "Maximum adherence to predefined stop-loss protocols: Breaching daily drawdown or stop-loss parameters results in immediate synchronization lock and tactical disqualification.",
+    "Minimal cognitive friction during volatile market phases: Emotional overrides and manual impulse actions penalize the operator's evaluation score.",
+    "Verified credential synchronization: Participants must maintain verified exchange credential linkage throughout the evaluation window.",
+    "Transparent volumetric telemetry: All executed trades must broadcast full execution logs, entry hypotheses, and exit criteria to the Genesis archive."
+  ],
+  rulesRu: [
+    "Точное исполнение автономных сценариев и риск-менеджмента: Все операции должны строго соответствовать заданным алгоритмическим границам риска и деревьям сценариев.",
+    "Безусловное соблюдение протоколов стоп-лосс: Превышение дневной просадки или нарушение стоп-лосс параметров ведет к немедленной блокировке синхронизации и дисквалификации.",
+    "Минимальное когнитивное трение в фазах волатильного рынка: Эмоциональное вмешательство и импульсивные ручные действия снижают итоговый оценочный балл оператора.",
+    "Подтверждённая синхронность учетных данных: Участники обязаны поддерживать верифицированную привязку биржевых аккаунтов на протяжении всего периода оценки.",
+    "Прозрачная объемная телеметрия: Все совершенные сделки должны транслировать полные логи исполнения, торговые гипотезы и критерии выхода в архив Genesis."
+  ],
   imageUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
   bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
   announceDate: '2026-07-20T00:00:00Z',

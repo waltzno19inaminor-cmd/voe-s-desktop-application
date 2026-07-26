@@ -6,6 +6,8 @@ export interface TournamentEvent {
   titleRu?: string
   subtitleRu?: string
   descriptionRu?: string
+  rules?: string[]
+  rulesRu?: string[]
   imageUrl: string
   bannerUrl: string
   announceDate: string // ISO string or YYYY-MM-DD
