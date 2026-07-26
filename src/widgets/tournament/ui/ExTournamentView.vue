@@ -18,7 +18,7 @@
         <button
           @click.stop="prevSlide"
           :disabled="isSingleEvent"
-          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed cursor-pointer group/prev shrink-0 focus:outline-none"
+          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/prev shrink-0 focus:outline-none"
           title="Previous Event"
         >
           <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/prev:-translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -89,7 +89,7 @@
         <button
           @click.stop="nextSlide"
           :disabled="isSingleEvent"
-          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed cursor-pointer group/next shrink-0 focus:outline-none"
+          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/next shrink-0 focus:outline-none"
           title="Next Event"
         >
           <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
