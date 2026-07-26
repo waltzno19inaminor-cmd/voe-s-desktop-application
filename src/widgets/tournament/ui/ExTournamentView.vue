@@ -51,19 +51,20 @@
               <!-- BANNER OVERLAY CONTENT -->
               <div class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
                 <!-- EVENT TYPE BADGE -->
-                <div class="flex items-center gap-3">
-                  <span 
-                    class="px-3.5 py-1 text-[11px] sm:text-xs font-mono font-black uppercase tracking-[0.25em] shadow-xl border"
-                    :class="activeEvent.type === 'classic' ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse'"
-                  >
-                    [ {{ activeEvent.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} ]
+                <div v-if="activeEvent.type !== 'classic'" class="flex items-center gap-3">
+                  <span class="px-3 py-1 text-[11px] sm:text-xs font-mono uppercase tracking-[0.25em] border border-white/40 bg-black/40 text-white/90 backdrop-blur-sm">
+                    {{ activeEvent.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }}
                   </span>
                 </div>
 
                 <!-- EVENT TITLE -->
-                <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif uppercase tracking-[0.08em] font-extrabold text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] leading-tight">
+                <ExHeading 
+                  level="h1" 
+                  variant="cinematic" 
+                  class="!text-3xl sm:!text-4xl md:!text-5xl lg:!text-6xl !text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] !leading-tight !mb-0"
+                >
                   {{ activeEvent.title }}
-                </h1>
+                </ExHeading>
 
                 <!-- TRUNCATED DESCRIPTION -->
                 <p class="text-xs sm:text-sm md:text-base font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
@@ -110,10 +111,10 @@
           <span>[ {{ t('tournament.backToEvents') || 'ALL EVENTS' }} ]</span>
         </button>
         <span 
-          class="px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em] border"
-          :class="targetEvent?.type === 'classic' ? 'border-cyan-400/80 bg-cyan-500/10 text-cyan-400' : 'border-amber-400/80 bg-amber-500/10 text-amber-400'"
+          v-if="targetEvent?.type !== 'classic'"
+          class="px-3 py-1 text-[10px] font-mono font-black uppercase tracking-[0.25em] border border-theme-text/40 bg-theme-text/5 text-theme-text"
         >
-          [ {{ targetEvent?.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} // PROTOCOL ]
+          {{ targetEvent?.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} // PROTOCOL
         </span>
       </div>
 
@@ -300,6 +301,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import ExButton from '~/shared/ui/ExButton.vue'
+import ExHeading from '~/shared/ui/ExHeading.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import type { TournamentEvent } from '~/widgets/tournament/model/tournament.types'
