@@ -34,7 +34,7 @@
               <!-- BACKGROUND IMAGE -->
               <img 
                 :src="activeEvent.bannerUrl || activeEvent.imageUrl" 
-                :alt="activeEvent.title"
+                :alt="getEventTitle(activeEvent)"
                 class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105 opacity-85"
               />
 
@@ -63,12 +63,12 @@
                   variant="cinematic" 
                   class="!text-3xl sm:!text-4xl md:!text-5xl lg:!text-6xl !text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] !leading-tight !mb-0"
                 >
-                  {{ activeEvent.title }}
+                  {{ getEventTitle(activeEvent) }}
                 </ExHeading>
 
                 <!-- TRUNCATED DESCRIPTION -->
                 <p class="text-xs sm:text-sm md:text-base font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
-                  {{ activeEvent.description }}
+                  {{ getEventDescription(activeEvent) }}
                 </p>
 
                 <!-- ENTER EVENT BUTTON ("ПЕРЕЙТИ В СОБЫТИЕ") -->
@@ -134,10 +134,10 @@
               <span>{{ t('tournament.indicator') || 'PARTICIPATE IN EVENT:' }} #{{ targetEvent?.id?.toUpperCase() || 'CUP_2026' }}</span>
             </span>
             <h1 class="text-2xl sm:text-3xl md:text-4xl font-serif uppercase tracking-[0.12em] font-bold text-theme-text chromatic-glow">
-              {{ targetEvent?.title || 'TOURNAMENT PROTOCOL' }}
+              {{ getEventTitle(targetEvent) }}
             </h1>
             <p class="text-xs sm:text-sm font-mono uppercase tracking-[0.18em] text-theme-text/70">
-              {{ targetEvent?.subtitle || 'TACTICAL EVALUATION' }}
+              {{ getEventSubtitle(targetEvent) }}
             </p>
           </div>
 
@@ -159,7 +159,7 @@
           <div class="relative w-full h-64 sm:h-72 border border-theme-border overflow-hidden group bg-black/40">
             <img 
               :src="targetEvent?.imageUrl || targetEvent?.bannerUrl" 
-              :alt="targetEvent?.title" 
+              :alt="getEventTitle(targetEvent)" 
               class="w-full h-full object-cover object-center filter contrast-125 transition-transform duration-700 group-hover:scale-105 opacity-90"
             />
             <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
@@ -204,7 +204,7 @@
               </div>
               
               <p class="text-sm font-mono leading-relaxed text-theme-text/85 text-justify tracking-wide">
-                {{ targetEvent?.description }}
+                {{ getEventDescription(targetEvent) }}
               </p>
 
               <div class="border-t border-theme-border/40 pt-6 space-y-4">
@@ -318,8 +318,23 @@ import {
 } from '~/widgets/tournament/model/useTournament'
 
 const emit = defineEmits(['exit'])
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
+
+const getEventTitle = (ev: TournamentEvent | null | undefined) => {
+  if (!ev) return 'TOURNAMENT PROTOCOL'
+  return (locale.value === 'ru' && ev.titleRu) ? ev.titleRu : ev.title
+}
+
+const getEventSubtitle = (ev: TournamentEvent | null | undefined) => {
+  if (!ev) return 'TACTICAL EVALUATION'
+  return (locale.value === 'ru' && ev.subtitleRu) ? ev.subtitleRu : ev.subtitle
+}
+
+const getEventDescription = (ev: TournamentEvent | null | undefined) => {
+  if (!ev) return ''
+  return (locale.value === 'ru' && ev.descriptionRu) ? ev.descriptionRu : ev.description
+}
 
 const activeSlide = ref(0)
 const slideDirection = ref('slide-left')

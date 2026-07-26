@@ -3,6 +3,9 @@ export interface TournamentEvent {
   title: string
   subtitle: string
   description: string
+  titleRu?: string
+  subtitleRu?: string
+  descriptionRu?: string
   imageUrl: string
   bannerUrl: string
   announceDate: string // ISO string or YYYY-MM-DD
