@@ -193,7 +193,7 @@
         <div
           v-else-if="activeDashboardPanel === 'tournament'"
           key="tournament-monitor"
-          class="pointer-events-auto h-full w-full"
+          class="pointer-events-auto h-full w-full flex items-center justify-center"
           data-dashboard-panel="tournament"
         >
           <ExTournamentView @exit="activeDashboardPanel = null" />

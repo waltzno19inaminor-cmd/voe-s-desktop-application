@@ -1,96 +1,104 @@
 <template>
-  <div class="w-full flex flex-col min-h-[calc(100vh-140px)] justify-between text-theme-text font-mono transition-colors duration-300 pb-8 select-none">
+  <div 
+    class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none"
+    :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : 'justify-center overflow-hidden'"
+  >
     
     <!-- CAROUSEL MODE: PURE BANNER VIEW -->
-    <div v-if="!selectedEvent" class="w-full max-w-6xl mx-auto flex flex-col items-center justify-center my-auto py-4">
+    <div v-if="!selectedEvent" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
       
       <!-- EMPTY STATE IF NO EVENTS -->
       <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
         [ SYSTEM // NO COMPETITION PROTOCOLS ACTIVE ]
       </div>
 
-      <!-- CAROUSEL BANNER STAGE -->
-      <Transition :name="slideDirection" mode="out-in" v-else>
-        <div 
-          :key="activeEvent.id || 'slide'" 
-          class="relative w-full h-[460px] sm:h-[500px] md:h-[540px] lg:h-[580px] border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
+      <!-- CAROUSEL WRAPPER -->
+      <div v-else class="w-full flex items-center justify-between gap-3 sm:gap-6 md:gap-8">
+        <!-- PREV BUTTON (OUTSIDE CONTAINER, NO BORDER) -->
+        <button
+          @click.stop="prevSlide"
+          :disabled="isSingleEvent"
+          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed cursor-pointer group/prev shrink-0 focus:outline-none"
+          title="Previous Event"
         >
-          <!-- BACKGROUND IMAGE -->
-          <img 
-            :src="activeEvent.bannerUrl || activeEvent.imageUrl" 
-            :alt="activeEvent.title"
-            class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105 opacity-85"
-          />
+          <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/prev:-translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
 
-          <!-- DARK TECH GRADIENT & SCANLINES -->
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20 pointer-events-none"></div>
-          <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
+        <!-- CAROUSEL BANNER STAGE (STRICTLY CENTERED) -->
+        <div class="flex-1 w-full min-w-0 overflow-hidden">
+          <Transition :name="slideDirection" mode="out-in">
+            <div 
+              :key="activeEvent.id || 'slide'" 
+              class="relative w-full h-[460px] sm:h-[500px] md:h-[540px] lg:h-[580px] border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
+            >
+              <!-- BACKGROUND IMAGE -->
+              <img 
+                :src="activeEvent.bannerUrl || activeEvent.imageUrl" 
+                :alt="activeEvent.title"
+                class="absolute inset-0 w-full h-full object-cover object-center transform transition-transform duration-1000 group-hover:scale-105 opacity-85"
+              />
 
-          <!-- HUD CORNERS (Tactical Gothic Decor) -->
-          <div class="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
-          <div class="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
-          <div class="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
-          <div class="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
+              <!-- DARK TECH GRADIENT & SCANLINES -->
+              <div class="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20 pointer-events-none"></div>
+              <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
 
-          <!-- NAVIGATION CONTROLS (INSIDE BANNER ON SIDES, LOCKED/DISABLED IF SINGLE EVENT) -->
-          <button
-            @click.stop="prevSlide"
-            :disabled="isSingleEvent"
-            class="absolute left-6 top-1/2 -translate-y-1/2 z-30 w-12 h-16 border border-white/20 bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed disabled:hover:bg-black/60 disabled:hover:text-white/80 group/prev shadow-lg"
-            title="Previous Event"
-          >
-            <svg class="w-5 h-5 transform group-hover/prev:-translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-          </button>
+              <!-- HUD CORNERS (Tactical Gothic Decor) -->
+              <div class="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
+              <div class="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
+              <div class="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
+              <div class="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
 
-          <button
-            @click.stop="nextSlide"
-            :disabled="isSingleEvent"
-            class="absolute right-6 top-1/2 -translate-y-1/2 z-30 w-12 h-16 border border-white/20 bg-black/60 backdrop-blur-md flex items-center justify-center text-white/80 hover:bg-white hover:text-black transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed disabled:hover:bg-black/60 disabled:hover:text-white/80 group/next shadow-lg"
-            title="Next Event"
-          >
-            <svg class="w-5 h-5 transform group-hover/next:translate-x-1 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
-          </button>
+              <!-- BANNER OVERLAY CONTENT -->
+              <div class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
+                <!-- EVENT TYPE BADGE -->
+                <div class="flex items-center gap-3">
+                  <span 
+                    class="px-3.5 py-1 text-[11px] sm:text-xs font-mono font-black uppercase tracking-[0.25em] shadow-xl border"
+                    :class="activeEvent.type === 'classic' ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse'"
+                  >
+                    [ {{ activeEvent.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} ]
+                  </span>
+                </div>
 
-          <!-- BANNER OVERLAY CONTENT -->
-          <div class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
-            <!-- EVENT TYPE BADGE -->
-            <div class="flex items-center gap-3">
-              <span 
-                class="px-3.5 py-1 text-[11px] sm:text-xs font-mono font-black uppercase tracking-[0.25em] shadow-xl border"
-                :class="activeEvent.type === 'classic' ? 'border-cyan-400 bg-cyan-500/20 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)]' : 'border-amber-400 bg-amber-500/20 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] animate-pulse'"
-              >
-                [ {{ activeEvent.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }} ]
-              </span>
+                <!-- EVENT TITLE -->
+                <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif uppercase tracking-[0.08em] font-extrabold text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] leading-tight">
+                  {{ activeEvent.title }}
+                </h1>
+
+                <!-- TRUNCATED DESCRIPTION -->
+                <p class="text-xs sm:text-sm md:text-base font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
+                  {{ activeEvent.description }}
+                </p>
+
+                <!-- ENTER EVENT BUTTON ("ПЕРЕЙТИ В СОБЫТИЕ") -->
+                <div class="pt-4">
+                  <button
+                    @click="selectEvent(activeEvent)"
+                    class="px-8 py-4 border-2 border-white bg-white text-black font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black/80 hover:text-white hover:border-white shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer flex items-center space-x-3.5 group/enter"
+                  >
+                    <span>{{ t('tournament.enterEvent') || 'ENTER EVENT' }}</span>
+                    <svg class="w-4 h-4 transform group-hover/enter:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
             </div>
-
-            <!-- EVENT TITLE -->
-            <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif uppercase tracking-[0.08em] font-extrabold text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] leading-tight">
-              {{ activeEvent.title }}
-            </h1>
-
-            <!-- TRUNCATED DESCRIPTION -->
-            <p class="text-xs sm:text-sm md:text-base font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
-              {{ activeEvent.description }}
-            </p>
-
-            <!-- ENTER EVENT BUTTON ("ПЕРЕЙТИ В СОБЫТИЕ") -->
-            <div class="pt-4">
-              <button
-                @click="selectEvent(activeEvent)"
-                class="px-8 py-4 border-2 border-white bg-white text-black font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black/80 hover:text-white hover:border-white shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer flex items-center space-x-3.5 group/enter"
-              >
-                <span>{{ t('tournament.enterEvent') || 'ENTER EVENT' }}</span>
-                <svg class="w-4 h-4 transform group-hover/enter:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </button>
-            </div>
-          </div>
+          </Transition>
         </div>
-      </Transition>
 
+        <!-- NEXT BUTTON (OUTSIDE CONTAINER, NO BORDER) -->
+        <button
+          @click.stop="nextSlide"
+          :disabled="isSingleEvent"
+          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-not-allowed cursor-pointer group/next shrink-0 focus:outline-none"
+          title="Next Event"
+        >
+          <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>
     </div>
 
     <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-    <div v-else class="w-full max-w-6xl mx-auto flex flex-col pt-2 sm:pt-4">
+    <div v-else class="w-full max-w-[1400px] mx-auto flex flex-col pt-2 sm:pt-4 px-3 sm:px-6 pb-12">
       
       <!-- TOP NAVIGATION BAR INSIDE EVENT -->
       <div class="mb-6 flex items-center justify-between border-b border-theme-border/40 pb-4">
@@ -346,6 +354,12 @@ const nextSlide = () => {
   if (isSingleEvent.value || !allTournaments.value) return
   slideDirection.value = 'slide-left'
   activeSlide.value = (activeSlide.value + 1) % allTournaments.value.length
+}
+
+const goToSlide = (idx: number) => {
+  if (isSingleEvent.value || !allTournaments.value || idx === activeSlide.value) return
+  slideDirection.value = idx > activeSlide.value ? 'slide-left' : 'slide-right'
+  activeSlide.value = idx
 }
 
 const formatDate = (dateVal?: any) => {
