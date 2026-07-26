@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 px-6 lg:px-10 lg:py-2">
+  <div class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 lg:py-2" :class="activeDashboardPanel === 'forum' || activeDashboardPanel === 'tournament' ? 'px-0' : 'px-6 lg:px-10'">
     <!-- Update Notification Widget -->
     <div v-if="updateNotification.showUpdate" class="absolute top-0 left-12 right-12 z-[250] nier-bg-inverted p-5 flex justify-between items-center overflow-hidden group shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_10px_40px_rgba(255,255,255,0.2)]">
 
@@ -60,9 +60,8 @@
       </div>
     </div>
 
-    <!-- 1. Header / Global Status -->
     <header class="dashboard-top-bar absolute left-6 right-6 top-1.5 z-[200] flex min-h-14 items-center justify-between px-4 py-2 backdrop-blur-md lg:left-10 lg:right-10 lg:top-2 lg:px-5">
-      <div class="flex min-w-0 items-center gap-4">
+      <div class="flex items-center gap-4">
         <ExTag class="shrink-0">v{{ appVersion.toUpperCase().replace('-', '_') }}</ExTag>
         <span class="hidden text-[9px] font-mono uppercase tracking-[0.45em] px-3 py-1 border-l border-theme-border/70 text-theme-text/45 bg-transparent sm:inline-flex">
           {{ demoBadgeLabel }}
@@ -191,6 +190,15 @@
           <ExForum />
         </div>
 
+        <div
+          v-else-if="activeDashboardPanel === 'tournament'"
+          key="tournament-monitor"
+          class="pointer-events-auto h-full w-full"
+          data-dashboard-panel="tournament"
+        >
+          <ExTournamentView @exit="activeDashboardPanel = null" />
+        </div>
+
         <div v-else key="dashboard-logo" class="dashboard-core-logo pointer-events-none flex flex-col items-center text-center" data-dashboard-panel="logo">
           <div class="relative flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
             <div class="absolute inset-0 border-2 border-theme-text/40 animate-[spin_10s_linear_infinite]"></div>
@@ -296,6 +304,8 @@ import { useThemeStore } from '~/features/store/useTheme'
 import ExProfileOverlay from '~/widgets/profile/ui/ExProfileOverlay.vue'
 import ExActivityMonitor from '~/widgets/dashboard/ui/ExActivityMonitor.vue'
 import ExForum from '~/widgets/exforum/ui/ExForum.vue'
+import ExTournamentView from '~/widgets/tournament/ui/ExTournamentView.vue'
+import { initTournamentListener } from '~/widgets/tournament/model/useTournament'
 
 const emit = defineEmits(['navigate', 'signed-out'])
 
@@ -315,6 +325,7 @@ const isDashboardForumLeaving = ref(false)
 const isDashboardFullBleedPanel = computed(() => (
   activeDashboardPanel.value === 'forum' ||
   activeDashboardPanel.value === 'activity' ||
+  activeDashboardPanel.value === 'tournament' ||
   isDashboardForumLeaving.value
 ))
 
@@ -389,6 +400,7 @@ const handleDownload = async (url: string) => {
 }
 
 onMounted(() => {
+  initTournamentListener()
   document.addEventListener('mousedown', handleOutsideClick)
 
   invoke('patch_get_state')
@@ -474,15 +486,21 @@ const dashboardModules = [
     descriptionKey: 'dashboard.descriptions.activity_monitor'
   },
   {
-    id: 'genesis',
-    code: 'G3',
-    titleKey: 'dashboard.modules.genesis_protocol',
-    descriptionKey: 'dashboard.descriptions.genesis_protocol'
+    id: 'tournament',
+    code: 'T3',
+    titleKey: 'dashboard.modules.events',
+    descriptionKey: 'dashboard.descriptions.events'
+  },
+  {
+    id: 'genesis', 
+    code: 'G3', 
+    titleKey: 'dashboard.modules.genesis_protocol', 
+    descriptionKey: 'dashboard.descriptions.genesis_protocol' 
   }
 ]
 
 const handleDashboardModuleClick = (moduleId: string) => {
-  if (moduleId === 'activity' || moduleId === 'forum') {
+  if (moduleId === 'activity' || moduleId === 'forum' || moduleId === 'tournament') {
     activeDashboardPanel.value = activeDashboardPanel.value === moduleId ? null : moduleId
     return
   }
@@ -496,13 +514,15 @@ const getDashboardPanelFromTransitionElement = (el: Element) => (
 )
 
 const handleDashboardCenterBeforeLeave = (el: Element) => {
-  if (getDashboardPanelFromTransitionElement(el) === 'forum') {
+  const panel = getDashboardPanelFromTransitionElement(el)
+  if (panel === 'forum' || panel === 'tournament') {
     isDashboardForumLeaving.value = true
   }
 }
 
 const handleDashboardCenterAfterLeave = (el: Element) => {
-  if (getDashboardPanelFromTransitionElement(el) === 'forum') {
+  const panel = getDashboardPanelFromTransitionElement(el)
+  if (panel === 'forum' || panel === 'tournament') {
     isDashboardForumLeaving.value = false
   }
 }
@@ -601,7 +621,6 @@ const dismissPremiumUnlocked = () => {
   opacity: 0;
   transform: translateY(-6px);
 }
-
 .premium-modal-enter-active,
 .premium-modal-leave-active {
   transition: opacity 0.8s ease, backdrop-filter 0.8s ease;

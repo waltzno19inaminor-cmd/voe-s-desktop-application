@@ -1,5 +1,32 @@
 export const translations = {
   en: {
+    tournament: {
+      indicator: "PARTICIPATE IN EVENT:",
+      prizePool: "TOTAL ALLOCATION_PRIZE",
+      dates: {
+        announce: "ANNOUNCE_DATE",
+        start: "REGISTRATION / START",
+        end: "CONCLUSION_DATE"
+      },
+      status: {
+        open: "OPEN",
+        locked: "LOCKED"
+      },
+      rules: {
+        param1: "Autonomous scenario & risk execution precision.",
+        param2: "Maximum adherence to predefined stop-loss protocols.",
+        param3: "Minimal cognitive friction during volatile market phases."
+      },
+      registration: {
+        registeredTitle: "REIFIED OPERATOR // REGISTERED",
+        registeredSubtitle: "Your trading credentials have been synchronized for this cup.",
+        lockedTitle: "REGISTRATION PROTOCOL LOCKED",
+        lockedSubtitle: "Access opens strictly on start date:",
+        openTitle: "PROTOCOL ACCESS // OPEN",
+        openSubtitle: "Initiate link to enter tactical competition",
+        actionButton: "REGISTER FOR TOURNAMENT"
+      }
+    },
     dashboard: {
       title: "Tactical Dashboard",
       subtitle: "System_Registry // Layer_0x01",
@@ -7,11 +34,13 @@ export const translations = {
       modules: {
         knowledge_matrix: "Knowledge\nMatrix",
         activity_monitor: "Activity\nMonitor",
+        events: "Events",
         genesis_protocol: "Genesis\nProtocol"
       },
       descriptions: {
         knowledge_matrix: "Collaborative protocol exchange and strategic link network.",
         activity_monitor: "Matrix of Your Trading and Analytical Activity.",
+        events: "Competitive trading tournaments and seasonal protocol allocations.",
         genesis_protocol: "Module management and neural diary reification sequence."
       },
       ui: {
@@ -239,6 +268,33 @@ export const translations = {
     }
   },
   ru: {
+    tournament: {
+      indicator: "ПРИНЯТЬ УЧАСТИЕ В СОБЫТИИ:",
+      prizePool: "ОБЩИЙ ПРИЗОВОЙ ФОНД",
+      dates: {
+        announce: "ДАТА АНОНСА",
+        start: "СТАРТ / РЕГИСТРАЦИЯ",
+        end: "ДАТА ЗАВЕРШЕНИЯ"
+      },
+      status: {
+        open: "ОТКРЫТО",
+        locked: "ЗАКРЫТО"
+      },
+      rules: {
+        param1: "Точность автономного сценария и соблюдение рисков.",
+        param2: "Максимальная строгость следования стоп-лосс протоколам.",
+        param3: "Минимальное когнитивное трение в фазах высокой волатильности."
+      },
+      registration: {
+        registeredTitle: "ОПЕРАТОР ЗАРЕГИСТРИРОВАН",
+        registeredSubtitle: "Ваши торговые данные успешно синхронизированы с турниром.",
+        lockedTitle: "ПРОТОКОЛ РЕГИСТРАЦИИ ЗАБЛОКИРОВАН",
+        lockedSubtitle: "Доступ откроется строго в дату начала:",
+        openTitle: "ДОСТУП К ПРОТОКОЛУ // ОТКРЫТ",
+        openSubtitle: "Инициализируйте связь для входа в соревнование",
+        actionButton: "ЗАРЕГИСТРИРОВАТЬСЯ В ТУРНИРЕ"
+      }
+    },
     error: {
       pageNotFound: "Страница не найдена",
       goBackHome: "Вернуться на главную"
@@ -276,11 +332,13 @@ export const translations = {
       modules: {
         knowledge_matrix: "Матрица\nЗнаний",
         activity_monitor: "Мониторинг\nАктивности",
+        events: "События",
         genesis_protocol: "Протокол\nГенезис"
       },
       descriptions: {
         knowledge_matrix: "Совместный обмен протоколами и сеть стратегических связей.",
         activity_monitor: "Матрица истории вашей торговой и аналитической активности.",
+        events: "Турниры по трейдингу и сезонные распределения призового фонда.",
         genesis_protocol: "Управление модулями и последовательность восстановления дневника."
       },
       ui: {
