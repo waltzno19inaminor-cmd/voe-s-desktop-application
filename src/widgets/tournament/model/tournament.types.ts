@@ -14,6 +14,7 @@ export interface TournamentEvent {
   startDate: string    // ISO string or YYYY-MM-DD
   endDate: string      // ISO string or YYYY-MM-DD
   prizePool: string
+  prizePoolRu?: string
   status: 'announced' | 'active' | 'finished'
   type?: 'limited' | 'classic' | string
 }

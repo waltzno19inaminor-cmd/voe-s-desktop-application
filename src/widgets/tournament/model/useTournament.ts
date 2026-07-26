@@ -31,6 +31,7 @@ export const DEFAULT_TOURNAMENT: TournamentEvent = {
   startDate: '2026-08-01T00:00:00Z',
   endDate: '2026-08-15T00:00:00Z',
   prizePool: '$250,000 ARCHIVE ALLOCATION + REIFIED OPERATOR BADGE',
+  prizePoolRu: '$250,000 АЛЛОКАЦИЯ АРХИВА + СТАТУС ВЕРИФИЦИРОВАННОГО ОПЕРАТОРА',
   status: 'announced',
   type: 'limited'
 }

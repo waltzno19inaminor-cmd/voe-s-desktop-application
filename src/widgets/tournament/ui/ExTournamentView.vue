@@ -120,8 +120,8 @@
         </span>
       </div>
 
-      <!-- CROPPED TOP BANNER (~60px) -->
-      <div class="relative w-full h-[60px] border border-theme-border overflow-hidden mb-14 bg-black/80">
+      <!-- CROPPED TOP BANNER (~75px) -->
+      <div class="relative w-full h-[75px] border border-theme-border overflow-hidden mb-14 bg-black/80">
         <img 
           :src="targetEvent?.bannerUrl || targetEvent?.imageUrl" 
           :alt="getEventTitle(targetEvent)" 
@@ -149,6 +149,24 @@
         <p class="text-sm sm:text-base font-mono leading-relaxed text-theme-text/85 text-justify tracking-wide">
           {{ getEventDescription(targetEvent) }}
         </p>
+      </div>
+
+      <!-- PRIZE POOL (Centered with ExDividers & Pearlescent Animated Gradient) -->
+      <div class="mb-20 w-full">
+        <ExDivider variant="tactical" spacing="none" />
+        <div class="py-12 flex flex-col items-center justify-center text-center relative px-4 overflow-hidden">
+          <!-- Ambient Pearlescent Glow -->
+          <div class="absolute inset-0 w-3/4 h-full mx-auto pearlescent-bg blur-3xl opacity-20 pointer-events-none -z-10"></div>
+          
+          <span class="text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em] font-bold text-theme-text/60 mb-3 block">
+            {{ locale === 'ru' ? 'ПРИЗОВОЙ ФОНД // НАГРАДЫ И АЛЛОКАЦИИ' : 'PRIZE POOL // REWARDS & ALLOCATION' }}
+          </span>
+
+          <div class="text-xl sm:text-2xl md:text-3xl font-mono font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] leading-relaxed max-w-4xl pearlescent-text px-2">
+            {{ getEventPrizePool(targetEvent) }}
+          </div>
+        </div>
+        <ExDivider variant="tactical" spacing="none" />
       </div>
 
       <!-- RULES (Unboxed minimalist typography with blur gradient when collapsed) -->
@@ -237,6 +255,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import ExButton from '~/shared/ui/ExButton.vue'
+import ExDivider from '~/shared/ui/ExDivider.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
@@ -276,6 +295,11 @@ const getEventSubtitle = (ev: TournamentEvent | null | undefined) => {
 const getEventDescription = (ev: TournamentEvent | null | undefined) => {
   if (!ev) return ''
   return (locale.value === 'ru' && ev.descriptionRu) ? ev.descriptionRu : ev.description
+}
+
+const getEventPrizePool = (ev: TournamentEvent | null | undefined) => {
+  if (!ev) return '$250,000 ARCHIVE ALLOCATION'
+  return (locale.value === 'ru' && ev.prizePoolRu) ? ev.prizePoolRu : ev.prizePool
 }
 
 const defaultRulesEn = [
@@ -424,6 +448,54 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.pearlescent-bg {
+  background: linear-gradient(
+    270deg,
+    #ffffff 0%,
+    #ebd9eb 15%,
+    #cbebeb 30%,
+    #fbedc4 45%,
+    #d1dffb 60%,
+    #f8d2e5 75%,
+    #ccebeb 90%,
+    #ffffff 100%
+  );
+  background-size: 400% 400%;
+  animation: nacre-shimmer 7s ease-in-out infinite alternate;
+}
+
+.pearlescent-text {
+  background: linear-gradient(
+    270deg,
+    #ffffff 0%,
+    #eed6ee 15%,
+    #c4edee 30%,
+    #fcf2d4 45%,
+    #cde0ff 60%,
+    #fad6e9 75%,
+    #d4f0ef 90%,
+    #ffffff 100%
+  );
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  animation: nacre-shimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes nacre-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
 .chromatic-glow {
   text-shadow: 0 0 15px rgba(255, 255, 255, 0.25);
 }
