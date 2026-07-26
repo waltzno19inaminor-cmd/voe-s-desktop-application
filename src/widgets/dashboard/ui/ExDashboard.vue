@@ -555,15 +555,15 @@ const dismissPremiumUnlocked = () => {
 }
 
 .dashboard-center-stage.is-activity {
-  padding-bottom: 120px;
-  padding-top: 40px;
+  padding-bottom: 96px;
+  padding-top: 28px;
 }
 
 .dashboard-activity-stage {
   align-items: center;
   display: flex;
   justify-content: center;
-  max-width: min(1180px, calc(100vw - 64px));
+  max-width: min(1500px, calc(100vw - 48px));
 }
 
 .dashboard-center-fade-enter-active,

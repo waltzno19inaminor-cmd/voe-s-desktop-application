@@ -1,19 +1,19 @@
 <template>
-  <div class="w-full h-full flex items-center justify-center p-8 md:p-16 relative">
+  <div class="w-full h-full flex items-center justify-center p-4 md:p-8 xl:p-10 relative">
 
     <!-- Activity Matrix Container -->
-    <div class="w-full h-full p-6 md:p-12 flex flex-col items-center justify-center overflow-hidden relative">
+    <div class="w-full h-full max-w-[1500px] p-4 md:p-8 flex flex-col items-center justify-center overflow-hidden relative">
       
       <!-- Header Section -->
-      <div class="flex flex-col items-center mb-16 text-center z-10 w-full">
-        <h1 class="text-3xl md:text-4xl font-serif uppercase tracking-[0.2em]  mb-4">{{ t('activityMonitor.title') }}</h1>
-        <p class="text-[10px] md:text-xs font-mono uppercase tracking-[0.4em] opacity-40 max-w-2xl">{{ t('activityMonitor.subtitle') }}</p>
+      <div class="flex flex-col items-center mb-12 md:mb-14 text-center z-10 w-full">
+        <h1 class="text-4xl md:text-5xl lg:text-6xl font-serif uppercase tracking-[0.18em] mb-5">{{ t('activityMonitor.title') }}</h1>
+        <p class="text-xs md:text-sm font-mono uppercase tracking-[0.36em] opacity-40 max-w-3xl">{{ t('activityMonitor.subtitle') }}</p>
       </div>
 
       <!-- The Grid Aspect Ratio Wrapper -->
       <div 
-        class="grid grid-flow-col grid-rows-7 gap-[2px] md:gap-[4px]" 
-        style="aspect-ratio: 52 / 7; width: 100%; max-height: 100%; height: auto;"
+        class="grid grid-flow-col grid-rows-7 gap-[3px] md:gap-[5px]"
+        style="aspect-ratio: 52 / 7; width: min(100%, 1480px); max-height: min(36vh, 260px); height: auto;"
       >
         <ExTooltip v-for="cell in heatmapCells" :key="cell.date" position="top" :is-dark="isDark">
           <template #trigger>
@@ -39,7 +39,7 @@
     </div>
 
     <!-- Action Button (Absolute Bottom) -->
-    <div class="absolute bottom-8 md:bottom-12 left-0 w-full flex justify-center pointer-events-none">
+    <div class="absolute bottom-6 md:bottom-8 left-0 w-full flex justify-center pointer-events-none">
       <div class="pointer-events-auto flex flex-col items-center gap-4">
         <ExButton 
            variant="tactical" 
