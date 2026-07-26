@@ -1,6 +1,12 @@
 export const translations = {
   en: {
     tournament: {
+      enterEvent: "ENTER EVENT",
+      backToEvents: "ALL EVENTS",
+      types: {
+        limited: "LIMITED",
+        classic: "CLASSIC"
+      },
       indicator: "PARTICIPATE IN EVENT:",
       prizePool: "TOTAL ALLOCATION_PRIZE",
       dates: {
@@ -269,6 +275,12 @@ export const translations = {
   },
   ru: {
     tournament: {
+      enterEvent: "ПЕРЕЙТИ В СОБЫТИЕ",
+      backToEvents: "ВСЕ СОБЫТИЯ",
+      types: {
+        limited: "LIMITED",
+        classic: "CLASSIC"
+      },
       indicator: "ПРИНЯТЬ УЧАСТИЕ В СОБЫТИИ:",
       prizePool: "ОБЩИЙ ПРИЗОВОЙ ФОНД",
       dates: {

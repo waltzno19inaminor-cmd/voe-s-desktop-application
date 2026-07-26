@@ -10,6 +10,7 @@ export interface TournamentEvent {
   endDate: string      // ISO string or YYYY-MM-DD
   prizePool: string
   status: 'announced' | 'active' | 'finished'
+  type?: 'limited' | 'classic' | string
 }
 
 export interface TournamentParticipant {
