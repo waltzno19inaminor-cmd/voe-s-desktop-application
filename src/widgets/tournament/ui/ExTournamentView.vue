@@ -156,11 +156,17 @@
       <!-- PRIZE POOL (Centered with ExDividers & Pearlescent Animated Gradient) -->
       <div class="mb-20 w-full">
         <ExDivider variant="tactical" spacing="none" />
-        <div class="py-12 flex flex-col items-center justify-center text-center relative px-4 overflow-hidden">
+        <div 
+          class="py-12 flex flex-col items-center justify-center text-center relative px-4 overflow-hidden transition-colors duration-300"
+          :class="!themeStore.settings.isDark ? 'bg-black/[0.55]' : ''"
+        >
           <!-- Ambient Pearlescent Glow -->
           <div class="absolute inset-0 w-3/4 h-full mx-auto pearlescent-bg blur-3xl opacity-20 pointer-events-none -z-10"></div>
           
-          <span class="text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em] font-bold text-theme-text/60 mb-3 block">
+          <span 
+            class="text-[10px] sm:text-xs font-mono uppercase tracking-[0.35em] font-bold mb-3 block transition-colors duration-300"
+            :class="!themeStore.settings.isDark ? 'text-white' : 'text-theme-text/60'"
+          >
             {{ locale === 'ru' ? 'ПРИЗОВОЙ ФОНД // НАГРАДЫ И АЛЛОКАЦИИ' : 'PRIZE POOL // REWARDS & ALLOCATION' }}
           </span>
 
@@ -263,6 +269,7 @@ import ExDivider from '~/shared/ui/ExDivider.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
+import { useThemeStore } from '~/features/store/useTheme'
 import type { TournamentEvent } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
@@ -280,6 +287,7 @@ import {
 const emit = defineEmits(['exit'])
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
 
 const showAllRules = ref(false)
 const isAgreed = ref(false)
