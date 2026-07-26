@@ -215,7 +215,7 @@
           src="/assets/ui/eves.svg"
           alt=""
           aria-hidden="true"
-          class="absolute left-[-50rem] top-[58%] h-[2800px] w-[2800px] -translate-y-1/2 select-none object-contain opacity-[0.06]"
+          class="exforum-frontpage-bg-image absolute inset-y-0 left-0 h-full min-h-screen w-auto max-w-none select-none object-contain opacity-[0.06]"
         />
       </div>
 
@@ -276,7 +276,7 @@
 
         <section
           v-if="articleViewMode === 'board'"
-          class="group relative box-border h-[68vh] min-h-[460px] w-full max-w-full flex-1 cursor-pointer select-none overflow-hidden border-y border-x-0 border-current/10 bg-white/20 bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:22px_22px] bg-center shadow-inner sm:min-h-[min(72vh,780px)] sm:bg-[length:28px_28px]"
+          class="article-reader-board group relative box-border h-[68vh] min-h-[460px] w-full max-w-full flex-1 cursor-pointer select-none overflow-hidden border-y border-x-0 border-current/10 bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:22px_22px] bg-center shadow-inner sm:min-h-[min(72vh,780px)] sm:bg-[length:28px_28px]"
           :aria-label="articleLabels.board"
           @click="openBoardFullscreen"
         >
@@ -1844,7 +1844,7 @@
           src="/assets/ui/eves.svg"
           alt=""
           aria-hidden="true"
-          class="absolute left-[-50rem] top-[58%] h-[2800px] w-[2800px] -translate-y-1/2 select-none object-contain opacity-[0.06]"
+          class="exforum-frontpage-bg-image absolute inset-y-0 left-0 h-full min-h-screen w-auto max-w-none select-none object-contain opacity-[0.06]"
         />
       </div>
 
@@ -5284,6 +5284,15 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 <style scoped>
 .journal-wrapper {
   color: var(--text-primary);
+}
+
+.exforum-frontpage-bg-image {
+  transform: translate(clamp(-32rem, -34vw, -10rem), 2.5rem);
+}
+
+.article-reader-board {
+  z-index: 2;
+  background-color: rgba(255, 255, 255, 0.94);
 }
 
 .exforum-page-reify-enter-active,
