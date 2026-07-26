@@ -1,10 +1,13 @@
 <template>
   <Transition name="exforum-page-reify" appear>
-    <div class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none overflow-y-auto scroll-minimal relative">
+    <div 
+      class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none relative scroll-minimal"
+      :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : 'justify-center overflow-hidden'"
+    >
       
       <Transition name="fade-slide" mode="out-in">
         <!-- CAROUSEL MODE: PURE BANNER VIEW -->
-        <div v-if="!selectedEvent" key="carousel" class="w-full min-h-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6 py-6">
+        <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
       
       <!-- EMPTY STATE IF NO EVENTS -->
       <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
@@ -28,7 +31,7 @@
           <Transition :name="slideDirection" mode="out-in">
             <div 
               :key="activeEvent.id || 'slide'" 
-              class="relative w-full h-[460px] sm:h-[500px] md:h-[540px] lg:h-[580px] border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
+              class="relative w-full h-[460px] min-h-[460px] sm:h-[500px] sm:min-h-[500px] md:h-[540px] md:min-h-[540px] lg:h-[580px] lg:min-h-[580px] shrink-0 border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
             >
               <!-- BACKGROUND IMAGE -->
               <img 
@@ -98,7 +101,7 @@
     </div>
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-        <div v-else key="detail" class="w-full min-h-full max-w-[1400px] mx-auto flex flex-col justify-start pt-6 sm:pt-8 px-3 sm:px-6 pb-24">
+        <div v-else key="detail" class="w-full max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
       
       <!-- TOP NAVIGATION -->
       <div class="mb-4 flex items-center justify-between">
@@ -120,7 +123,7 @@
       </div>
 
       <!-- CROPPED TOP BANNER (~75px) -->
-      <div class="relative w-full h-[75px] border border-theme-border overflow-hidden mb-14 bg-black/80">
+      <div class="relative w-full h-[75px] min-h-[75px] shrink-0 border border-theme-border overflow-hidden mb-14 bg-black/80">
         <img 
           :src="targetEvent?.bannerUrl || targetEvent?.imageUrl" 
           :alt="getEventTitle(targetEvent)" 
