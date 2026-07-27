@@ -383,13 +383,13 @@
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
 
-          <div class="mt-20 flex w-full min-h-0 flex-1 flex-col items-stretch gap-4 sm:flex-row">
+          <div class="mt-20 flex w-full min-h-0 flex-1 flex-col items-stretch gap-4 sm:flex-row sm:justify-between">
             <ExPanel
               variant="light"
               :show-corners="true"
               :no-padding="true"
               :no-shadow="true"
-              class="registered-voting-panel w-full sm:flex-1"
+              class="registered-voting-panel min-w-0 w-full sm:w-1/2 sm:flex-none"
             >
               <div class="px-4 py-3">
                 <div class="mb-3 flex flex-wrap items-center gap-5">
@@ -448,7 +448,7 @@
               </div>
             </ExPanel>
 
-            <div class="registered-selected-asset-card w-full sm:flex-1">
+            <div class="registered-selected-asset-card min-w-0 w-full sm:w-2/5 sm:flex-none">
               <div v-if="selectedAsset" class="flex h-full min-h-[280px] flex-col">
                 <div class="flex items-start gap-5">
                 <img
@@ -462,16 +462,14 @@
                 </span>
                 <span class="registered-fg max-w-full pt-1 font-mono text-xl font-black leading-tight tracking-[0.1em] sm:text-2xl">
                   {{ selectedAsset.name }}
+                  <span v-if="selectedAsset.type" class="registered-muted mt-1 block text-[9px] font-medium uppercase tracking-[0.16em] opacity-65">
+                    {{ selectedAsset.type }}
+                  </span>
                 </span>
                 </div>
 
-                <div class="mt-auto pt-12">
-                  <div class="flex items-center justify-between px-1 font-mono text-[10px] font-black tracking-[0.12em]">
-                    <span class="registered-vote-long-text">Long {{ longVotePercentage }}%</span>
-                    <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
-                  </div>
-
-                  <div class="registered-vote-track relative mx-1 mt-2 h-1">
+                <div class="mt-4">
+                  <div class="registered-vote-track relative mx-1 h-1.5">
                     <div
                       class="registered-vote-long absolute inset-y-0 left-0"
                       :style="{ width: `${longVotePercentage}%` }"
@@ -484,6 +482,11 @@
                       class="registered-vote-marker absolute top-1/2 h-4 w-0.5 -translate-x-1/2 -translate-y-1/2"
                       :style="{ left: `${voteSplitPercentage}%` }"
                     ></div>
+                  </div>
+
+                  <div class="mt-3 flex items-center justify-between px-1 font-mono text-[10px] font-black tracking-[0.12em]">
+                    <span class="registered-vote-long-text">{{ longVotePercentage }}% Long</span>
+                    <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
                   </div>
                 </div>
               </div>
@@ -719,6 +722,7 @@ const allowedTournamentAssets = computed(() => {
       key: `${requestedSymbol || 'asset'}-${index}`,
       symbol: rawAsset?.symbol || requestedSymbol,
       name: rawAsset?.name || rawAsset?.symbol || requestedSymbol,
+      type: rawAsset?.type || globalAsset?.type || '',
       icon: globalAsset?.icon || ''
     }
   }).filter((asset) => asset.name)
@@ -1112,11 +1116,8 @@ onUnmounted(() => {
 }
 
 .registered-selected-asset-card {
-  border-color: var(--registered-border);
-  border-style: solid;
-  border-width: 1px;
   min-height: max(280px, calc(100% - 12rem));
-  padding: 1rem;
+  padding: 1rem 1.5rem;
 }
 
 .registered-vote-track {
@@ -1128,7 +1129,7 @@ onUnmounted(() => {
 }
 
 .registered-vote-short {
-  background-color: #b86a6a;
+  background-color: #ef4444;
 }
 
 .registered-vote-marker {
@@ -1140,7 +1141,7 @@ onUnmounted(() => {
 }
 
 .registered-vote-short-text {
-  color: #b86a6a;
+  color: #ef4444;
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
