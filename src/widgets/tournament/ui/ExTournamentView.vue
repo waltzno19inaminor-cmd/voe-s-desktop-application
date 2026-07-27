@@ -419,8 +419,26 @@
                     @keydown.enter.prevent="selectAsset(asset.key)"
                     @keydown.space.prevent="selectAsset(asset.key)"
                   >
+                    <span
+                      v-if="asset.isForex"
+                      class="registered-forex-icon registered-forex-icon--small shrink-0"
+                      :aria-label="asset.name"
+                    >
+                      <img
+                        v-if="asset.baseIcon"
+                        :src="asset.baseIcon"
+                        :alt="asset.baseCurrency"
+                        class="registered-forex-flag registered-forex-flag--base"
+                      >
+                      <img
+                        v-if="asset.quoteIcon"
+                        :src="asset.quoteIcon"
+                        :alt="asset.quoteCurrency"
+                        class="registered-forex-flag registered-forex-flag--quote"
+                      >
+                    </span>
                     <img
-                      v-if="asset.icon"
+                      v-else-if="asset.icon"
                       :src="asset.icon"
                       :alt="asset.name"
                       class="registered-asset-icon h-7 w-7 shrink-0 object-contain"
@@ -448,8 +466,26 @@
             <div class="registered-selected-asset-card min-w-0 w-full sm:w-2/5 sm:flex-none">
               <div v-if="selectedAsset" class="flex h-full min-h-[280px] flex-col">
                 <div class="flex items-start gap-5">
+                <span
+                  v-if="selectedAsset.isForex"
+                  class="registered-forex-icon registered-forex-icon--large shrink-0"
+                  :aria-label="selectedAsset.name"
+                >
+                  <img
+                    v-if="selectedAsset.baseIcon"
+                    :src="selectedAsset.baseIcon"
+                    :alt="selectedAsset.baseCurrency"
+                    class="registered-forex-flag registered-forex-flag--base"
+                  >
+                  <img
+                    v-if="selectedAsset.quoteIcon"
+                    :src="selectedAsset.quoteIcon"
+                    :alt="selectedAsset.quoteCurrency"
+                    class="registered-forex-flag registered-forex-flag--quote"
+                  >
+                </span>
                 <img
-                  v-if="selectedAsset.icon"
+                  v-else-if="selectedAsset.icon"
                   :src="selectedAsset.icon"
                   :alt="selectedAsset.name"
                   class="h-20 w-20 shrink-0 object-contain"
@@ -761,13 +797,28 @@ const allowedTournamentAssets = computed(() => {
       return symbol === normalizedSymbol
         || symbol.replace(/[^A-Z0-9]/g, '') === normalizedSymbol.replace(/[^A-Z0-9]/g, '')
     })
+    const type = rawAsset?.type || globalAsset?.type || ''
+    const isForex = String(type).toLowerCase() === 'forex'
+    const forexCurrencies = isForex
+      ? normalizedSymbol.replace(/[^A-Z]/g, '').match(/^([A-Z]{3})([A-Z]{3})$/)
+      : null
+    const baseCurrency = forexCurrencies?.[1] || ''
+    const quoteCurrency = forexCurrencies?.[2] || ''
+    const getCurrencyIcon = (currency: string) => currency
+      ? `/assets_icons/currency-${currency.toLowerCase()}.svg`
+      : ''
 
     return {
       key: `${requestedSymbol || 'asset'}-${index}`,
       symbol: rawAsset?.symbol || requestedSymbol,
       name: rawAsset?.name || rawAsset?.symbol || requestedSymbol,
-      type: rawAsset?.type || globalAsset?.type || '',
-      icon: globalAsset?.icon || ''
+      type,
+      icon: globalAsset?.icon || '',
+      isForex: Boolean(isForex && baseCurrency && quoteCurrency),
+      baseCurrency,
+      quoteCurrency,
+      baseIcon: getCurrencyIcon(baseCurrency),
+      quoteIcon: getCurrencyIcon(quoteCurrency)
     }
   }).filter((asset) => asset.name)
 })
@@ -1220,7 +1271,50 @@ onUnmounted(() => {
   transition: transform 240ms ease;
 }
 
+.registered-forex-icon {
+  position: relative;
+  display: block;
+  overflow: visible;
+  transition: transform 240ms ease;
+}
+
+.registered-forex-icon--small {
+  width: 2rem;
+  height: 2rem;
+}
+
+.registered-forex-icon--large {
+  width: 5rem;
+  height: 5rem;
+}
+
+.registered-forex-flag {
+  position: absolute;
+  width: 68%;
+  height: 68%;
+  object-fit: cover;
+  border: 2px solid var(--registered-bg);
+  border-radius: 9999px;
+  box-sizing: border-box;
+}
+
+.registered-forex-flag--base {
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
+
+.registered-forex-flag--quote {
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
 .registered-asset-chip:hover .registered-asset-icon {
+  transform: scale(1.05);
+}
+
+.registered-asset-chip:hover .registered-forex-icon {
   transform: scale(1.05);
 }
 
