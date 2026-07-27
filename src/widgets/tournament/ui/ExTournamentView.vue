@@ -385,6 +385,7 @@
               :show-corners="true"
               :no-padding="true"
               :no-shadow="true"
+              :style="{ backgroundColor: votingSurfaceColor }"
               class="registered-voting-panel min-w-0 w-full sm:w-1/2 sm:flex-none"
             >
               <div class="px-4 py-3">
@@ -490,6 +491,7 @@
                       type="button"
                       class="registered-vote-action registered-vote-action--long min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
+                      :style="{ backgroundColor: votingSurfaceColor }"
                       :disabled="!isVotingOpen"
                     >
                       Long
@@ -498,6 +500,7 @@
                       type="button"
                       class="registered-vote-action registered-vote-action--short min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
+                      :style="{ backgroundColor: votingSurfaceColor }"
                       :disabled="!isVotingOpen"
                     >
                       Short
@@ -550,6 +553,12 @@ const emit = defineEmits(['exit'])
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+
+const votingSurfaceColor = computed(() => {
+  return themeStore.settings.isDark
+    ? 'rgba(0, 0, 0, 0.55)'
+    : 'rgba(255, 255, 255, 0.55)'
+})
 
 const showAllRules = ref(false)
 const isAgreed = ref(false)
@@ -1091,9 +1100,10 @@ onUnmounted(() => {
 }
 
 .registered-voting-panel {
-  background-color: transparent !important;
   border-color: var(--registered-border) !important;
   box-shadow: none !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   min-height: max(280px, calc(100% - 12rem));
 }
 
@@ -1172,7 +1182,8 @@ onUnmounted(() => {
 }
 
 .registered-vote-action {
-  background-color: transparent;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .registered-vote-action--long {
@@ -1180,22 +1191,14 @@ onUnmounted(() => {
   color: #5c9f78;
 }
 
-.registered-vote-action--long:hover {
-  background-color: color-mix(in srgb, #5c9f78 12%, transparent);
-}
-
 .registered-vote-action--short {
   border-color: #ef4444;
   color: #ef4444;
 }
 
-.registered-vote-action--short:hover {
-  background-color: color-mix(in srgb, #ef4444 12%, transparent);
-}
-
 .registered-vote-action:disabled {
   filter: grayscale(1);
-  opacity: 0.28;
+  opacity: 0.42;
 }
 
 .registered-vote-action--selected {
@@ -1203,14 +1206,8 @@ onUnmounted(() => {
   opacity: 0.7;
 }
 
-.registered-vote-action--selected.registered-vote-action--long {
-  background-color: color-mix(in srgb, #5c9f78 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #5c9f78 40%, transparent);
-}
-
-.registered-vote-action--selected.registered-vote-action--short {
-  background-color: color-mix(in srgb, #ef4444 14%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ef4444 40%, transparent);
+.registered-vote-action--selected {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--registered-fg) 45%, transparent);
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
