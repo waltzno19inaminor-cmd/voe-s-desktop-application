@@ -265,10 +265,6 @@
             alt=""
             class="h-full w-full object-cover"
           >
-          <div
-            class="absolute inset-0"
-            :class="themeStore.settings.isDark ? 'bg-black/75' : 'bg-white/70'"
-          ></div>
         </div>
 
         <Transition name="season-entry" mode="out-in">
@@ -462,7 +458,7 @@
                 </span>
                 <span class="registered-fg max-w-full pt-1 font-mono text-xl font-black leading-tight tracking-[0.1em] sm:text-2xl">
                   {{ selectedAsset.name }}
-                  <span v-if="selectedAsset.type" class="registered-muted mt-1 block text-[9px] font-medium uppercase tracking-[0.16em] opacity-65">
+                  <span v-if="selectedAsset.type" class="registered-muted mt-1 block text-sm font-medium uppercase tracking-[0.16em] opacity-65">
                     {{ selectedAsset.type }}
                   </span>
                 </span>
@@ -487,6 +483,25 @@
                   <div class="mt-3 flex items-center justify-between px-1 font-mono text-[10px] font-black tracking-[0.12em]">
                     <span class="registered-vote-long-text">{{ longVotePercentage }}% Long</span>
                     <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
+                  </div>
+
+                  <div class="mt-5 flex w-full gap-2">
+                    <button
+                      type="button"
+                      class="registered-vote-action registered-vote-action--long min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                      :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
+                      :disabled="!isVotingOpen"
+                    >
+                      Long
+                    </button>
+                    <button
+                      type="button"
+                      class="registered-vote-action registered-vote-action--short min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                      :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
+                      :disabled="!isVotingOpen"
+                    >
+                      Short
+                    </button>
                   </div>
                 </div>
               </div>
@@ -782,6 +797,14 @@ const getPredictionDirection = (prediction: TournamentPrediction) => {
   return String(prediction.predict || prediction.direction || rawPrediction.side || rawPrediction.prediction || rawPrediction.type || '').toUpperCase()
 }
 
+const currentUserPrediction = computed(() => {
+  const userId = authStore.user?.uid
+  if (!userId) return ''
+
+  const prediction = selectedAssetPredictions.value.find((item) => String(item.userId || '') === String(userId))
+  return prediction ? getPredictionDirection(prediction) : ''
+})
+
 const longVoteCount = computed(() => {
   return selectedAssetPredictions.value.filter((prediction) => getPredictionDirection(prediction) === 'LONG').length
 })
@@ -1068,7 +1091,9 @@ onUnmounted(() => {
 }
 
 .registered-voting-panel {
+  background-color: transparent !important;
   border-color: var(--registered-border) !important;
+  box-shadow: none !important;
   min-height: max(280px, calc(100% - 12rem));
 }
 
@@ -1116,6 +1141,8 @@ onUnmounted(() => {
 }
 
 .registered-selected-asset-card {
+  background-color: transparent;
+  box-shadow: none;
   min-height: max(280px, calc(100% - 12rem));
   padding: 1rem 1.5rem;
 }
@@ -1144,14 +1171,52 @@ onUnmounted(() => {
   color: #ef4444;
 }
 
-.registered-voting-panel :deep(.theme-panel-backdrop) {
-  background-color: rgba(235, 235, 235, 0.72) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+.registered-vote-action {
+  background-color: transparent;
 }
 
-.registered-event-page--dark .registered-voting-panel :deep(.theme-panel-backdrop) {
-  background-color: rgba(255, 255, 255, 0.045) !important;
+.registered-vote-action--long {
+  border-color: #5c9f78;
+  color: #5c9f78;
+}
+
+.registered-vote-action--long:hover {
+  background-color: color-mix(in srgb, #5c9f78 12%, transparent);
+}
+
+.registered-vote-action--short {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.registered-vote-action--short:hover {
+  background-color: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+.registered-vote-action:disabled {
+  filter: grayscale(1);
+  opacity: 0.28;
+}
+
+.registered-vote-action--selected {
+  filter: none;
+  opacity: 0.7;
+}
+
+.registered-vote-action--selected.registered-vote-action--long {
+  background-color: color-mix(in srgb, #5c9f78 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #5c9f78 40%, transparent);
+}
+
+.registered-vote-action--selected.registered-vote-action--short {
+  background-color: color-mix(in srgb, #ef4444 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #ef4444 40%, transparent);
+}
+
+.registered-voting-panel :deep(.theme-panel-backdrop) {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .season-entry-enter-active,
