@@ -522,30 +522,31 @@
                     <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
                   </div>
 
-                  <div class="mt-5 flex w-full gap-2">
-                    <button
-                      type="button"
-                      class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
-                      :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
-                      :style="getVoteButtonStyle('LONG')"
-                      :aria-pressed="currentUserPrediction === 'LONG'"
-                      :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
-                      @click="handleVote('LONG')"
-                    >
-                      Long
-                    </button>
-                    <button
-                      type="button"
-                      class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
-                      :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
-                      :style="getVoteButtonStyle('SHORT')"
-                      :aria-pressed="currentUserPrediction === 'SHORT'"
-                      :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
-                      @click="handleVote('SHORT')"
-                    >
-                      Short
-                    </button>
-                  </div>
+                </div>
+
+                <div class="mt-auto flex w-full gap-2 pt-6">
+                  <button
+                    type="button"
+                    class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                    :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
+                    :style="getVoteButtonStyle('LONG')"
+                    :aria-pressed="currentUserPrediction === 'LONG'"
+                    :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
+                    @click="handleVote('LONG')"
+                  >
+                    Long
+                  </button>
+                  <button
+                    type="button"
+                    class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                    :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
+                    :style="getVoteButtonStyle('SHORT')"
+                    :aria-pressed="currentUserPrediction === 'SHORT'"
+                    :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
+                    @click="handleVote('SHORT')"
+                  >
+                    Short
+                  </button>
                 </div>
               </div>
             </div>
