@@ -101,7 +101,8 @@
     </div>
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-        <div v-else key="detail" class="w-full max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
+        <div v-else key="detail" class="w-full h-full max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
+      <template v-if="!isUserRegistered">
       
       <!-- TOP NAVIGATION -->
       <div class="mb-4 flex items-center justify-between">
@@ -205,57 +206,53 @@
         </div>
       </div>
 
-      <!-- CENTERED REGISTRATION & AGREEMENT STAGE (Monochrome White & Black) -->
-      <div class="w-full flex flex-col items-center justify-center pt-12 mt-6 border-t border-theme-border/30 text-center">
-        
-        <!-- CUSTOM CHECKBOX FOR AGREEMENT -->
-        <label 
-          v-if="!isUserRegistered"
-          class="flex items-center space-x-3 cursor-pointer select-none mb-6 text-xs font-mono uppercase tracking-[0.1em] text-theme-text/80 hover:text-theme-text transition-colors"
-        >
-          <div 
-            class="w-4 h-4 border border-theme-text/60 flex items-center justify-center transition-colors duration-200 shrink-0"
-            :class="isAgreed ? 'bg-theme-text text-theme-bg' : 'bg-transparent text-transparent'"
+      <!-- REGISTRATION STAGE OR PARTICIPANT PAGE -->
+      <Transition name="registration-stage" mode="out-in">
+        <!-- CENTERED REGISTRATION & AGREEMENT STAGE (Monochrome White & Black) -->
+        <div v-if="!isUserRegistered" key="registration" class="w-full flex flex-col items-center justify-center pt-12 mt-6 border-t border-theme-border/30 text-center">
+          <!-- CUSTOM CHECKBOX FOR AGREEMENT -->
+          <label
+            class="flex items-center space-x-3 cursor-pointer select-none mb-6 text-xs font-mono uppercase tracking-[0.1em] text-theme-text/80 hover:text-theme-text transition-colors"
           >
-            <svg class="w-3 h-3 stroke-current stroke-2 fill-none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-          </div>
-          <input type="checkbox" v-model="isAgreed" class="hidden" />
-          <span>{{ locale === 'ru' ? 'Я соглашаюсь с правилами турнира' : 'I agree to the tournament rules' }}</span>
-        </label>
+            <div
+              class="w-4 h-4 border border-theme-text/60 flex items-center justify-center transition-colors duration-200 shrink-0"
+              :class="isAgreed ? 'bg-theme-text text-theme-bg' : 'bg-transparent text-transparent'"
+            >
+              <svg class="w-3 h-3 stroke-current stroke-2 fill-none" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <input type="checkbox" v-model="isAgreed" class="hidden" />
+            <span>{{ locale === 'ru' ? 'Я соглашаюсь с правилами турнира' : 'I agree to the tournament rules' }}</span>
+          </label>
 
-        <!-- CENTERED BUTTON & TIMER TO THE RIGHT -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
-          
-          <!-- REGISTERED STATE -->
-          <div 
-            v-if="isUserRegistered" 
-            class="px-10 py-4 border border-theme-text bg-theme-text text-theme-bg font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em]"
-          >
-            {{ locale === 'ru' ? 'ВЫ ЗАРЕГИСТРИРОВАНЫ' : 'REGISTERED' }}
-          </div>
+          <!-- CENTERED BUTTON & TIMER TO THE RIGHT -->
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-6">
+            <!-- REGISTER BUTTON (Dark in light theme, White in dark theme) -->
+            <button
+              @click="handleRegister"
+              :disabled="isRegistering || !isAgreed || !isEventStarted"
+              class="px-10 py-4 font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm border"
+              :class="!themeStore.settings.isDark ? 'bg-black text-white border-black hover:bg-white hover:text-black hover:border-black' : 'bg-white text-black border-white hover:bg-black hover:text-white hover:border-white'"
+            >
+              {{ !isEventStarted ? (locale === 'ru' ? 'ДОСТУПНО ПОСЛЕ СТАРТА' : 'LOCKED UNTIL START') : isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
+            </button>
 
-          <!-- REGISTER BUTTON (Dark in light theme, White in dark theme) -->
-          <button
-            v-else
-            @click="handleRegister"
-            :disabled="isRegistering || !isAgreed || !isEventStarted"
-            class="px-10 py-4 font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer shadow-sm border"
-            :class="!themeStore.settings.isDark ? 'bg-black text-white border-black hover:bg-white hover:text-black hover:border-black' : 'bg-white text-black border-white hover:bg-black hover:text-white hover:border-white'"
-          >
-            {{ !isEventStarted ? (locale === 'ru' ? 'ДОСТУПНО ПОСЛЕ СТАРТА' : 'LOCKED UNTIL START') : isRegistering ? (locale === 'ru' ? 'РЕГИСТРАЦИЯ...' : 'REGISTERING...') : (locale === 'ru' ? 'ЗАРЕГИСТРИРОВАТЬСЯ' : 'REGISTER') }}
-          </button>
-
-          <!-- COUNTDOWN TIMER (if event hasn't started yet) -->
-          <div 
-            v-if="!isEventStarted && timeUntilStart > 0" 
-            class="flex flex-col items-start text-left font-mono border-l border-theme-text/30 pl-4 py-1"
-          >
-            <span class="text-[9px] uppercase tracking-[0.2em] text-theme-text/50">{{ locale === 'ru' ? 'ДО НАЧАЛА СОБЫТИЯ:' : 'STARTS IN:' }}</span>
-            <span class="text-sm font-black text-theme-text tracking-[0.15em] mt-0.5">{{ formattedCountdown }}</span>
+            <!-- COUNTDOWN TIMER (if event hasn't started yet) -->
+            <div
+              v-if="!isEventStarted && timeUntilStart > 0"
+              class="flex flex-col items-start text-left font-mono border-l border-theme-text/30 pl-4 py-1"
+            >
+              <span class="text-[9px] uppercase tracking-[0.2em] text-theme-text/50">{{ locale === 'ru' ? 'ДО НАЧАЛА СОБЫТИЯ:' : 'STARTS IN:' }}</span>
+              <span class="text-sm font-black text-theme-text tracking-[0.15em] mt-0.5">{{ formattedCountdown }}</span>
+            </div>
           </div>
         </div>
 
-      </div>
+        <!-- EMPTY PARTICIPANT PAGE; CONTENT WILL BE ADDED LATER -->
+        <div v-else key="participant-page" class="w-full min-h-[420px] mt-6 border-t border-theme-border/30" aria-label="Participant page"></div>
+      </Transition>
+
+      </template>
+      <div v-else key="empty-participant-page" class="w-full flex-1" aria-label="Participant page"></div>
 
     </div>
       </Transition>
