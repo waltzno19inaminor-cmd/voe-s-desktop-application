@@ -29928,7 +29928,7 @@
     "symbol": "XAU/USD",
     "name": "Gold",
     "type": "Commodities",
-    "icon": "/assets_icons/commodity-gold-bars.png",
+    "icon": "/assets_icons/metal-gold.svg",
     "description": "Global Commodity / Future",
     "contractSize": 100,
     "currency": "USD"
@@ -29937,7 +29937,7 @@
     "symbol": "XAG/USD",
     "name": "Silver",
     "type": "Commodities",
-    "icon": "/assets_icons/commodity-silver-bars.svg",
+    "icon": "/assets_icons/metal-silver.svg",
     "description": "Global Commodity / Future",
     "contractSize": 5000,
     "currency": "USD"
@@ -29945,12 +29945,14 @@
   {
     "symbol": "XPT/USD",
     "name": "Platinum / US Dollar",
-    "type": "Metals"
+    "type": "Metals",
+    "icon": "/assets_icons/metal-platinum.svg"
   },
   {
     "symbol": "XPD/USD",
     "name": "Palladium / US Dollar",
-    "type": "Metals"
+    "type": "Metals",
+    "icon": "/assets_icons/metal-palladium.svg"
   },
   {
     "symbol": "USOIL",
@@ -30225,7 +30227,7 @@
     "symbol": "COPPER",
     "name": "Copper",
     "type": "Commodities",
-    "icon": "/assets_icons/commodity-copper-ingots.svg",
+    "icon": "/assets_icons/metal-copper.svg",
     "description": "Global Commodity / Future",
     "contractSize": 25000,
     "currency": "USD"
@@ -30297,7 +30299,7 @@
     "symbol": "PALLAD",
     "name": "Palladium",
     "type": "Commodities",
-    "icon": "/assets_icons/commodity-metal-bars.svg",
+    "icon": "/assets_icons/metal-palladium.svg",
     "description": "Global Commodity / Future",
     "contractSize": 100,
     "currency": "USD"
@@ -30306,7 +30308,7 @@
     "symbol": "PLATIN",
     "name": "Platinum",
     "type": "Commodities",
-    "icon": "/assets_icons/commodity-metal-bars.svg",
+    "icon": "/assets_icons/metal-platinum.svg",
     "description": "Global Commodity / Future",
     "contractSize": 50,
     "currency": "USD"
