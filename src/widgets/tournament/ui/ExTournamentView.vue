@@ -371,12 +371,11 @@
             {{ locale === 'ru' ? 'ДО' : 'UNTIL' }} {{ formattedSeasonEnd }}
           </div>
 
-          <div v-if="votingCompleted" class="registered-muted mt-5 font-mono text-[10px] font-black uppercase tracking-[0.22em] sm:text-xs">
-            {{ locale === 'ru' ? 'ГОЛОСОВАНИЕ ЗАВЕРШЕНО' : 'VOTING COMPLETED' }}
-          </div>
-
           <div class="registered-fg absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
+            <div v-if="votingCompleted" class="registered-muted mt-3 font-mono text-[10px] font-black uppercase tracking-[0.22em] sm:text-xs">
+              {{ locale === 'ru' ? 'ГОЛОСОВАНИЕ ЗАВЕРШЕНО' : 'VOTING COMPLETED' }}
+            </div>
           </div>
 
           <div class="mt-20 flex w-full min-h-0 flex-1 flex-col items-stretch gap-4 sm:flex-row sm:justify-between">
@@ -411,7 +410,10 @@
                     v-for="asset in allowedTournamentAssets"
                     :key="asset.key"
                     class="registered-asset-chip group flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
-                    :class="selectedAssetKey === asset.key ? 'registered-asset-chip--selected' : ''"
+                    :class="[
+                      selectedAssetKey === asset.key ? 'registered-asset-chip--selected' : '',
+                      getAssetVoteClass(asset)
+                    ]"
                     :aria-pressed="selectedAssetKey === asset.key"
                     role="button"
                     tabindex="0"
@@ -893,6 +895,36 @@ const currentUserPrediction = computed(() => {
     ? submittedPrediction.value.direction
     : ''
 })
+
+const getAssetPredictionDirection = (asset: { key: string; symbol?: unknown; name: string }) => {
+  const userId = authStore.user?.uid
+  if (!userId) return ''
+
+  const assetIdentifiers = new Set([
+    normalizeAssetIdentifier(asset.symbol),
+    normalizeAssetIdentifier(asset.name)
+  ].filter(Boolean))
+
+  const prediction = roundPredictions.value.find((item) => {
+    if (String(item.userId || '') !== String(userId)) return false
+    return assetIdentifiers.has(normalizeAssetIdentifier(getPredictionAssetIdentifier(item)))
+  })
+
+  if (prediction) return getPredictionDirection(prediction)
+
+  return submittedPrediction.value?.seasonId === openedSeason.value?.id
+    && submittedPrediction.value.roundId === currentRoundId.value
+    && submittedPrediction.value.assetKey === asset.key
+    ? submittedPrediction.value.direction
+    : ''
+}
+
+const getAssetVoteClass = (asset: { key: string; symbol?: unknown; name: string }) => {
+  const direction = getAssetPredictionDirection(asset)
+  if (direction === 'LONG') return 'registered-asset-chip--long-voted'
+  if (direction === 'SHORT') return 'registered-asset-chip--short-voted'
+  return ''
+}
 
 const getVoteButtonStyle = (direction: TournamentPredictionDirection) => {
   if (currentUserPrediction.value === direction) {
@@ -1420,6 +1452,30 @@ onUnmounted(() => {
 .registered-event-page--light .registered-asset-chip--selected .registered-fg,
 .registered-event-page--light .registered-asset-chip--selected .registered-muted {
   color: #ffffff;
+}
+
+.registered-asset-chip--long-voted,
+.registered-asset-chip--long-voted:hover {
+  background-color: rgba(134, 239, 172, 0.24);
+}
+
+.registered-asset-chip--short-voted,
+.registered-asset-chip--short-voted:hover {
+  background-color: rgba(252, 165, 165, 0.26);
+}
+
+.registered-asset-chip--selected.registered-asset-chip--long-voted,
+.registered-asset-chip--selected.registered-asset-chip--long-voted:hover,
+.registered-asset-chip--selected.registered-asset-chip--short-voted,
+.registered-asset-chip--selected.registered-asset-chip--short-voted:hover {
+  background-color: rgba(248, 248, 248, 0.94);
+}
+
+.registered-event-page--light .registered-asset-chip--selected.registered-asset-chip--long-voted,
+.registered-event-page--light .registered-asset-chip--selected.registered-asset-chip--long-voted:hover,
+.registered-event-page--light .registered-asset-chip--selected.registered-asset-chip--short-voted,
+.registered-event-page--light .registered-asset-chip--selected.registered-asset-chip--short-voted:hover {
+  background-color: #000000;
 }
 
 .registered-asset-chip--soon {
