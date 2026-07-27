@@ -829,6 +829,7 @@ const longVotePercentage = computed(() => {
 })
 
 const shortVotePercentage = computed(() => {
+  if (!longVoteCount.value && !shortVoteCount.value) return 0
   return 100 - longVotePercentage.value
 })
 
