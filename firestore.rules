@@ -106,17 +106,16 @@ service cloud.firestore {
           }
 
           match /predictions/{predictionId} {
-            allow read: if isSignedIn()
-              && (
-                resource.data.userId == request.auth.uid
-                || votingHasEnded()
-              );
+            // Голоса нужны для публичной статистики и блока последних голосов.
+            // Сам userId остаётся только техническим идентификатором документа.
+            allow read: if isSignedIn();
 
             allow create: if isSignedIn()
               && votingIsOpen()
               && predictionId == request.auth.uid + "_" + request.resource.data.assetId
               && request.resource.data.keys().hasAll([
                 "userId",
+                "displayName",
                 "assetId",
                 "asset",
                 "predict",
@@ -124,12 +123,14 @@ service cloud.firestore {
               ])
               && request.resource.data.keys().hasOnly([
                 "userId",
+                "displayName",
                 "assetId",
                 "asset",
                 "predict",
                 "predictTime"
               ])
               && request.resource.data.userId == request.auth.uid
+              && request.resource.data.displayName is string
               && request.resource.data.assetId is string
               && request.resource.data.asset is string
               && request.resource.data.predict in ["LONG", "SHORT"]
@@ -141,14 +142,17 @@ service cloud.firestore {
               && request.resource.data.userId == resource.data.userId
               && request.resource.data.assetId == resource.data.assetId
               && request.resource.data.asset == resource.data.asset
+              && request.resource.data.displayName is string
               && request.resource.data.keys().hasOnly([
                 "userId",
+                "displayName",
                 "assetId",
                 "asset",
                 "predict",
                 "predictTime"
               ])
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                "displayName",
                 "predict",
                 "predictTime"
               ])

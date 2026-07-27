@@ -524,6 +524,27 @@
 
                 </div>
 
+                <div v-if="recentVotes.length" class="registered-recent-votes mt-5" aria-live="polite">
+                  <div class="registered-recent-votes__label registered-muted mb-2 font-mono text-[9px] font-black uppercase tracking-[0.16em]">
+                    {{ locale === 'ru' ? 'Последние проголосовавшие' : 'Latest voters' }}
+                  </div>
+                  <TransitionGroup name="recent-vote" tag="div" class="registered-recent-votes__list">
+                    <div
+                      v-for="(vote, index) in recentVotes"
+                      :key="vote.id || `${vote.userId}-${vote.assetId}`"
+                      class="registered-recent-vote"
+                      :style="getRecentVoteStyle(index)"
+                    >
+                      <span class="registered-fg min-w-0 truncate font-mono text-[10px] font-black tracking-[0.08em]">
+                        {{ getPredictionDisplayName(vote) }}
+                      </span>
+                      <span class="registered-muted shrink-0 pl-3 font-mono text-[9px] font-bold tracking-[0.08em]">
+                        {{ formatPredictionTime(vote.predictTime) }}
+                      </span>
+                    </div>
+                  </TransitionGroup>
+                </div>
+
                 <div class="mt-auto flex w-full gap-2 pt-6">
                   <button
                     type="button"
@@ -871,6 +892,47 @@ const selectedAssetPredictions = computed(() => {
   })
 })
 
+const recentVotes = computed(() => {
+  return [...selectedAssetPredictions.value]
+    .sort((left, right) => toMillis(right.predictTime) - toMillis(left.predictTime))
+    .slice(0, 4)
+})
+
+const getPredictionDisplayName = (prediction: TournamentPrediction) => {
+  const currentUser = authStore.user
+  const displayName = String(prediction.displayName || '').trim()
+  if (displayName) return displayName
+
+  if (prediction.userId && prediction.userId === currentUser?.uid) {
+    return currentUser?.displayName?.trim()
+      || currentUser?.email?.split('@')[0]?.trim()
+      || 'Anonymous'
+  }
+
+  const userId = String(prediction.userId || '')
+  return userId ? `User ${userId.slice(0, 6)}` : 'Anonymous'
+}
+
+const formatPredictionTime = (value: unknown) => {
+  const millis = toMillis(value)
+  if (!millis) return '—'
+
+  return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(new Date(millis))
+}
+
+const getRecentVoteStyle = (index: number) => {
+  const depth = Math.min(index, 3)
+  return {
+    opacity: String(1 - depth * 0.16),
+    filter: `blur(${depth * 0.45}px)`
+  }
+}
+
 const getPredictionDirection = (prediction: TournamentPrediction) => {
   const rawPrediction = prediction as TournamentPrediction & { side?: string; prediction?: string; type?: string }
   return String(prediction.predict || prediction.direction || rawPrediction.side || rawPrediction.prediction || rawPrediction.type || '').toUpperCase()
@@ -947,6 +1009,9 @@ const handleVote = async (direction: TournamentPredictionDirection) => {
       seasonId,
       roundId,
       userId,
+      displayName: authStore.user?.displayName?.trim()
+        || authStore.user?.email?.split('@')[0]?.trim()
+        || 'Anonymous',
       assetId: normalizeAssetIdentifier(String(asset.symbol || asset.name)),
       asset: String(asset.symbol || asset.name),
       predict: direction
@@ -1185,13 +1250,13 @@ watch([() => openedSeason.value?.id, currentRoundId], () => {
 
 watch(
   [() => targetEvent.value?.id, () => openedSeason.value?.id, currentRoundId, () => authStore.user?.uid, votingCompleted],
-  ([eventId, seasonId, roundId, userId, canReadAll]) => {
+  ([eventId, seasonId, roundId, userId]) => {
     initTournamentPredictionsListener({
       tournamentId: eventId,
       seasonId,
       roundId,
       userId,
-      canReadAll
+      canReadAll: true
     })
   },
   { immediate: true }
@@ -1359,6 +1424,52 @@ onUnmounted(() => {
   box-shadow: none;
   min-height: max(280px, calc(100% - 12rem));
   padding: 1rem 1.5rem;
+}
+
+.registered-recent-votes {
+  overflow: hidden;
+  border: 1px solid var(--registered-border);
+  padding: 0.7rem 0.75rem 0.65rem;
+  background-color: color-mix(in srgb, var(--registered-bg) 7%, transparent);
+}
+
+.registered-recent-votes__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow: hidden;
+}
+
+.registered-recent-vote {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 1.75rem;
+  border: 1px solid color-mix(in srgb, var(--registered-border) 70%, transparent);
+  padding: 0.3rem 0.5rem;
+  background-color: color-mix(in srgb, var(--registered-bg) 10%, transparent);
+  transition: opacity 260ms ease, filter 260ms ease, background-color 220ms ease;
+}
+
+.recent-vote-enter-active,
+.recent-vote-leave-active {
+  transition: opacity 360ms ease, transform 360ms ease, filter 360ms ease;
+}
+
+.recent-vote-enter-from {
+  opacity: 0;
+  transform: translateY(-0.6rem);
+  filter: blur(0.5rem);
+}
+
+.recent-vote-leave-to {
+  opacity: 0;
+  transform: translateY(0.6rem);
+  filter: blur(0.5rem);
+}
+
+.recent-vote-move {
+  transition: transform 360ms ease;
 }
 
 .registered-vote-track {
