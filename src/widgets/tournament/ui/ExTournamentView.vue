@@ -1236,6 +1236,18 @@ onUnmounted(() => {
   color: #111111;
 }
 
+.registered-event-page--light .registered-asset-chip--selected,
+.registered-event-page--light .registered-asset-chip--selected:hover {
+  background-color: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+.registered-event-page--light .registered-asset-chip--selected .registered-fg,
+.registered-event-page--light .registered-asset-chip--selected .registered-muted {
+  color: #ffffff;
+}
+
 .registered-asset-chip--soon {
   color: var(--registered-muted);
   cursor: default;
