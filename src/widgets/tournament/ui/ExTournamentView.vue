@@ -252,7 +252,101 @@
       </Transition>
 
       </template>
-      <div v-else key="empty-participant-page" class="w-full flex-1" aria-label="Participant page"></div>
+      <div v-else key="registered-event-page" class="registered-event-page relative w-full flex-1 min-h-full bg-black text-white px-4 py-10 sm:px-8 md:px-12" aria-label="Participant page">
+        <Transition name="season-entry" mode="out-in">
+          <div v-if="!entranceDecisionReady" key="season-entry-wait" class="absolute inset-0 h-full w-full"></div>
+          <div v-else-if="showEntranceAnimation" key="season-entry-animation" class="absolute inset-0 z-10 flex min-h-[420px] w-full items-center justify-center bg-black text-center">
+            <Transition name="season-stage" mode="out-in">
+              <div v-if="introStage === 'season'" key="season-stage" class="flex flex-col items-center">
+                <ExHeading level="h1" variant="cinematic" class="!text-7xl !leading-none !tracking-[0.12em] !text-white sm:!text-9xl">
+                  {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+                </ExHeading>
+              </div>
+              <div v-else key="round-stage" class="flex flex-col items-center">
+                <ExHeading level="h1" variant="technical" class="!text-8xl !leading-none !tracking-[0.12em] !text-white sm:!text-[10rem]">
+                  {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
+                </ExHeading>
+              </div>
+            </Transition>
+          </div>
+        </Transition>
+
+        <div class="hidden">
+          <div class="flex items-center justify-between gap-4">
+            <ExTag variant="outline" class="!border-white/40 !text-white !opacity-100">
+              {{ locale === 'ru' ? 'УЧАСТНИК ПОДТВЕРЖДЕН' : 'PARTICIPANT CONFIRMED' }}
+            </ExTag>
+            <ExText variant="small" class="!text-white !opacity-40 text-right">
+              {{ locale === 'ru' ? 'СЕРВЕРНЫЕ ДАННЫЕ // UTC' : 'SERVER DATA // UTC' }}
+            </ExText>
+          </div>
+
+          <ExDivider variant="tactical" spacing="lg" />
+
+          <div class="space-y-5">
+            <ExText variant="telemetry" class="!text-white !opacity-45">
+              {{ locale === 'ru' ? 'ТЕКУЩЕЕ СОБЫТИЕ' : 'CURRENT EVENT' }}
+            </ExText>
+            <ExHeading level="h1" variant="cinematic" class="!text-3xl !leading-tight !tracking-[0.18em] !text-white sm:!text-5xl">
+              {{ getEventTitle(targetEvent) }}
+            </ExHeading>
+          </div>
+
+          <ExDivider variant="tactical" spacing="lg" />
+
+          <div class="grid grid-cols-1 gap-8 sm:grid-cols-2">
+            <div class="border-l border-white/25 pl-5">
+              <ExText variant="telemetry" class="!text-white !opacity-45">
+                {{ locale === 'ru' ? 'ТЕКУЩИЙ РАУНД' : 'CURRENT ROUND' }}
+              </ExText>
+              <div class="mt-4 font-mono text-5xl font-black tracking-[0.12em] text-white">{{ currentRound }}</div>
+              <ExText variant="small" class="mt-3 !text-white !opacity-40">
+                {{ locale === 'ru' ? '24 ЧАСА // СЕРВЕРНЫЙ ЦИКЛ' : '24 HOURS // SERVER CYCLE' }}
+              </ExText>
+            </div>
+
+            <div class="border-l border-white/25 pl-5">
+              <ExText variant="telemetry" class="!text-white !opacity-45">
+                {{ locale === 'ru' ? 'ТЕКУЩИЙ СЕЗОН' : 'CURRENT SEASON' }}
+              </ExText>
+              <div class="mt-4 font-mono text-2xl font-black uppercase tracking-[0.12em] text-white">{{ currentSeasonRoman }}</div>
+              <div class="mt-5 space-y-2 font-mono text-[10px] uppercase tracking-[0.16em] text-white/65">
+                <div class="flex items-center justify-between gap-4 border-b border-white/15 pb-2">
+                  <span>{{ locale === 'ru' ? 'НАЧАЛО' : 'STARTS' }}</span>
+                  <span class="text-right text-white">{{ formattedSeasonStart }}</span>
+                </div>
+                <div class="flex items-center justify-between gap-4">
+                  <span>{{ locale === 'ru' ? 'ОКОНЧАНИЕ' : 'ENDS' }}</span>
+                  <span class="text-right text-white">{{ formattedSeasonEnd }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <ExDivider variant="simple" spacing="lg" />
+
+          <div class="flex flex-col gap-2 font-mono sm:flex-row sm:items-center sm:justify-between">
+            <ExText variant="telemetry" class="!text-white !opacity-45">
+              {{ locale === 'ru' ? 'ТЕКУЩЕЕ СЕРВЕРНОЕ ВРЕМЯ' : 'CURRENT SERVER TIME' }}
+            </ExText>
+            <span class="text-xs font-black tracking-[0.18em] text-white sm:text-sm">{{ formattedServerDate }}</span>
+          </div>
+        </div>
+
+        <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex w-full flex-col items-start text-left">
+          <ExHeading level="h1" variant="technical" class="!text-5xl !leading-none !tracking-[0.12em] !text-white sm:!text-7xl">
+            {{ locale === 'ru' ? 'ТУРНИР' : 'TOURNAMENT' }} {{ tournamentOrdinal }}
+          </ExHeading>
+
+          <div class="mt-10 font-mono text-sm font-black uppercase tracking-[0.16em] text-white sm:text-base">
+            {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+          </div>
+
+          <div class="mt-12 font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
+            {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
+          </div>
+        </div>
+      </div>
 
     </div>
       </Transition>
@@ -265,18 +359,24 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import ExButton from '~/shared/ui/ExButton.vue'
 import ExDivider from '~/shared/ui/ExDivider.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
+import ExTag from '~/shared/ui/ExTag.vue'
+import ExText from '~/shared/ui/ExText.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import type { TournamentEvent } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
+  openedSeason,
   isTournamentLoading,
   isRegistering,
   isUserRegistered,
+  participantServerTimeOffset,
+  isParticipantServerTimeReady,
   checkRegistrationOpen,
   toMillis,
   initTournamentListener,
+  initSeasonsListener,
   initParticipantListener,
   terminateTournamentListeners,
   registerForTournament
@@ -291,6 +391,13 @@ const showAllRules = ref(false)
 const isAgreed = ref(false)
 const nowMillis = ref(Date.now())
 let timerInterval: any = null
+const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000
+const INTRO_STAGE_DURATION = 2600
+const showEntranceAnimation = ref(false)
+const entranceDecisionReady = ref(false)
+const introStage = ref<'season' | 'round'>('season')
+let introTimers: ReturnType<typeof setTimeout>[] = []
+let activeIntroSignature = ''
 
 const getEventTitle = (ev: TournamentEvent | null | undefined) => {
   if (!ev) return 'TOURNAMENT PROTOCOL'
@@ -389,6 +496,133 @@ const formattedCountdown = computed(() => {
   return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`
 })
 
+const serverNowMillis = computed(() => nowMillis.value + participantServerTimeOffset.value)
+
+const eventStartMillis = computed(() => toMillis(targetEvent.value?.startDate))
+
+const currentRound = computed(() => {
+  if (!isParticipantServerTimeReady.value || !eventStartMillis.value) return '—'
+  const elapsed = Math.max(0, serverNowMillis.value - eventStartMillis.value)
+  return String(Math.floor(elapsed / DAY_IN_MILLISECONDS) + 1).padStart(2, '0')
+})
+
+const tournamentOrdinal = computed(() => {
+  const eventId = targetEvent.value?.id
+  const index = allTournaments.value.findIndex((event) => event.id === eventId)
+  return String(index >= 0 ? index + 1 : 1).padStart(2, '0')
+})
+
+const toRomanNumeral = (value: number) => {
+  if (!Number.isFinite(value) || value < 1) return '—'
+  const numerals: Array<[number, string]> = [
+    [1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'],
+    [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'],
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']
+  ]
+  let remainder = Math.floor(value)
+  return numerals.reduce((result, [unit, symbol]) => {
+    const count = Math.floor(remainder / unit)
+    remainder %= unit
+    return result + symbol.repeat(count)
+  }, '')
+}
+
+const currentSeasonRoman = computed(() => {
+  const ordinal = openedSeason.value?.ordinal
+  return ordinal ? toRomanNumeral(ordinal) : '—'
+})
+
+const formatSeasonDate = (dateValue: any) => {
+  const millis = toMillis(dateValue)
+  if (!millis) return '—'
+
+  return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'UTC'
+  }).format(new Date(millis)).toUpperCase()
+}
+
+const formattedSeasonStart = computed(() => formatSeasonDate(openedSeason.value?.startsAt))
+const formattedSeasonEnd = computed(() => formatSeasonDate(openedSeason.value?.endsAt))
+
+const introStorageKey = computed(() => {
+  const userId = authStore.user?.uid
+  const eventId = targetEvent.value?.id
+  return userId && eventId ? `exgenesis:season-entry:v3:${userId}:${eventId}` : ''
+})
+
+const introSignature = computed(() => {
+  if (!targetEvent.value?.id || !openedSeason.value?.id || currentRound.value === '—') return ''
+  return [
+    openedSeason.value.id,
+    openedSeason.value.ordinal,
+    toMillis(openedSeason.value.startsAt),
+    toMillis(openedSeason.value.endsAt),
+    currentRound.value
+  ].join(':')
+})
+
+const clearIntroTimers = () => {
+  introTimers.forEach((timer) => clearTimeout(timer))
+  introTimers = []
+}
+
+const resetEntranceAnimation = () => {
+  clearIntroTimers()
+  activeIntroSignature = ''
+  showEntranceAnimation.value = false
+  entranceDecisionReady.value = false
+  introStage.value = 'season'
+}
+
+const evaluateEntranceAnimation = () => {
+  if (!import.meta.client || !isUserRegistered.value || !introStorageKey.value || !introSignature.value) return
+
+  const storageKey = introStorageKey.value
+  const signature = introSignature.value
+  const lastShownSignature = localStorage.getItem(storageKey)
+
+  entranceDecisionReady.value = true
+
+  if (lastShownSignature === signature) {
+    clearIntroTimers()
+    activeIntroSignature = signature
+    showEntranceAnimation.value = false
+    return
+  }
+
+  if (showEntranceAnimation.value && activeIntroSignature === signature) return
+
+  clearIntroTimers()
+  activeIntroSignature = signature
+  introStage.value = 'season'
+  showEntranceAnimation.value = true
+
+  introTimers.push(setTimeout(() => {
+    if (activeIntroSignature === signature) introStage.value = 'round'
+  }, INTRO_STAGE_DURATION))
+
+  introTimers.push(setTimeout(() => {
+    if (activeIntroSignature !== signature) return
+    localStorage.setItem(storageKey, signature)
+    showEntranceAnimation.value = false
+  }, INTRO_STAGE_DURATION * 2))
+}
+
+const formattedServerDate = computed(() => {
+  if (!isParticipantServerTimeReady.value) {
+    return locale.value === 'ru' ? 'СИНХРОНИЗАЦИЯ СЕРВЕРА...' : 'SYNCHRONIZING SERVER...'
+  }
+
+  return formatSeasonDate(serverNowMillis.value)
+})
+
 const selectEvent = (ev: TournamentEvent | null) => {
   if (ev) selectedEvent.value = ev
 }
@@ -457,18 +691,56 @@ onMounted(() => {
 watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEventId]) => {
   showAllRules.value = false
   isAgreed.value = false
+  resetEntranceAnimation()
+  if (newEventId) {
+    initSeasonsListener(newEventId)
+  }
   if (newUid && newEventId) {
     initParticipantListener(newUid, newEventId)
   }
 }, { immediate: true })
 
+watch([() => isUserRegistered.value, introSignature], ([isRegistered]) => {
+  if (isRegistered) {
+    evaluateEntranceAnimation()
+  } else {
+    resetEntranceAnimation()
+  }
+}, { immediate: true })
+
 onUnmounted(() => {
+  clearIntroTimers()
   terminateTournamentListeners()
   if (timerInterval) clearInterval(timerInterval)
 })
 </script>
 
 <style scoped>
+.registered-event-page {
+  --theme-bg: #000000;
+  --theme-bg-rgb: 0 0 0;
+  --theme-text: #ffffff;
+  --theme-text-rgb: 255 255 255;
+  --theme-border: rgba(255, 255, 255, 0.2);
+  --theme-border-rgb: 255 255 255;
+  color: #ffffff;
+}
+
+.season-entry-enter-active,
+.season-entry-leave-active,
+.season-stage-enter-active,
+.season-stage-leave-active {
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.season-entry-enter-from,
+.season-entry-leave-to,
+.season-stage-enter-from,
+.season-stage-leave-to {
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+}
+
 .pearlescent-bg {
   background: linear-gradient(
     270deg,

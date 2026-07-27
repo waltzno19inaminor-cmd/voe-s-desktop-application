@@ -25,3 +25,15 @@ export interface TournamentParticipant {
   registeredAt: string
   status: 'active' | 'disqualified' | 'winner'
 }
+
+export interface TournamentSeason {
+  id: string
+  ordinal?: number
+  status?: string
+  name?: string
+  title?: string
+  season?: string | number
+  number?: string | number
+  startsAt?: any
+  endsAt?: any
+}

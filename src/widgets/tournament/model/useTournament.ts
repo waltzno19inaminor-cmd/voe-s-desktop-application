@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { doc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
-import type { TournamentEvent, TournamentParticipant } from './tournament.types'
+import type { TournamentEvent, TournamentSeason } from './tournament.types'
 
 export const DEFAULT_TOURNAMENT: TournamentEvent = {
   id: 'apex_protocol_2026',
@@ -38,11 +38,16 @@ export const DEFAULT_TOURNAMENT: TournamentEvent = {
 
 export const allTournaments = ref<TournamentEvent[]>([{ ...DEFAULT_TOURNAMENT }])
 export const currentTournament = computed(() => allTournaments.value[0] || { ...DEFAULT_TOURNAMENT })
+export const openedSeason = ref<TournamentSeason | null>(null)
 export const isTournamentLoading = ref(false)
 export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
+export const participantServerTimeOffset = ref(0)
+export const isParticipantServerTimeReady = ref(false)
 
 let tournamentUnsubscribe: (() => void) | null = null
+let seasonsUnsubscribe: (() => void) | null = null
+let seasonsEventId: string | null = null
 let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
@@ -71,22 +76,74 @@ export function initTournamentListener() {
   })
 }
 
+export function initSeasonsListener(eventId?: string) {
+  if (!eventId) return
+  if (seasonsUnsubscribe && seasonsEventId === eventId) return
+
+  if (seasonsUnsubscribe) {
+    seasonsUnsubscribe()
+    seasonsUnsubscribe = null
+  }
+
+  openedSeason.value = null
+  seasonsEventId = eventId
+  const seasonsCol = collection(db, 'tournaments', eventId, 'seasons')
+
+  seasonsUnsubscribe = onSnapshot(seasonsCol, (snapshot) => {
+    const openedSeasonIndex = snapshot.docs.findIndex((seasonSnapshot) => {
+      const seasonData = seasonSnapshot.data()
+      return String(seasonData.status || '').toLowerCase() === 'opened'
+    })
+
+    const openedSeasonSnapshot = openedSeasonIndex >= 0 ? snapshot.docs[openedSeasonIndex] : null
+    openedSeason.value = openedSeasonSnapshot
+      ? { ...openedSeasonSnapshot.data(), id: openedSeasonSnapshot.id, ordinal: openedSeasonIndex + 1 } as TournamentSeason
+      : null
+  }, (err) => {
+    openedSeason.value = null
+    console.warn('[Tournament] Error listening to seasons collection:', err)
+  })
+}
+
 export function initParticipantListener(userId?: string, eventId?: string) {
   if (participantUnsubscribe) {
     participantUnsubscribe()
     participantUnsubscribe = null
   }
   isUserRegistered.value = false
+  participantServerTimeOffset.value = 0
+  isParticipantServerTimeReady.value = false
 
   if (!userId) return
 
   const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
   const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+  let serverClockSyncRequested = false
 
   participantUnsubscribe = onSnapshot(participantRef, (snapshot) => {
+    const participantData = snapshot.data()
     isUserRegistered.value = snapshot.exists()
+
+    if (!snapshot.exists()) return
+
+    // Refresh a server timestamp on every entry so round calculations
+    // are anchored to Firestore time, not to the device clock.
+    if (!serverClockSyncRequested) {
+      serverClockSyncRequested = true
+      setDoc(participantRef, { serverTimeSyncAt: serverTimestamp() }, { merge: true }).catch((syncErr) => {
+        serverClockSyncRequested = false
+        console.warn('[Tournament] Error synchronizing participant server time:', syncErr)
+      })
+    }
+
+    const serverTimeMillis = toMillis(participantData?.serverTimeSyncAt)
+    if (serverTimeMillis) {
+      participantServerTimeOffset.value = serverTimeMillis - Date.now()
+      isParticipantServerTimeReady.value = true
+    }
   }, (err) => {
     isUserRegistered.value = false
+    isParticipantServerTimeReady.value = false
     console.warn('[Tournament] Error listening to participant registration:', err)
   })
 }
@@ -121,6 +178,7 @@ export async function registerForTournament(userId: string, userEmail?: string, 
   await setDoc(participantRef, {
     userId,
     registeredAt: serverTimestamp(),
+    serverTimeSyncAt: serverTimestamp(),
     ...(userEmail ? { userEmail } : {}),
     status: 'active'
   })
@@ -157,4 +215,9 @@ export function terminateTournamentListeners() {
     participantUnsubscribe()
     participantUnsubscribe = null
   }
+  if (seasonsUnsubscribe) {
+    seasonsUnsubscribe()
+    seasonsUnsubscribe = null
+  }
+  seasonsEventId = null
 }
