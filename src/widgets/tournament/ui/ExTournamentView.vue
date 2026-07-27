@@ -363,6 +363,10 @@
             {{ locale === 'ru' ? 'ДО' : 'UNTIL' }} {{ formattedSeasonEnd }}
           </div>
 
+          <div v-if="votingCompleted" class="registered-muted mt-5 font-mono text-[10px] font-black uppercase tracking-[0.22em] sm:text-xs">
+            {{ locale === 'ru' ? 'ГОЛОСОВАНИЕ ЗАВЕРШЕНО' : 'VOTING COMPLETED' }}
+          </div>
+
           <div class="registered-fg absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
@@ -391,7 +395,7 @@
 
               <button
                 type="button"
-                :disabled="predictionsClosed"
+                :disabled="!isVotingOpen"
                 class="mt-8 w-full border px-4 py-3 font-mono text-[10px] font-black uppercase tracking-[0.25em] transition-colors disabled:cursor-not-allowed disabled:opacity-25"
                 :class="themeStore.settings.isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-black text-black hover:bg-black hover:text-white'"
               >
@@ -552,44 +556,62 @@ const formattedCountdown = computed(() => {
 
 const serverNowMillis = computed(() => nowMillis.value + participantServerTimeOffset.value)
 
-const openedRound = computed<{ ordinal: number; round: TournamentRound } | null>(() => {
+const seasonRounds = computed(() => {
   const rounds = openedSeason.value?.rounds
-  if (!Array.isArray(rounds)) return null
+  if (!Array.isArray(rounds)) return []
 
-  const openedRoundIndex = rounds.findIndex((round) => {
-    return String(round?.status || '').toLowerCase() === 'opened'
+  return rounds.map((round, index) => ({
+    ordinal: index + 1,
+    round,
+    startsAtMillis: toMillis(round?.startsAt),
+    endsAtMillis: toMillis(round?.endsAt)
+  }))
+})
+
+const displayedRound = computed<{ ordinal: number; round: TournamentRound; startsAtMillis: number; endsAtMillis: number } | null>(() => {
+  const rounds = seasonRounds.value
+  if (!rounds.length) return null
+
+  const activeRound = rounds.find((round) => {
+    return round.startsAtMillis > 0
+      && round.endsAtMillis > round.startsAtMillis
+      && serverNowMillis.value >= round.startsAtMillis
+      && serverNowMillis.value < round.endsAtMillis
   })
 
-  if (openedRoundIndex < 0) return null
+  if (activeRound) return activeRound
 
-  return {
-    ordinal: openedRoundIndex + 1,
-    round: rounds[openedRoundIndex]
-  }
+  const lastStartedRound = [...rounds]
+    .filter((round) => round.startsAtMillis > 0 && serverNowMillis.value >= round.startsAtMillis)
+    .sort((left, right) => left.startsAtMillis - right.startsAtMillis)
+    .at(-1)
+
+  return lastStartedRound || rounds[0]
 })
 
 const currentRound = computed(() => {
-  if (!openedRound.value) return '—'
-  return String(openedRound.value.ordinal).padStart(2, '0')
+  if (!displayedRound.value) return '—'
+  return String(displayedRound.value.ordinal).padStart(2, '0')
 })
 
-const roundStartMillis = computed(() => {
-  return toMillis(openedRound.value?.round.startsAt)
+const isVotingOpen = computed(() => {
+  const round = displayedRound.value
+  if (!round || !isParticipantServerTimeReady.value) return false
+
+  return round.startsAtMillis > 0
+    && round.endsAtMillis > round.startsAtMillis
+    && serverNowMillis.value >= round.startsAtMillis
+    && serverNowMillis.value < round.endsAtMillis
 })
 
-const predictionsCloseHour = computed(() => {
-  const value = Number(targetEvent.value?.predictionsCloseHour)
-  return Number.isInteger(value) && value >= 0 && value <= 23 ? value : null
-})
-
-const predictionsCloseAt = computed(() => {
-  if (!roundStartMillis.value || predictionsCloseHour.value === null) return 0
-  return roundStartMillis.value + predictionsCloseHour.value * 60 * 60 * 1000
-})
-
-const predictionsClosed = computed(() => {
-  if (!isParticipantServerTimeReady.value) return true
-  return predictionsCloseAt.value > 0 && serverNowMillis.value >= predictionsCloseAt.value
+const votingCompleted = computed(() => {
+  const round = displayedRound.value
+  return Boolean(
+    round
+    && isParticipantServerTimeReady.value
+    && round.endsAtMillis > 0
+    && serverNowMillis.value >= round.endsAtMillis
+  )
 })
 
 const allowedTournamentAssets = computed(() => {
@@ -666,9 +688,9 @@ const introSignature = computed(() => {
     toMillis(openedSeason.value.startsAt),
     toMillis(openedSeason.value.endsAt),
     currentRound.value,
-    toMillis(openedRound.value?.round.startsAt),
-    toMillis(openedRound.value?.round.endsAt),
-    openedRound.value?.round.status
+    displayedRound.value?.startsAtMillis,
+    displayedRound.value?.endsAtMillis,
+    displayedRound.value?.round.status
   ].join(':')
 })
 
