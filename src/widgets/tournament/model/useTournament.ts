@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { doc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
-import type { TournamentEvent, TournamentSeason } from './tournament.types'
+import type { TournamentEvent, TournamentRound, TournamentSeason } from './tournament.types'
 
 export const DEFAULT_TOURNAMENT: TournamentEvent = {
   id: 'apex_protocol_2026',
@@ -39,6 +39,7 @@ export const DEFAULT_TOURNAMENT: TournamentEvent = {
 export const allTournaments = ref<TournamentEvent[]>([{ ...DEFAULT_TOURNAMENT }])
 export const currentTournament = computed(() => allTournaments.value[0] || { ...DEFAULT_TOURNAMENT })
 export const openedSeason = ref<TournamentSeason | null>(null)
+export const openedSeasonRounds = ref<TournamentRound[]>([])
 export const isTournamentLoading = ref(false)
 export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
@@ -48,6 +49,8 @@ export const isParticipantServerTimeReady = ref(false)
 let tournamentUnsubscribe: (() => void) | null = null
 let seasonsUnsubscribe: (() => void) | null = null
 let seasonsEventId: string | null = null
+let roundsUnsubscribe: (() => void) | null = null
+let roundsListenerKey: string | null = null
 let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
@@ -85,7 +88,9 @@ export function initSeasonsListener(eventId?: string) {
     seasonsUnsubscribe = null
   }
 
+  terminateRoundsListener()
   openedSeason.value = null
+  openedSeasonRounds.value = []
   seasonsEventId = eventId
   const seasonsCol = collection(db, 'tournaments', eventId, 'seasons')
 
@@ -99,10 +104,48 @@ export function initSeasonsListener(eventId?: string) {
     openedSeason.value = openedSeasonSnapshot
       ? { ...openedSeasonSnapshot.data(), id: openedSeasonSnapshot.id, ordinal: openedSeasonIndex + 1 } as TournamentSeason
       : null
+
+    if (openedSeasonSnapshot) {
+      initRoundsListener(eventId, openedSeasonSnapshot.id)
+    } else {
+      terminateRoundsListener()
+      openedSeasonRounds.value = []
+    }
   }, (err) => {
+    terminateRoundsListener()
+    openedSeasonRounds.value = []
     openedSeason.value = null
     console.warn('[Tournament] Error listening to seasons collection:', err)
   })
+}
+
+function initRoundsListener(eventId: string, seasonId: string) {
+  const listenerKey = `${eventId}:${seasonId}`
+  if (roundsUnsubscribe && roundsListenerKey === listenerKey) return
+
+  terminateRoundsListener()
+  roundsListenerKey = listenerKey
+
+  const roundsCol = collection(db, 'tournaments', eventId, 'seasons', seasonId, 'rounds')
+  roundsUnsubscribe = onSnapshot(roundsCol, (snapshot) => {
+    openedSeasonRounds.value = snapshot.docs
+      .map((roundSnapshot) => ({
+        ...roundSnapshot.data(),
+        id: roundSnapshot.id
+      }) as TournamentRound)
+      .sort((left, right) => toMillis(left.startsAt) - toMillis(right.startsAt))
+  }, (err) => {
+    openedSeasonRounds.value = []
+    console.warn('[Tournament] Error listening to rounds:', err)
+  })
+}
+
+function terminateRoundsListener() {
+  if (roundsUnsubscribe) {
+    roundsUnsubscribe()
+    roundsUnsubscribe = null
+  }
+  roundsListenerKey = null
 }
 
 export function initParticipantListener(userId?: string, eventId?: string) {
@@ -219,5 +262,7 @@ export function terminateTournamentListeners() {
     seasonsUnsubscribe()
     seasonsUnsubscribe = null
   }
+  terminateRoundsListener()
+  openedSeasonRounds.value = []
   seasonsEventId = null
 }

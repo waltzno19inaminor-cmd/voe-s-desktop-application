@@ -489,19 +489,21 @@
                   <div class="mt-5 flex w-full gap-2">
                     <button
                       type="button"
-                      class="registered-vote-action registered-vote-action--long min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                      class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
                       :style="{ backgroundColor: votingSurfaceColor }"
-                      :disabled="!isVotingOpen"
+                      :disabled="!isVotingOpen || isSubmittingPrediction"
+                      @click="handleVote('LONG')"
                     >
                       Long
                     </button>
                     <button
                       type="button"
-                      class="registered-vote-action registered-vote-action--short min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
+                      class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
                       :style="{ backgroundColor: votingSurfaceColor }"
-                      :disabled="!isVotingOpen"
+                      :disabled="!isVotingOpen || isSubmittingPrediction"
+                      @click="handleVote('SHORT')"
                     >
                       Short
                     </button>
@@ -532,9 +534,11 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import globalAssets from '~/shared/data/global_assets.json'
 import type { TournamentEvent, TournamentPrediction, TournamentRound } from '~/widgets/tournament/model/tournament.types'
+import type { TournamentPredictionDirection } from '~/entities/tournament/model/tournament-prediction.types'
 import {
   allTournaments,
   openedSeason,
+  openedSeasonRounds,
   isTournamentLoading,
   isRegistering,
   isUserRegistered,
@@ -548,6 +552,12 @@ import {
   terminateTournamentListeners,
   registerForTournament
 } from '~/widgets/tournament/model/useTournament'
+import {
+  initTournamentPredictionsListener,
+  predictionsForRound,
+  submitTournamentPrediction,
+  terminateTournamentPredictionsListener
+} from '~/entities/tournament/model/useTournamentPredictions'
 
 const emit = defineEmits(['exit'])
 const { t, locale } = useI18n()
@@ -563,6 +573,13 @@ const votingSurfaceColor = computed(() => {
 const showAllRules = ref(false)
 const isAgreed = ref(false)
 const nowMillis = ref(Date.now())
+const isSubmittingPrediction = ref(false)
+const submittedPrediction = ref<{
+  assetKey: string
+  direction: TournamentPredictionDirection
+  seasonId: string
+  roundId: string
+} | null>(null)
 let timerInterval: any = null
 const INTRO_STAGE_DURATION = 2600
 const showEntranceAnimation = ref(false)
@@ -671,10 +688,7 @@ const formattedCountdown = computed(() => {
 const serverNowMillis = computed(() => nowMillis.value + participantServerTimeOffset.value)
 
 const seasonRounds = computed(() => {
-  const rounds = openedSeason.value?.rounds
-  if (!Array.isArray(rounds)) return []
-
-  return rounds.map((round, index) => ({
+  return openedSeasonRounds.value.map((round, index) => ({
     ordinal: index + 1,
     round,
     startsAtMillis: toMillis(round?.startsAt),
@@ -706,6 +720,10 @@ const displayedRound = computed<{ ordinal: number; round: TournamentRound; start
 const currentRound = computed(() => {
   if (!displayedRound.value) return '—'
   return String(displayedRound.value.ordinal).padStart(2, '0')
+})
+
+const currentRoundId = computed(() => {
+  return displayedRound.value?.round.id || ''
 })
 
 const isVotingOpen = computed(() => {
@@ -763,9 +781,7 @@ const selectedAsset = computed(() => {
 })
 
 const roundPredictions = computed<TournamentPrediction[]>(() => {
-  const round = displayedRound.value?.round
-  const predictions = round?.predicitions ?? round?.predictions
-  return Array.isArray(predictions) ? predictions : []
+  return predictionsForRound.value
 })
 
 const normalizeAssetIdentifier = (value: unknown) => {
@@ -773,7 +789,7 @@ const normalizeAssetIdentifier = (value: unknown) => {
 }
 
 const getPredictionAssetIdentifier = (prediction: TournamentPrediction) => {
-  const candidate = prediction.assetSymbol ?? prediction.symbol ?? prediction.asset
+  const candidate = prediction.assetId ?? prediction.assetSymbol ?? prediction.symbol ?? prediction.asset
   if (candidate && typeof candidate === 'object') {
     return candidate.symbol || candidate.name || ''
   }
@@ -808,10 +824,16 @@ const getPredictionDirection = (prediction: TournamentPrediction) => {
 
 const currentUserPrediction = computed(() => {
   const userId = authStore.user?.uid
-  if (!userId) return ''
+  if (!userId || !selectedAsset.value) return ''
 
   const prediction = selectedAssetPredictions.value.find((item) => String(item.userId || '') === String(userId))
-  return prediction ? getPredictionDirection(prediction) : ''
+  if (prediction) return getPredictionDirection(prediction)
+
+  return submittedPrediction.value?.seasonId === openedSeason.value?.id
+    && submittedPrediction.value.roundId === currentRoundId.value
+    && submittedPrediction.value.assetKey === selectedAsset.value.key
+    ? submittedPrediction.value.direction
+    : ''
 })
 
 const longVoteCount = computed(() => {
@@ -836,6 +858,47 @@ const shortVotePercentage = computed(() => {
 const voteSplitPercentage = computed(() => {
   return longVoteCount.value + shortVoteCount.value ? longVotePercentage.value : 50
 })
+
+const handleVote = async (direction: TournamentPredictionDirection) => {
+  const userId = authStore.user?.uid
+  const eventId = targetEvent.value?.id
+  const seasonId = openedSeason.value?.id
+  const roundId = currentRoundId.value
+  const asset = selectedAsset.value
+
+  if (
+    !isVotingOpen.value
+    || !userId
+    || !eventId
+    || !seasonId
+    || !roundId
+    || !asset
+  ) return
+
+  isSubmittingPrediction.value = true
+  try {
+    await submitTournamentPrediction({
+      tournamentId: eventId,
+      seasonId,
+      roundId,
+      userId,
+      assetId: normalizeAssetIdentifier(String(asset.symbol || asset.name)),
+      asset: String(asset.symbol || asset.name),
+      predict: direction
+    })
+
+    submittedPrediction.value = {
+      assetKey: asset.key,
+      direction,
+      seasonId,
+      roundId
+    }
+  } catch (err) {
+    console.error('[Tournament] Failed to submit prediction:', err)
+  } finally {
+    isSubmittingPrediction.value = false
+  }
+}
 
 const formattedVotingCountdown = computed(() => {
   const endsAtMillis = displayedRound.value?.endsAtMillis || 0
@@ -1040,6 +1103,7 @@ onMounted(() => {
 watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEventId]) => {
   showAllRules.value = false
   isAgreed.value = false
+  submittedPrediction.value = null
   selectedAssetKey.value = ''
   resetEntranceAnimation()
   if (newEventId) {
@@ -1049,6 +1113,24 @@ watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEve
     initParticipantListener(newUid, newEventId)
   }
 }, { immediate: true })
+
+watch([() => openedSeason.value?.id, currentRoundId], () => {
+  submittedPrediction.value = null
+})
+
+watch(
+  [() => targetEvent.value?.id, () => openedSeason.value?.id, currentRoundId, () => authStore.user?.uid, votingCompleted],
+  ([eventId, seasonId, roundId, userId, canReadAll]) => {
+    initTournamentPredictionsListener({
+      tournamentId: eventId,
+      seasonId,
+      roundId,
+      userId,
+      canReadAll
+    })
+  },
+  { immediate: true }
+)
 
 watch([() => isUserRegistered.value, introSignature], ([isRegistered]) => {
   if (isRegistered) {
@@ -1060,6 +1142,7 @@ watch([() => isUserRegistered.value, introSignature], ([isRegistered]) => {
 
 onUnmounted(() => {
   clearIntroTimers()
+  terminateTournamentPredictionsListener()
   terminateTournamentListeners()
   if (timerInterval) clearInterval(timerInterval)
 })
@@ -1187,19 +1270,30 @@ onUnmounted(() => {
   -webkit-backdrop-filter: blur(10px);
 }
 
-.registered-vote-action--long {
-  border-color: #5c9f78;
-  color: #5c9f78;
-}
-
-.registered-vote-action--short {
-  border-color: #ef4444;
-  color: #ef4444;
+.registered-vote-action {
+  border-color: var(--registered-fg);
+  color: var(--registered-fg);
 }
 
 .registered-vote-action:disabled {
   filter: grayscale(1);
   opacity: 0.42;
+}
+
+.registered-vote-action:not(:disabled):hover {
+  box-shadow: 0 0 0 1px var(--registered-fg), 0 8px 18px rgba(0, 0, 0, 0.12);
+  opacity: 0.82;
+  transform: translateY(-1px);
+}
+
+.registered-vote-action:not(:disabled):active {
+  opacity: 0.68;
+  transform: translateY(1px) scale(0.985);
+}
+
+.registered-vote-action:focus-visible {
+  outline: 1px solid var(--registered-fg);
+  outline-offset: 3px;
 }
 
 .registered-vote-action--selected {

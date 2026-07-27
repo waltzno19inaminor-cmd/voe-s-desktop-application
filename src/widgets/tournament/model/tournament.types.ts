@@ -1,3 +1,5 @@
+export type { TournamentPrediction, TournamentRound } from '~/entities/tournament/model/tournament-prediction.types'
+
 export interface TournamentEvent {
   id: string
   title: string
@@ -28,25 +30,6 @@ export interface TournamentParticipant {
   status: 'active' | 'disqualified' | 'winner'
 }
 
-export interface TournamentPrediction {
-  userId?: string
-  predict?: string
-  predictTime?: any
-  direction?: string
-  votedAt?: any
-  asset?: string | { symbol?: string; name?: string }
-  assetSymbol?: string
-  symbol?: string
-}
-
-export interface TournamentRound {
-  startsAt?: any
-  endsAt?: any
-  status?: string
-  predicitions?: TournamentPrediction[]
-  predictions?: TournamentPrediction[]
-}
-
 export interface TournamentSeason {
   id: string
   ordinal?: number
@@ -57,5 +40,4 @@ export interface TournamentSeason {
   number?: string | number
   startsAt?: any
   endsAt?: any
-  rounds?: TournamentRound[]
 }

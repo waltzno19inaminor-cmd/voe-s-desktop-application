@@ -1,0 +1,182 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny([
+          "type",
+          "expiresAt",
+          "updatedAt"
+        ]);
+
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "type",
+          "expiresAt",
+          "updatedAt"
+        ]);
+
+      allow delete: if false;
+    }
+
+    match /users/{userId}/{subcollection}/{docId} {
+      allow read, create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+
+      match /participants/{userId} {
+        allow read: if isSignedIn();
+
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasAll([
+            "userId",
+            "registeredAt",
+            "serverTimeSyncAt",
+            "status"
+          ])
+          && request.resource.data.keys().hasOnly([
+            "userId",
+            "userEmail",
+            "registeredAt",
+            "serverTimeSyncAt",
+            "status"
+          ])
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.status == "active"
+          && request.resource.data.registeredAt == request.time
+          && request.resource.data.serverTimeSyncAt == request.time;
+
+        allow update: if isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            "serverTimeSyncAt"
+          ])
+          && request.resource.data.serverTimeSyncAt == request.time;
+
+        allow delete: if false;
+      }
+
+      match /seasons/{seasonId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if false;
+
+        match /rounds/{roundId} {
+          allow read: if isSignedIn();
+          allow create, update, delete: if false;
+
+          function roundData() {
+            return get(
+              /databases/$(database)/documents
+              /tournaments/$(tournamentId)
+              /seasons/$(seasonId)
+              /rounds/$(roundId)
+            ).data;
+          }
+
+          function votingIsOpen() {
+            let round = roundData();
+
+            return round.startsAt is timestamp
+              && round.endsAt is timestamp
+              && request.time >= round.startsAt
+              && request.time < round.endsAt
+              && round.status == "opened";
+          }
+
+          function votingHasEnded() {
+            let round = roundData();
+
+            return round.endsAt is timestamp
+              && request.time >= round.endsAt;
+          }
+
+          match /predictions/{predictionId} {
+            allow read: if isSignedIn()
+              && (
+                resource.data.userId == request.auth.uid
+                || votingHasEnded()
+              );
+
+            allow create: if isSignedIn()
+              && votingIsOpen()
+              && predictionId == request.auth.uid + "_" + request.resource.data.assetId
+              && request.resource.data.keys().hasAll([
+                "userId",
+                "assetId",
+                "asset",
+                "predict",
+                "predictTime"
+              ])
+              && request.resource.data.keys().hasOnly([
+                "userId",
+                "assetId",
+                "asset",
+                "predict",
+                "predictTime"
+              ])
+              && request.resource.data.userId == request.auth.uid
+              && request.resource.data.assetId is string
+              && request.resource.data.asset is string
+              && request.resource.data.predict in ["LONG", "SHORT"]
+              && request.resource.data.predictTime == request.time;
+
+            allow update: if isSignedIn()
+              && votingIsOpen()
+              && resource.data.userId == request.auth.uid
+              && request.resource.data.userId == resource.data.userId
+              && request.resource.data.assetId == resource.data.assetId
+              && request.resource.data.asset == resource.data.asset
+              && request.resource.data.keys().hasOnly([
+                "userId",
+                "assetId",
+                "asset",
+                "predict",
+                "predictTime"
+              ])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                "predict",
+                "predictTime"
+              ])
+              && request.resource.data.predict in ["LONG", "SHORT"]
+              && request.resource.data.predictTime == request.time;
+
+            allow delete: if false;
+          }
+        }
+      }
+    }
+
+    match /threads/{threadId} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /replies/{replyId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid;
+
+      allow update: if isSignedIn()
+        && resource.data.authorId == request.auth.uid;
+
+      allow delete: if false;
+    }
+  }
+}
