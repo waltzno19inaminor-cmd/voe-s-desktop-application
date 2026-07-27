@@ -259,6 +259,18 @@
         :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
         aria-label="Participant page"
       >
+        <div v-if="targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+          <img
+            :src="targetEvent.imageUrl"
+            alt=""
+            class="h-full w-full object-cover"
+          >
+          <div
+            class="absolute inset-0"
+            :class="themeStore.settings.isDark ? 'bg-black/75' : 'bg-white/70'"
+          ></div>
+        </div>
+
         <Transition name="season-entry" mode="out-in">
           <div v-if="!entranceDecisionReady" key="season-entry-wait" class="absolute inset-0 h-full w-full"></div>
           <div
@@ -378,24 +390,59 @@
             :no-shadow="true"
             class="registered-voting-panel mt-20 w-full self-start sm:w-1/2"
           >
-            <div class="flex flex-wrap items-center gap-2 p-4">
-              <div
-                v-for="asset in allowedTournamentAssets"
-                :key="asset.key"
-                class="registered-asset-chip flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
-              >
-                <img
-                  v-if="asset.icon"
-                  :src="asset.icon"
-                  :alt="asset.name"
-                  class="h-7 w-7 shrink-0 object-contain"
+            <div class="px-4 py-3">
+              <div class="mb-3 flex flex-wrap items-center gap-5">
+                <span class="registered-fg font-mono text-[10px] font-black tracking-[0.12em]">
+                  {{ locale === 'ru' ? 'Выберите актив' : 'Select asset' }}
+                </span>
+
+                <div class="registered-muted flex items-center gap-1.5 font-mono text-[9px] font-black tracking-[0.08em]">
+                  <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <circle cx="12" cy="12" r="8.5" />
+                    <path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                  <span v-if="votingCompleted">{{ locale === 'ru' ? 'Закрыто' : 'Closed' }}</span>
+                  <span v-else>
+                    {{ locale === 'ru' ? 'Закроется через' : 'Closes in' }} {{ formattedVotingCountdown }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <div
+                  v-for="asset in allowedTournamentAssets"
+                  :key="asset.key"
+                  class="registered-asset-chip group flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
+                  :class="selectedAssetKey === asset.key ? 'registered-asset-chip--selected' : ''"
+                  :aria-pressed="selectedAssetKey === asset.key"
+                  role="button"
+                  tabindex="0"
+                  @click="selectAsset(asset.key)"
+                  @keydown.enter.prevent="selectAsset(asset.key)"
+                  @keydown.space.prevent="selectAsset(asset.key)"
                 >
-                <span v-else class="registered-muted flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[10px] font-black">
-                  {{ asset.name.charAt(0) }}
-                </span>
-                <span class="registered-fg max-w-full line-clamp-2 font-mono text-[8px] font-black uppercase leading-tight tracking-[0.04em]">
-                  {{ asset.name }}
-                </span>
+                  <img
+                    v-if="asset.icon"
+                    :src="asset.icon"
+                    :alt="asset.name"
+                    class="registered-asset-icon h-7 w-7 shrink-0 object-contain"
+                  >
+                  <span v-else class="registered-muted flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[10px] font-black">
+                    {{ asset.name.charAt(0) }}
+                  </span>
+                  <span class="registered-fg max-w-full line-clamp-2 font-mono text-[8px] font-black uppercase leading-tight tracking-[0.12em]">
+                    {{ asset.name }}
+                  </span>
+                </div>
+
+                <div
+                  class="registered-asset-chip registered-asset-chip--soon flex h-20 w-20 shrink-0 flex-col items-center justify-center border px-1.5 py-2 text-center"
+                  aria-disabled="true"
+                >
+                  <span class="font-mono text-[8px] font-black uppercase tracking-[0.12em]">
+                    {{ locale === 'ru' ? 'Скоро' : 'Soon' }}
+                  </span>
+                </div>
               </div>
             </div>
           </ExPanel>
@@ -627,11 +674,38 @@ const allowedTournamentAssets = computed(() => {
 
     return {
       key: `${requestedSymbol || 'asset'}-${index}`,
-      name: globalAsset?.name || rawAsset?.name || requestedSymbol,
+      name: rawAsset?.name || rawAsset?.symbol || requestedSymbol,
       icon: globalAsset?.icon || ''
     }
   }).filter((asset) => asset.name)
 })
+
+const selectedAssetKey = ref('')
+
+const selectAsset = (assetKey: string) => {
+  selectedAssetKey.value = assetKey
+}
+
+const formattedVotingCountdown = computed(() => {
+  const endsAtMillis = displayedRound.value?.endsAtMillis || 0
+  if (!isParticipantServerTimeReady.value || !endsAtMillis || serverNowMillis.value >= endsAtMillis) {
+    return '00:00:00'
+  }
+
+  const totalSeconds = Math.max(0, Math.ceil((endsAtMillis - serverNowMillis.value) / 1000))
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+})
+
+watch(allowedTournamentAssets, (assets) => {
+  if (!assets.some((asset) => asset.key === selectedAssetKey.value)) {
+    selectedAssetKey.value = assets[0]?.key || ''
+  }
+}, { immediate: true })
 
 const toRomanNumeral = (value: number) => {
   if (!Number.isFinite(value) || value < 1) return '—'
@@ -815,6 +889,7 @@ onMounted(() => {
 watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEventId]) => {
   showAllRules.value = false
   isAgreed.value = false
+  selectedAssetKey.value = ''
   resetEntranceAnimation()
   if (newEventId) {
     initSeasonsListener(newEventId)
@@ -861,6 +936,11 @@ onUnmounted(() => {
   --registered-border: rgba(0, 0, 0, 0.2);
 }
 
+.registered-voting-backdrop img {
+  opacity: 0.34;
+  filter: grayscale(0.35) contrast(0.95);
+}
+
 .registered-fg {
   color: var(--registered-fg);
 }
@@ -876,12 +956,55 @@ onUnmounted(() => {
 
 .registered-asset-chip {
   border-color: var(--registered-border);
+  background-color: transparent;
+  transition: background-color 240ms ease, border-color 240ms ease, color 240ms ease;
+}
+
+.registered-asset-chip:hover {
+  background-color: color-mix(in srgb, var(--registered-fg) 5%, transparent);
+  border-color: color-mix(in srgb, var(--registered-fg) 65%, transparent);
+}
+
+.registered-asset-icon {
+  opacity: 1;
+  transition: transform 240ms ease;
+}
+
+.registered-asset-chip:hover .registered-asset-icon {
+  transform: scale(1.05);
+}
+
+.registered-asset-chip--selected,
+.registered-asset-chip--selected:hover {
+  background-color: rgba(248, 248, 248, 0.94);
+  border-color: rgba(20, 20, 20, 0.36);
+  color: #111111;
+}
+
+.registered-asset-chip--selected .registered-fg,
+.registered-asset-chip--selected .registered-muted {
+  color: #111111;
+}
+
+.registered-asset-chip--soon {
+  color: var(--registered-muted);
+  cursor: default;
+  opacity: 0.65;
+}
+
+.registered-asset-chip--soon:hover {
+  background-color: transparent;
+  border-color: var(--registered-border);
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
-  background-color: transparent !important;
+  background-color: rgba(235, 235, 235, 0.72) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+.registered-event-page--dark .registered-voting-panel :deep(.theme-panel-backdrop) {
+  background-color: rgba(255, 255, 255, 0.045) !important;
 }
 
 .season-entry-enter-active,
