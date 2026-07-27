@@ -5,7 +5,7 @@
     style="font-family: 'Cormorant Garamond', serif;"
   >
     <!-- Ethereal Background -->
-    <EtherealBackground :is-dark="isDark" :is-assembled="phase === 'ready'" :show-bloom="false" />
+    <EtherealBackground :is-dark="isDark" :is-assembled="true" :show-bloom="false" />
     <!-- Background Ambience -->
     <!-- <div class="absolute inset-0 opacity-20 pointer-events-none">
       <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,var(--theme-text)_0%,transparent_70%)] opacity-5"></div>
