@@ -7,6 +7,7 @@ import type {
 } from './tournament-prediction.types'
 
 export const predictionsForRound = ref<TournamentPrediction[]>([])
+export const isPredictionsReady = ref(false)
 
 let predictionsUnsubscribe: (() => void) | null = null
 let predictionsListenerKey = ''
@@ -57,6 +58,7 @@ export function initTournamentPredictionsListener(input: {
 
   if (!tournamentId || !seasonId || !roundId || !userId) {
     terminateTournamentPredictionsListener()
+    isPredictionsReady.value = true
     return
   }
 
@@ -65,6 +67,7 @@ export function initTournamentPredictionsListener(input: {
   terminateTournamentPredictionsListener()
   predictionsListenerKey = listenerKey
   predictionsForRound.value = []
+  isPredictionsReady.value = false
 
   const predictionsCollection = collection(
     db,
@@ -81,10 +84,12 @@ export function initTournamentPredictionsListener(input: {
     : query(predictionsCollection, where('userId', '==', userId))
 
   predictionsUnsubscribe = onSnapshot(predictionsQuery, (snapshot) => {
+    isPredictionsReady.value = true
     predictionsForRound.value = snapshot.docs.map((predictionSnapshot) => {
       return { ...predictionSnapshot.data(), id: predictionSnapshot.id } as TournamentPrediction
     })
   }, (err) => {
+    isPredictionsReady.value = true
     predictionsForRound.value = []
     console.warn('[Tournament] Error listening to predictions:', err)
   })
@@ -97,4 +102,5 @@ export function terminateTournamentPredictionsListener() {
   }
   predictionsListenerKey = ''
   predictionsForRound.value = []
+  isPredictionsReady.value = false
 }

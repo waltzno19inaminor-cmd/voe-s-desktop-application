@@ -45,6 +45,7 @@ export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
 export const leaderboardEntries = ref<TournamentLeaderboardEntry[]>([])
 export const isSeasonsReady = ref(false)
+export const isRoundsReady = ref(false)
 export const isLeaderboardReady = ref(false)
 export const isParticipantStatusReady = ref(false)
 export const participantServerTimeOffset = ref(0)
@@ -103,6 +104,7 @@ export function initSeasonsListener(eventId?: string) {
   terminateRoundsListener()
   terminateLeaderboardListener()
   isSeasonsReady.value = false
+  isRoundsReady.value = false
   openedSeason.value = null
   openedSeasonRounds.value = []
   seasonsEventId = eventId
@@ -125,11 +127,13 @@ export function initSeasonsListener(eventId?: string) {
       initLeaderboardListener(eventId, openedSeasonSnapshot.id)
     } else {
       terminateRoundsListener()
+      isRoundsReady.value = true
       terminateLeaderboardListener(true)
       openedSeasonRounds.value = []
     }
   }, (err) => {
     terminateRoundsListener()
+    isRoundsReady.value = true
     terminateLeaderboardListener(true)
     isSeasonsReady.value = true
     openedSeasonRounds.value = []
@@ -177,9 +181,11 @@ function initRoundsListener(eventId: string, seasonId: string) {
 
   terminateRoundsListener()
   roundsListenerKey = listenerKey
+  isRoundsReady.value = false
 
   const roundsCol = collection(db, 'tournaments', eventId, 'seasons', seasonId, 'rounds')
   roundsUnsubscribe = onSnapshot(roundsCol, (snapshot) => {
+    isRoundsReady.value = true
     openedSeasonRounds.value = snapshot.docs
       .map((roundSnapshot) => ({
         ...roundSnapshot.data(),
@@ -187,6 +193,7 @@ function initRoundsListener(eventId: string, seasonId: string) {
       }) as TournamentRound)
       .sort((left, right) => toMillis(left.startsAt) - toMillis(right.startsAt))
   }, (err) => {
+    isRoundsReady.value = true
     openedSeasonRounds.value = []
     console.warn('[Tournament] Error listening to rounds:', err)
   })
@@ -198,6 +205,7 @@ function terminateRoundsListener() {
     roundsUnsubscribe = null
   }
   roundsListenerKey = null
+  isRoundsReady.value = false
 }
 
 export function initParticipantListener(userId?: string, eventId?: string) {
@@ -340,5 +348,6 @@ export function terminateTournamentListeners() {
   openedSeasonRounds.value = []
   seasonsEventId = null
   isSeasonsReady.value = false
+  isRoundsReady.value = false
   isParticipantStatusReady.value = false
 }

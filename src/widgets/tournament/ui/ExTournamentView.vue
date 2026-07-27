@@ -156,7 +156,11 @@
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
         <div v-else key="detail" class="w-full h-full min-h-0 max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
-      <template v-if="!isUserRegistered">
+      <div v-if="!isEventDataReady" class="flex min-h-[70vh] w-full flex-1 items-center justify-center bg-black">
+        <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-label="Loading"></div>
+      </div>
+
+      <template v-if="isEventDataReady && !isUserRegistered">
       
       <!-- TOP NAVIGATION -->
       <div class="mb-4 flex items-center justify-between">
@@ -306,8 +310,13 @@
       </Transition>
 
       </template>
+      <div v-if="isEventDataReady && isUserRegistered" class="contents">
+      <div v-if="!isVotingDataReady" class="flex min-h-[70vh] w-full flex-1 items-center justify-center bg-black">
+        <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-label="Loading"></div>
+      </div>
+
       <div
-        v-else
+        v-if="isVotingDataReady"
         key="registered-event-page"
         class="registered-event-page relative flex h-full w-full flex-1 min-h-0 flex-col px-4 sm:px-8 md:px-12"
         :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
@@ -615,6 +624,7 @@
       </div>
 
     </div>
+      </div>
       </Transition>
     </div>
   </Transition>
@@ -643,6 +653,7 @@ import {
   isUserRegistered,
   leaderboardEntries,
   isSeasonsReady,
+  isRoundsReady,
   isLeaderboardReady,
   isParticipantStatusReady,
   participantServerTimeOffset,
@@ -657,6 +668,7 @@ import {
 } from '~/widgets/tournament/model/useTournament'
 import {
   initTournamentPredictionsListener,
+  isPredictionsReady,
   predictionsForRound,
   submitTournamentPrediction,
   terminateTournamentPredictionsListener
@@ -757,6 +769,12 @@ const isEventDataReady = computed(() => {
   ) return false
 
   return !authStore.user?.uid || isParticipantStatusReady.value
+})
+
+const isVotingDataReady = computed(() => {
+  return isEventDataReady.value
+    && isRoundsReady.value
+    && isPredictionsReady.value
 })
 
 const isSingleEvent = computed(() => {
