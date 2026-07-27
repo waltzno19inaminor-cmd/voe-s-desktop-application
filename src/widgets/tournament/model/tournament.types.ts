@@ -30,6 +30,12 @@ export interface TournamentParticipant {
   status: 'active' | 'disqualified' | 'winner'
 }
 
+export interface TournamentLeaderboardEntry {
+  userId: string
+  points: number
+  createdAt?: any
+}
+
 export interface TournamentSeason {
   id: string
   ordinal?: number

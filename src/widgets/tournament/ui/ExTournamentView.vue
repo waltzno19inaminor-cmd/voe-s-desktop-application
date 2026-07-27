@@ -44,6 +44,39 @@
               <div class="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20 pointer-events-none"></div>
               <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
 
+              <div v-if="showLeaderboard" class="absolute inset-0 z-30 flex flex-col bg-black/90 p-6 text-white backdrop-blur-md sm:p-10">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <div class="font-mono text-[10px] font-black uppercase tracking-[0.28em] text-white/60">
+                      {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+                    </div>
+                    <ExHeading level="h2" variant="cinematic" class="mt-2 !text-3xl !leading-tight !tracking-[0.12em] !text-white sm:!text-5xl">
+                      {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
+                    </ExHeading>
+                  </div>
+                  <button
+                    type="button"
+                    class="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-white/65 transition-colors hover:text-white"
+                    @click.stop="showLeaderboard = false"
+                  >
+                    {{ locale === 'ru' ? 'Закрыть' : 'Close' }}
+                  </button>
+                </div>
+
+                <div class="mt-8 min-h-0 flex-1 overflow-y-auto border-y border-white/20">
+                  <div v-if="leaderboardEntries.length" class="divide-y divide-white/10 font-mono">
+                    <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="grid grid-cols-[3rem_minmax(0,1fr)_5rem] items-center gap-3 py-3 text-xs sm:grid-cols-[4rem_minmax(0,1fr)_6rem] sm:text-sm">
+                      <span class="text-white/45">{{ String(index + 1).padStart(2, '0') }}</span>
+                      <span class="truncate font-black tracking-[0.08em]">{{ entry.userId }}</span>
+                      <span class="text-right font-black tracking-[0.12em]">{{ entry.points }}</span>
+                    </div>
+                  </div>
+                  <div v-else class="flex h-full items-center justify-center font-mono text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
+                    {{ locale === 'ru' ? 'Пока нет участников' : 'No participants yet' }}
+                  </div>
+                </div>
+              </div>
+
               <!-- HUD CORNERS (Tactical Gothic Decor) -->
               <div class="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
               <div class="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
@@ -92,6 +125,7 @@
                     v-if="isUserRegistered"
                     type="button"
                     class="border-2 border-white/75 bg-black/25 px-8 py-4 font-mono text-xs font-black uppercase tracking-[0.25em] text-white backdrop-blur-sm transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
+                    @click.stop="showLeaderboard = true"
                   >
                     {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
                   </button>
@@ -600,6 +634,7 @@ import {
   isTournamentLoading,
   isRegistering,
   isUserRegistered,
+  leaderboardEntries,
   participantServerTimeOffset,
   isParticipantServerTimeReady,
   checkRegistrationOpen,
@@ -692,6 +727,7 @@ const getEventRules = (ev: TournamentEvent | null | undefined): string[] => {
 const activeSlide = ref(0)
 const slideDirection = ref('slide-left')
 const selectedEvent = ref<TournamentEvent | null>(null)
+const showLeaderboard = ref(false)
 
 const activeEvent = computed(() => {
   if (!allTournaments.value || allTournaments.value.length === 0) return null
@@ -1225,23 +1261,27 @@ const formattedServerDate = computed(() => {
 })
 
 const selectEvent = (ev: TournamentEvent | null) => {
+  showLeaderboard.value = false
   if (ev) selectedEvent.value = ev
 }
 
 const prevSlide = () => {
   if (isSingleEvent.value || !allTournaments.value) return
+  showLeaderboard.value = false
   slideDirection.value = 'slide-right'
   activeSlide.value = (activeSlide.value - 1 + allTournaments.value.length) % allTournaments.value.length
 }
 
 const nextSlide = () => {
   if (isSingleEvent.value || !allTournaments.value) return
+  showLeaderboard.value = false
   slideDirection.value = 'slide-left'
   activeSlide.value = (activeSlide.value + 1) % allTournaments.value.length
 }
 
 const goToSlide = (idx: number) => {
   if (isSingleEvent.value || !allTournaments.value || idx === activeSlide.value) return
+  showLeaderboard.value = false
   slideDirection.value = idx > activeSlide.value ? 'slide-left' : 'slide-right'
   activeSlide.value = idx
 }
@@ -1270,7 +1310,7 @@ const handleRegister = async () => {
 
   isRegistering.value = true
   try {
-    await registerForTournament(user.uid, user.email ?? undefined, event.id)
+    await registerForTournament(user.uid, user.email ?? undefined, event.id, openedSeason.value?.id)
     isAgreed.value = false
   } catch (err) {
     console.error('[Tournament] Failed to register participant:', err)

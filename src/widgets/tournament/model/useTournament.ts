@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
-import { doc, collection, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, collection, onSnapshot, setDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
-import type { TournamentEvent, TournamentRound, TournamentSeason } from './tournament.types'
+import type { TournamentEvent, TournamentLeaderboardEntry, TournamentRound, TournamentSeason } from './tournament.types'
 
 export const DEFAULT_TOURNAMENT: TournamentEvent = {
   id: 'apex_protocol_2026',
@@ -43,6 +43,7 @@ export const openedSeasonRounds = ref<TournamentRound[]>([])
 export const isTournamentLoading = ref(false)
 export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
+export const leaderboardEntries = ref<TournamentLeaderboardEntry[]>([])
 export const participantServerTimeOffset = ref(0)
 export const isParticipantServerTimeReady = ref(false)
 
@@ -51,6 +52,8 @@ let seasonsUnsubscribe: (() => void) | null = null
 let seasonsEventId: string | null = null
 let roundsUnsubscribe: (() => void) | null = null
 let roundsListenerKey: string | null = null
+let leaderboardUnsubscribe: (() => void) | null = null
+let leaderboardListenerKey: string | null = null
 let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
@@ -89,6 +92,7 @@ export function initSeasonsListener(eventId?: string) {
   }
 
   terminateRoundsListener()
+  terminateLeaderboardListener()
   openedSeason.value = null
   openedSeasonRounds.value = []
   seasonsEventId = eventId
@@ -107,8 +111,10 @@ export function initSeasonsListener(eventId?: string) {
 
     if (openedSeasonSnapshot) {
       initRoundsListener(eventId, openedSeasonSnapshot.id)
+      initLeaderboardListener(eventId, openedSeasonSnapshot.id)
     } else {
       terminateRoundsListener()
+      terminateLeaderboardListener()
       openedSeasonRounds.value = []
     }
   }, (err) => {
@@ -117,6 +123,36 @@ export function initSeasonsListener(eventId?: string) {
     openedSeason.value = null
     console.warn('[Tournament] Error listening to seasons collection:', err)
   })
+}
+
+function initLeaderboardListener(eventId: string, seasonId: string) {
+  const listenerKey = `${eventId}:${seasonId}`
+  if (leaderboardUnsubscribe && leaderboardListenerKey === listenerKey) return
+
+  terminateLeaderboardListener()
+  leaderboardListenerKey = listenerKey
+
+  const leaderboardCol = collection(db, 'tournaments', eventId, 'seasons', seasonId, 'leaderboard')
+  const leaderboardQuery = query(leaderboardCol, orderBy('points', 'desc'))
+
+  leaderboardUnsubscribe = onSnapshot(leaderboardQuery, (snapshot) => {
+    leaderboardEntries.value = snapshot.docs.map((leaderboardSnapshot) => ({
+      ...leaderboardSnapshot.data(),
+      userId: leaderboardSnapshot.id
+    }) as TournamentLeaderboardEntry)
+  }, (err) => {
+    leaderboardEntries.value = []
+    console.warn('[Tournament] Error listening to leaderboard:', err)
+  })
+}
+
+function terminateLeaderboardListener() {
+  if (leaderboardUnsubscribe) {
+    leaderboardUnsubscribe()
+    leaderboardUnsubscribe = null
+  }
+  leaderboardListenerKey = null
+  leaderboardEntries.value = []
 }
 
 function initRoundsListener(eventId: string, seasonId: string) {
@@ -210,21 +246,36 @@ export function toMillis(dateVal: any): number {
   return isNaN(parsed) ? 0 : parsed
 }
 
-export async function registerForTournament(userId: string, userEmail?: string, eventId?: string) {
+export async function registerForTournament(userId: string, userEmail?: string, eventId?: string, seasonId?: string) {
   if (!userId) {
     throw new Error('A signed-in user is required to register for a tournament.')
   }
 
   const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
-  const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+  const targetSeasonId = seasonId || openedSeason.value?.id
+  if (!targetSeasonId) {
+    throw new Error('An opened season is required before registering for a tournament.')
+  }
 
-  await setDoc(participantRef, {
+  const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
+  const leaderboardRef = doc(db, 'tournaments', targetEventId, 'seasons', targetSeasonId, 'leaderboard', userId)
+  const registrationBatch = writeBatch(db)
+
+  registrationBatch.set(participantRef, {
     userId,
     registeredAt: serverTimestamp(),
     serverTimeSyncAt: serverTimestamp(),
     ...(userEmail ? { userEmail } : {}),
     status: 'active'
   })
+
+  registrationBatch.set(leaderboardRef, {
+    userId,
+    points: 0,
+    createdAt: serverTimestamp()
+  })
+
+  await registrationBatch.commit()
 
   isUserRegistered.value = true
 }
@@ -262,6 +313,7 @@ export function terminateTournamentListeners() {
     seasonsUnsubscribe()
     seasonsUnsubscribe = null
   }
+  terminateLeaderboardListener()
   terminateRoundsListener()
   openedSeasonRounds.value = []
   seasonsEventId = null
