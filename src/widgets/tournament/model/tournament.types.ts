@@ -15,6 +15,8 @@ export interface TournamentEvent {
   endDate: string      // ISO string or YYYY-MM-DD
   prizePool: string
   prizePoolRu?: string
+  allowedAssets?: Array<string | { symbol?: string; name?: string; type?: string }>
+  predictionsCloseHour?: number
   status: 'announced' | 'active' | 'finished'
   type?: 'limited' | 'classic' | string
 }
@@ -24,6 +26,12 @@ export interface TournamentParticipant {
   userEmail?: string
   registeredAt: string
   status: 'active' | 'disqualified' | 'winner'
+}
+
+export interface TournamentRound {
+  startsAt?: any
+  endsAt?: any
+  status?: string
 }
 
 export interface TournamentSeason {
@@ -36,4 +44,5 @@ export interface TournamentSeason {
   number?: string | number
   startsAt?: any
   endsAt?: any
+  rounds?: TournamentRound[]
 }

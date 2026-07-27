@@ -366,6 +366,39 @@
           <div class="registered-fg absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
+
+          <div class="mt-20 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="asset in allowedTournamentAssets"
+              :key="asset.symbol"
+              class="registered-asset-card flex min-h-[190px] flex-col justify-between border p-5"
+            >
+              <div class="flex min-w-0 items-center gap-4">
+                <div class="registered-asset-logo flex h-12 w-12 shrink-0 items-center justify-center border p-2">
+                  <img
+                    v-if="asset.icon"
+                    :src="asset.icon"
+                    :alt="asset.symbol"
+                    class="h-full w-full object-contain"
+                  >
+                  <span v-else class="registered-muted font-mono text-lg font-black">{{ asset.symbol.charAt(0) }}</span>
+                </div>
+                <div class="min-w-0">
+                  <div class="registered-fg truncate font-mono text-lg font-black uppercase tracking-[0.12em]">{{ asset.symbol }}</div>
+                  <div class="registered-muted mt-1 truncate font-mono text-[10px] uppercase tracking-[0.12em]">{{ asset.name }}</div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                :disabled="predictionsClosed"
+                class="mt-8 w-full border px-4 py-3 font-mono text-[10px] font-black uppercase tracking-[0.25em] transition-colors disabled:cursor-not-allowed disabled:opacity-25"
+                :class="themeStore.settings.isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-black text-black hover:bg-black hover:text-white'"
+              >
+                {{ locale === 'ru' ? 'ПРЕДСКАЗАТЬ' : 'PREDICT' }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -385,7 +418,8 @@ import ExText from '~/shared/ui/ExText.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
-import type { TournamentEvent } from '~/widgets/tournament/model/tournament.types'
+import globalAssets from '~/shared/data/global_assets.json'
+import type { TournamentEvent, TournamentRound } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
   openedSeason,
@@ -412,7 +446,6 @@ const showAllRules = ref(false)
 const isAgreed = ref(false)
 const nowMillis = ref(Date.now())
 let timerInterval: any = null
-const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000
 const INTRO_STAGE_DURATION = 2600
 const showEntranceAnimation = ref(false)
 const entranceDecisionReady = ref(false)
@@ -519,12 +552,65 @@ const formattedCountdown = computed(() => {
 
 const serverNowMillis = computed(() => nowMillis.value + participantServerTimeOffset.value)
 
-const eventStartMillis = computed(() => toMillis(targetEvent.value?.startDate))
+const openedRound = computed<{ ordinal: number; round: TournamentRound } | null>(() => {
+  const rounds = openedSeason.value?.rounds
+  if (!Array.isArray(rounds)) return null
+
+  const openedRoundIndex = rounds.findIndex((round) => {
+    return String(round?.status || '').toLowerCase() === 'opened'
+  })
+
+  if (openedRoundIndex < 0) return null
+
+  return {
+    ordinal: openedRoundIndex + 1,
+    round: rounds[openedRoundIndex]
+  }
+})
 
 const currentRound = computed(() => {
-  if (!isParticipantServerTimeReady.value || !eventStartMillis.value) return '—'
-  const elapsed = Math.max(0, serverNowMillis.value - eventStartMillis.value)
-  return String(Math.floor(elapsed / DAY_IN_MILLISECONDS) + 1).padStart(2, '0')
+  if (!openedRound.value) return '—'
+  return String(openedRound.value.ordinal).padStart(2, '0')
+})
+
+const roundStartMillis = computed(() => {
+  return toMillis(openedRound.value?.round.startsAt)
+})
+
+const predictionsCloseHour = computed(() => {
+  const value = Number(targetEvent.value?.predictionsCloseHour)
+  return Number.isInteger(value) && value >= 0 && value <= 23 ? value : null
+})
+
+const predictionsCloseAt = computed(() => {
+  if (!roundStartMillis.value || predictionsCloseHour.value === null) return 0
+  return roundStartMillis.value + predictionsCloseHour.value * 60 * 60 * 1000
+})
+
+const predictionsClosed = computed(() => {
+  if (!isParticipantServerTimeReady.value) return true
+  return predictionsCloseAt.value > 0 && serverNowMillis.value >= predictionsCloseAt.value
+})
+
+const allowedTournamentAssets = computed(() => {
+  const allowedAssets = targetEvent.value?.allowedAssets
+  if (!Array.isArray(allowedAssets)) return []
+
+  return allowedAssets.map((allowedAsset) => {
+    const rawAsset = typeof allowedAsset === 'string' ? { symbol: allowedAsset } : allowedAsset
+    const requestedSymbol = String(rawAsset?.symbol || rawAsset?.name || '').trim()
+    const normalizedSymbol = requestedSymbol.toUpperCase()
+    const globalAsset = (globalAssets as Array<Record<string, any>>).find((asset) => {
+      const symbol = String(asset.symbol || '').toUpperCase()
+      return symbol === normalizedSymbol || symbol.replace(/[^A-Z0-9]/g, '') === normalizedSymbol.replace(/[^A-Z0-9]/g, '')
+    })
+
+    return {
+      symbol: globalAsset?.symbol || requestedSymbol,
+      name: globalAsset?.name || rawAsset?.name || requestedSymbol,
+      icon: globalAsset?.icon || ''
+    }
+  }).filter((asset) => asset.symbol)
 })
 
 const toRomanNumeral = (value: number) => {
@@ -579,7 +665,10 @@ const introSignature = computed(() => {
     openedSeason.value.ordinal,
     toMillis(openedSeason.value.startsAt),
     toMillis(openedSeason.value.endsAt),
-    currentRound.value
+    currentRound.value,
+    toMillis(openedRound.value?.round.startsAt),
+    toMillis(openedRound.value?.round.endsAt),
+    openedRound.value?.round.status
   ].join(':')
 })
 
@@ -741,6 +830,7 @@ onUnmounted(() => {
   --registered-bg: #000000;
   --registered-fg: #ffffff;
   --registered-muted: rgba(255, 255, 255, 0.5);
+  --registered-border: rgba(255, 255, 255, 0.2);
   color: var(--registered-fg);
 }
 
@@ -748,10 +838,20 @@ onUnmounted(() => {
   --registered-bg: #ffffff;
   --registered-fg: #000000;
   --registered-muted: rgba(0, 0, 0, 0.5);
+  --registered-border: rgba(0, 0, 0, 0.2);
 }
 
 .registered-fg {
   color: var(--registered-fg);
+}
+
+.registered-muted {
+  color: var(--registered-muted);
+}
+
+.registered-asset-card,
+.registered-asset-logo {
+  border-color: var(--registered-border);
 }
 
 .season-entry-enter-active,
