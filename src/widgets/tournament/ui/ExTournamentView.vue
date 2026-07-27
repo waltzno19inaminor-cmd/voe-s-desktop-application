@@ -334,15 +334,15 @@
         </div>
 
         <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex w-full flex-col items-start text-left">
-          <ExHeading level="h1" variant="technical" class="!text-5xl !leading-none !tracking-[0.12em] !text-white sm:!text-7xl">
-            {{ locale === 'ru' ? 'ТУРНИР' : 'TOURNAMENT' }} {{ tournamentOrdinal }}
-          </ExHeading>
-
-          <div class="mt-10 font-mono text-sm font-black uppercase tracking-[0.16em] text-white sm:text-base">
+          <div class="font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
             {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
           </div>
 
-          <div class="mt-12 font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
+          <div class="mt-8 font-mono text-sm font-black uppercase tracking-[0.16em] text-white sm:text-base">
+            {{ locale === 'ru' ? 'ДО' : 'UNTIL' }} // {{ formattedSeasonEnd }}
+          </div>
+
+          <div class="absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
         </div>
@@ -506,12 +506,6 @@ const currentRound = computed(() => {
   return String(Math.floor(elapsed / DAY_IN_MILLISECONDS) + 1).padStart(2, '0')
 })
 
-const tournamentOrdinal = computed(() => {
-  const eventId = targetEvent.value?.id
-  const index = allTournaments.value.findIndex((event) => event.id === eventId)
-  return String(index >= 0 ? index + 1 : 1).padStart(2, '0')
-})
-
 const toRomanNumeral = (value: number) => {
   if (!Number.isFinite(value) || value < 1) return '—'
   const numerals: Array<[number, string]> = [
@@ -554,7 +548,7 @@ const formattedSeasonEnd = computed(() => formatSeasonDate(openedSeason.value?.e
 const introStorageKey = computed(() => {
   const userId = authStore.user?.uid
   const eventId = targetEvent.value?.id
-  return userId && eventId ? `exgenesis:season-entry:v3:${userId}:${eventId}` : ''
+  return userId && eventId ? `exgenesis:season-entry:v4:${userId}:${eventId}` : ''
 })
 
 const introSignature = computed(() => {
