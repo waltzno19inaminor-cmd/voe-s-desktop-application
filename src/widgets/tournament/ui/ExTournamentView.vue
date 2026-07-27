@@ -101,7 +101,7 @@
     </div>
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
-        <div v-else key="detail" class="w-full h-full max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
+        <div v-else key="detail" class="w-full h-full min-h-0 max-w-[1400px] mx-auto flex flex-col px-3 sm:px-6">
       <template v-if="!isUserRegistered">
       
       <!-- TOP NAVIGATION -->
@@ -255,7 +255,7 @@
       <div
         v-else
         key="registered-event-page"
-        class="registered-event-page relative w-full flex-1 min-h-full px-4 py-10 sm:px-8 md:px-12"
+        class="registered-event-page relative flex h-full w-full flex-1 min-h-0 flex-col px-4 sm:px-8 md:px-12"
         :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
         aria-label="Participant page"
       >
@@ -354,7 +354,7 @@
           </div>
         </div>
 
-        <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex w-full flex-col items-start text-left">
+        <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex h-full w-full min-h-0 flex-1 flex-col items-start text-left">
           <div class="registered-fg font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
           </div>
@@ -371,38 +371,13 @@
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
 
-          <div class="mt-20 grid w-full grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div
-              v-for="asset in allowedTournamentAssets"
-              :key="asset.symbol"
-              class="registered-asset-card flex min-h-[190px] flex-col justify-between border p-5"
-            >
-              <div class="flex min-w-0 items-center gap-4">
-                <div class="registered-asset-logo flex h-12 w-12 shrink-0 items-center justify-center border p-2">
-                  <img
-                    v-if="asset.icon"
-                    :src="asset.icon"
-                    :alt="asset.symbol"
-                    class="h-full w-full object-contain"
-                  >
-                  <span v-else class="registered-muted font-mono text-lg font-black">{{ asset.symbol.charAt(0) }}</span>
-                </div>
-                <div class="min-w-0">
-                  <div class="registered-fg truncate font-mono text-lg font-black uppercase tracking-[0.12em]">{{ asset.symbol }}</div>
-                  <div class="registered-muted mt-1 truncate font-mono text-[10px] uppercase tracking-[0.12em]">{{ asset.name }}</div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                :disabled="!isVotingOpen"
-                class="mt-8 w-full border px-4 py-3 font-mono text-[10px] font-black uppercase tracking-[0.25em] transition-colors disabled:cursor-not-allowed disabled:opacity-25"
-                :class="themeStore.settings.isDark ? 'border-white text-white hover:bg-white hover:text-black' : 'border-black text-black hover:bg-black hover:text-white'"
-              >
-                {{ locale === 'ru' ? 'ПРЕДСКАЗАТЬ' : 'PREDICT' }}
-              </button>
-            </div>
-          </div>
+          <ExPanel
+            variant="light"
+            :show-corners="true"
+            :no-padding="true"
+            :no-shadow="true"
+            class="registered-voting-panel mt-20 w-full self-start sm:w-1/2"
+          />
         </div>
       </div>
 
@@ -417,12 +392,12 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import ExButton from '~/shared/ui/ExButton.vue'
 import ExDivider from '~/shared/ui/ExDivider.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
+import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExTag from '~/shared/ui/ExTag.vue'
 import ExText from '~/shared/ui/ExText.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
-import globalAssets from '~/shared/data/global_assets.json'
 import type { TournamentEvent, TournamentRound } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
@@ -612,27 +587,6 @@ const votingCompleted = computed(() => {
     && round.endsAtMillis > 0
     && serverNowMillis.value >= round.endsAtMillis
   )
-})
-
-const allowedTournamentAssets = computed(() => {
-  const allowedAssets = targetEvent.value?.allowedAssets
-  if (!Array.isArray(allowedAssets)) return []
-
-  return allowedAssets.map((allowedAsset) => {
-    const rawAsset = typeof allowedAsset === 'string' ? { symbol: allowedAsset } : allowedAsset
-    const requestedSymbol = String(rawAsset?.symbol || rawAsset?.name || '').trim()
-    const normalizedSymbol = requestedSymbol.toUpperCase()
-    const globalAsset = (globalAssets as Array<Record<string, any>>).find((asset) => {
-      const symbol = String(asset.symbol || '').toUpperCase()
-      return symbol === normalizedSymbol || symbol.replace(/[^A-Z0-9]/g, '') === normalizedSymbol.replace(/[^A-Z0-9]/g, '')
-    })
-
-    return {
-      symbol: globalAsset?.symbol || requestedSymbol,
-      name: globalAsset?.name || rawAsset?.name || requestedSymbol,
-      icon: globalAsset?.icon || ''
-    }
-  }).filter((asset) => asset.symbol)
 })
 
 const toRomanNumeral = (value: number) => {
@@ -871,9 +825,15 @@ onUnmounted(() => {
   color: var(--registered-muted);
 }
 
-.registered-asset-card,
-.registered-asset-logo {
-  border-color: var(--registered-border);
+.registered-voting-panel {
+  border-color: var(--registered-border) !important;
+  min-height: max(280px, calc(100% - 12rem));
+}
+
+.registered-voting-panel :deep(.theme-panel-backdrop) {
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .season-entry-enter-active,
