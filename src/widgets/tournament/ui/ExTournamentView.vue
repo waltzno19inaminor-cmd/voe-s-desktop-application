@@ -491,8 +491,9 @@
                       type="button"
                       class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'LONG' ? 'registered-vote-action--selected' : ''"
-                      :style="{ backgroundColor: votingSurfaceColor }"
-                      :disabled="!isVotingOpen || isSubmittingPrediction"
+                      :style="getVoteButtonStyle('LONG')"
+                      :aria-pressed="currentUserPrediction === 'LONG'"
+                      :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
                       @click="handleVote('LONG')"
                     >
                       Long
@@ -501,8 +502,9 @@
                       type="button"
                       class="registered-vote-action min-w-0 flex-1 border px-3 py-3 font-mono text-xs font-black uppercase tracking-[0.2em] transition-all duration-200"
                       :class="currentUserPrediction === 'SHORT' ? 'registered-vote-action--selected' : ''"
-                      :style="{ backgroundColor: votingSurfaceColor }"
-                      :disabled="!isVotingOpen || isSubmittingPrediction"
+                      :style="getVoteButtonStyle('SHORT')"
+                      :aria-pressed="currentUserPrediction === 'SHORT'"
+                      :disabled="!isVotingOpen || isSubmittingPrediction || Boolean(currentUserPrediction)"
                       @click="handleVote('SHORT')"
                     >
                       Short
@@ -835,6 +837,17 @@ const currentUserPrediction = computed(() => {
     ? submittedPrediction.value.direction
     : ''
 })
+
+const getVoteButtonStyle = (direction: TournamentPredictionDirection) => {
+  if (currentUserPrediction.value === direction) {
+    return {
+      backgroundColor: themeStore.settings.isDark ? '#ffffff' : '#000000',
+      color: themeStore.settings.isDark ? '#000000' : '#ffffff'
+    }
+  }
+
+  return { backgroundColor: votingSurfaceColor.value }
+}
 
 const longVoteCount = computed(() => {
   return selectedAssetPredictions.value.filter((prediction) => getPredictionDirection(prediction) === 'LONG').length
@@ -1275,9 +1288,9 @@ onUnmounted(() => {
   color: var(--registered-fg);
 }
 
-.registered-vote-action:disabled {
+.registered-vote-action:disabled:not(.registered-vote-action--selected) {
   filter: grayscale(1);
-  opacity: 0.42;
+  opacity: 0.28;
 }
 
 .registered-vote-action:not(:disabled):hover {
@@ -1297,12 +1310,10 @@ onUnmounted(() => {
 }
 
 .registered-vote-action--selected {
+  border-width: 2px;
   filter: none;
-  opacity: 0.7;
-}
-
-.registered-vote-action--selected {
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--registered-fg) 45%, transparent);
+  opacity: 1;
+  box-shadow: 0 0 0 1px var(--registered-fg), inset 0 -3px 0 var(--registered-fg);
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
