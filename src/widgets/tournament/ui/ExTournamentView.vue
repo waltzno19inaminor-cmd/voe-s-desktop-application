@@ -209,7 +209,7 @@
       <!-- REGISTRATION STAGE OR PARTICIPANT PAGE -->
       <Transition name="registration-stage" mode="out-in">
         <!-- CENTERED REGISTRATION & AGREEMENT STAGE (Monochrome White & Black) -->
-        <div v-if="!isUserRegistered" key="registration" class="w-full flex flex-col items-center justify-center pt-12 mt-6 border-t border-theme-border/30 text-center">
+        <div v-if="!isUserRegistered" key="registration" class="w-full flex flex-col items-center justify-center pt-12 pb-12 mt-6 border-t border-theme-border/30 text-center">
           <!-- CUSTOM CHECKBOX FOR AGREEMENT -->
           <label
             class="flex items-center space-x-3 cursor-pointer select-none mb-6 text-xs font-mono uppercase tracking-[0.1em] text-theme-text/80 hover:text-theme-text transition-colors"
