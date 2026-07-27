@@ -252,18 +252,39 @@
       </Transition>
 
       </template>
-      <div v-else key="registered-event-page" class="registered-event-page relative w-full flex-1 min-h-full bg-black text-white px-4 py-10 sm:px-8 md:px-12" aria-label="Participant page">
+      <div
+        v-else
+        key="registered-event-page"
+        class="registered-event-page relative w-full flex-1 min-h-full px-4 py-10 sm:px-8 md:px-12"
+        :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
+        aria-label="Participant page"
+      >
         <Transition name="season-entry" mode="out-in">
           <div v-if="!entranceDecisionReady" key="season-entry-wait" class="absolute inset-0 h-full w-full"></div>
-          <div v-else-if="showEntranceAnimation" key="season-entry-animation" class="absolute inset-0 z-10 flex min-h-[420px] w-full items-center justify-center bg-black text-center">
+          <div
+            v-else-if="showEntranceAnimation"
+            key="season-entry-animation"
+            class="absolute inset-0 z-10 flex min-h-[420px] w-full items-center justify-center text-center"
+            :class="themeStore.settings.isDark ? 'text-white' : 'text-black'"
+          >
             <Transition name="season-stage" mode="out-in">
               <div v-if="introStage === 'season'" key="season-stage" class="flex flex-col items-center">
-                <ExHeading level="h1" variant="cinematic" class="!text-7xl !leading-none !tracking-[0.12em] !text-white sm:!text-9xl">
+                <ExHeading
+                  level="h1"
+                  variant="cinematic"
+                  class="!text-7xl !leading-none !tracking-[0.12em] sm:!text-9xl"
+                  :class="themeStore.settings.isDark ? '!text-white' : '!text-black'"
+                >
                   {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
                 </ExHeading>
               </div>
               <div v-else key="round-stage" class="flex flex-col items-center">
-                <ExHeading level="h1" variant="technical" class="!text-8xl !leading-none !tracking-[0.12em] !text-white sm:!text-[10rem]">
+                <ExHeading
+                  level="h1"
+                  variant="technical"
+                  class="!text-8xl !leading-none !tracking-[0.12em] sm:!text-[10rem]"
+                  :class="themeStore.settings.isDark ? '!text-white' : '!text-black'"
+                >
                   {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
                 </ExHeading>
               </div>
@@ -334,15 +355,15 @@
         </div>
 
         <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex w-full flex-col items-start text-left">
-          <div class="font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
+          <div class="registered-fg font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
           </div>
 
-          <div class="mt-8 font-mono text-sm font-black uppercase tracking-[0.16em] text-white sm:text-base">
-            {{ locale === 'ru' ? 'ДО' : 'UNTIL' }} // {{ formattedSeasonEnd }}
+          <div class="registered-fg mt-8 font-mono text-sm font-black uppercase tracking-[0.16em] sm:text-base">
+            {{ locale === 'ru' ? 'ДО' : 'UNTIL' }} {{ formattedSeasonEnd }}
           </div>
 
-          <div class="absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] text-white sm:text-6xl">
+          <div class="registered-fg absolute right-0 top-0 text-right font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
         </div>
@@ -548,7 +569,7 @@ const formattedSeasonEnd = computed(() => formatSeasonDate(openedSeason.value?.e
 const introStorageKey = computed(() => {
   const userId = authStore.user?.uid
   const eventId = targetEvent.value?.id
-  return userId && eventId ? `exgenesis:season-entry:v4:${userId}:${eventId}` : ''
+  return userId && eventId ? `exgenesis:season-entry:v5:${userId}:${eventId}` : ''
 })
 
 const introSignature = computed(() => {
@@ -717,7 +738,20 @@ onUnmounted(() => {
   --theme-text-rgb: 255 255 255;
   --theme-border: rgba(255, 255, 255, 0.2);
   --theme-border-rgb: 255 255 255;
-  color: #ffffff;
+  --registered-bg: #000000;
+  --registered-fg: #ffffff;
+  --registered-muted: rgba(255, 255, 255, 0.5);
+  color: var(--registered-fg);
+}
+
+.registered-event-page--light {
+  --registered-bg: #ffffff;
+  --registered-fg: #000000;
+  --registered-muted: rgba(0, 0, 0, 0.5);
+}
+
+.registered-fg {
+  color: var(--registered-fg);
 }
 
 .season-entry-enter-active,
