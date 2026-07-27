@@ -33,6 +33,7 @@ export interface TournamentParticipant {
 export interface TournamentLeaderboardEntry {
   userId: string
   points: number
+  correctPredictions?: number
   createdAt?: any
 }
 

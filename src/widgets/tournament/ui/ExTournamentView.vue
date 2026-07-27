@@ -2,12 +2,12 @@
   <Transition name="exforum-page-reify" appear>
     <div 
       class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none relative scroll-minimal"
-      :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : 'justify-center overflow-hidden'"
+      :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : showLeaderboard ? 'justify-start overflow-hidden pt-6 pb-24' : 'justify-center overflow-hidden'"
     >
       
       <Transition name="fade-slide" mode="out-in">
         <!-- CAROUSEL MODE: PURE BANNER VIEW -->
-        <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
+        <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center px-3 sm:px-6" :class="showLeaderboard ? 'justify-start' : 'justify-center my-auto'">
       
       <!-- INITIAL DATA LOADING -->
       <div v-if="!isEventDataReady" class="flex min-h-[460px] w-full items-center justify-center bg-black">
@@ -15,13 +15,77 @@
       </div>
 
       <template v-else>
+        <Transition name="leaderboard-page" mode="out-in">
+        <div
+          v-if="showLeaderboard"
+          class="leaderboard-page relative flex min-h-0 w-full flex-col items-start justify-start overflow-hidden px-4 py-10"
+          :class="themeStore.settings.isDark ? 'leaderboard-page--dark' : 'leaderboard-page--light'"
+        >
+          <img
+            v-if="activeEvent?.imageUrl"
+            :src="activeEvent.imageUrl"
+            :alt="getEventTitle(activeEvent)"
+            class="leaderboard-page__image absolute inset-0 h-full w-full object-cover"
+          >
+
+          <div class="relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-col">
+            <div class="mb-8 flex items-start justify-between gap-4">
+              <button
+                type="button"
+                class="leaderboard-page__muted font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+                @click="showLeaderboard = false"
+              >
+                {{ locale === 'ru' ? 'Назад' : 'Back' }}
+              </button>
+              <div class="leaderboard-page__muted text-right font-mono text-[10px] font-black uppercase tracking-[0.2em]">
+                {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+              </div>
+            </div>
+
+            <div class="text-center">
+              <ExHeading level="h1" variant="cinematic" class="leaderboard-page__heading !text-4xl !leading-tight !tracking-[0.14em] sm:!text-6xl">
+                {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
+              </ExHeading>
+            </div>
+
+            <div v-if="!isLeaderboardNamesReady" class="mt-12 flex min-h-[220px] items-center justify-center">
+              <div class="leaderboard-page__spinner h-10 w-10 animate-spin rounded-full border-2" aria-label="Loading"></div>
+            </div>
+
+            <div v-else class="leaderboard-page__table relative mt-10 flex min-h-0 flex-col overflow-visible font-mono">
+              <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--top" />
+              <div v-if="leaderboardEntries.length" class="leaderboard-page__rows relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+                <div class="leaderboard-page__table-header sticky top-0 z-10">
+                  <div class="leaderboard-page__muted min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] gap-3 px-6 py-3 text-[9px] font-black uppercase tracking-[0.16em] sm:grid-cols-[4rem_minmax(0,1fr)_7rem_7rem] sm:gap-4 sm:px-12 sm:tracking-[0.2em]">
+                    <span>#</span>
+                    <span class="text-center">{{ locale === 'ru' ? 'УЧАСТНИК' : 'PARTICIPANT' }}</span>
+                    <span class="text-right">{{ locale === 'ru' ? 'ВЕРНЫЕ' : 'CORRECT' }}</span>
+                    <span class="text-right">{{ locale === 'ru' ? 'ОЧКИ' : 'POINTS' }}</span>
+                  </div>
+                  <ExDivider variant="simple" spacing="none" class="leaderboard-page__table-divider" />
+                </div>
+                <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="leaderboard-page__participant min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] items-center gap-3 px-6 py-4 text-sm sm:grid-cols-[4rem_minmax(0,1fr)_7rem_7rem] sm:gap-4 sm:px-12 sm:text-base">
+                  <span class="leaderboard-page__muted">{{ String(index + 1).padStart(2, '0') }}</span>
+                  <span class="w-full truncate text-center font-black tracking-[0.08em]">{{ leaderboardDisplayNames[entry.userId] || entry.userId }}</span>
+                  <span class="text-right font-black tracking-[0.12em]">{{ entry.correctPredictions ?? 0 }}</span>
+                  <span class="text-right font-black tracking-[0.12em]">{{ entry.points }}</span>
+                </div>
+              </div>
+              <div v-else class="leaderboard-page__muted relative z-10 flex min-h-0 flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.2em]">
+                {{ locale === 'ru' ? 'Пока нет участников' : 'No participants yet' }}
+              </div>
+              <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--bottom" />
+            </div>
+          </div>
+        </div>
+
         <!-- EMPTY STATE IF NO EVENTS -->
-        <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
+        <div v-else-if="!activeEvent" key="empty-state" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
           [ SYSTEM // NO COMPETITION PROTOCOLS ACTIVE ]
         </div>
 
         <!-- CAROUSEL WRAPPER -->
-        <div v-else class="w-full flex items-center justify-between gap-3 sm:gap-6 md:gap-8">
+        <div v-else key="event-carousel" class="w-full flex items-center justify-between gap-3 sm:gap-6 md:gap-8">
         <!-- PREV BUTTON (OUTSIDE CONTAINER, NO BORDER) -->
         <button
           @click.stop="prevSlide"
@@ -49,39 +113,6 @@
               <!-- DARK TECH GRADIENT & SCANLINES -->
               <div class="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20 pointer-events-none"></div>
               <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none opacity-40"></div>
-
-              <div v-if="showLeaderboard" class="absolute inset-0 z-30 flex flex-col bg-black/90 p-6 text-white backdrop-blur-md sm:p-10">
-                <div class="flex items-start justify-between gap-4">
-                  <div>
-                    <div class="font-mono text-[10px] font-black uppercase tracking-[0.28em] text-white/60">
-                      {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
-                    </div>
-                    <ExHeading level="h2" variant="cinematic" class="mt-2 !text-3xl !leading-tight !tracking-[0.12em] !text-white sm:!text-5xl">
-                      {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
-                    </ExHeading>
-                  </div>
-                  <button
-                    type="button"
-                    class="font-mono text-[10px] font-black uppercase tracking-[0.2em] text-white/65 transition-colors hover:text-white"
-                    @click.stop="showLeaderboard = false"
-                  >
-                    {{ locale === 'ru' ? 'Закрыть' : 'Close' }}
-                  </button>
-                </div>
-
-                <div class="mt-8 min-h-0 flex-1 overflow-y-auto border-y border-white/20">
-                  <div v-if="leaderboardEntries.length" class="divide-y divide-white/10 font-mono">
-                    <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="grid grid-cols-[3rem_minmax(0,1fr)_5rem] items-center gap-3 py-3 text-xs sm:grid-cols-[4rem_minmax(0,1fr)_6rem] sm:text-sm">
-                      <span class="text-white/45">{{ String(index + 1).padStart(2, '0') }}</span>
-                      <span class="truncate font-black tracking-[0.08em]">{{ entry.userId }}</span>
-                      <span class="text-right font-black tracking-[0.12em]">{{ entry.points }}</span>
-                    </div>
-                  </div>
-                  <div v-else class="flex h-full items-center justify-center font-mono text-[10px] font-black uppercase tracking-[0.2em] text-white/45">
-                    {{ locale === 'ru' ? 'Пока нет участников' : 'No participants yet' }}
-                  </div>
-                </div>
-              </div>
 
               <!-- HUD CORNERS (Tactical Gothic Decor) -->
               <div class="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
@@ -151,6 +182,7 @@
           <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
         </div>
+        </Transition>
       </template>
     </div>
 
@@ -652,6 +684,8 @@ import {
   isRegistering,
   isUserRegistered,
   leaderboardEntries,
+  leaderboardDisplayNames,
+  isLeaderboardNamesReady,
   isSeasonsReady,
   isRoundsReady,
   isLeaderboardReady,
@@ -1661,6 +1695,83 @@ onUnmounted(() => {
   -webkit-backdrop-filter: none !important;
 }
 
+.leaderboard-page {
+  --leaderboard-fg: #ffffff;
+  --leaderboard-muted: rgba(255, 255, 255, 0.58);
+  --leaderboard-border: rgba(255, 255, 255, 0.2);
+  --leaderboard-table-bg: rgba(8, 8, 8, 0.55);
+  --leaderboard-image-opacity: 0.25;
+  color: var(--leaderboard-fg);
+}
+
+.leaderboard-page--light {
+  --leaderboard-fg: #111111;
+  --leaderboard-muted: rgba(17, 17, 17, 0.54);
+  --leaderboard-border: rgba(17, 17, 17, 0.2);
+  --leaderboard-table-bg: rgba(255, 255, 255, 0.55);
+  --leaderboard-image-opacity: 0.12;
+}
+
+.leaderboard-page__image {
+  opacity: var(--leaderboard-image-opacity);
+  pointer-events: none;
+}
+
+.leaderboard-page__muted {
+  color: var(--leaderboard-muted);
+}
+
+.leaderboard-page__muted:hover {
+  color: var(--leaderboard-fg);
+}
+
+.leaderboard-page__heading {
+  color: var(--leaderboard-fg) !important;
+}
+
+.leaderboard-page__table {
+  background-color: var(--leaderboard-table-bg);
+  height: min(55vh, 30rem);
+  max-height: calc(100vh - 16rem);
+  min-height: 180px;
+}
+
+.leaderboard-page :deep(.leaderboard-page__table-divider .bg-theme-border),
+.leaderboard-page :deep(.leaderboard-page__table-edge-divider .bg-theme-border) {
+  background-color: var(--leaderboard-border);
+}
+
+.leaderboard-page :deep(.leaderboard-page__table-divider .bg-theme-text),
+.leaderboard-page :deep(.leaderboard-page__table-edge-divider .bg-theme-text) {
+  background-color: var(--leaderboard-fg);
+}
+
+.leaderboard-page :deep(.leaderboard-page__table-edge-divider) {
+  position: relative;
+  z-index: 10;
+}
+
+.leaderboard-page :deep(.leaderboard-page__table-edge-divider--top) {
+  transform: translateY(-4px);
+}
+
+.leaderboard-page :deep(.leaderboard-page__table-edge-divider--bottom) {
+  transform: translateY(4px);
+}
+
+.leaderboard-page__participant + .leaderboard-page__participant {
+  border-top: 1px solid color-mix(in srgb, var(--leaderboard-border) 55%, transparent);
+}
+
+.leaderboard-page__rows > :not([hidden]) ~ :not([hidden]) {
+  border-color: color-mix(in srgb, var(--leaderboard-border) 55%, transparent);
+}
+
+.leaderboard-page__spinner {
+  border-color: color-mix(in srgb, var(--leaderboard-fg) 18%, transparent);
+  border-top-color: var(--leaderboard-fg);
+}
+
 .season-entry-enter-active,
 .season-entry-leave-active,
 .season-stage-enter-active,
@@ -1674,6 +1785,17 @@ onUnmounted(() => {
 .season-stage-leave-to {
   opacity: 0;
   transform: translateY(18px) scale(0.98);
+}
+
+.leaderboard-page-enter-active,
+.leaderboard-page-leave-active {
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.leaderboard-page-enter-from,
+.leaderboard-page-leave-to {
+  opacity: 0;
+  transform: translateY(18px) scale(0.985);
 }
 
 .pearlescent-bg {

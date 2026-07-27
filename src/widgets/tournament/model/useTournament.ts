@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { doc, collection, onSnapshot, setDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore'
+import { doc, collection, getDoc, onSnapshot, setDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import type { TournamentEvent, TournamentLeaderboardEntry, TournamentRound, TournamentSeason } from './tournament.types'
 
@@ -44,6 +44,8 @@ export const isTournamentLoading = ref(true)
 export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
 export const leaderboardEntries = ref<TournamentLeaderboardEntry[]>([])
+export const leaderboardDisplayNames = ref<Record<string, string>>({})
+export const isLeaderboardNamesReady = ref(false)
 export const isSeasonsReady = ref(false)
 export const isRoundsReady = ref(false)
 export const isLeaderboardReady = ref(false)
@@ -148,21 +150,53 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
 
   terminateLeaderboardListener()
   leaderboardListenerKey = listenerKey
+  isLeaderboardNamesReady.value = false
 
   const leaderboardCol = collection(db, 'tournaments', eventId, 'seasons', seasonId, 'leaderboard')
   const leaderboardQuery = query(leaderboardCol, orderBy('points', 'desc'))
 
   leaderboardUnsubscribe = onSnapshot(leaderboardQuery, (snapshot) => {
     isLeaderboardReady.value = true
-    leaderboardEntries.value = snapshot.docs.map((leaderboardSnapshot) => ({
+    const entries = snapshot.docs.map((leaderboardSnapshot) => ({
       ...leaderboardSnapshot.data(),
       userId: leaderboardSnapshot.id
     }) as TournamentLeaderboardEntry)
+    leaderboardEntries.value = entries
+
+    void loadLeaderboardDisplayNames(entries, listenerKey)
   }, (err) => {
     isLeaderboardReady.value = true
+    isLeaderboardNamesReady.value = true
+    leaderboardDisplayNames.value = {}
     leaderboardEntries.value = []
     console.warn('[Tournament] Error listening to leaderboard:', err)
   })
+}
+
+async function loadLeaderboardDisplayNames(entries: TournamentLeaderboardEntry[], listenerKey: string) {
+  if (!entries.length) {
+    leaderboardDisplayNames.value = {}
+    isLeaderboardNamesReady.value = true
+    return
+  }
+
+  const names = await Promise.all(entries.map(async (entry) => {
+    try {
+      const userSnapshot = await getDoc(doc(db, 'users', entry.userId))
+      const displayName = String(userSnapshot.data()?.displayName || '').trim()
+      return [entry.userId, displayName] as const
+    } catch (err) {
+      console.warn(`[Tournament] Failed to load display name for ${entry.userId}:`, err)
+      return [entry.userId, ''] as const
+    }
+  }))
+
+  if (leaderboardListenerKey !== listenerKey) return
+
+  leaderboardDisplayNames.value = Object.fromEntries(
+    names.filter(([, displayName]) => displayName)
+  )
+  isLeaderboardNamesReady.value = true
 }
 
 function terminateLeaderboardListener(markReady = false) {
@@ -172,6 +206,8 @@ function terminateLeaderboardListener(markReady = false) {
   }
   leaderboardListenerKey = null
   leaderboardEntries.value = []
+  leaderboardDisplayNames.value = {}
+  isLeaderboardNamesReady.value = markReady
   isLeaderboardReady.value = markReady
 }
 
@@ -302,6 +338,7 @@ export async function registerForTournament(userId: string, userEmail?: string, 
   registrationBatch.set(leaderboardRef, {
     userId,
     points: 0,
+    correctPredictions: 0,
     createdAt: serverTimestamp()
   })
 
