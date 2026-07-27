@@ -377,7 +377,28 @@
             :no-padding="true"
             :no-shadow="true"
             class="registered-voting-panel mt-20 w-full self-start sm:w-1/2"
-          />
+          >
+            <div class="flex flex-wrap items-center gap-2 p-4">
+              <div
+                v-for="asset in allowedTournamentAssets"
+                :key="asset.key"
+                class="registered-asset-chip flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
+              >
+                <img
+                  v-if="asset.icon"
+                  :src="asset.icon"
+                  :alt="asset.name"
+                  class="h-7 w-7 shrink-0 object-contain"
+                >
+                <span v-else class="registered-muted flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[10px] font-black">
+                  {{ asset.name.charAt(0) }}
+                </span>
+                <span class="registered-fg max-w-full line-clamp-2 font-mono text-[8px] font-black uppercase leading-tight tracking-[0.04em]">
+                  {{ asset.name }}
+                </span>
+              </div>
+            </div>
+          </ExPanel>
         </div>
       </div>
 
@@ -398,6 +419,7 @@ import ExText from '~/shared/ui/ExText.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
+import globalAssets from '~/shared/data/global_assets.json'
 import type { TournamentEvent, TournamentRound } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
@@ -587,6 +609,28 @@ const votingCompleted = computed(() => {
     && round.endsAtMillis > 0
     && serverNowMillis.value >= round.endsAtMillis
   )
+})
+
+const allowedTournamentAssets = computed(() => {
+  const allowedAssets = targetEvent.value?.allowedAssets
+  if (!Array.isArray(allowedAssets)) return []
+
+  return allowedAssets.map((allowedAsset, index) => {
+    const rawAsset = typeof allowedAsset === 'string' ? { symbol: allowedAsset } : allowedAsset
+    const requestedSymbol = String(rawAsset?.symbol || rawAsset?.name || '').trim()
+    const normalizedSymbol = requestedSymbol.toUpperCase()
+    const globalAsset = (globalAssets as Array<Record<string, any>>).find((asset) => {
+      const symbol = String(asset.symbol || '').toUpperCase()
+      return symbol === normalizedSymbol
+        || symbol.replace(/[^A-Z0-9]/g, '') === normalizedSymbol.replace(/[^A-Z0-9]/g, '')
+    })
+
+    return {
+      key: `${requestedSymbol || 'asset'}-${index}`,
+      name: globalAsset?.name || rawAsset?.name || requestedSymbol,
+      icon: globalAsset?.icon || ''
+    }
+  }).filter((asset) => asset.name)
 })
 
 const toRomanNumeral = (value: number) => {
@@ -828,6 +872,10 @@ onUnmounted(() => {
 .registered-voting-panel {
   border-color: var(--registered-border) !important;
   min-height: max(280px, calc(100% - 12rem));
+}
+
+.registered-asset-chip {
+  border-color: var(--registered-border);
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
