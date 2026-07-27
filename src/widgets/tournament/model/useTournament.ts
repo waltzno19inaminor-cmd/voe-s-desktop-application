@@ -40,10 +40,13 @@ export const allTournaments = ref<TournamentEvent[]>([{ ...DEFAULT_TOURNAMENT }]
 export const currentTournament = computed(() => allTournaments.value[0] || { ...DEFAULT_TOURNAMENT })
 export const openedSeason = ref<TournamentSeason | null>(null)
 export const openedSeasonRounds = ref<TournamentRound[]>([])
-export const isTournamentLoading = ref(false)
+export const isTournamentLoading = ref(true)
 export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
 export const leaderboardEntries = ref<TournamentLeaderboardEntry[]>([])
+export const isSeasonsReady = ref(false)
+export const isLeaderboardReady = ref(false)
+export const isParticipantStatusReady = ref(false)
 export const participantServerTimeOffset = ref(0)
 export const isParticipantServerTimeReady = ref(false)
 
@@ -58,6 +61,8 @@ let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
   if (tournamentUnsubscribe) return
+
+  isTournamentLoading.value = true
 
   const tournamentsCol = collection(db, 'tournaments')
 
@@ -83,7 +88,11 @@ export function initTournamentListener() {
 }
 
 export function initSeasonsListener(eventId?: string) {
-  if (!eventId) return
+  if (!eventId) {
+    isSeasonsReady.value = true
+    isLeaderboardReady.value = true
+    return
+  }
   if (seasonsUnsubscribe && seasonsEventId === eventId) return
 
   if (seasonsUnsubscribe) {
@@ -93,12 +102,14 @@ export function initSeasonsListener(eventId?: string) {
 
   terminateRoundsListener()
   terminateLeaderboardListener()
+  isSeasonsReady.value = false
   openedSeason.value = null
   openedSeasonRounds.value = []
   seasonsEventId = eventId
   const seasonsCol = collection(db, 'tournaments', eventId, 'seasons')
 
   seasonsUnsubscribe = onSnapshot(seasonsCol, (snapshot) => {
+    isSeasonsReady.value = true
     const openedSeasonIndex = snapshot.docs.findIndex((seasonSnapshot) => {
       const seasonData = seasonSnapshot.data()
       return String(seasonData.status || '').toLowerCase() === 'opened'
@@ -114,11 +125,13 @@ export function initSeasonsListener(eventId?: string) {
       initLeaderboardListener(eventId, openedSeasonSnapshot.id)
     } else {
       terminateRoundsListener()
-      terminateLeaderboardListener()
+      terminateLeaderboardListener(true)
       openedSeasonRounds.value = []
     }
   }, (err) => {
     terminateRoundsListener()
+    terminateLeaderboardListener(true)
+    isSeasonsReady.value = true
     openedSeasonRounds.value = []
     openedSeason.value = null
     console.warn('[Tournament] Error listening to seasons collection:', err)
@@ -136,23 +149,26 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
   const leaderboardQuery = query(leaderboardCol, orderBy('points', 'desc'))
 
   leaderboardUnsubscribe = onSnapshot(leaderboardQuery, (snapshot) => {
+    isLeaderboardReady.value = true
     leaderboardEntries.value = snapshot.docs.map((leaderboardSnapshot) => ({
       ...leaderboardSnapshot.data(),
       userId: leaderboardSnapshot.id
     }) as TournamentLeaderboardEntry)
   }, (err) => {
+    isLeaderboardReady.value = true
     leaderboardEntries.value = []
     console.warn('[Tournament] Error listening to leaderboard:', err)
   })
 }
 
-function terminateLeaderboardListener() {
+function terminateLeaderboardListener(markReady = false) {
   if (leaderboardUnsubscribe) {
     leaderboardUnsubscribe()
     leaderboardUnsubscribe = null
   }
   leaderboardListenerKey = null
   leaderboardEntries.value = []
+  isLeaderboardReady.value = markReady
 }
 
 function initRoundsListener(eventId: string, seasonId: string) {
@@ -190,16 +206,21 @@ export function initParticipantListener(userId?: string, eventId?: string) {
     participantUnsubscribe = null
   }
   isUserRegistered.value = false
+  isParticipantStatusReady.value = false
   participantServerTimeOffset.value = 0
   isParticipantServerTimeReady.value = false
 
-  if (!userId) return
+  if (!userId) {
+    isParticipantStatusReady.value = true
+    return
+  }
 
   const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
   const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
   let serverClockSyncRequested = false
 
   participantUnsubscribe = onSnapshot(participantRef, (snapshot) => {
+    isParticipantStatusReady.value = true
     const participantData = snapshot.data()
     isUserRegistered.value = snapshot.exists()
 
@@ -221,6 +242,7 @@ export function initParticipantListener(userId?: string, eventId?: string) {
       isParticipantServerTimeReady.value = true
     }
   }, (err) => {
+    isParticipantStatusReady.value = true
     isUserRegistered.value = false
     isParticipantServerTimeReady.value = false
     console.warn('[Tournament] Error listening to participant registration:', err)
@@ -317,4 +339,6 @@ export function terminateTournamentListeners() {
   terminateRoundsListener()
   openedSeasonRounds.value = []
   seasonsEventId = null
+  isSeasonsReady.value = false
+  isParticipantStatusReady.value = false
 }

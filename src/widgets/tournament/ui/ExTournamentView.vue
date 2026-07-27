@@ -9,13 +9,19 @@
         <!-- CAROUSEL MODE: PURE BANNER VIEW -->
         <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
       
-      <!-- EMPTY STATE IF NO EVENTS -->
-      <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
-        [ SYSTEM // NO COMPETITION PROTOCOLS ACTIVE ]
+      <!-- INITIAL DATA LOADING -->
+      <div v-if="!isEventDataReady" class="flex min-h-[460px] w-full items-center justify-center bg-black">
+        <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-label="Loading"></div>
       </div>
 
-      <!-- CAROUSEL WRAPPER -->
-      <div v-else class="w-full flex items-center justify-between gap-3 sm:gap-6 md:gap-8">
+      <template v-else>
+        <!-- EMPTY STATE IF NO EVENTS -->
+        <div v-if="!activeEvent" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
+          [ SYSTEM // NO COMPETITION PROTOCOLS ACTIVE ]
+        </div>
+
+        <!-- CAROUSEL WRAPPER -->
+        <div v-else class="w-full flex items-center justify-between gap-3 sm:gap-6 md:gap-8">
         <!-- PREV BUTTON (OUTSIDE CONTAINER, NO BORDER) -->
         <button
           @click.stop="prevSlide"
@@ -144,7 +150,8 @@
         >
           <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
-      </div>
+        </div>
+      </template>
     </div>
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
@@ -635,6 +642,9 @@ import {
   isRegistering,
   isUserRegistered,
   leaderboardEntries,
+  isSeasonsReady,
+  isLeaderboardReady,
+  isParticipantStatusReady,
   participantServerTimeOffset,
   isParticipantServerTimeReady,
   checkRegistrationOpen,
@@ -736,6 +746,17 @@ const activeEvent = computed(() => {
 
 const targetEvent = computed(() => {
   return selectedEvent.value || activeEvent.value || null
+})
+
+const isEventDataReady = computed(() => {
+  if (
+    !authStore.authReady
+    || isTournamentLoading.value
+    || !isSeasonsReady.value
+    || !isLeaderboardReady.value
+  ) return false
+
+  return !authStore.user?.uid || isParticipantStatusReady.value
 })
 
 const isSingleEvent = computed(() => {
