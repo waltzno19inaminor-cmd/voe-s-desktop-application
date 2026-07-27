@@ -383,69 +383,112 @@
             {{ locale === 'ru' ? 'РАУНД' : 'ROUND' }} {{ currentRound }}
           </div>
 
-          <ExPanel
-            variant="light"
-            :show-corners="true"
-            :no-padding="true"
-            :no-shadow="true"
-            class="registered-voting-panel mt-20 w-full self-start sm:w-1/2"
-          >
-            <div class="px-4 py-3">
-              <div class="mb-3 flex flex-wrap items-center gap-5">
-                <span class="registered-fg font-mono text-[10px] font-black tracking-[0.12em]">
-                  {{ locale === 'ru' ? 'Выберите актив' : 'Select asset' }}
-                </span>
-
-                <div class="registered-muted flex items-center gap-1.5 font-mono text-[9px] font-black tracking-[0.08em]">
-                  <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                    <circle cx="12" cy="12" r="8.5" />
-                    <path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                  <span v-if="votingCompleted">{{ locale === 'ru' ? 'Закрыто' : 'Closed' }}</span>
-                  <span v-else>
-                    {{ locale === 'ru' ? 'Закроется через' : 'Closes in' }} {{ formattedVotingCountdown }}
+          <div class="mt-20 flex w-full min-h-0 flex-1 flex-col items-stretch gap-4 sm:flex-row">
+            <ExPanel
+              variant="light"
+              :show-corners="true"
+              :no-padding="true"
+              :no-shadow="true"
+              class="registered-voting-panel w-full sm:flex-1"
+            >
+              <div class="px-4 py-3">
+                <div class="mb-3 flex flex-wrap items-center gap-5">
+                  <span class="registered-fg font-mono text-[10px] font-black tracking-[0.12em]">
+                    {{ locale === 'ru' ? 'Выберите актив' : 'Select asset' }}
                   </span>
+
+                  <div class="registered-muted flex items-center gap-1.5 font-mono text-[9px] font-black tracking-[0.08em]">
+                    <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <circle cx="12" cy="12" r="8.5" />
+                      <path d="M12 7v5l3.5 2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <span v-if="votingCompleted">{{ locale === 'ru' ? 'Закрыто' : 'Closed' }}</span>
+                    <span v-else>
+                      {{ locale === 'ru' ? 'Закроется через' : 'Closes in' }} {{ formattedVotingCountdown }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <div
+                    v-for="asset in allowedTournamentAssets"
+                    :key="asset.key"
+                    class="registered-asset-chip group flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
+                    :class="selectedAssetKey === asset.key ? 'registered-asset-chip--selected' : ''"
+                    :aria-pressed="selectedAssetKey === asset.key"
+                    role="button"
+                    tabindex="0"
+                    @click="selectAsset(asset.key)"
+                    @keydown.enter.prevent="selectAsset(asset.key)"
+                    @keydown.space.prevent="selectAsset(asset.key)"
+                  >
+                    <img
+                      v-if="asset.icon"
+                      :src="asset.icon"
+                      :alt="asset.name"
+                      class="registered-asset-icon h-7 w-7 shrink-0 object-contain"
+                    >
+                    <span v-else class="registered-muted flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[10px] font-black">
+                      {{ asset.name.charAt(0) }}
+                    </span>
+                    <span class="registered-fg max-w-full line-clamp-2 font-mono text-[8px] font-black uppercase leading-tight tracking-[0.12em]">
+                      {{ asset.name }}
+                    </span>
+                  </div>
+
+                  <div
+                    class="registered-asset-chip registered-asset-chip--soon flex h-20 w-20 shrink-0 flex-col items-center justify-center border px-1.5 py-2 text-center"
+                    aria-disabled="true"
+                  >
+                    <span class="font-mono text-[8px] font-black uppercase tracking-[0.12em]">
+                      {{ locale === 'ru' ? 'Скоро' : 'Soon' }}
+                    </span>
+                  </div>
                 </div>
               </div>
+            </ExPanel>
 
-              <div class="flex flex-wrap items-center gap-2">
-                <div
-                  v-for="asset in allowedTournamentAssets"
-                  :key="asset.key"
-                  class="registered-asset-chip group flex h-20 w-20 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 border px-1.5 py-2 text-center"
-                  :class="selectedAssetKey === asset.key ? 'registered-asset-chip--selected' : ''"
-                  :aria-pressed="selectedAssetKey === asset.key"
-                  role="button"
-                  tabindex="0"
-                  @click="selectAsset(asset.key)"
-                  @keydown.enter.prevent="selectAsset(asset.key)"
-                  @keydown.space.prevent="selectAsset(asset.key)"
+            <div class="registered-selected-asset-card w-full sm:flex-1">
+              <div v-if="selectedAsset" class="flex h-full min-h-[280px] flex-col">
+                <div class="flex items-start gap-5">
+                <img
+                  v-if="selectedAsset.icon"
+                  :src="selectedAsset.icon"
+                  :alt="selectedAsset.name"
+                  class="h-20 w-20 shrink-0 object-contain"
                 >
-                  <img
-                    v-if="asset.icon"
-                    :src="asset.icon"
-                    :alt="asset.name"
-                    class="registered-asset-icon h-7 w-7 shrink-0 object-contain"
-                  >
-                  <span v-else class="registered-muted flex h-7 w-7 shrink-0 items-center justify-center font-mono text-[10px] font-black">
-                    {{ asset.name.charAt(0) }}
-                  </span>
-                  <span class="registered-fg max-w-full line-clamp-2 font-mono text-[8px] font-black uppercase leading-tight tracking-[0.12em]">
-                    {{ asset.name }}
-                  </span>
+                <span v-else class="registered-muted flex h-20 w-20 shrink-0 items-center justify-center font-mono text-2xl font-black">
+                  {{ selectedAsset.name.charAt(0) }}
+                </span>
+                <span class="registered-fg max-w-full pt-1 font-mono text-xl font-black leading-tight tracking-[0.1em] sm:text-2xl">
+                  {{ selectedAsset.name }}
+                </span>
                 </div>
 
-                <div
-                  class="registered-asset-chip registered-asset-chip--soon flex h-20 w-20 shrink-0 flex-col items-center justify-center border px-1.5 py-2 text-center"
-                  aria-disabled="true"
-                >
-                  <span class="font-mono text-[8px] font-black uppercase tracking-[0.12em]">
-                    {{ locale === 'ru' ? 'Скоро' : 'Soon' }}
-                  </span>
+                <div class="mt-auto pt-12">
+                  <div class="flex items-center justify-between px-1 font-mono text-[10px] font-black tracking-[0.12em]">
+                    <span class="registered-vote-long-text">Long {{ longVotePercentage }}%</span>
+                    <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
+                  </div>
+
+                  <div class="registered-vote-track relative mx-1 mt-2 h-1">
+                    <div
+                      class="registered-vote-long absolute inset-y-0 left-0"
+                      :style="{ width: `${longVotePercentage}%` }"
+                    ></div>
+                    <div
+                      class="registered-vote-short absolute inset-y-0 right-0"
+                      :style="{ width: `${shortVotePercentage}%` }"
+                    ></div>
+                    <div
+                      class="registered-vote-marker absolute top-1/2 h-4 w-0.5 -translate-x-1/2 -translate-y-1/2"
+                      :style="{ left: `${voteSplitPercentage}%` }"
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
-          </ExPanel>
+          </div>
         </div>
       </div>
 
@@ -467,7 +510,7 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import globalAssets from '~/shared/data/global_assets.json'
-import type { TournamentEvent, TournamentRound } from '~/widgets/tournament/model/tournament.types'
+import type { TournamentEvent, TournamentPrediction, TournamentRound } from '~/widgets/tournament/model/tournament.types'
 import {
   allTournaments,
   openedSeason,
@@ -674,6 +717,7 @@ const allowedTournamentAssets = computed(() => {
 
     return {
       key: `${requestedSymbol || 'asset'}-${index}`,
+      symbol: rawAsset?.symbol || requestedSymbol,
       name: rawAsset?.name || rawAsset?.symbol || requestedSymbol,
       icon: globalAsset?.icon || ''
     }
@@ -685,6 +729,76 @@ const selectedAssetKey = ref('')
 const selectAsset = (assetKey: string) => {
   selectedAssetKey.value = assetKey
 }
+
+const selectedAsset = computed(() => {
+  return allowedTournamentAssets.value.find((asset) => asset.key === selectedAssetKey.value) || allowedTournamentAssets.value[0] || null
+})
+
+const roundPredictions = computed<TournamentPrediction[]>(() => {
+  const round = displayedRound.value?.round
+  const predictions = round?.predicitions ?? round?.predictions
+  return Array.isArray(predictions) ? predictions : []
+})
+
+const normalizeAssetIdentifier = (value: unknown) => {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+const getPredictionAssetIdentifier = (prediction: TournamentPrediction) => {
+  const candidate = prediction.assetSymbol ?? prediction.symbol ?? prediction.asset
+  if (candidate && typeof candidate === 'object') {
+    return candidate.symbol || candidate.name || ''
+  }
+  return candidate || ''
+}
+
+const selectedAssetPredictions = computed(() => {
+  const predictions = roundPredictions.value
+  const asset = selectedAsset.value
+  if (!asset) return []
+
+  const assetIdentifiers = new Set([
+    normalizeAssetIdentifier(asset.symbol),
+    normalizeAssetIdentifier(asset.name)
+  ].filter(Boolean))
+
+  const predictionsWithAsset = predictions.filter((prediction) => {
+    return Boolean(normalizeAssetIdentifier(getPredictionAssetIdentifier(prediction)))
+  })
+
+  if (!predictionsWithAsset.length) return predictions
+
+  return predictions.filter((prediction) => {
+    return assetIdentifiers.has(normalizeAssetIdentifier(getPredictionAssetIdentifier(prediction)))
+  })
+})
+
+const getPredictionDirection = (prediction: TournamentPrediction) => {
+  const rawPrediction = prediction as TournamentPrediction & { side?: string; prediction?: string; type?: string }
+  return String(prediction.predict || prediction.direction || rawPrediction.side || rawPrediction.prediction || rawPrediction.type || '').toUpperCase()
+}
+
+const longVoteCount = computed(() => {
+  return selectedAssetPredictions.value.filter((prediction) => getPredictionDirection(prediction) === 'LONG').length
+})
+
+const shortVoteCount = computed(() => {
+  return selectedAssetPredictions.value.filter((prediction) => getPredictionDirection(prediction) === 'SHORT').length
+})
+
+const longVotePercentage = computed(() => {
+  const totalVotes = longVoteCount.value + shortVoteCount.value
+  if (!totalVotes) return 0
+  return Math.round((longVoteCount.value / totalVotes) * 100)
+})
+
+const shortVotePercentage = computed(() => {
+  return 100 - longVotePercentage.value
+})
+
+const voteSplitPercentage = computed(() => {
+  return longVoteCount.value + shortVoteCount.value ? longVotePercentage.value : 50
+})
 
 const formattedVotingCountdown = computed(() => {
   const endsAtMillis = displayedRound.value?.endsAtMillis || 0
@@ -995,6 +1109,38 @@ onUnmounted(() => {
 .registered-asset-chip--soon:hover {
   background-color: transparent;
   border-color: var(--registered-border);
+}
+
+.registered-selected-asset-card {
+  border-color: var(--registered-border);
+  border-style: solid;
+  border-width: 1px;
+  min-height: max(280px, calc(100% - 12rem));
+  padding: 1rem;
+}
+
+.registered-vote-track {
+  background-color: var(--registered-border);
+}
+
+.registered-vote-long {
+  background-color: #5c9f78;
+}
+
+.registered-vote-short {
+  background-color: #b86a6a;
+}
+
+.registered-vote-marker {
+  background-color: var(--registered-fg);
+}
+
+.registered-vote-long-text {
+  color: #5c9f78;
+}
+
+.registered-vote-short-text {
+  color: #b86a6a;
 }
 
 .registered-voting-panel :deep(.theme-panel-backdrop) {
