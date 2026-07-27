@@ -1,9 +1,7 @@
 export type TournamentPredictionDirection = 'LONG' | 'SHORT'
 
 export interface TournamentPrediction {
-  id?: string
   userId?: string
-  displayName?: string
   assetId?: string
   asset?: string | { symbol?: string; name?: string }
   predict?: TournamentPredictionDirection | string
@@ -28,7 +26,6 @@ export interface SubmitTournamentPredictionInput {
   seasonId: string
   roundId: string
   userId: string
-  displayName: string
   assetId: string
   asset: string
   predict: TournamentPredictionDirection

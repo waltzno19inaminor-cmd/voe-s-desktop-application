@@ -17,7 +17,6 @@ export async function submitTournamentPrediction(input: SubmitTournamentPredicti
     || !input.seasonId
     || !input.roundId
     || !input.userId
-    || !input.displayName
     || !input.assetId
     || !input.asset
   ) {
@@ -39,7 +38,6 @@ export async function submitTournamentPrediction(input: SubmitTournamentPredicti
 
   await setDoc(predictionRef, {
     userId: input.userId,
-    displayName: input.displayName,
     assetId: input.assetId,
     asset: input.asset,
     predict: input.predict,
