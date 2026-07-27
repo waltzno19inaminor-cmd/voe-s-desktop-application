@@ -59,6 +59,11 @@
                   </span>
                 </div>
 
+                <!-- CURRENT SEASON -->
+                <div v-if="openedSeason?.id" class="font-mono text-xs font-black uppercase tracking-[0.28em] text-white/75">
+                  {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+                </div>
+
                 <!-- EVENT TITLE -->
                 <ExHeading 
                   level="h1" 
@@ -74,13 +79,21 @@
                 </p>
 
                 <!-- ENTER EVENT BUTTON ("ПЕРЕЙТИ В СОБЫТИЕ") -->
-                <div class="pt-4">
+                <div class="flex flex-wrap items-center gap-3 pt-4">
                   <button
                     @click="selectEvent(activeEvent)"
                     class="px-8 py-4 border-2 border-white bg-white text-black font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black/80 hover:text-white hover:border-white shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer flex items-center space-x-3.5 group/enter"
                   >
                     <span>{{ t('tournament.enterEvent') || 'ENTER EVENT' }}</span>
                     <svg class="w-4 h-4 transform group-hover/enter:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+
+                  <button
+                    v-if="isUserRegistered"
+                    type="button"
+                    class="border-2 border-white/75 bg-black/25 px-8 py-4 font-mono text-xs font-black uppercase tracking-[0.25em] text-white backdrop-blur-sm transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
+                  >
+                    {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
                   </button>
                 </div>
               </div>
