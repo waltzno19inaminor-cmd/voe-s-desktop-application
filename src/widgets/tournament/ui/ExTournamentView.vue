@@ -2,85 +2,21 @@
   <Transition name="exforum-page-reify" appear>
     <div 
       class="w-full h-full flex flex-col items-center text-theme-text font-mono transition-colors duration-300 select-none relative scroll-minimal"
-      :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : showLeaderboard ? 'justify-start overflow-hidden pt-6 pb-24' : 'justify-center overflow-hidden'"
+      :class="selectedEvent ? 'justify-start overflow-y-auto pt-6 pb-24' : 'justify-center overflow-hidden'"
     >
       
       <Transition name="fade-slide" mode="out-in">
         <!-- CAROUSEL MODE: PURE BANNER VIEW -->
-        <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center px-3 sm:px-6" :class="showLeaderboard ? 'justify-start' : 'justify-center my-auto'">
+        <div v-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
       
       <!-- INITIAL DATA LOADING -->
       <div v-if="!isEventDataReady" class="flex min-h-[460px] w-full items-center justify-center bg-black">
         <div class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-label="Loading"></div>
       </div>
 
-      <template v-else>
-        <Transition name="leaderboard-page" mode="out-in">
-        <div
-          v-if="showLeaderboard"
-          class="leaderboard-page relative flex min-h-0 w-full flex-col items-start justify-start overflow-hidden px-4 py-10"
-          :class="themeStore.settings.isDark ? 'leaderboard-page--dark' : 'leaderboard-page--light'"
-        >
-          <img
-            v-if="activeEvent?.imageUrl"
-            :src="activeEvent.imageUrl"
-            :alt="getEventTitle(activeEvent)"
-            class="leaderboard-page__image absolute inset-0 h-full w-full object-cover"
-          >
-
-          <div class="relative z-10 mx-auto flex min-h-0 w-full max-w-6xl flex-col">
-            <div class="mb-8 flex items-start justify-between gap-4">
-              <button
-                type="button"
-                class="leaderboard-page__muted font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
-                @click="showLeaderboard = false"
-              >
-                {{ locale === 'ru' ? 'Назад' : 'Back' }}
-              </button>
-              <div class="leaderboard-page__muted text-right font-mono text-[10px] font-black uppercase tracking-[0.2em]">
-                {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
-              </div>
-            </div>
-
-            <div class="text-center">
-              <ExHeading level="h1" variant="cinematic" class="leaderboard-page__heading !text-4xl !leading-tight !tracking-[0.14em] sm:!text-6xl">
-                {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
-              </ExHeading>
-            </div>
-
-            <div v-if="!isLeaderboardNamesReady" class="mt-12 flex min-h-[220px] items-center justify-center">
-              <div class="leaderboard-page__spinner h-10 w-10 animate-spin rounded-full border-2" aria-label="Loading"></div>
-            </div>
-
-            <div v-else class="leaderboard-page__table relative mt-10 flex min-h-0 flex-col overflow-visible font-mono">
-              <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--top" />
-              <div v-if="leaderboardEntries.length" class="leaderboard-page__rows relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-                <div class="leaderboard-page__table-header sticky top-0 z-10">
-                  <div class="leaderboard-page__muted min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] gap-3 px-6 py-3 text-[9px] font-black uppercase tracking-[0.16em] sm:grid-cols-[4rem_minmax(0,1fr)_7rem_7rem] sm:gap-4 sm:px-12 sm:tracking-[0.2em]">
-                    <span>#</span>
-                    <span class="text-center">{{ locale === 'ru' ? 'УЧАСТНИК' : 'PARTICIPANT' }}</span>
-                    <span class="text-right">{{ locale === 'ru' ? 'ВЕРНЫЕ' : 'CORRECT' }}</span>
-                    <span class="text-right">{{ locale === 'ru' ? 'ОЧКИ' : 'POINTS' }}</span>
-                  </div>
-                  <ExDivider variant="simple" spacing="none" class="leaderboard-page__table-divider" />
-                </div>
-                <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="leaderboard-page__participant min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] items-center gap-3 px-6 py-4 text-sm sm:grid-cols-[4rem_minmax(0,1fr)_7rem_7rem] sm:gap-4 sm:px-12 sm:text-base">
-                  <span class="leaderboard-page__muted">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <span class="w-full truncate text-center font-black tracking-[0.08em]">{{ leaderboardDisplayNames[entry.userId] || entry.userId }}</span>
-                  <span class="text-right font-black tracking-[0.12em]">{{ entry.correctPredictions ?? 0 }}</span>
-                  <span class="text-right font-black tracking-[0.12em]">{{ entry.points }}</span>
-                </div>
-              </div>
-              <div v-else class="leaderboard-page__muted relative z-10 flex min-h-0 flex-1 items-center justify-center text-[10px] font-black uppercase tracking-[0.2em]">
-                {{ locale === 'ru' ? 'Пока нет участников' : 'No participants yet' }}
-              </div>
-              <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--bottom" />
-            </div>
-          </div>
-        </div>
-
+      <div v-else class="contents">
         <!-- EMPTY STATE IF NO EVENTS -->
-        <div v-else-if="!activeEvent" key="empty-state" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
+        <div v-if="!activeEvent" key="empty-state" class="p-12 text-center text-theme-text/60 font-mono text-sm uppercase tracking-widest border border-theme-border/40">
           [ SYSTEM // NO COMPETITION PROTOCOLS ACTIVE ]
         </div>
 
@@ -120,8 +56,64 @@
               <div class="absolute bottom-4 left-4 w-6 h-6 border-b-2 border-l-2 border-white/50 pointer-events-none z-10"></div>
               <div class="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
 
-              <!-- BANNER OVERLAY CONTENT -->
-              <div class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
+              <Transition name="leaderboard-card" mode="out-in">
+                <div
+                  v-if="showLeaderboard"
+                  key="leaderboard-card"
+                  class="leaderboard-page absolute inset-0 z-20 flex flex-col overflow-hidden px-6 py-6 sm:px-10 sm:py-8"
+                  :class="themeStore.settings.isDark ? 'leaderboard-page--dark' : 'leaderboard-page--light'"
+                >
+                  <div class="relative z-10 mb-4 flex shrink-0 items-start justify-between gap-4">
+                    <button
+                      type="button"
+                      class="leaderboard-page__muted font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+                      @click.stop="showLeaderboard = false"
+                    >
+                      {{ locale === 'ru' ? 'Назад' : 'Back' }}
+                    </button>
+                    <div class="leaderboard-page__muted text-right font-mono text-[10px] font-black uppercase tracking-[0.2em]">
+                      {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+                    </div>
+                  </div>
+
+                  <div class="relative z-10 shrink-0 text-center">
+                    <ExHeading level="h1" variant="cinematic" class="leaderboard-page__heading pearlescent-text !text-3xl !leading-tight !tracking-[0.14em] sm:!text-5xl">
+                      {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
+                    </ExHeading>
+                  </div>
+
+                  <div v-if="!isLeaderboardNamesReady" class="relative z-10 flex min-h-0 flex-1 items-center justify-center">
+                    <div class="leaderboard-page__spinner h-8 w-8 animate-spin rounded-full border-2" aria-label="Loading"></div>
+                  </div>
+
+                  <div v-else class="leaderboard-page__table leaderboard-page__table--card relative z-10 mt-4 flex min-h-0 flex-1 flex-col overflow-visible font-mono">
+                    <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--top" />
+                    <div v-if="leaderboardEntries.length" class="leaderboard-page__rows relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+                      <div class="leaderboard-page__table-header sticky top-0 z-10">
+                        <div class="leaderboard-page__muted min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] gap-3 px-2 py-2 text-[8px] font-black uppercase tracking-[0.12em] sm:grid-cols-[3rem_minmax(0,1fr)_6rem_6rem] sm:gap-4 sm:px-4 sm:tracking-[0.18em]">
+                          <span>#</span>
+                          <span class="text-center">{{ locale === 'ru' ? 'УЧАСТНИК' : 'PARTICIPANT' }}</span>
+                          <span class="text-right">{{ locale === 'ru' ? 'ВЕРНЫЕ' : 'CORRECT' }}</span>
+                          <span class="text-right">{{ locale === 'ru' ? 'ОЧКИ' : 'POINTS' }}</span>
+                        </div>
+                        <ExDivider variant="simple" spacing="none" class="leaderboard-page__table-divider" />
+                      </div>
+                      <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="leaderboard-page__participant min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] items-center gap-3 px-2 py-3 text-xs sm:grid-cols-[3rem_minmax(0,1fr)_6rem_6rem] sm:gap-4 sm:px-4 sm:text-sm">
+                        <span class="leaderboard-page__muted">{{ String(index + 1).padStart(2, '0') }}</span>
+                        <span class="w-full truncate text-center font-black tracking-[0.06em]">{{ leaderboardDisplayNames[entry.userId] || entry.userId }}</span>
+                        <span class="text-right font-black tracking-[0.1em]">{{ entry.correctPredictions ?? 0 }}</span>
+                        <span class="text-right font-black tracking-[0.1em]">{{ entry.points }}</span>
+                      </div>
+                    </div>
+                    <div v-else class="leaderboard-page__muted relative z-10 flex min-h-0 flex-1 items-center justify-center text-[9px] font-black uppercase tracking-[0.18em]">
+                      {{ locale === 'ru' ? 'Пока нет участников' : 'No participants yet' }}
+                    </div>
+                    <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--bottom" />
+                  </div>
+                </div>
+
+                <!-- BANNER OVERLAY CONTENT -->
+                <div v-else key="banner-content" class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
                 <!-- EVENT TYPE BADGE -->
                 <div v-if="activeEvent.type !== 'classic'" class="flex items-center gap-3">
                   <span class="px-3 py-1 text-[11px] sm:text-xs font-mono uppercase tracking-[0.25em] border border-white/40 bg-black/40 text-white/90 backdrop-blur-sm">
@@ -168,6 +160,7 @@
                   </button>
                 </div>
               </div>
+              </Transition>
             </div>
           </Transition>
         </div>
@@ -182,8 +175,7 @@
           <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
         </div>
-        </Transition>
-      </template>
+      </div>
     </div>
 
         <!-- DETAIL MODE: TACTICAL EVENT BRIEFING -->
@@ -1729,11 +1721,23 @@ onUnmounted(() => {
   color: var(--leaderboard-fg) !important;
 }
 
+.leaderboard-page__heading.pearlescent-text {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent;
+}
+
 .leaderboard-page__table {
+  isolation: isolate;
   background-color: var(--leaderboard-table-bg);
   height: min(55vh, 30rem);
   max-height: calc(100vh - 16rem);
   min-height: 180px;
+}
+
+.leaderboard-page__table--card {
+  height: auto;
+  max-height: none;
+  min-height: 0;
 }
 
 .leaderboard-page :deep(.leaderboard-page__table-divider .bg-theme-border),
@@ -1796,6 +1800,33 @@ onUnmounted(() => {
 .leaderboard-page-leave-to {
   opacity: 0;
   transform: translateY(18px) scale(0.985);
+}
+
+.leaderboard-card-enter-active,
+.leaderboard-card-leave-active {
+  transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.leaderboard-card-enter-from,
+.leaderboard-card-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+}
+
+.leaderboard-page__table--card {
+  transform-origin: top center;
+  animation: leaderboard-table-unfold 1.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes leaderboard-table-unfold {
+  0% {
+    opacity: 0.35;
+    transform: scaleY(0.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
 }
 
 .pearlescent-bg {
