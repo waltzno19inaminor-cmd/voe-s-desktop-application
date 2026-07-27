@@ -502,7 +502,7 @@
                 </div>
 
                 <div class="mt-4">
-                  <div class="registered-vote-track relative mx-1 h-1.5">
+                  <div class="registered-vote-track relative mx-1 h-[20px]">
                     <div
                       class="registered-vote-long absolute inset-y-0 left-0"
                       :style="{ width: `${longVotePercentage}%` }"
@@ -521,6 +521,10 @@
                     <span class="registered-vote-long-text">{{ longVotePercentage }}% Long</span>
                     <span class="registered-vote-short-text">Short {{ shortVotePercentage }}%</span>
                   </div>
+
+                  <p class="registered-vote-guidance mt-3 px-1 font-mono text-[20px] font-bold leading-relaxed tracking-[0.08em]">
+                    {{ votingGuidance }}
+                  </p>
 
                 </div>
 
@@ -918,6 +922,81 @@ const longVotePercentage = computed(() => {
 const shortVotePercentage = computed(() => {
   if (!longVoteCount.value && !shortVoteCount.value) return 0
   return 100 - longVotePercentage.value
+})
+
+const getTimeZoneDateParts = (millis: number, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  }).formatToParts(new Date(millis))
+
+  return parts.reduce<Record<string, number>>((result, part) => {
+    if (part.type !== 'literal') result[part.type] = Number(part.value)
+    return result
+  }, {})
+}
+
+const getTimeZoneOffsetMillis = (millis: number, timeZone: string) => {
+  const parts = getTimeZoneDateParts(millis, timeZone)
+  const wallClockMillis = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour || 0,
+    parts.minute || 0,
+    parts.second || 0
+  )
+
+  return wallClockMillis - millis
+}
+
+const getNewYorkTradingDayCloseMillis = (millis: number) => {
+  const timeZone = 'America/New_York'
+  const newYorkDate = getTimeZoneDateParts(millis, timeZone)
+  const tradingDayCloseAsUtc = Date.UTC(newYorkDate.year, newYorkDate.month - 1, newYorkDate.day, 16, 0, 0)
+  let closeMillis = tradingDayCloseAsUtc
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    closeMillis = tradingDayCloseAsUtc - getTimeZoneOffsetMillis(closeMillis, timeZone)
+  }
+
+  return closeMillis
+}
+
+const formatLocalTime = (millis: number) => {
+  return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    hourCycle: 'h23'
+  }).format(new Date(millis))
+}
+
+const localStockTradingDayClose = computed(() => {
+  return formatLocalTime(getNewYorkTradingDayCloseMillis(serverNowMillis.value))
+})
+
+const votingGuidance = computed(() => {
+  const assetType = String(selectedAsset.value?.type || '').toLowerCase()
+  const isStock = assetType.includes('stock') || assetType.includes('equity')
+
+  if (isStock) {
+    return locale.value === 'ru'
+      ? `Выберите направление актива до ${localStockTradingDayClose.value} (ваше местное время) · сессия NYSE 09:30:00–16:00:00 ET (до конца торгового дня)`
+      : `Choose the asset direction by ${localStockTradingDayClose.value} (your local time) · NYSE session 09:30:00–16:00:00 ET (before the end of the trading day)`
+  }
+
+  return locale.value === 'ru'
+    ? 'Выберите направление актива до 23:59:59 (ваше местное время)'
+    : 'Choose the asset direction by 23:59:59 (your local time)'
 })
 
 const voteSplitPercentage = computed(() => {
@@ -1383,6 +1462,11 @@ onUnmounted(() => {
 
 .registered-vote-short-text {
   color: #ef4444;
+}
+
+.registered-vote-guidance {
+  color: var(--registered-muted);
+  opacity: 0.82;
 }
 
 .registered-vote-action {
