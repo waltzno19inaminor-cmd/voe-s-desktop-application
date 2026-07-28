@@ -77,6 +77,36 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow create, update, delete: if false;
 
+        match /leaderboard/{userId} {
+          // Participants may read the leaderboard, but only create their own
+          // initial zero-score entry during tournament registration.
+          allow read: if isSignedIn();
+
+          allow create: if isOwner(userId)
+            && request.resource.data.keys().hasAll([
+              "userId",
+              "points",
+              "totalPredictions",
+              "correctPredictions",
+              "createdAt"
+            ])
+            && request.resource.data.keys().hasOnly([
+              "userId",
+              "points",
+              "totalPredictions",
+              "correctPredictions",
+              "createdAt"
+            ])
+            && request.resource.data.userId == request.auth.uid
+            && request.resource.data.points == 0
+            && request.resource.data.totalPredictions == 0
+            && request.resource.data.correctPredictions == 0
+            && request.resource.data.createdAt == request.time;
+
+          // Points and results must be updated by a trusted backend process.
+          allow update, delete: if false;
+        }
+
         match /rounds/{roundId} {
           allow read: if isSignedIn();
           allow create, update, delete: if false;

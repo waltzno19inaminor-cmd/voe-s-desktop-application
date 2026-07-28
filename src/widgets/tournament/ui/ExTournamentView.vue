@@ -912,21 +912,9 @@ const displayedRound = computed<{ ordinal: number; round: TournamentRound; start
   const rounds = seasonRounds.value
   if (!rounds.length) return null
 
-  const activeRound = rounds.find((round) => {
-    return round.startsAtMillis > 0
-      && round.endsAtMillis > round.startsAtMillis
-      && serverNowMillis.value >= round.startsAtMillis
-      && serverNowMillis.value < round.endsAtMillis
-  })
-
-  if (activeRound) return activeRound
-
-  const lastStartedRound = [...rounds]
-    .filter((round) => round.startsAtMillis > 0 && serverNowMillis.value >= round.startsAtMillis)
-    .sort((left, right) => left.startsAtMillis - right.startsAtMillis)
-    .at(-1)
-
-  return lastStartedRound || rounds[0]
+  return rounds.find((round) => {
+    return String(round.round.status || '').toLowerCase() === 'opened'
+  }) || null
 })
 
 const currentRound = computed(() => {
@@ -938,11 +926,16 @@ const currentRoundId = computed(() => {
   return displayedRound.value?.round.id || ''
 })
 
+const isDisplayedRoundOpened = computed(() => {
+  return String(displayedRound.value?.round.status || '').toLowerCase() === 'opened'
+})
+
 const isVotingOpen = computed(() => {
   const round = displayedRound.value
   if (!round || !isParticipantServerTimeReady.value) return false
 
-  return round.startsAtMillis > 0
+  return isDisplayedRoundOpened.value
+    && round.startsAtMillis > 0
     && round.endsAtMillis > round.startsAtMillis
     && serverNowMillis.value >= round.startsAtMillis
     && serverNowMillis.value < round.endsAtMillis
@@ -1355,7 +1348,8 @@ const evaluateEntranceAnimation = () => {
 
   clearIntroTimers()
   activeIntroSignature = signature
-  introStage.value = 'season'
+  const shouldShowSeasonIntro = currentRound.value === '01'
+  introStage.value = shouldShowSeasonIntro ? 'season' : 'round'
   entranceDecisionReady.value = false
   showEntranceAnimation.value = false
 
@@ -1365,15 +1359,17 @@ const evaluateEntranceAnimation = () => {
     entranceDecisionReady.value = true
     showEntranceAnimation.value = true
 
-    introTimers.push(setTimeout(() => {
-      if (activeIntroSignature === signature) introStage.value = 'round'
-    }, INTRO_STAGE_DURATION))
+    if (shouldShowSeasonIntro) {
+      introTimers.push(setTimeout(() => {
+        if (activeIntroSignature === signature) introStage.value = 'round'
+      }, INTRO_STAGE_DURATION))
+    }
 
     introTimers.push(setTimeout(() => {
       if (activeIntroSignature !== signature) return
       localStorage.setItem(storageKey, signature)
       showEntranceAnimation.value = false
-    }, INTRO_STAGE_DURATION * 2))
+    }, INTRO_STAGE_DURATION * (shouldShowSeasonIntro ? 2 : 1)))
   }, INTRO_INITIAL_DELAY))
 }
 

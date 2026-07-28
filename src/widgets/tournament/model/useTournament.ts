@@ -340,24 +340,37 @@ export async function registerForTournament(userId: string, userEmail?: string, 
   const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
   const leaderboardRef = doc(db, 'tournaments', targetEventId, 'seasons', targetSeasonId, 'leaderboard', userId)
   const registrationBatch = writeBatch(db)
+  const [participantSnapshot, leaderboardSnapshot] = await Promise.all([
+    getDoc(participantRef),
+    getDoc(leaderboardRef)
+  ])
+  let hasPendingWrites = false
 
-  registrationBatch.set(participantRef, {
-    userId,
-    registeredAt: serverTimestamp(),
-    serverTimeSyncAt: serverTimestamp(),
-    ...(userEmail ? { userEmail } : {}),
-    status: 'active'
-  })
+  if (!participantSnapshot.exists()) {
+    registrationBatch.set(participantRef, {
+      userId,
+      registeredAt: serverTimestamp(),
+      serverTimeSyncAt: serverTimestamp(),
+      ...(userEmail ? { userEmail } : {}),
+      status: 'active'
+    })
+    hasPendingWrites = true
+  }
 
-  registrationBatch.set(leaderboardRef, {
-    userId,
-    points: 0,
-    totalPredictions: 0,
-    correctPredictions: 0,
-    createdAt: serverTimestamp()
-  })
+  if (!leaderboardSnapshot.exists()) {
+    registrationBatch.set(leaderboardRef, {
+      userId,
+      points: 0,
+      totalPredictions: 0,
+      correctPredictions: 0,
+      createdAt: serverTimestamp()
+    })
+    hasPendingWrites = true
+  }
 
-  await registrationBatch.commit()
+  if (hasPendingWrites) {
+    await registrationBatch.commit()
+  }
 
   isUserRegistered.value = true
 }
