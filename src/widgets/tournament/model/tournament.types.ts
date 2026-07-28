@@ -17,7 +17,13 @@ export interface TournamentEvent {
   endDate: string      // ISO string or YYYY-MM-DD
   prizePool: string
   prizePoolRu?: string
-  allowedAssets?: Array<string | { symbol?: string; name?: string; type?: string }>
+  allowedAssets?: Array<string | {
+    symbol?: string
+    name?: string
+    type?: string
+    yahooSymbol?: string
+    session?: 'UTC_24H' | 'NYSE'
+  }>
   predictionsCloseHour?: number
   status: 'announced' | 'active' | 'finished'
   type?: 'limited' | 'classic' | string

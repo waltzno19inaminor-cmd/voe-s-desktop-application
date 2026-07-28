@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "exgenesis-tournament-round-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-28",
+  "workers_dev": true,
+  "triggers": {
+    "crons": [
+      "59 23 * * *"
+    ]
+  },
+  "vars": {
+    "FIREBASE_PROJECT_ID": "voes-a88f4",
+    "POINTS_PER_CORRECT": "25",
+    "POINTS_PER_INCORRECT": "-25",
+    "MARKET_DATA_DELAY_MINUTES": "0"
+  },
+  "secrets": {
+    "required": [
+      "FIREBASE_CLIENT_EMAIL",
+      "FIREBASE_PRIVATE_KEY",
+      "MANUAL_RUN_TOKEN"
+    ]
+  }
+}

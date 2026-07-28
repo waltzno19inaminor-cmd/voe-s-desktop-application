@@ -1,0 +1,17 @@
+{
+  "name": "exgenesis-tournament-round-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "dry-run": "wrangler dev"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260728.1",
+    "typescript": "^5.9.3",
+    "wrangler": "4.114.0"
+  }
+}
