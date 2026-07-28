@@ -101,6 +101,58 @@
                     />
                   </div>
 
+                  <div class="relative space-y-2">
+                    <label for="profile-overlay-status" class="block text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">{{ locale === 'ru' ? 'Статус' : 'Status' }}</label>
+                    <button
+                      id="profile-overlay-status"
+                      type="button"
+                      :disabled="isLoadingStatuses || !profileStatuses.length"
+                      :aria-expanded="isStatusDropdownOpen"
+                      class="group flex w-full items-center justify-between gap-4 border nier-border-primary bg-black/[0.03] px-4 py-3 text-left transition-colors duration-300 dark:bg-white/[0.03] hover:bg-black/[0.055] dark:hover:bg-white/[0.075] disabled:cursor-default disabled:opacity-45"
+                      @click="isStatusDropdownOpen = !isStatusDropdownOpen"
+                    >
+                      <span v-if="isLoadingStatuses" class="status-input-loader" role="status" :aria-label="locale === 'ru' ? 'Загрузка статусов' : 'Loading statuses'">
+                        <span class="status-input-loader__ring"></span>
+                      </span>
+                      <span
+                        v-else-if="selectedProfileStatus"
+                        class="status-token"
+                        :class="getStatusPresetClass(selectedProfileStatus.visualPreset)"
+                      >
+                        {{ selectedProfileStatus.name }}
+                      </span>
+                      <span v-else class="text-[9px] font-mono uppercase tracking-[0.25em] opacity-35">
+                        {{ profileStatuses.length ? (locale === 'ru' ? 'Не выбран' : 'Not selected') : (locale === 'ru' ? 'Нет доступных статусов' : 'No statuses granted') }}
+                      </span>
+                      <svg class="h-3 w-3 shrink-0 opacity-45 transition-transform duration-300" :class="isStatusDropdownOpen ? 'rotate-180' : ''" viewBox="0 0 12 12" aria-hidden="true">
+                        <path d="M2 4.25 6 8l4-3.75" fill="none" stroke="currentColor" stroke-linecap="square" stroke-width="1.25" />
+                      </svg>
+                    </button>
+
+                    <Transition name="status-dropdown">
+                      <div v-if="isStatusDropdownOpen" class="absolute z-30 mt-2 w-full overflow-hidden border nier-border-primary bg-theme-bg/95 shadow-[0_18px_45px_rgba(0,0,0,0.16)] backdrop-blur-xl dark:bg-[#090909]/95">
+                        <button
+                          v-for="status in profileStatuses"
+                          :key="getStatusKey(status)"
+                          type="button"
+                          :disabled="isSelectingStatus"
+                          class="flex w-full items-center justify-between gap-4 border-b nier-border-primary px-4 py-3 text-left last:border-b-0 transition-colors duration-200 hover:bg-black/[0.055] dark:hover:bg-white/[0.075] disabled:cursor-wait"
+                          :class="status.isSelected ? 'bg-black/[0.045] dark:bg-white/[0.065]' : ''"
+                          @click="selectStatus(status.name)"
+                        >
+                          <span class="flex min-w-0 items-center gap-3">
+                            <span class="status-token" :class="getStatusPresetClass(status.visualPreset)">{{ status.name }}</span>
+                            <span v-if="status.isSelected" class="text-[8px] font-mono uppercase tracking-[0.24em] opacity-45">{{ locale === 'ru' ? 'Активен' : 'Active' }}</span>
+                          </span>
+                          <time class="shrink-0 text-[8px] font-mono uppercase tracking-[0.18em] opacity-45">{{ formatStatusGrantedAt(status.granted) }}</time>
+                        </button>
+                      </div>
+                    </Transition>
+                    <p v-if="statusSelectionMessage" class="text-[8px] font-mono uppercase tracking-[0.22em] opacity-55">
+                      {{ statusSelectionMessage }}
+                    </p>
+                  </div>
+
                   <div class="space-y-2">
                     <label for="profile-overlay-email" class="block text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">{{ locale === 'ru' ? 'Адрес электронной почты' : 'Email address' }}</label>
                     <div class="relative">
@@ -199,8 +251,13 @@ const {
   isSubmitting,
   errorMessage,
   successMessage,
+  profileStatuses,
+  isLoadingStatuses,
+  isSelectingStatus,
+  statusSelectionMessage,
   loadProfile,
   saveProfile,
+  selectProfileStatus,
   locale
 } = useProfile()
 
@@ -212,6 +269,40 @@ const profileAccountType = computed(() => String(authStore.user?.type || 'common
 const emailLockedLabel = computed(() => locale.value === 'ru' ? 'ПОЧТА НЕИЗМЕНЯЕМА' : 'EMAIL LOCKED')
 const saveLabel = computed(() => locale.value === 'ru' ? 'СОХРАНИТЬ' : 'SAVE')
 const savingLabel = computed(() => locale.value === 'ru' ? 'СОХРАНЕНИЕ' : 'SAVING')
+const isStatusDropdownOpen = ref(false)
+const selectedProfileStatus = computed(() => profileStatuses.value.find((status) => status.isSelected) || null)
+
+const getStatusPresetClass = (preset: number) => `status-token--${Math.min(3, Math.max(0, Math.trunc(preset)))}`
+
+const getStatusKey = (status: { name: string; granted?: unknown }) => {
+  const granted = status.granted as { toMillis?: () => number } | undefined
+  return `${status.name}:${typeof granted?.toMillis === 'function' ? granted.toMillis() : String(status.granted || '')}`
+}
+
+const formatStatusGrantedAt = (value: unknown) => {
+  const timestamp = value as { toDate?: () => Date; toMillis?: () => number } | undefined
+  const date = typeof timestamp?.toDate === 'function'
+    ? timestamp.toDate()
+    : typeof timestamp?.toMillis === 'function'
+      ? new Date(timestamp.toMillis())
+      : value instanceof Date
+        ? value
+        : typeof value === 'number' || typeof value === 'string'
+          ? new Date(value)
+          : null
+
+  if (!date || Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(date)
+}
+
+const selectStatus = async (statusName: string) => {
+  await selectProfileStatus(statusName)
+  isStatusDropdownOpen.value = false
+}
 
 const activeTab = ref<'profile' | 'appearance'>('profile')
 
@@ -270,6 +361,7 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     activeTab.value = 'profile'
+    isStatusDropdownOpen.value = false
     void hydrateProfile()
   },
   { immediate: true }
@@ -286,5 +378,117 @@ watch(
 .profile-overlay-enter-from,
 .profile-overlay-leave-to {
   opacity: 0;
+}
+
+.status-dropdown-enter-active,
+.status-dropdown-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+  transform-origin: top;
+}
+
+.status-dropdown-enter-from,
+.status-dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px) scaleY(0.98);
+}
+
+.status-token {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  padding: 0.28rem 0.5rem 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.status-input-loader {
+  display: inline-flex;
+  height: 1.05rem;
+  width: 1.05rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.status-input-loader__ring {
+  height: 0.74rem;
+  width: 0.74rem;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  border-top-color: rgba(0, 0, 0, 0.88);
+  border-radius: 999px;
+  animation: status-loader-spin 620ms linear infinite;
+}
+
+:global(.dark) .status-input-loader__ring {
+  border-color: rgba(255, 255, 255, 0.24);
+  border-top-color: rgba(255, 255, 255, 0.92);
+}
+
+.status-token--0 {
+  border-color: rgba(255, 255, 255, 0.78);
+  background: linear-gradient(112deg, #070707 0%, #221338 32%, #75628d 49%, #24123a 68%, #080808 100%);
+  background-size: 240% 100%;
+  color: #fff;
+  box-shadow: 0 0 18px rgba(233, 219, 255, 0.38);
+  animation: status-monarch 4.8s ease-in-out infinite;
+}
+
+.status-token--1 {
+  border-color: rgba(135, 206, 255, 0.56);
+  background: linear-gradient(112deg, #09131d 0%, #164f79 47%, #a9dfff 100%);
+  background-size: 180% 100%;
+  color: #f7fcff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  animation: status-prism 6.4s ease-in-out infinite;
+}
+
+.status-token--2 {
+  border-color: rgba(234, 157, 92, 0.52);
+  background: linear-gradient(112deg, #24110a 0%, #8b3c1b 52%, #e0a15a 100%);
+  color: #fff9f1;
+  box-shadow: inset 0 1px 0 rgba(255, 225, 190, 0.2);
+}
+
+.status-token--3 {
+  border-color: rgba(126, 147, 166, 0.42);
+  background: linear-gradient(112deg, #1a2128 0%, #35424e 100%);
+  color: #eaf0f5;
+}
+
+@keyframes status-monarch {
+  0%,
+  100% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 11px rgba(233, 219, 255, 0.2);
+  }
+  50% {
+    background-position: 100% 50%;
+    box-shadow: 0 0 24px rgba(255, 255, 255, 0.55);
+  }
+}
+
+@keyframes status-prism {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes status-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
