@@ -12,7 +12,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId);
+      // Leaderboard needs public profile fields (displayName/photoURL) for signed-in users.
+      // Writes remain restricted to the profile owner below.
+      allow read: if isSignedIn();
 
       allow create: if isOwner(userId)
         && !request.resource.data.keys().hasAny([

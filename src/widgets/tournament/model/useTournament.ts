@@ -45,6 +45,7 @@ export const isRegistering = ref(false)
 export const isUserRegistered = ref(false)
 export const leaderboardEntries = ref<TournamentLeaderboardEntry[]>([])
 export const leaderboardDisplayNames = ref<Record<string, string>>({})
+export const leaderboardPhotoUrls = ref<Record<string, string>>({})
 export const isLeaderboardNamesReady = ref(false)
 export const isSeasonsReady = ref(false)
 export const isRoundsReady = ref(false)
@@ -168,6 +169,7 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
     isLeaderboardReady.value = true
     isLeaderboardNamesReady.value = true
     leaderboardDisplayNames.value = {}
+    leaderboardPhotoUrls.value = {}
     leaderboardEntries.value = []
     console.warn('[Tournament] Error listening to leaderboard:', err)
   })
@@ -176,25 +178,36 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
 async function loadLeaderboardDisplayNames(entries: TournamentLeaderboardEntry[], listenerKey: string) {
   if (!entries.length) {
     leaderboardDisplayNames.value = {}
+    leaderboardPhotoUrls.value = {}
     isLeaderboardNamesReady.value = true
     return
   }
 
-  const names = await Promise.all(entries.map(async (entry) => {
+  const profiles = await Promise.all(entries.map(async (entry) => {
     try {
-      const userSnapshot = await getDoc(doc(db, 'users', entry.userId))
-      const displayName = String(userSnapshot.data()?.displayName || '').trim()
-      return [entry.userId, displayName] as const
+      const userData = (await getDoc(doc(db, 'users', entry.userId))).data()
+      return {
+        userId: entry.userId,
+        displayName: String(userData?.displayName || '').trim(),
+        photoURL: String(userData?.photoURL || userData?.photoUrl || '').trim()
+      }
     } catch (err) {
       console.warn(`[Tournament] Failed to load display name for ${entry.userId}:`, err)
-      return [entry.userId, ''] as const
+      return { userId: entry.userId, displayName: '', photoURL: '' }
     }
   }))
 
   if (leaderboardListenerKey !== listenerKey) return
 
   leaderboardDisplayNames.value = Object.fromEntries(
-    names.filter(([, displayName]) => displayName)
+    profiles
+      .filter((profile) => profile.displayName)
+      .map((profile) => [profile.userId, profile.displayName])
+  )
+  leaderboardPhotoUrls.value = Object.fromEntries(
+    profiles
+      .filter((profile) => profile.photoURL)
+      .map((profile) => [profile.userId, profile.photoURL])
   )
   isLeaderboardNamesReady.value = true
 }
@@ -207,6 +220,7 @@ function terminateLeaderboardListener(markReady = false) {
   leaderboardListenerKey = null
   leaderboardEntries.value = []
   leaderboardDisplayNames.value = {}
+  leaderboardPhotoUrls.value = {}
   isLeaderboardNamesReady.value = markReady
   isLeaderboardReady.value = markReady
 }
@@ -338,6 +352,7 @@ export async function registerForTournament(userId: string, userEmail?: string, 
   registrationBatch.set(leaderboardRef, {
     userId,
     points: 0,
+    totalPredictions: 0,
     correctPredictions: 0,
     createdAt: serverTimestamp()
   })

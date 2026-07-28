@@ -28,7 +28,7 @@
             </div>
 
             <div class="relative z-10 shrink-0 text-center">
-              <ExHeading level="h1" variant="cinematic" class="leaderboard-page__heading pearlescent-text !text-3xl !leading-tight !tracking-[0.14em] sm:!text-5xl">
+              <ExHeading level="h1" variant="cinematic" class="leaderboard-page__heading !text-3xl !leading-tight !tracking-[0.14em] sm:!text-5xl">
                 {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
               </ExHeading>
             </div>
@@ -49,19 +49,51 @@
               <ExDivider variant="tactical" spacing="none" class="leaderboard-page__table-edge-divider leaderboard-page__table-edge-divider--top" />
               <div v-if="leaderboardEntries.length" class="leaderboard-page__rows relative z-10 min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
                 <div class="leaderboard-page__table-header sticky top-0 z-10">
-                  <div class="leaderboard-page__muted min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] gap-3 px-2 py-2 text-[8px] font-black uppercase tracking-[0.12em] sm:grid-cols-[3rem_minmax(0,1fr)_6rem_6rem] sm:gap-4 sm:px-4 sm:tracking-[0.18em]">
+                  <div class="leaderboard-page__table-row leaderboard-page__table-grid leaderboard-page__muted min-w-0 py-2 text-[8px] font-black uppercase tracking-[0.12em]">
                     <span>#</span>
-                    <span class="text-center">{{ locale === 'ru' ? 'УЧАСТНИК' : 'PARTICIPANT' }}</span>
+                    <span class="text-left">{{ locale === 'ru' ? 'УЧАСТНИК' : 'PARTICIPANT' }}</span>
+                    <span class="text-right">{{ locale === 'ru' ? 'ПРЕДИКТЫ' : 'PREDICTS' }}</span>
                     <span class="text-right">{{ locale === 'ru' ? 'ВЕРНЫЕ' : 'CORRECT' }}</span>
                     <span class="text-right">{{ locale === 'ru' ? 'ОЧКИ' : 'POINTS' }}</span>
+                    <span class="text-right">{{ locale === 'ru' ? 'ПРИЗ' : 'PRIZE' }}</span>
                   </div>
                   <ExDivider variant="simple" spacing="none" class="leaderboard-page__table-divider" />
                 </div>
-                <div v-for="(entry, index) in leaderboardEntries" :key="entry.userId" class="leaderboard-page__participant min-w-0 grid grid-cols-[2.5rem_minmax(0,1fr)_5rem_5rem] items-center gap-3 px-2 py-3 text-xs sm:grid-cols-[3rem_minmax(0,1fr)_6rem_6rem] sm:gap-4 sm:px-4 sm:text-sm">
+                <div
+                  v-for="(entry, index) in leaderboardEntries"
+                  :key="entry.userId"
+                  class="leaderboard-page__table-row leaderboard-page__table-grid leaderboard-page__participant min-w-0 items-center py-3 text-xs sm:text-sm"
+                  :class="{
+                    'leaderboard-page__top-row': index < 3,
+                    'leaderboard-page__top-row--first': index === 0,
+                    'leaderboard-page__top-row--second': index === 1,
+                    'leaderboard-page__top-row--third': index === 2
+                  }"
+                >
                   <span class="leaderboard-page__muted">{{ String(index + 1).padStart(2, '0') }}</span>
-                  <span class="w-full truncate text-center font-black tracking-[0.06em]">{{ leaderboardDisplayNames[entry.userId] || entry.userId }}</span>
+                  <div class="leaderboard-page__participant-identity min-w-0 flex items-center gap-3">
+                    <div class="leaderboard-page__participant-avatar shrink-0 overflow-hidden">
+                      <img
+                        v-if="leaderboardPhotoUrls[entry.userId]"
+                        :src="leaderboardPhotoUrls[entry.userId]"
+                        :alt="leaderboardDisplayNames[entry.userId] || entry.userId"
+                        class="h-full w-full object-cover"
+                      >
+                      <span v-else>
+                        {{ (leaderboardDisplayNames[entry.userId] || entry.userId).charAt(0).toUpperCase() }}
+                      </span>
+                    </div>
+                    <span
+                      class="min-w-0 truncate text-left font-black tracking-[0.06em]"
+                      :class="index < 2 ? 'leaderboard-page__top-name' : ''"
+                    >
+                      {{ leaderboardDisplayNames[entry.userId] || entry.userId }}
+                    </span>
+                  </div>
+                  <span class="text-right font-black tracking-[0.1em]">{{ entry.totalPredictions ?? entry.predictionsCount ?? 0 }}</span>
                   <span class="text-right font-black tracking-[0.1em]">{{ entry.correctPredictions ?? 0 }}</span>
                   <span class="text-right font-black tracking-[0.1em]">{{ entry.points }}</span>
+                  <span class="text-right font-black tracking-[0.1em]">{{ entry.prize || '—' }}</span>
                 </div>
               </div>
               <div v-else class="leaderboard-page__muted relative z-10 flex min-h-0 flex-1 items-center justify-center text-[9px] font-black uppercase tracking-[0.18em]">
@@ -76,7 +108,7 @@
         <div v-else-if="!selectedEvent" key="carousel" class="w-full max-w-[1400px] mx-auto flex flex-col items-center justify-center my-auto px-3 sm:px-6">
       
       <!-- INITIAL DATA LOADING -->
-      <div v-if="!isEventDataReady" class="flex min-h-[460px] w-full items-center justify-center">
+      <div v-if="!isEventDataReady" class="flex min-h-[280px] w-full items-center justify-center">
         <div
           class="h-10 w-10 animate-spin rounded-full border-2"
           :class="themeStore.settings.isDark ? 'border-white/20 border-t-white' : 'border-black/20 border-t-black'"
@@ -96,10 +128,9 @@
         <button
           @click.stop="prevSlide"
           :disabled="isSingleEvent"
-          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/prev shrink-0 focus:outline-none"
-          title="Previous Event"
+          class="carousel-event-nav flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/prev shrink-0 focus:outline-none"
         >
-          <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/prev:-translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+          <svg class="carousel-event-nav-icon transform group-hover/prev:-translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
 
         <!-- CAROUSEL BANNER STAGE (STRICTLY CENTERED) -->
@@ -107,7 +138,7 @@
           <Transition :name="slideDirection" mode="out-in">
             <div 
               :key="activeEvent.id || 'slide'" 
-              class="relative w-full h-[460px] min-h-[460px] sm:h-[500px] sm:min-h-[500px] md:h-[540px] md:min-h-[540px] lg:h-[580px] lg:min-h-[580px] shrink-0 border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
+              class="carousel-event-card relative w-full shrink-0 border border-theme-border overflow-hidden bg-black group shadow-[0_20px_60px_rgba(0,0,0,0.6)] flex flex-col justify-end"
             >
               <!-- BACKGROUND IMAGE -->
               <img 
@@ -127,16 +158,16 @@
               <div class="absolute bottom-4 right-4 w-6 h-6 border-b-2 border-r-2 border-white/50 pointer-events-none z-10"></div>
 
               <!-- BANNER OVERLAY CONTENT -->
-              <div key="banner-content" class="relative z-20 p-8 sm:p-12 md:p-16 max-w-4xl flex flex-col items-start space-y-4">
+              <div key="banner-content" class="carousel-event-content relative z-20 max-w-4xl flex flex-col items-start">
                 <!-- EVENT TYPE BADGE -->
                 <div v-if="activeEvent.type !== 'classic'" class="flex items-center gap-3">
-                  <span class="px-3 py-1 text-[11px] sm:text-xs font-mono uppercase tracking-[0.25em] border border-white/40 bg-black/40 text-white/90 backdrop-blur-sm">
+                  <span class="carousel-event-badge font-mono uppercase border border-white/40 bg-black/40 text-white/90 backdrop-blur-sm">
                     {{ activeEvent.type === 'classic' ? (t('tournament.types.classic') || 'CLASSIC') : (t('tournament.types.limited') || 'LIMITED') }}
                   </span>
                 </div>
 
                 <!-- CURRENT SEASON -->
-                <div v-if="openedSeason?.id" class="font-mono text-xs font-black uppercase tracking-[0.28em] text-white/75">
+                <div v-if="openedSeason?.id" class="carousel-event-season font-mono font-black uppercase text-white/75">
                   {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
                 </div>
 
@@ -144,30 +175,30 @@
                 <ExHeading 
                   level="h1" 
                   variant="cinematic" 
-                  class="!text-3xl sm:!text-4xl md:!text-5xl lg:!text-6xl !text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] !leading-tight !mb-0"
+                  class="carousel-event-title !text-white drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] !leading-tight !mb-0"
                 >
                   {{ getEventTitle(activeEvent) }}
                 </ExHeading>
 
                 <!-- TRUNCATED DESCRIPTION -->
-                <p class="text-xs sm:text-sm md:text-base font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
+                <p class="carousel-event-description font-mono text-white/85 line-clamp-2 sm:line-clamp-3 overflow-hidden text-ellipsis leading-relaxed tracking-wide max-w-3xl drop-shadow">
                   {{ getEventDescription(activeEvent) }}
                 </p>
 
                 <!-- ENTER EVENT BUTTON ("ПЕРЕЙТИ В СОБЫТИЕ") -->
-                <div class="flex flex-wrap items-center gap-3 pt-4">
+                <div class="carousel-event-actions flex flex-wrap items-center">
                   <button
                     @click="selectEvent(activeEvent)"
-                    class="px-8 py-4 border-2 border-white bg-white text-black font-mono text-xs sm:text-sm uppercase font-black tracking-[0.25em] transition-all duration-300 hover:bg-black/80 hover:text-white hover:border-white shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer flex items-center space-x-3.5 group/enter"
+                    class="carousel-event-button border-2 border-white bg-white text-black font-mono uppercase font-black transition-all duration-300 hover:bg-black/80 hover:text-white hover:border-white shadow-[0_0_30px_rgba(255,255,255,0.4)] cursor-pointer flex items-center group/enter"
                   >
                     <span>{{ t('tournament.enterEvent') || 'ENTER EVENT' }}</span>
-                    <svg class="w-4 h-4 transform group-hover/enter:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    <svg class="carousel-event-button-icon transform group-hover/enter:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                   </button>
 
                   <button
                     v-if="isUserRegistered"
                     type="button"
-                    class="border-2 border-white/75 bg-black/25 px-8 py-4 font-mono text-xs font-black uppercase tracking-[0.25em] text-white backdrop-blur-sm transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
+                    class="carousel-event-button border-2 border-white/75 bg-black/25 font-mono font-black uppercase text-white backdrop-blur-sm transition-all duration-300 hover:bg-white hover:text-black hover:border-white"
                     @click.stop="showLeaderboard = true"
                   >
                     {{ locale === 'ru' ? 'ЛИДЕРЫ' : 'LEADERS' }}
@@ -182,10 +213,9 @@
         <button
           @click.stop="nextSlide"
           :disabled="isSingleEvent"
-          class="w-10 sm:w-12 h-20 flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/next shrink-0 focus:outline-none"
-          title="Next Event"
+          class="carousel-event-nav flex items-center justify-center text-theme-text/60 hover:text-theme-text transition-all duration-300 disabled:opacity-15 disabled:cursor-default cursor-pointer group/next shrink-0 focus:outline-none"
         >
-          <svg class="w-7 sm:w-8 h-7 sm:h-8 transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          <svg class="carousel-event-nav-icon transform group-hover/next:translate-x-1.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
         </button>
         </div>
       </div>
@@ -698,6 +728,7 @@ import {
   isUserRegistered,
   leaderboardEntries,
   leaderboardDisplayNames,
+  leaderboardPhotoUrls,
   isLeaderboardNamesReady,
   isSeasonsReady,
   isRoundsReady,
@@ -1742,21 +1773,12 @@ onUnmounted(() => {
   color: var(--leaderboard-fg) !important;
 }
 
-.leaderboard-page__heading.pearlescent-text {
-  color: transparent !important;
-  -webkit-text-fill-color: transparent;
-}
-
-.leaderboard-page--light .leaderboard-page__heading.pearlescent-text {
-  filter: brightness(0.82);
-}
-
 .leaderboard-page--light .leaderboard-page__table {
-  --leaderboard-fg: #ffffff;
-  --leaderboard-muted: rgba(255, 255, 255, 0.58);
-  --leaderboard-border: rgba(255, 255, 255, 0.2);
-  --leaderboard-table-bg: rgba(8, 8, 8, 0.68);
-  --leaderboard-image-opacity: 0.25;
+  --leaderboard-fg: #111111;
+  --leaderboard-muted: rgba(17, 17, 17, 0.54);
+  --leaderboard-border: rgba(17, 17, 17, 0.2);
+  --leaderboard-table-bg: rgba(255, 255, 255, 0.68);
+  --leaderboard-image-opacity: 0.12;
   color: var(--leaderboard-fg);
 }
 
@@ -1778,12 +1800,106 @@ onUnmounted(() => {
   min-height: 180px;
 }
 
+.leaderboard-page__table-row {
+  padding-inline: clamp(1.5rem, 4vw, 4rem);
+}
+
+.leaderboard-page__table-grid {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 3.25rem 3.25rem 3.25rem 3.25rem;
+  gap: 0.65rem;
+}
+
+@media (min-width: 640px) {
+  .leaderboard-page__table-grid {
+    grid-template-columns: 3rem minmax(10rem, 20rem) 5rem 5rem 5rem 5rem;
+    gap: 1rem;
+    justify-content: center;
+  }
+}
+
+.leaderboard-page__participant-avatar {
+  display: flex;
+  width: clamp(1.75rem, 3vw, 2.5rem);
+  height: clamp(1.75rem, 3vw, 2.5rem);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--leaderboard-border);
+  background-color: var(--leaderboard-fg);
+  color: var(--leaderboard-table-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.7rem, 1vw, 0.9rem);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.leaderboard-page__top-name {
+  display: inline-block;
+  color: inherit;
+  background: none;
+  -webkit-text-fill-color: currentColor;
+  animation: leaderboard-top-name-glow 4.5s ease-in-out infinite;
+}
+
+@keyframes leaderboard-top-name-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 3px rgba(255, 255, 255, 0.24),
+      0 0 8px rgba(214, 240, 239, 0.12);
+  }
+  50% {
+    text-shadow:
+      0 0 5px rgba(255, 238, 252, 0.72),
+      0 0 12px rgba(198, 238, 239, 0.42),
+      0 0 20px rgba(250, 218, 237, 0.24);
+  }
+}
+
+.leaderboard-page--dark .leaderboard-page__top-row--first {
+  background-color: rgba(255, 255, 255, 1);
+  color: #000000;
+}
+
+.leaderboard-page--dark .leaderboard-page__top-row--second {
+  background-color: rgba(255, 255, 255, 0.78);
+  color: #000000;
+}
+
+.leaderboard-page--dark .leaderboard-page__top-row--third {
+  background-color: rgba(255, 255, 255, 0.56);
+  color: #000000;
+}
+
+.leaderboard-page--light .leaderboard-page__top-row--first {
+  background-color: rgba(17, 17, 17, 1);
+  color: #ffffff;
+}
+
+.leaderboard-page--light .leaderboard-page__top-row--second {
+  background-color: rgba(17, 17, 17, 0.78);
+  color: #ffffff;
+}
+
+.leaderboard-page--light .leaderboard-page__top-row--third {
+  background-color: rgba(17, 17, 17, 0.56);
+  color: #ffffff;
+}
+
+.leaderboard-page__top-row .leaderboard-page__muted {
+  color: inherit;
+  opacity: 0.65;
+}
+
+.leaderboard-page__top-row .leaderboard-page__participant-avatar {
+  border-color: currentColor;
+}
+
 .leaderboard-page__table-overlay {
   z-index: 1;
 }
 
 .leaderboard-page--light .leaderboard-page__table-overlay {
-  background-color: rgba(0, 0, 0, 0.68);
+  background-color: rgba(255, 255, 255, 0.68);
 }
 
 .leaderboard-page :deep(.leaderboard-page__table-divider .bg-theme-border),
@@ -1873,6 +1989,64 @@ onUnmounted(() => {
     opacity: 1;
     transform: scaleY(1);
   }
+}
+
+.carousel-event-card {
+  height: clamp(280px, 42vw, 580px);
+  min-height: 280px;
+  box-sizing: border-box;
+}
+
+.carousel-event-nav {
+  width: clamp(2rem, 3.2vw, 3rem);
+  height: clamp(3.5rem, 7vw, 5rem);
+}
+
+.carousel-event-nav-icon {
+  width: clamp(1.35rem, 2.1vw, 2rem);
+  height: clamp(1.35rem, 2.1vw, 2rem);
+}
+
+.carousel-event-content {
+  width: min(100%, 64rem);
+  padding: clamp(1rem, 4vw, 4rem);
+  gap: clamp(0.45rem, 1.1vw, 1rem);
+}
+
+.carousel-event-badge {
+  padding: clamp(0.25rem, 0.55vw, 0.5rem) clamp(0.55rem, 1vw, 0.75rem);
+  font-size: clamp(0.5rem, 0.75vw, 0.75rem);
+  letter-spacing: clamp(0.12em, 0.25vw, 0.25em);
+}
+
+.carousel-event-season {
+  font-size: clamp(0.6rem, 0.8vw, 0.75rem);
+  letter-spacing: clamp(0.14em, 0.28vw, 0.28em);
+}
+
+.carousel-event-title {
+  font-size: clamp(1.35rem, 4vw, 3.75rem) !important;
+}
+
+.carousel-event-description {
+  font-size: clamp(0.65rem, 1.1vw, 1rem);
+}
+
+.carousel-event-actions {
+  gap: clamp(0.45rem, 0.9vw, 0.75rem);
+  padding-top: clamp(0.25rem, 1.1vw, 1rem);
+}
+
+.carousel-event-button {
+  gap: clamp(0.45rem, 0.9vw, 0.875rem);
+  padding: clamp(0.55rem, 1.25vw, 1rem) clamp(0.8rem, 2.2vw, 2rem);
+  font-size: clamp(0.5rem, 0.8vw, 0.875rem);
+  letter-spacing: clamp(0.1em, 0.2vw, 0.25em);
+}
+
+.carousel-event-button-icon {
+  width: clamp(0.75rem, 1.2vw, 1rem);
+  height: clamp(0.75rem, 1.2vw, 1rem);
 }
 
 .pearlescent-bg {
