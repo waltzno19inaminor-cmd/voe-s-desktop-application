@@ -110,7 +110,6 @@ interface RunReport {
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const YAHOO_CHART_ENDPOINT = 'https://query1.finance.yahoo.com/v8/finance/chart'
-const DAY_MS = 24 * 60 * 60 * 1000
 const MINUTE_MS = 60 * 1000
 const MAX_ATOMIC_WRITES = 450
 
@@ -119,7 +118,7 @@ let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 export default {
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(
-      runDailySettlement(env, false)
+      runDailySettlement(env, false, controller.scheduledTime)
         .then((report) => console.log(JSON.stringify({
           trigger: 'cron',
           scheduledTime: new Date(controller.scheduledTime).toISOString(),
@@ -156,10 +155,10 @@ export default {
   }
 }
 
-async function runDailySettlement(env: Env, dryRun: boolean): Promise<RunReport> {
+async function runDailySettlement(env: Env, dryRun: boolean, nowMs = Date.now()): Promise<RunReport> {
   validateEnv(env)
 
-  const startedAt = new Date()
+  const startedAt = new Date(nowMs)
   const firestore = new FirestoreRestClient(env)
   const tournamentDocuments = await firestore.listDocuments('', 'tournaments')
   const tournamentResults: TournamentRunResult[] = []
@@ -171,7 +170,7 @@ async function runDailySettlement(env: Env, dryRun: boolean): Promise<RunReport>
         firestore,
         tournament,
         dryRun,
-        nowMs: Date.now()
+        nowMs
       }))
     } catch (error) {
       console.error(`[Tournament Worker] ${tournament.id} failed:`, serializeError(error))
@@ -236,6 +235,17 @@ async function settleTournament(input: {
     throw new Error('round.endsAt must be later than round.startsAt.')
   }
 
+  const nextRoundDay = getNextUtcCalendarDay(nowMs)
+  const tradingHolidays = readTradingHolidays(season.data.tradingHolidays)
+  if (!isTradingDay(nextRoundDay, tradingHolidays)) {
+    return {
+      tournamentId,
+      seasonId: season.id,
+      status: 'skipped',
+      reason: `Next calendar day ${formatUtcDate(nextRoundDay)} is not a trading day; keeping the current round opened.`
+    }
+  }
+
   const allowedAssets = requireArray(tournament.data.allowedAssets, 'tournament.allowedAssets')
     .map(resolveAllowedAsset)
   ensureUniqueAssetIds(allowedAssets)
@@ -282,8 +292,8 @@ async function settleTournament(input: {
   )
   const leaderboardByUserId = new Map(leaderboardDocuments.map((entry) => [entry.id, entry]))
 
-  const nextStartsAt = new Date(startsAt.getTime() + DAY_MS)
-  const nextEndsAt = new Date(endsAt.getTime() + DAY_MS)
+  const nextStartsAt = moveToUtcCalendarDay(startsAt, nextRoundDay)
+  const nextEndsAt = moveToUtcCalendarDay(endsAt, nextRoundDay)
   const nextRoundId = createRoundId(nextStartsAt)
   const nextRoundName = firestore.documentName(
     `tournaments/${tournamentId}/seasons/${season.id}/rounds/${nextRoundId}`
@@ -300,7 +310,7 @@ async function settleTournament(input: {
     const currentCorrect = readFiniteNumber(existing?.data.correctPredictions, 0)
     const fields = {
       userId,
-      points: currentPoints + delta.points,
+      points: Math.max(0, currentPoints + delta.points),
       totalPredictions: currentTotal + delta.totalPredictions,
       correctPredictions: currentCorrect + delta.correctPredictions,
       lastScoredRoundId: round.id
@@ -971,6 +981,56 @@ function findExactMinuteCandle(candles: YahooCandle[], targetMs: number): YahooC
 
 function floorToMinute(millis: number): number {
   return Math.floor(millis / MINUTE_MS) * MINUTE_MS
+}
+
+function getNextUtcCalendarDay(nowMs: number): Date {
+  const now = new Date(nowMs)
+  return new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + 1
+  ))
+}
+
+function moveToUtcCalendarDay(source: Date, targetDay: Date): Date {
+  return new Date(Date.UTC(
+    targetDay.getUTCFullYear(),
+    targetDay.getUTCMonth(),
+    targetDay.getUTCDate(),
+    source.getUTCHours(),
+    source.getUTCMinutes(),
+    source.getUTCSeconds(),
+    source.getUTCMilliseconds()
+  ))
+}
+
+function readTradingHolidays(value: unknown): Set<string> {
+  if (value === undefined || value === null) return new Set()
+
+  return new Set(requireArray(value, 'season.tradingHolidays').map((item, index) => {
+    const date = requireString(item, `season.tradingHolidays[${index}]`).trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`season.tradingHolidays[${index}] must use YYYY-MM-DD.`)
+    }
+    const parsed = new Date(`${date}T00:00:00.000Z`)
+    if (!Number.isFinite(parsed.getTime()) || formatUtcDate(parsed) !== date) {
+      throw new Error(`season.tradingHolidays[${index}] is not a real calendar date.`)
+    }
+    return date
+  }))
+}
+
+function isTradingDay(date: Date, tradingHolidays: Set<string>): boolean {
+  const dayOfWeek = date.getUTCDay()
+  return dayOfWeek !== 0 && dayOfWeek !== 6 && !tradingHolidays.has(formatUtcDate(date))
+}
+
+function formatUtcDate(date: Date): string {
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0')
+  ].join('-')
 }
 
 function createRoundId(startsAt: Date): string {
