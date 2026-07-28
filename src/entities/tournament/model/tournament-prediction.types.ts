@@ -17,6 +17,7 @@ export interface TournamentRound {
   startsAt?: any
   endsAt?: any
   status?: string
+  settlementAction?: string
   predicitions?: TournamentPrediction[]
   predictions?: TournamentPrediction[]
 }

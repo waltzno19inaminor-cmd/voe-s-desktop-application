@@ -408,18 +408,28 @@
         </div>
 
         <div
-          v-if="!displayedRound"
+          v-if="!displayedRound || isRoundCancellationRequested"
           class="registered-fg relative z-10 flex min-h-[420px] w-full flex-1 items-center justify-center px-4 text-center"
         >
           <div class="font-mono text-3xl font-black uppercase leading-tight tracking-[0.12em] sm:text-5xl lg:text-6xl">
-            <span class="block">{{ locale === 'ru' ? 'СОБЫТИЕ ЗАВЕРШЕНО' : 'EVENT COMPLETED' }}</span>
+            <span class="block">
+              {{
+                isRoundCancellationRequested
+                  ? (locale === 'ru' ? 'РАУНД ОТМЕНЕН' : 'ROUND CANCELLED')
+                  : (locale === 'ru' ? 'СОБЫТИЕ ЗАВЕРШЕНО' : 'EVENT COMPLETED')
+              }}
+            </span>
             <span class="registered-muted mt-5 block text-[0.52em] tracking-[0.18em]">
-              {{ locale === 'ru' ? 'НОВОЕ СОБЫТИЕ НА ПОДХОДЕ' : 'NEW EVENT INCOMING' }}
+              {{
+                isRoundCancellationRequested
+                  ? (locale === 'ru' ? 'СЛЕДУЮЩИЙ РАУНД НАЧНЕТСЯ СОВСЕМ СКОРО' : 'NEXT ROUND STARTS SOON')
+                  : (locale === 'ru' ? 'НОВОЕ СОБЫТИЕ НА ПОДХОДЕ' : 'NEW EVENT INCOMING')
+              }}
             </span>
           </div>
         </div>
 
-        <div v-if="displayedRound && entranceDecisionReady && !showEntranceAnimation && targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div v-if="displayedRound && !isRoundCancellationRequested && entranceDecisionReady && !showEntranceAnimation && targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
           <img
             :src="targetEvent.imageUrl"
             alt=""
@@ -427,7 +437,7 @@
           >
         </div>
 
-        <Transition v-if="displayedRound" name="season-entry" mode="out-in">
+        <Transition v-if="displayedRound && !isRoundCancellationRequested" name="season-entry" mode="out-in">
           <div v-if="!entranceDecisionReady" key="season-entry-wait" class="absolute inset-0 h-full w-full"></div>
           <div
             v-else-if="showEntranceAnimation"
@@ -522,7 +532,7 @@
           </div>
         </div>
 
-        <div v-if="displayedRound && entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex h-full w-full min-h-0 flex-1 flex-col items-start text-left">
+        <div v-if="displayedRound && !isRoundCancellationRequested && entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex h-full w-full min-h-0 flex-1 flex-col items-start text-left">
           <div class="registered-fg font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
           </div>
@@ -953,6 +963,10 @@ const currentRoundId = computed(() => {
   return displayedRound.value?.round.id || ''
 })
 
+const isRoundCancellationRequested = computed(() => {
+  return String(displayedRound.value?.round.settlementAction || '').trim().toLowerCase() === 'cancel'
+})
+
 const isDisplayedRoundOpened = computed(() => {
   return String(displayedRound.value?.round.status || '').toLowerCase() === 'opened'
 })
@@ -961,7 +975,7 @@ const isVotingOpen = computed(() => {
   const round = displayedRound.value
   if (!round || !isParticipantServerTimeReady.value) return false
 
-  return isDisplayedRoundOpened.value
+  return isDisplayedRoundOpened.value && !isRoundCancellationRequested.value
     && round.startsAtMillis > 0
     && round.endsAtMillis > round.startsAtMillis
     && serverNowMillis.value >= round.startsAtMillis
