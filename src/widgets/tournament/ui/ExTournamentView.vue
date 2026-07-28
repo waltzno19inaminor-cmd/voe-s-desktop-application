@@ -397,7 +397,29 @@
         :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
         aria-label="Participant page"
       >
-        <div v-if="entranceDecisionReady && !showEntranceAnimation && targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div class="relative z-20 mb-4 flex shrink-0 items-start">
+          <button
+            type="button"
+            class="registered-back-button registered-muted font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+            @click.stop="selectedEvent = null"
+          >
+            {{ locale === 'ru' ? 'Назад' : 'Back' }}
+          </button>
+        </div>
+
+        <div
+          v-if="!displayedRound"
+          class="registered-fg relative z-10 flex min-h-[420px] w-full flex-1 items-center justify-center px-4 text-center"
+        >
+          <div class="font-mono text-3xl font-black uppercase leading-tight tracking-[0.12em] sm:text-5xl lg:text-6xl">
+            <span class="block">{{ locale === 'ru' ? 'СОБЫТИЕ ЗАВЕРШЕНО' : 'EVENT COMPLETED' }}</span>
+            <span class="registered-muted mt-5 block text-[0.52em] tracking-[0.18em]">
+              {{ locale === 'ru' ? 'НОВОЕ СОБЫТИЕ НА ПОДХОДЕ' : 'NEW EVENT INCOMING' }}
+            </span>
+          </div>
+        </div>
+
+        <div v-if="displayedRound && entranceDecisionReady && !showEntranceAnimation && targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
           <img
             :src="targetEvent.imageUrl"
             alt=""
@@ -405,7 +427,7 @@
           >
         </div>
 
-        <Transition name="season-entry" mode="out-in">
+        <Transition v-if="displayedRound" name="season-entry" mode="out-in">
           <div v-if="!entranceDecisionReady" key="season-entry-wait" class="absolute inset-0 h-full w-full"></div>
           <div
             v-else-if="showEntranceAnimation"
@@ -500,7 +522,7 @@
           </div>
         </div>
 
-        <div v-if="entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex h-full w-full min-h-0 flex-1 flex-col items-start text-left">
+        <div v-if="displayedRound && entranceDecisionReady && !showEntranceAnimation" class="relative z-0 flex h-full w-full min-h-0 flex-1 flex-col items-start text-left">
           <div class="registered-fg font-mono text-4xl font-black uppercase tracking-[0.12em] sm:text-6xl">
             {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
           </div>
@@ -1551,6 +1573,10 @@ onUnmounted(() => {
 
 .registered-muted {
   color: var(--registered-muted);
+}
+
+.registered-back-button:hover {
+  color: var(--registered-fg);
 }
 
 .registered-voting-panel {
