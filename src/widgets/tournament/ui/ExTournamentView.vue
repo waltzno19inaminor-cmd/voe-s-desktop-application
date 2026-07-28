@@ -1168,79 +1168,41 @@ const shortVotePercentage = computed(() => {
   return 100 - longVotePercentage.value
 })
 
-const getTimeZoneDateParts = (millis: number, timeZone: string) => {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    hourCycle: 'h23'
-  }).formatToParts(new Date(millis))
-
-  return parts.reduce<Record<string, number>>((result, part) => {
-    if (part.type !== 'literal') result[part.type] = Number(part.value)
-    return result
-  }, {})
-}
-
-const getTimeZoneOffsetMillis = (millis: number, timeZone: string) => {
-  const parts = getTimeZoneDateParts(millis, timeZone)
-  const wallClockMillis = Date.UTC(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour || 0,
-    parts.minute || 0,
-    parts.second || 0
-  )
-
-  return wallClockMillis - millis
-}
-
-const getNewYorkTradingDayCloseMillis = (millis: number) => {
-  const timeZone = 'America/New_York'
-  const newYorkDate = getTimeZoneDateParts(millis, timeZone)
-  const tradingDayCloseAsUtc = Date.UTC(newYorkDate.year, newYorkDate.month - 1, newYorkDate.day, 16, 0, 0)
-  let closeMillis = tradingDayCloseAsUtc
-
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    closeMillis = tradingDayCloseAsUtc - getTimeZoneOffsetMillis(closeMillis, timeZone)
-  }
-
-  return closeMillis
-}
-
 const formatLocalTime = (millis: number) => {
   return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-GB', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit',
     hour12: false,
     hourCycle: 'h23'
   }).format(new Date(millis))
 }
 
-const localStockTradingDayClose = computed(() => {
-  return formatLocalTime(getNewYorkTradingDayCloseMillis(serverNowMillis.value))
+const timeWindowMinutes = computed(() => {
+  const value = Number(openedSeason.value?.timeWindow)
+  return Number.isSafeInteger(value) && value > 0 ? value : 0
+})
+
+const votingResolutionEndMillis = computed(() => {
+  const endsAtMillis = displayedRound.value?.endsAtMillis || 0
+  if (!endsAtMillis || !timeWindowMinutes.value) return 0
+  return endsAtMillis + timeWindowMinutes.value * 60 * 1000
+})
+
+const localVotingResolutionEnd = computed(() => {
+  return votingResolutionEndMillis.value ? formatLocalTime(votingResolutionEndMillis.value) : ''
 })
 
 const votingGuidance = computed(() => {
-  const assetType = String(selectedAsset.value?.type || '').toLowerCase()
-  const isStock = assetType.includes('stock') || assetType.includes('equity')
-
-  if (isStock) {
+  const resolutionTime = localVotingResolutionEnd.value
+  if (!resolutionTime) {
     return locale.value === 'ru'
-      ? `Выберите направление актива до ${localStockTradingDayClose.value} (ваше местное время) · сессия NYSE 09:30:00–16:00:00 ET (до конца торгового дня)`
-      : `Choose the asset direction by ${localStockTradingDayClose.value} (your local time) · NYSE session 09:30:00–16:00:00 ET (before the end of the trading day)`
+      ? 'Выберите направление актива в окне раунда'
+      : 'Choose the asset direction within the round window'
   }
 
   return locale.value === 'ru'
-    ? 'Выберите направление актива до 23:59:59 (ваше местное время)'
-    : 'Choose the asset direction by 23:59:59 (your local time)'
+    ? `Выберите направление цены к ${resolutionTime} (ваше местное время)`
+    : `Choose the price direction by ${resolutionTime} (your local time)`
 })
 
 const voteSplitPercentage = computed(() => {

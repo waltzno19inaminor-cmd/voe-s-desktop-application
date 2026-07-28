@@ -56,4 +56,5 @@ export interface TournamentSeason {
   number?: string | number
   startsAt?: any
   endsAt?: any
+  timeWindow?: number
 }
