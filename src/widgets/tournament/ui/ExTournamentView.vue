@@ -1525,14 +1525,13 @@ watch([() => openedSeason.value?.id, currentRoundId], () => {
 })
 
 watch(
-  [() => targetEvent.value?.id, () => openedSeason.value?.id, currentRoundId, () => authStore.user?.uid, votingCompleted],
-  ([eventId, seasonId, roundId, userId, canReadAll]) => {
+  [() => targetEvent.value?.id, () => openedSeason.value?.id, currentRoundId, () => authStore.user?.uid],
+  ([eventId, seasonId, roundId, userId]) => {
     initTournamentPredictionsListener({
       tournamentId: eventId,
       seasonId,
       roundId,
-      userId,
-      canReadAll
+      userId
     })
   },
   { immediate: true }

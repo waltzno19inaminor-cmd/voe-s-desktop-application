@@ -130,19 +130,10 @@ service cloud.firestore {
               && round.status == "opened";
           }
 
-          function votingHasEnded() {
-            let round = roundData();
-
-            return round.endsAt is timestamp
-              && request.time >= round.endsAt;
-          }
-
           match /predictions/{predictionId} {
-            allow read: if isSignedIn()
-              && (
-                resource.data.userId == request.auth.uid
-                || votingHasEnded()
-              );
+            // Соотношение LONG/SHORT видно всем авторизованным участникам во время голосования.
+            // Создание и изменение прогнозов остаётся доступным только их владельцу.
+            allow read: if isSignedIn();
 
             allow create: if isSignedIn()
               && votingIsOpen()

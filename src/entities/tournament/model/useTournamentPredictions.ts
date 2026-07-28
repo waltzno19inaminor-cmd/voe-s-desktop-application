@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, query, serverTimestamp, setDoc, where } from 'firebase/firestore'
+import { collection, doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 import { db } from '~/shared/firebase.client'
 import type {
@@ -51,10 +51,9 @@ export function initTournamentPredictionsListener(input: {
   seasonId?: string
   roundId?: string
   userId?: string
-  canReadAll?: boolean
 }) {
-  const { tournamentId, seasonId, roundId, userId, canReadAll = false } = input
-  const listenerKey = [tournamentId, seasonId, roundId, userId, canReadAll].join(':')
+  const { tournamentId, seasonId, roundId, userId } = input
+  const listenerKey = [tournamentId, seasonId, roundId, userId].join(':')
 
   if (!tournamentId || !seasonId || !roundId || !userId) {
     terminateTournamentPredictionsListener()
@@ -79,11 +78,7 @@ export function initTournamentPredictionsListener(input: {
     roundId,
     'predictions'
   )
-  const predictionsQuery = canReadAll
-    ? predictionsCollection
-    : query(predictionsCollection, where('userId', '==', userId))
-
-  predictionsUnsubscribe = onSnapshot(predictionsQuery, (snapshot) => {
+  predictionsUnsubscribe = onSnapshot(predictionsCollection, (snapshot) => {
     isPredictionsReady.value = true
     predictionsForRound.value = snapshot.docs.map((predictionSnapshot) => {
       return { ...predictionSnapshot.data(), id: predictionSnapshot.id } as TournamentPrediction
