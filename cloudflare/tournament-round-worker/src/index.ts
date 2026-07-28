@@ -235,6 +235,11 @@ async function settleTournament(input: {
   if (endsAt.getTime() <= startsAt.getTime()) {
     throw new Error('round.endsAt must be later than round.startsAt.')
   }
+  const timeWindowMinutes = requirePositiveInteger(season.data.timeWindow, 'season.timeWindow')
+  const resolutionEndsAtMs = endsAt.getTime() + timeWindowMinutes * MINUTE_MS
+  if (!Number.isSafeInteger(resolutionEndsAtMs)) {
+    throw new Error('season.timeWindow produces an invalid resolution end time.')
+  }
 
   const nextRoundDay = getNextUtcCalendarDay(nowMs)
   const tradingHolidays = readTradingHolidays(season.data.tradingHolidays)
@@ -298,26 +303,37 @@ async function settleTournament(input: {
     .map(resolveAllowedAsset)
   ensureUniqueAssetIds(allowedAssets)
 
-  const resolutionCutoffs = allowedAssets.map((asset) => ({
-    asset,
-    cutoffMs: getResolutionCutoffMs(asset.session, endsAt.getTime())
-  }))
-  const latestCutoffMs = Math.max(...resolutionCutoffs.map((item) => item.cutoffMs))
+  const resolutionWindows = allowedAssets.map((asset) => {
+    const marketSessionCloseMs = getMarketSessionCloseMs(asset.session, endsAt.getTime())
+    if (resolutionEndsAtMs > marketSessionCloseMs) {
+      throw new Error(
+        `${asset.symbol}: season.timeWindow extends past the ${asset.session} session close. ` +
+        'Shorten timeWindow or make round.endsAt earlier.'
+      )
+    }
+
+    return {
+      asset,
+      resolutionEndsAtMs
+    }
+  })
   const dataDelayMs = parseNonNegativeInteger(env.MARKET_DATA_DELAY_MINUTES, 0) * MINUTE_MS
 
-  if (nowMs < latestCutoffMs + dataDelayMs) {
+  if (nowMs < resolutionEndsAtMs + dataDelayMs) {
     return {
       tournamentId,
       seasonId: season.id,
       status: 'skipped',
-      reason: `Market data is not final yet. Earliest settlement: ${new Date(latestCutoffMs + dataDelayMs).toISOString()}.`
+      reason: `Market data is not final yet. Earliest settlement: ${new Date(resolutionEndsAtMs + dataDelayMs).toISOString()}.`
     }
   }
 
   const resolutions = await mapWithConcurrency(
-    resolutionCutoffs,
+    resolutionWindows,
     4,
-    async ({ asset, cutoffMs }) => resolveAssetDirection(asset, startsAt.getTime(), endsAt.getTime(), cutoffMs)
+    async ({ asset, resolutionEndsAtMs: assetResolutionEndsAtMs }) => (
+      resolveAssetDirection(asset, startsAt.getTime(), endsAt.getTime(), assetResolutionEndsAtMs)
+    )
   )
   const resolutionsByAssetId = new Map(resolutions.map((resolution) => [resolution.assetId, resolution]))
 
@@ -384,7 +400,8 @@ async function settleTournament(input: {
         sessionHighAt: resolution.sessionHighAt,
         sessionLow: resolution.sessionLow,
         sessionLowAt: resolution.sessionLowAt,
-        resolutionEndsAt: resolution.resolutionEndsAt
+        resolutionEndsAt: resolution.resolutionEndsAt,
+        timeWindowMinutes
       }
     ])
   )
@@ -669,7 +686,7 @@ function normalizeMarketSession(value: string): MarketSession {
   throw new Error(`Unsupported market session "${value}". Use NYSE or UTC_24H.`)
 }
 
-function getResolutionCutoffMs(session: MarketSession, endsAtMs: number): number {
+function getMarketSessionCloseMs(session: MarketSession, endsAtMs: number): number {
   if (session === 'UTC_24H') {
     const endsAt = new Date(endsAtMs)
     return Date.UTC(
@@ -1138,6 +1155,13 @@ function requireObject(value: unknown, fieldName: string): Record<string, unknow
 function requireString(value: unknown, fieldName: string): string {
   if (typeof value !== 'string' || !value.trim()) {
     throw new Error(`${fieldName} must be a non-empty string.`)
+  }
+  return value
+}
+
+function requirePositiveInteger(value: unknown, fieldName: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`${fieldName} must be a positive integer.`)
   }
   return value
 }
