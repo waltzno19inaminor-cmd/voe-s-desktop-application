@@ -90,10 +90,11 @@ interface AssetResolution {
 
 interface TournamentRunResult {
   tournamentId: string
-  status: 'settled' | 'skipped' | 'failed'
+  status: 'settled' | 'cancelled' | 'skipped' | 'failed'
   reason?: string
   seasonId?: string
   closedRoundId?: string
+  cancelledRoundId?: string
   openedRoundId?: string
   predictionsProcessed?: number
   usersUpdated?: number
@@ -246,6 +247,53 @@ async function settleTournament(input: {
     }
   }
 
+  const nextStartsAt = moveToUtcCalendarDay(startsAt, nextRoundDay)
+  const nextEndsAt = moveToUtcCalendarDay(endsAt, nextRoundDay)
+  const nextRoundId = createRoundId(nextStartsAt)
+  const nextRoundName = firestore.documentName(
+    `tournaments/${tournamentId}/seasons/${season.id}/rounds/${nextRoundId}`
+  )
+
+  const cancellationReason = readCancellationReason(round.data)
+  if (cancellationReason) {
+    const cancellationWrites: FirestoreWrite[] = [
+      makeUpdateWrite({
+        name: round.name,
+        fields: {
+          status: 'cancelled',
+          cancelReason: cancellationReason,
+          nextRoundId
+        },
+        serverTimestampFields: ['cancelledAt'],
+        precondition: requireUpdateTime(round, 'opened round')
+      }),
+      makeUpdateWrite({
+        name: nextRoundName,
+        fields: {
+          status: 'opened',
+          startsAt: nextStartsAt,
+          endsAt: nextEndsAt,
+          previousRoundId: round.id
+        },
+        serverTimestampFields: ['createdAt'],
+        precondition: { exists: false }
+      })
+    ]
+
+    if (!dryRun) {
+      await firestore.commit(cancellationWrites)
+    }
+
+    return {
+      tournamentId,
+      seasonId: season.id,
+      status: 'cancelled',
+      cancelledRoundId: round.id,
+      openedRoundId: nextRoundId,
+      reason: cancellationReason
+    }
+  }
+
   const allowedAssets = requireArray(tournament.data.allowedAssets, 'tournament.allowedAssets')
     .map(resolveAllowedAsset)
   ensureUniqueAssetIds(allowedAssets)
@@ -291,13 +339,6 @@ async function settleTournament(input: {
     'leaderboard'
   )
   const leaderboardByUserId = new Map(leaderboardDocuments.map((entry) => [entry.id, entry]))
-
-  const nextStartsAt = moveToUtcCalendarDay(startsAt, nextRoundDay)
-  const nextEndsAt = moveToUtcCalendarDay(endsAt, nextRoundDay)
-  const nextRoundId = createRoundId(nextStartsAt)
-  const nextRoundName = firestore.documentName(
-    `tournaments/${tournamentId}/seasons/${season.id}/rounds/${nextRoundId}`
-  )
 
   const writes: FirestoreWrite[] = []
   for (const [userId, delta] of userDeltas) {
@@ -1059,6 +1100,20 @@ function normalizePredictionDirection(value: unknown): PredictionDirection {
   const direction = String(value || '').trim().toUpperCase()
   if (direction === 'LONG' || direction === 'SHORT') return direction
   throw new Error(`Invalid prediction direction "${direction}".`)
+}
+
+function readCancellationReason(round: Record<string, unknown>): string | null {
+  const action = String(round.settlementAction || '').trim().toLowerCase()
+  if (!action) return null
+  if (action !== 'cancel') {
+    throw new Error('round.settlementAction must be "cancel" when specified.')
+  }
+
+  const reason = round.cancelReason
+  if (reason === undefined || reason === null || String(reason).trim() === '') {
+    return 'Cancelled by tournament administrator.'
+  }
+  return String(reason).trim()
 }
 
 function requireDate(value: unknown, fieldName: string): Date {
