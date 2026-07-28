@@ -397,7 +397,7 @@
         :class="themeStore.settings.isDark ? 'registered-event-page--dark text-white' : 'registered-event-page--light text-black'"
         aria-label="Participant page"
       >
-        <div v-if="targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div v-if="entranceDecisionReady && !showEntranceAnimation && targetEvent?.imageUrl" class="registered-voting-backdrop absolute inset-0 z-0 overflow-hidden pointer-events-none" aria-hidden="true">
           <img
             :src="targetEvent.imageUrl"
             alt=""
@@ -774,6 +774,7 @@ const submittedPrediction = ref<{
   roundId: string
 } | null>(null)
 let timerInterval: any = null
+const INTRO_INITIAL_DELAY = 1000
 const INTRO_STAGE_DURATION = 2600
 const showEntranceAnimation = ref(false)
 const entranceDecisionReady = ref(false)
@@ -1342,11 +1343,10 @@ const evaluateEntranceAnimation = () => {
   const signature = introSignature.value
   const lastShownSignature = localStorage.getItem(storageKey)
 
-  entranceDecisionReady.value = true
-
   if (lastShownSignature === signature) {
     clearIntroTimers()
     activeIntroSignature = signature
+    entranceDecisionReady.value = true
     showEntranceAnimation.value = false
     return
   }
@@ -1356,17 +1356,25 @@ const evaluateEntranceAnimation = () => {
   clearIntroTimers()
   activeIntroSignature = signature
   introStage.value = 'season'
-  showEntranceAnimation.value = true
-
-  introTimers.push(setTimeout(() => {
-    if (activeIntroSignature === signature) introStage.value = 'round'
-  }, INTRO_STAGE_DURATION))
+  entranceDecisionReady.value = false
+  showEntranceAnimation.value = false
 
   introTimers.push(setTimeout(() => {
     if (activeIntroSignature !== signature) return
-    localStorage.setItem(storageKey, signature)
-    showEntranceAnimation.value = false
-  }, INTRO_STAGE_DURATION * 2))
+
+    entranceDecisionReady.value = true
+    showEntranceAnimation.value = true
+
+    introTimers.push(setTimeout(() => {
+      if (activeIntroSignature === signature) introStage.value = 'round'
+    }, INTRO_STAGE_DURATION))
+
+    introTimers.push(setTimeout(() => {
+      if (activeIntroSignature !== signature) return
+      localStorage.setItem(storageKey, signature)
+      showEntranceAnimation.value = false
+    }, INTRO_STAGE_DURATION * 2))
+  }, INTRO_INITIAL_DELAY))
 }
 
 const formattedServerDate = computed(() => {
