@@ -538,7 +538,12 @@
                     </svg>
                     <span v-if="votingCompleted">{{ locale === 'ru' ? 'Закрыто' : 'Closed' }}</span>
                     <span v-else>
-                      {{ locale === 'ru' ? 'Закроется через' : 'Closes in' }} {{ formattedVotingCountdown }}
+                      {{
+                        votingPending
+                          ? (locale === 'ru' ? 'Откроется через' : 'Opens in')
+                          : (locale === 'ru' ? 'Закроется через' : 'Closes in')
+                      }}
+                      {{ formattedVotingCountdown }}
                     </span>
                   </div>
                 </div>
@@ -951,6 +956,17 @@ const votingCompleted = computed(() => {
   )
 })
 
+const votingPending = computed(() => {
+  const round = displayedRound.value
+  return Boolean(
+    round
+    && isParticipantServerTimeReady.value
+    && round.startsAtMillis > 0
+    && round.endsAtMillis > round.startsAtMillis
+    && serverNowMillis.value < round.startsAtMillis
+  )
+})
+
 const allowedTournamentAssets = computed(() => {
   const allowedAssets = targetEvent.value?.allowedAssets
   if (!Array.isArray(allowedAssets)) return []
@@ -1237,12 +1253,16 @@ const handleVote = async (direction: TournamentPredictionDirection) => {
 }
 
 const formattedVotingCountdown = computed(() => {
-  const endsAtMillis = displayedRound.value?.endsAtMillis || 0
-  if (!isParticipantServerTimeReady.value || !endsAtMillis || serverNowMillis.value >= endsAtMillis) {
+  const round = displayedRound.value
+  const targetMillis = votingPending.value
+    ? round?.startsAtMillis || 0
+    : round?.endsAtMillis || 0
+
+  if (!isParticipantServerTimeReady.value || !targetMillis || serverNowMillis.value >= targetMillis) {
     return '00:00:00'
   }
 
-  const totalSeconds = Math.max(0, Math.ceil((endsAtMillis - serverNowMillis.value) / 1000))
+  const totalSeconds = Math.max(0, Math.ceil((targetMillis - serverNowMillis.value) / 1000))
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
