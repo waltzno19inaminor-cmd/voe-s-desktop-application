@@ -74,9 +74,11 @@
                   <div class="leaderboard-page__participant-identity min-w-0 flex items-center gap-3">
                     <div class="leaderboard-page__participant-avatar shrink-0 overflow-hidden">
                       <img
-                        v-if="leaderboardPhotoUrls[entry.userId]"
+                        v-if="hasLeaderboardAvatar(entry.userId)"
                         :src="leaderboardPhotoUrls[entry.userId]"
                         :alt="leaderboardDisplayNames[entry.userId] || entry.userId"
+                        referrerpolicy="no-referrer"
+                        @error="markLeaderboardAvatarFailed(entry.userId)"
                         class="h-full w-full object-cover"
                       >
                       <span v-else>
@@ -804,12 +806,27 @@ const showAllRules = ref(false)
 const isAgreed = ref(false)
 const nowMillis = ref(Date.now())
 const isSubmittingPrediction = ref(false)
+const failedLeaderboardAvatarUrls = ref<Record<string, string>>({})
 const submittedPrediction = ref<{
   assetKey: string
   direction: TournamentPredictionDirection
   seasonId: string
   roundId: string
 } | null>(null)
+
+const hasLeaderboardAvatar = (userId: string) => {
+  const photoURL = leaderboardPhotoUrls.value[userId]
+  return Boolean(photoURL && failedLeaderboardAvatarUrls.value[userId] !== photoURL)
+}
+
+const markLeaderboardAvatarFailed = (userId: string) => {
+  const photoURL = leaderboardPhotoUrls.value[userId]
+  if (!photoURL) return
+  failedLeaderboardAvatarUrls.value = {
+    ...failedLeaderboardAvatarUrls.value,
+    [userId]: photoURL
+  }
+}
 let timerInterval: any = null
 const INTRO_INITIAL_DELAY = 1000
 const INTRO_STAGE_DURATION = 2600

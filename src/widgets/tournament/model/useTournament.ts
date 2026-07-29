@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { doc, collection, getDoc, onSnapshot, setDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore'
-import { db } from '~/shared/firebase.client'
+import { getDownloadURL, ref as storageRef } from 'firebase/storage'
+import { db, fireStorage } from '~/shared/firebase.client'
 import type { TournamentEvent, TournamentLeaderboardEntry, TournamentRound, TournamentSeason } from './tournament.types'
 
 export const DEFAULT_TOURNAMENT: TournamentEvent = {
@@ -61,6 +62,8 @@ let roundsUnsubscribe: (() => void) | null = null
 let roundsListenerKey: string | null = null
 let leaderboardUnsubscribe: (() => void) | null = null
 let leaderboardListenerKey: string | null = null
+let leaderboardProfileLoadId = 0
+const leaderboardProfileCache = new Map<string, { displayName: string; photoURL: string }>()
 let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
@@ -164,7 +167,8 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
     }) as TournamentLeaderboardEntry)
     leaderboardEntries.value = entries
 
-    void loadLeaderboardDisplayNames(entries, listenerKey)
+    const profileLoadId = ++leaderboardProfileLoadId
+    void loadLeaderboardDisplayNames(entries, listenerKey, profileLoadId)
   }, (err) => {
     isLeaderboardReady.value = true
     isLeaderboardNamesReady.value = true
@@ -175,8 +179,13 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
   })
 }
 
-async function loadLeaderboardDisplayNames(entries: TournamentLeaderboardEntry[], listenerKey: string) {
+async function loadLeaderboardDisplayNames(
+  entries: TournamentLeaderboardEntry[],
+  listenerKey: string,
+  profileLoadId: number
+) {
   if (!entries.length) {
+    if (leaderboardListenerKey !== listenerKey || leaderboardProfileLoadId !== profileLoadId) return
     leaderboardDisplayNames.value = {}
     leaderboardPhotoUrls.value = {}
     isLeaderboardNamesReady.value = true
@@ -188,28 +197,58 @@ async function loadLeaderboardDisplayNames(entries: TournamentLeaderboardEntry[]
       const userData = (await getDoc(doc(db, 'users', entry.userId))).data()
       return {
         userId: entry.userId,
-        displayName: String(userData?.displayName || '').trim(),
-        photoURL: String(userData?.photoURL || userData?.photoUrl || '').trim()
+        profile: {
+          displayName: String(userData?.displayName || '').trim(),
+          photoURL: await resolveLeaderboardPhotoUrl(userData?.photoURL || userData?.photoUrl)
+        }
       }
     } catch (err) {
-      console.warn(`[Tournament] Failed to load display name for ${entry.userId}:`, err)
-      return { userId: entry.userId, displayName: '', photoURL: '' }
+      console.warn(`[Tournament] Failed to load leaderboard profile for ${entry.userId}:`, err)
+      return { userId: entry.userId, profile: null }
     }
   }))
 
-  if (leaderboardListenerKey !== listenerKey) return
+  // Firestore can emit a cached snapshot and then a server snapshot. Their
+  // profile reads finish in arbitrary order, so stale reads must be ignored.
+  if (leaderboardListenerKey !== listenerKey || leaderboardProfileLoadId !== profileLoadId) return
+
+  profiles.forEach(({ userId, profile }) => {
+    if (profile) leaderboardProfileCache.set(userId, profile)
+  })
+
+  const resolvedProfiles = entries.map((entry) => ({
+    userId: entry.userId,
+    ...(leaderboardProfileCache.get(entry.userId) || { displayName: '', photoURL: '' })
+  }))
 
   leaderboardDisplayNames.value = Object.fromEntries(
-    profiles
+    resolvedProfiles
       .filter((profile) => profile.displayName)
       .map((profile) => [profile.userId, profile.displayName])
   )
   leaderboardPhotoUrls.value = Object.fromEntries(
-    profiles
+    resolvedProfiles
       .filter((profile) => profile.photoURL)
       .map((profile) => [profile.userId, profile.photoURL])
   )
   isLeaderboardNamesReady.value = true
+}
+
+async function resolveLeaderboardPhotoUrl(value: unknown): Promise<string> {
+  const rawValue = String(value || '').trim().replace(/^(?:'|")|(?:'|")$/g, '')
+  if (!rawValue) return ''
+
+  try {
+    if (rawValue.startsWith('gs://')) {
+      return await getDownloadURL(storageRef(fireStorage, rawValue))
+    }
+
+    const url = new URL(rawValue)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : ''
+  } catch (error) {
+    console.warn('[Tournament] Invalid leaderboard avatar URL:', error)
+    return ''
+  }
 }
 
 function terminateLeaderboardListener(markReady = false) {
@@ -217,6 +256,7 @@ function terminateLeaderboardListener(markReady = false) {
     leaderboardUnsubscribe()
     leaderboardUnsubscribe = null
   }
+  leaderboardProfileLoadId += 1
   leaderboardListenerKey = null
   leaderboardEntries.value = []
   leaderboardDisplayNames.value = {}
