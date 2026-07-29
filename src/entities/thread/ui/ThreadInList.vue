@@ -58,7 +58,7 @@ const displayStr = computed(() => {
 
 const userAvatar = computed(() => {
     const u = forum.users.get(props.thread.authorId);
-    return u?.photoURL || u?.avatar || null;
+    return u?.avatarUrl || u?.photoURL || u?.avatar || null;
 });
 const imgError = ref(false);
 
@@ -68,4 +68,3 @@ onMounted(async () => {
     }
 });
 </script>
-

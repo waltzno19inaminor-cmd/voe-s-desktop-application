@@ -8,6 +8,7 @@ export const useAuthStore = defineStore('auth', {
             email: string | null;
             displayName: string | null;
             photoURL: string | null;
+            avatarUrl?: string | null;
             joinedAt: string | null;
             followed?: string[];
             followers?: number;
@@ -27,6 +28,7 @@ export const useAuthStore = defineStore('auth', {
             email: string | null,
             displayName: string | null,
             photoURL: string | null,
+            avatarUrl?: string | null,
             joinedAt: any;
             type?: string;
         }) {
@@ -38,6 +40,7 @@ export const useAuthStore = defineStore('auth', {
             let expiresAt = undefined;
             let finalDisplayName = user.displayName;
             let finalPhotoURL = user.photoURL;
+            let finalAvatarUrl = user.avatarUrl || null;
 
             try {
                 const { doc, getDoc } = await import('firebase/firestore')
@@ -70,6 +73,7 @@ export const useAuthStore = defineStore('auth', {
                     
                     if (data.displayName) finalDisplayName = data.displayName
                     if (data.photoURL) finalPhotoURL = data.photoURL
+                    if (data.avatarUrl) finalAvatarUrl = data.avatarUrl
                 }
             } catch (err) {
                 console.error('Failed to fetch user Firestore doc:', err)
@@ -79,6 +83,7 @@ export const useAuthStore = defineStore('auth', {
                 ...user,
                 displayName: finalDisplayName,
                 photoURL: finalPhotoURL,
+                avatarUrl: finalAvatarUrl,
                 type: computedType,
                 expiresAt
             };

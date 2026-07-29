@@ -3360,6 +3360,7 @@ const createThreadPayloadFromArticle = () => {
       uid: user.uid,
       email: user.email || null,
       displayName: user.displayName || user.email || null,
+      avatarUrl: user.avatarUrl || null,
       photoURL: user.photoURL || null,
       type: user.type || 'common'
     },

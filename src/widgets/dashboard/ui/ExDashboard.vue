@@ -93,7 +93,7 @@
             <button @click="toggleMenu" class="focus:outline-none cursor-pointer">
               <ExIdentity
                 :name="displayName"
-                :avatar-url="authStore.user?.photoURL ?? undefined"
+                :avatar-url="authStore.user?.avatarUrl || authStore.user?.photoURL || undefined"
                 rank="Operator"
               />
             </button>

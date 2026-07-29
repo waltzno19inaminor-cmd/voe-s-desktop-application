@@ -16,8 +16,8 @@
             </div>
             <!-- Actual Avatar -->
             <img 
-                v-show="(userName?.photoURL || userName?.avatar) && !imgError" 
-                :src="userName?.photoURL || userName?.avatar" 
+                v-show="(userName?.avatarUrl || userName?.photoURL || userName?.avatar) && !imgError"
+                :src="userName?.avatarUrl || userName?.photoURL || userName?.avatar"
                 @error="imgError = true"
                 referrerpolicy="no-referrer" 
                 class="absolute inset-0 w-5 h-5 rounded-full object-cover shadow-sm" 

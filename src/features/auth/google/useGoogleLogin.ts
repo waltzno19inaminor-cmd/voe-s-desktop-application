@@ -2,6 +2,7 @@ import { useAuthStore } from "~/entities/user/auth.store";
 import { auth as firebaseAuth, db } from "~/shared/firebase.client";
 import { GoogleAuthProvider, signInWithPopup, signInWithCredential } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { ensureStoredUserAvatar } from '~/entities/user/model/user-avatar'
 
 import { open } from '@tauri-apps/plugin-shell';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
@@ -165,6 +166,7 @@ export const googleLogin = async () => {
         })
 
         await ensureUserDocument(user)
+        await auth.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime || null })
         auth.setError(null); 
 
       } catch (e: any) {
@@ -187,6 +189,7 @@ export const googleLogin = async () => {
       })
 
       await ensureUserDocument(user)
+      await auth.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime || null })
     }
 
   } catch (error: any) {
@@ -209,5 +212,11 @@ export async function ensureUserDocument(user: any) {
       role: 'member',
       joinedAt: serverTimestamp()
     })
+  }
+
+  try {
+    await ensureStoredUserAvatar(user)
+  } catch (error) {
+    console.warn('[Auth] Unable to cache the Google avatar:', error)
   }
 }

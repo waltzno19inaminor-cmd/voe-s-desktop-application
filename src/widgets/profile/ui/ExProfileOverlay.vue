@@ -263,7 +263,7 @@ const {
 
 const profileDisplayName = computed(() => displayName.value.trim() || authStore.user?.displayName?.trim() || 'Operator_0x4F')
 const profileEmail = computed(() => authStore.user?.email?.trim() || 'operator@genesis.app')
-const profileAvatarUrl = computed(() => authStore.user?.photoURL || '')
+const profileAvatarUrl = computed(() => authStore.user?.avatarUrl || authStore.user?.photoURL || '')
 const profileInitial = computed(() => (profileDisplayName.value[0] || 'O').toUpperCase())
 const profileAccountType = computed(() => String(authStore.user?.type || 'common').toUpperCase())
 const emailLockedLabel = computed(() => locale.value === 'ru' ? 'ПОЧТА НЕИЗМЕНЯЕМА' : 'EMAIL LOCKED')
