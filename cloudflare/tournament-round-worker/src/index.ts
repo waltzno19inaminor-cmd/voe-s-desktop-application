@@ -60,7 +60,7 @@ interface ResolvedAsset {
   assetId: string
   symbol: string
   type: string
-  yahooSymbol: string
+  yahooSymbolCandidates: string[]
   session: MarketSession
 }
 
@@ -110,9 +110,13 @@ interface RunReport {
 
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
-const YAHOO_CHART_ENDPOINT = 'https://query1.finance.yahoo.com/v8/finance/chart'
+const YAHOO_CHART_ENDPOINTS = [
+  'https://query1.finance.yahoo.com/v8/finance/chart',
+  'https://query2.finance.yahoo.com/v8/finance/chart'
+] as const
 const MINUTE_MS = 60 * 1000
 const MAX_ATOMIC_WRITES = 450
+const YAHOO_MAX_ATTEMPTS = 4
 
 let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 
@@ -330,7 +334,7 @@ async function settleTournament(input: {
 
   const resolutions = await mapWithConcurrency(
     resolutionWindows,
-    4,
+    1,
     async ({ asset, resolutionEndsAtMs: assetResolutionEndsAtMs }) => (
       resolveAssetDirection(asset, startsAt.getTime(), endsAt.getTime(), assetResolutionEndsAtMs)
     )
@@ -519,7 +523,7 @@ async function resolveAssetDirection(
     throw new Error(`${asset.symbol}: resolution cutoff must be later than endsAt.`)
   }
 
-  const candles = await fetchYahooCandles(asset, startsAtMs, cutoffMs)
+  const { candles, yahooSymbol } = await fetchYahooCandles(asset, startsAtMs, cutoffMs)
   const startCandle = findExactMinuteCandle(candles, startsAtMs)
   const endCandle = findExactMinuteCandle(candles, endsAtMs)
 
@@ -570,7 +574,7 @@ async function resolveAssetDirection(
   return {
     assetId: asset.assetId,
     asset: asset.symbol,
-    yahooSymbol: asset.yahooSymbol,
+    yahooSymbol,
     session: asset.session,
     direction,
     startPrice: startCandle.open,
@@ -588,6 +592,30 @@ async function fetchYahooCandles(
   asset: ResolvedAsset,
   startsAtMs: number,
   cutoffMs: number
+): Promise<{ candles: YahooCandle[]; yahooSymbol: string }> {
+  let lastCandidateError: Error | null = null
+
+  for (const yahooSymbol of asset.yahooSymbolCandidates) {
+    try {
+      const candles = await fetchYahooCandlesForSymbol(asset, yahooSymbol, startsAtMs, cutoffMs)
+      return { candles, yahooSymbol }
+    } catch (error) {
+      if (error instanceof YahooChartRequestError && error.status !== 404) throw error
+      lastCandidateError = error instanceof Error ? error : new Error(String(error))
+    }
+  }
+
+  throw new Error(
+    `${asset.symbol}: none of the Yahoo symbol candidates returned market data ` +
+    `(${asset.yahooSymbolCandidates.join(', ')}). ${lastCandidateError?.message || ''}`.trim()
+  )
+}
+
+async function fetchYahooCandlesForSymbol(
+  asset: ResolvedAsset,
+  yahooSymbol: string,
+  startsAtMs: number,
+  cutoffMs: number
 ): Promise<YahooCandle[]> {
   const query = new URLSearchParams({
     period1: String(Math.floor((startsAtMs - MINUTE_MS) / 1000)),
@@ -598,15 +626,34 @@ async function fetchYahooCandles(
     lang: 'en-US',
     region: 'US'
   })
-  const url = `${YAHOO_CHART_ENDPOINT}/${encodeURIComponent(asset.yahooSymbol)}?${query}`
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json'
-    }
-  })
+  let response: Response | null = null
+  let lastStatus = 0
 
-  if (!response.ok) {
-    throw new Error(`${asset.symbol}: Yahoo request failed with HTTP ${response.status}.`)
+  for (let attempt = 0; attempt < YAHOO_MAX_ATTEMPTS; attempt += 1) {
+    const endpoint = YAHOO_CHART_ENDPOINTS[attempt % YAHOO_CHART_ENDPOINTS.length]
+    const url = `${endpoint}/${encodeURIComponent(yahooSymbol)}?${query}`
+    response = await fetch(url, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'ExGenesisTournamentWorker/1.0 (+https://exgenesis.app)'
+      }
+    })
+
+    if (response.ok) break
+    lastStatus = response.status
+
+    if (response.status !== 429 && response.status < 500) break
+
+    if (attempt < YAHOO_MAX_ATTEMPTS - 1) {
+      await waitForYahooRetry(response, attempt)
+    }
+  }
+
+  if (!response?.ok) {
+    throw new YahooChartRequestError(
+      `${asset.symbol} (${yahooSymbol}): Yahoo request failed with HTTP ${lastStatus || 'unknown'} after ${YAHOO_MAX_ATTEMPTS} attempts.`,
+      lastStatus
+    )
   }
 
   const payload = await response.json() as {
@@ -628,7 +675,7 @@ async function fetchYahooCandles(
 
   if (payload.chart?.error) {
     throw new Error(
-      `${asset.symbol}: Yahoo error ${payload.chart.error.code || ''} ${payload.chart.error.description || ''}`.trim()
+      `${asset.symbol} (${yahooSymbol}): Yahoo error ${payload.chart.error.code || ''} ${payload.chart.error.description || ''}`.trim()
     )
   }
 
@@ -636,7 +683,7 @@ async function fetchYahooCandles(
   const timestamps = chart?.timestamp || []
   const quote = chart?.indicators?.quote?.[0]
   if (!timestamps.length || !quote) {
-    throw new Error(`${asset.symbol}: Yahoo returned no chart data.`)
+    throw new Error(`${asset.symbol} (${yahooSymbol}): Yahoo returned no chart data.`)
   }
 
   const candles: YahooCandle[] = []
@@ -657,28 +704,131 @@ async function fetchYahooCandles(
   }
 
   if (!candles.length) {
-    throw new Error(`${asset.symbol}: Yahoo returned only empty candles.`)
+    throw new Error(`${asset.symbol} (${yahooSymbol}): Yahoo returned only empty candles.`)
   }
 
   return candles.sort((left, right) => left.timestampMs - right.timestampMs)
+}
+
+class YahooChartRequestError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = 'YahooChartRequestError'
+    this.status = status
+  }
+}
+
+async function waitForYahooRetry(response: Response, attempt: number): Promise<void> {
+  const retryAfterSeconds = Number(response.headers.get('Retry-After'))
+  const retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0
+    ? retryAfterSeconds * 1000
+    : 1_000 * 2 ** attempt
+  const jitterMs = Math.floor(Math.random() * 400)
+  await new Promise<void>((resolve) => setTimeout(resolve, retryAfterMs + jitterMs))
 }
 
 function resolveAllowedAsset(rawAsset: unknown, index: number): ResolvedAsset {
   const raw = requireObject(rawAsset, `allowedAssets[${index}]`)
   const symbol = requireString(raw.symbol || raw.name, `allowedAssets[${index}].symbol`).trim()
   const type = String(raw.type || 'Other').trim()
-  const yahooSymbol = requireString(raw.yahooSymbol, `${symbol}.yahooSymbol`).trim()
+  const name = String(raw.name || '').trim()
+  const yahooSymbol = typeof raw.yahooSymbol === 'string' ? raw.yahooSymbol.trim() : ''
   const session = normalizeMarketSession(
     requireString(raw.session, `${symbol}.session`).trim().toUpperCase()
   )
+  const yahooSymbolCandidates = buildYahooSymbolCandidates({ symbol, name, type, yahooSymbol })
+
+  if (!yahooSymbolCandidates.length) {
+    throw new Error(`${symbol}: unable to derive a Yahoo ticker. Add yahooSymbol to allowedAssets.`)
+  }
 
   return {
     assetId: normalizeAssetId(symbol),
     symbol,
     type,
-    yahooSymbol,
+    yahooSymbolCandidates,
     session
   }
+}
+
+function buildYahooSymbolCandidates(input: {
+  symbol: string
+  name: string
+  type: string
+  yahooSymbol: string
+}): string[] {
+  const candidates = new Set<string>()
+  const rawSymbol = normalizeYahooSymbol(input.symbol)
+  const rawName = normalizeYahooSymbol(input.name)
+  const compactSymbol = normalizeAssetId(input.symbol)
+  const compactName = normalizeAssetId(input.name)
+  const type = input.type.trim().toLowerCase()
+  const parts = input.symbol.split(/[\/_:-]/).map(normalizeYahooSymbol).filter(Boolean)
+
+  const add = (value: unknown) => {
+    const normalized = normalizeYahooSymbol(value)
+    if (normalized) candidates.add(normalized)
+  }
+
+  // An explicit mapping is immutable tournament configuration and is always preferred.
+  add(input.yahooSymbol)
+
+  const commodityMap: Record<string, string> = {
+    XAU: 'GC=F', XAUUSD: 'GC=F', GOLD: 'GC=F', GC: 'GC=F',
+    XAG: 'SI=F', XAGUSD: 'SI=F', SILVER: 'SI=F', SI: 'SI=F',
+    XPT: 'PL=F', XPTUSD: 'PL=F', PLATINUM: 'PL=F',
+    XPD: 'PA=F', XPDUSD: 'PA=F', PALLAD: 'PA=F', PALLADIUM: 'PA=F',
+    COPPER: 'HG=F', HG: 'HG=F',
+    OIL: 'CL=F', WTI: 'CL=F', USOIL: 'CL=F', CL: 'CL=F',
+    BRENT: 'BZ=F', UKOIL: 'BZ=F',
+    NATGAS: 'NG=F', NG: 'NG=F', NATURALGAS: 'NG=F',
+    SOYBN: 'ZS=F', SOYBEAN: 'ZS=F', SOYBEANS: 'ZS=F',
+    WHEAT: 'ZW=F', CORN: 'ZC=F', COFFEE: 'KC=F', SUGAR: 'SB=F',
+    COTTON: 'CT=F', COCOA: 'CC=F', LIVCAT: 'LE=F', FDRCAT: 'GF=F',
+    LNHOG: 'HE=F', RICE: 'ZR=F', LUMBER: 'LBR=F',
+    HEATO: 'HO=F', GASOLN: 'RB=F', ORNGJ: 'OJ=F'
+  }
+  const indexMap: Record<string, string> = {
+    SPX: '^GSPC', SP500: '^GSPC', SPX500: '^GSPC', US500: '^GSPC',
+    NASDAQ: '^IXIC', NDX: '^NDX', NAS100: '^NDX', US100: '^NDX',
+    DJI: '^DJI', DOW: '^DJI', US30: '^DJI', RUT: '^RUT', US2000: '^RUT',
+    DAX: '^GDAXI', DAX40: '^GDAXI', DE40: '^GDAXI', GER40: '^GDAXI',
+    FTSE: '^FTSE', FTSE100: '^FTSE', UK100: '^FTSE', NIKKEI: '^N225',
+    NIKKEI225: '^N225', JP225: '^N225', JPN225: '^N225', HSI: '^HSI',
+    HANGSENG: '^HSI', HK50: '^HSI', STOXX50: '^STOXX50E', EU50: '^STOXX50E',
+    EUSTX50: '^STOXX50E', CAC: '^FCHI', CAC40: '^FCHI', FRA40: '^FCHI',
+    ASX200: '^AXJO', AUS200: '^AXJO'
+  }
+
+  add(commodityMap[compactSymbol] || commodityMap[compactName])
+  add(indexMap[compactSymbol] || indexMap[compactName])
+
+  if (type === 'forex' || /^[A-Z]{6}$/.test(compactSymbol)) {
+    const base = parts[0] || compactSymbol.slice(0, 3)
+    const quote = parts[1] || compactSymbol.slice(3, 6)
+    if (base && quote) add(`${base}${quote}=X`)
+  }
+
+  if (type === 'crypto') {
+    const base = (parts[0] || compactSymbol.replace(/(?:USDT|USDC|USD)$/, '')).replace(/^XBT$/, 'BTC')
+    if (base) {
+      add(`${base}-USD`)
+      add(`${base}-USDC`)
+    }
+  }
+
+  // Stocks are already Yahoo-compatible in the global assets registry.
+  add(rawSymbol)
+  if (rawSymbol.includes('.')) add(rawSymbol.replace('.', '-'))
+  add(rawName)
+
+  return Array.from(candidates)
+}
+
+function normalizeYahooSymbol(value: unknown): string {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '')
 }
 
 function normalizeMarketSession(value: string): MarketSession {
