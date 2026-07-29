@@ -85,15 +85,22 @@
                         {{ (leaderboardDisplayNames[entry.userId] || entry.userId).charAt(0).toUpperCase() }}
                       </span>
                     </div>
-                    <span
-                      class="min-w-0 truncate text-left font-black tracking-[0.06em]"
-                      :class="index < 2 ? 'leaderboard-page__top-name' : ''"
-                    >
-                      {{ leaderboardDisplayNames[entry.userId] || entry.userId }}
-                    </span>
+                    <div class="min-w-0">
+                      <span
+                        class="block min-w-0 truncate text-left font-black tracking-[0.06em]"
+                        :class="index < 2 ? 'leaderboard-page__top-name' : ''"
+                      >
+                        {{ leaderboardDisplayNames[entry.userId] || entry.userId }}
+                      </span>
+                      <span v-if="getLeaderboardAssetStats(entry).length" class="leaderboard-page__asset-stats">
+                        <span v-for="assetStat in getLeaderboardAssetStats(entry)" :key="assetStat.assetId">
+                          {{ assetStat.asset }} {{ assetStat.correctPredictions }}/{{ assetStat.totalPredictions }}
+                        </span>
+                      </span>
+                    </div>
                   </div>
-                  <span class="text-right font-black tracking-[0.1em]">{{ entry.totalPredictions ?? entry.predictionsCount ?? 0 }}</span>
-                  <span class="text-right font-black tracking-[0.1em]">{{ entry.correctPredictions ?? 0 }}</span>
+                  <span class="text-right font-black tracking-[0.1em]">{{ getLeaderboardTotalPredictions(entry) }}</span>
+                  <span class="text-right font-black tracking-[0.1em]">{{ getLeaderboardCorrectPredictions(entry) }}</span>
                   <span class="text-right font-black tracking-[0.1em]">{{ entry.points }}</span>
                   <span class="text-right font-black tracking-[0.1em]">{{ entry.prize || '—' }}</span>
                 </div>
@@ -756,7 +763,12 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import globalAssets from '~/shared/data/global_assets.json'
-import type { TournamentEvent, TournamentPrediction, TournamentRound } from '~/widgets/tournament/model/tournament.types'
+import type {
+  TournamentEvent,
+  TournamentLeaderboardEntry,
+  TournamentPrediction,
+  TournamentRound
+} from '~/widgets/tournament/model/tournament.types'
 import type { TournamentPredictionDirection } from '~/entities/tournament/model/tournament-prediction.types'
 import {
   allTournaments,
@@ -826,6 +838,30 @@ const markLeaderboardAvatarFailed = (userId: string) => {
     ...failedLeaderboardAvatarUrls.value,
     [userId]: photoURL
   }
+}
+
+const getLeaderboardAssetStats = (entry: TournamentLeaderboardEntry) => {
+  return (entry.assetStats || []).filter((stat) => (
+    Boolean(stat?.assetId)
+    && Number.isFinite(stat.totalPredictions)
+    && Number.isFinite(stat.correctPredictions)
+  ))
+}
+
+const getLeaderboardTotalPredictions = (entry: TournamentLeaderboardEntry) => {
+  const assetStats = getLeaderboardAssetStats(entry)
+  if (assetStats.length) {
+    return assetStats.reduce((total, stat) => total + Math.max(0, stat.totalPredictions), 0)
+  }
+  return entry.totalPredictions ?? entry.predictionsCount ?? 0
+}
+
+const getLeaderboardCorrectPredictions = (entry: TournamentLeaderboardEntry) => {
+  const assetStats = getLeaderboardAssetStats(entry)
+  if (assetStats.length) {
+    return assetStats.reduce((total, stat) => total + Math.max(0, stat.correctPredictions), 0)
+  }
+  return entry.correctPredictions ?? 0
 }
 let timerInterval: any = null
 const INTRO_INITIAL_DELAY = 1000
@@ -1873,6 +1909,26 @@ onUnmounted(() => {
   font-size: clamp(0.7rem, 1vw, 0.9rem);
   font-weight: 900;
   text-transform: uppercase;
+}
+
+.leaderboard-page__asset-stats {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  min-width: 0;
+  overflow: hidden;
+  color: currentColor;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  opacity: 0.52;
+  white-space: nowrap;
+}
+
+.leaderboard-page__asset-stats span + span::before {
+  content: '·';
+  margin-right: 0.35rem;
 }
 
 .leaderboard-page__top-name {

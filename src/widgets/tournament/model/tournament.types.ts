@@ -42,8 +42,16 @@ export interface TournamentLeaderboardEntry {
   totalPredictions?: number
   predictionsCount?: number
   correctPredictions?: number
+  assetStats?: TournamentLeaderboardAssetStat[]
   prize?: string | number
   createdAt?: any
+}
+
+export interface TournamentLeaderboardAssetStat {
+  assetId: string
+  asset: string
+  totalPredictions: number
+  correctPredictions: number
 }
 
 export interface TournamentSeason {

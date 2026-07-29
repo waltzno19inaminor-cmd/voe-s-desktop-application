@@ -88,6 +88,20 @@ interface AssetResolution {
   resolutionEndsAt: Date
 }
 
+interface LeaderboardAssetStat {
+  assetId: string
+  asset: string
+  totalPredictions: number
+  correctPredictions: number
+}
+
+interface UserScoreDelta {
+  points: number
+  totalPredictions: number
+  correctPredictions: number
+  assetStats: Map<string, LeaderboardAssetStat>
+}
+
 interface TournamentRunResult {
   tournamentId: string
   status: 'settled' | 'cancelled' | 'skipped' | 'failed'
@@ -369,11 +383,13 @@ async function settleTournament(input: {
       0
     )
     const currentCorrect = readFiniteNumber(existing?.data.correctPredictions, 0)
+    const assetStats = mergeLeaderboardAssetStats(existing?.data.assetStats, delta.assetStats)
     const fields = {
       userId,
       points: Math.max(0, currentPoints + delta.points),
       totalPredictions: currentTotal + delta.totalPredictions,
       correctPredictions: currentCorrect + delta.correctPredictions,
+      assetStats,
       lastScoredRoundId: round.id
     }
 
@@ -410,10 +426,33 @@ async function settleTournament(input: {
     ])
   )
 
+  const assetResults = resolutions.map((resolution) => {
+    const verdictIsLong = resolution.direction === 'LONG'
+    return {
+      assetId: resolution.assetId,
+      asset: resolution.asset,
+      yahooSymbol: resolution.yahooSymbol,
+      session: resolution.session,
+      referencePrice: resolution.referencePrice,
+      reachedPrice: verdictIsLong ? resolution.sessionHigh : resolution.sessionLow,
+      reachedAt: verdictIsLong ? resolution.sessionHighAt : resolution.sessionLowAt,
+      verdict: resolution.direction,
+      resolutionEndsAt: resolution.resolutionEndsAt,
+      timeWindowMinutes,
+      startPrice: resolution.startPrice,
+      endPrice: resolution.endPrice,
+      sessionHigh: resolution.sessionHigh,
+      sessionHighAt: resolution.sessionHighAt,
+      sessionLow: resolution.sessionLow,
+      sessionLowAt: resolution.sessionLowAt
+    }
+  })
+
   writes.push(makeUpdateWrite({
     name: round.name,
     fields: {
       status: 'closed',
+      assetResults,
       results: serializedResults,
       nextRoundId
     },
@@ -464,8 +503,8 @@ function calculateUserDeltas(input: {
   endsAtMs: number
   pointsPerCorrect: number
   pointsPerIncorrect: number
-}): Map<string, { points: number; totalPredictions: number; correctPredictions: number }> {
-  const result = new Map<string, { points: number; totalPredictions: number; correctPredictions: number }>()
+}): Map<string, UserScoreDelta> {
+  const result = new Map<string, UserScoreDelta>()
   const seenPredictions = new Set<string>()
 
   for (const predictionDocument of input.predictions) {
@@ -498,19 +537,73 @@ function calculateUserDeltas(input: {
     const current = result.get(userId) || {
       points: 0,
       totalPredictions: 0,
+      correctPredictions: 0,
+      assetStats: new Map<string, LeaderboardAssetStat>()
+    }
+    const assetStat = current.assetStats.get(assetId) || {
+      assetId,
+      asset: resolution.asset,
+      totalPredictions: 0,
       correctPredictions: 0
     }
     current.totalPredictions += 1
+    assetStat.totalPredictions += 1
     if (isCorrect) {
       current.correctPredictions += 1
+      assetStat.correctPredictions += 1
       current.points += input.pointsPerCorrect
     } else {
       current.points += input.pointsPerIncorrect
     }
+    current.assetStats.set(assetId, assetStat)
     result.set(userId, current)
   }
 
   return result
+}
+
+function mergeLeaderboardAssetStats(
+  existingValue: unknown,
+  deltaStats: Map<string, LeaderboardAssetStat>
+): LeaderboardAssetStat[] {
+  const merged = new Map<string, LeaderboardAssetStat>()
+
+  if (Array.isArray(existingValue)) {
+    for (const value of existingValue) {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
+      const source = value as Record<string, unknown>
+      const assetIdSource = typeof source.assetId === 'string'
+        ? source.assetId
+        : typeof source.asset === 'string'
+          ? source.asset
+          : ''
+      const assetId = normalizeAssetId(assetIdSource)
+      if (!assetId) continue
+      const totalPredictions = Math.max(0, readFiniteNumber(source.totalPredictions, 0))
+      const correctPredictions = Math.min(
+        totalPredictions,
+        Math.max(0, readFiniteNumber(source.correctPredictions, 0))
+      )
+      merged.set(assetId, {
+        assetId,
+        asset: typeof source.asset === 'string' && source.asset.trim() ? source.asset.trim() : assetId,
+        totalPredictions,
+        correctPredictions
+      })
+    }
+  }
+
+  for (const [assetId, delta] of deltaStats) {
+    const existing = merged.get(assetId)
+    merged.set(assetId, {
+      assetId,
+      asset: delta.asset || existing?.asset || assetId,
+      totalPredictions: (existing?.totalPredictions || 0) + delta.totalPredictions,
+      correctPredictions: (existing?.correctPredictions || 0) + delta.correctPredictions
+    })
+  }
+
+  return Array.from(merged.values()).sort((left, right) => left.asset.localeCompare(right.asset))
 }
 
 async function resolveAssetDirection(
