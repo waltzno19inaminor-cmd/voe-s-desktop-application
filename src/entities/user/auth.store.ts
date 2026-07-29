@@ -73,7 +73,6 @@ export const useAuthStore = defineStore('auth', {
                     
                     if (data.displayName) finalDisplayName = data.displayName
                     if (data.photoURL) finalPhotoURL = data.photoURL
-                    if (data.avatarUrl) finalAvatarUrl = data.avatarUrl
                 }
             } catch (err) {
                 console.error('Failed to fetch user Firestore doc:', err)

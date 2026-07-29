@@ -1,7 +1,7 @@
 import { useAuthStore } from "~/entities/user/auth.store";
 import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
 import { auth as firebaseAuth } from "~/shared/firebase.client";
-import { ensureStoredUserAvatar } from '~/entities/user/model/user-avatar'
+import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
 
 export const useAuthInit = async () => {
     const auth = useAuthStore();
@@ -30,19 +30,14 @@ export const useAuthInit = async () => {
    
 
     onAuthStateChanged(firebaseAuth, async (user) => {
-    if (user) {
-      try {
-        await ensureStoredUserAvatar(user)
-      } catch (error) {
-        console.warn('[Auth] Unable to cache the Google avatar:', error)
-      }
-    }
+    const avatarUrl = user ? await getCachedAvatarUrl(user.photoURL).catch(() => null) : null
 
     await auth.setUser(user ? {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
+        avatarUrl,
         joinedAt: user.metadata.creationTime
     } : null)
 

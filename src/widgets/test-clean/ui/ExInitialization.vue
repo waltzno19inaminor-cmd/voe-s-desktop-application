@@ -259,7 +259,7 @@ const authLoading = ref(false)
 const phase = ref<'auth' | 'boot' | 'ready'>('auth')
 
 import { useAppBootStore } from '~/features/store/useAppBoot'
-import { ensureStoredUserAvatar } from '~/entities/user/model/user-avatar'
+import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
 
 const appBootStore = useAppBootStore()
 
@@ -293,16 +293,12 @@ const ensureUserDocument = async (user: any) => {
       joinedAt: serverTimestamp()
     })
   }
-  try {
-    await ensureStoredUserAvatar(user)
-  } catch (error) {
-    console.warn('[Auth] Unable to cache the Google avatar:', error)
-  }
   await authStore.setUser({
     uid: user.uid,
     email: user.email,
     displayName: user.displayName,
     photoURL: user.photoURL,
+    avatarUrl: await getCachedAvatarUrl(user.photoURL).catch(() => null),
     joinedAt: user.metadata.creationTime ?? null
   })
 }

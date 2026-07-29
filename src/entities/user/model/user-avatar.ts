@@ -1,53 +1,48 @@
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
-import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage'
-import { db, fireStorage } from '~/shared/firebase.client'
-
-type AvatarSourceUser = {
-  uid: string
-  photoURL?: string | null
-}
-
+const AVATAR_CACHE_NAME = 'exgenesis-user-avatars-v1'
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024
-const avatarSyncRequests = new Map<string, Promise<string | null>>()
+const inFlightRequests = new Map<string, Promise<string | null>>()
+const objectUrls = new Map<string, string>()
 
-export async function ensureStoredUserAvatar(user: AvatarSourceUser): Promise<string | null> {
-  const existingRequest = avatarSyncRequests.get(user.uid)
+export async function getCachedAvatarUrl(source: unknown): Promise<string | null> {
+  const sourceUrl = String(source || '').trim()
+  if (!isGoogleAvatarUrl(sourceUrl)) return null
+
+  const existingObjectUrl = objectUrls.get(sourceUrl)
+  if (existingObjectUrl) return existingObjectUrl
+
+  const existingRequest = inFlightRequests.get(sourceUrl)
   if (existingRequest) return existingRequest
 
-  const request = syncStoredUserAvatar(user).finally(() => avatarSyncRequests.delete(user.uid))
-  avatarSyncRequests.set(user.uid, request)
+  const request = loadCachedAvatar(sourceUrl).finally(() => inFlightRequests.delete(sourceUrl))
+  inFlightRequests.set(sourceUrl, request)
   return request
 }
 
-async function syncStoredUserAvatar(user: AvatarSourceUser): Promise<string | null> {
-  const sourceUrl = String(user.photoURL || '').trim()
-  if (!user.uid || !isGoogleAvatarUrl(sourceUrl)) return null
+async function loadCachedAvatar(sourceUrl: string): Promise<string | null> {
+  if (typeof caches === 'undefined') return null
 
-  const userRef = doc(db, 'users', user.uid)
-  const userSnapshot = await getDoc(userRef)
-  const existingAvatarUrl = String(userSnapshot.data()?.avatarUrl || '').trim()
-  if (existingAvatarUrl) return existingAvatarUrl
+  const cache = await caches.open(AVATAR_CACHE_NAME)
+  let response = await cache.match(sourceUrl)
+  if (!response) {
+    response = await fetchGoogleAvatar(sourceUrl)
+    const contentLength = Number(response.headers.get('content-length') || 0)
+    if (Number.isFinite(contentLength) && contentLength > MAX_AVATAR_BYTES) {
+      throw new Error('Google avatar exceeds the 2 MB local cache limit.')
+    }
+    await cache.put(sourceUrl, response.clone())
+  }
 
-  const response = await fetchGoogleAvatar(sourceUrl)
   const contentType = response.headers.get('content-type')?.split(';')[0].trim().toLowerCase() || ''
   if (!contentType.startsWith('image/')) throw new Error('Google avatar response is not an image.')
 
   const image = await response.blob()
   if (!image.size || image.size > MAX_AVATAR_BYTES) {
-    throw new Error('Google avatar exceeds the 2 MB profile-avatar limit.')
+    throw new Error('Google avatar exceeds the 2 MB local cache limit.')
   }
 
-  const avatarRef = storageRef(fireStorage, `avatars/${user.uid}/profile.${getAvatarExtension(contentType)}`)
-  await uploadBytes(avatarRef, image, { contentType })
-  const avatarUrl = await getDownloadURL(avatarRef)
-
-  await setDoc(userRef, {
-    avatarUrl,
-    avatarSourceUrl: sourceUrl,
-    avatarUpdatedAt: serverTimestamp()
-  }, { merge: true })
-
-  return avatarUrl
+  const objectUrl = URL.createObjectURL(image)
+  objectUrls.set(sourceUrl, objectUrl)
+  return objectUrl
 }
 
 async function fetchGoogleAvatar(url: string): Promise<Response> {
@@ -72,11 +67,4 @@ function isGoogleAvatarUrl(value: string): boolean {
   } catch {
     return false
   }
-}
-
-function getAvatarExtension(contentType: string): string {
-  if (contentType === 'image/png') return 'png'
-  if (contentType === 'image/webp') return 'webp'
-  if (contentType === 'image/gif') return 'gif'
-  return 'jpg'
 }
