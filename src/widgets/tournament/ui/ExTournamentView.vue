@@ -14,17 +14,38 @@
           :class="themeStore.settings.isDark ? 'leaderboard-page--dark' : 'leaderboard-page--light'"
         >
           <div class="relative z-10 flex min-h-0 w-full flex-1 flex-col">
-            <div class="relative z-10 mb-4 flex shrink-0 items-start justify-between gap-4">
+            <div class="relative z-10 mb-4 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-4">
               <button
                 type="button"
-                class="leaderboard-page__muted font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
+                class="leaderboard-page__muted justify-self-start font-mono text-[10px] font-black uppercase tracking-[0.2em] transition-colors"
                 @click.stop="showLeaderboard = false"
               >
                 {{ locale === 'ru' ? 'Назад' : 'Back' }}
               </button>
-              <div class="leaderboard-page__muted text-right font-mono text-[10px] font-black uppercase tracking-[0.2em]">
-                {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ currentSeasonRoman }}
+              <div class="leaderboard-page__season-pagination flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  class="leaderboard-page__season-button"
+                  :disabled="!canShowPreviousLeaderboardSeason"
+                  :aria-label="locale === 'ru' ? 'Предыдущий сезон' : 'Previous season'"
+                  @click="showAdjacentLeaderboardSeason(-1)"
+                >
+                  ←
+                </button>
+                <span class="leaderboard-page__muted whitespace-nowrap font-mono text-[10px] font-black uppercase tracking-[0.2em]">
+                  {{ locale === 'ru' ? 'СЕЗОН' : 'SEASON' }} {{ leaderboardSeasonRoman }}
+                </span>
+                <button
+                  type="button"
+                  class="leaderboard-page__season-button"
+                  :disabled="!canShowNextLeaderboardSeason"
+                  :aria-label="locale === 'ru' ? 'Следующий сезон' : 'Next season'"
+                  @click="showAdjacentLeaderboardSeason(1)"
+                >
+                  →
+                </button>
               </div>
+              <span aria-hidden="true"></span>
             </div>
 
             <div class="relative z-10 shrink-0 text-center">
@@ -810,6 +831,8 @@ import type { TournamentPredictionDirection } from '~/entities/tournament/model/
 import {
   allTournaments,
   openedSeason,
+  tournamentSeasons,
+  selectedLeaderboardSeasonId,
   openedSeasonRounds,
   isTournamentLoading,
   isRegistering,
@@ -829,6 +852,7 @@ import {
   initTournamentListener,
   initSeasonsListener,
   initParticipantListener,
+  selectLeaderboardSeason,
   terminateTournamentListeners,
   registerForTournament
 } from '~/widgets/tournament/model/useTournament'
@@ -1423,6 +1447,37 @@ const currentSeasonRoman = computed(() => {
   return ordinal ? toRomanNumeral(ordinal) : '—'
 })
 
+const leaderboardSeasonIndex = computed(() => {
+  return tournamentSeasons.value.findIndex(
+    (season) => season.id === selectedLeaderboardSeasonId.value
+  )
+})
+
+const leaderboardSeason = computed(() => {
+  return leaderboardSeasonIndex.value >= 0
+    ? tournamentSeasons.value[leaderboardSeasonIndex.value]
+    : openedSeason.value
+})
+
+const leaderboardSeasonRoman = computed(() => {
+  const ordinal = leaderboardSeasonIndex.value >= 0
+    ? leaderboardSeasonIndex.value + 1
+    : leaderboardSeason.value?.ordinal
+  return ordinal ? toRomanNumeral(ordinal) : '—'
+})
+
+const canShowPreviousLeaderboardSeason = computed(() => leaderboardSeasonIndex.value > 0)
+const canShowNextLeaderboardSeason = computed(() => (
+  leaderboardSeasonIndex.value >= 0
+  && leaderboardSeasonIndex.value < tournamentSeasons.value.length - 1
+))
+
+const showAdjacentLeaderboardSeason = (direction: -1 | 1) => {
+  const nextIndex = leaderboardSeasonIndex.value + direction
+  const nextSeason = tournamentSeasons.value[nextIndex]
+  if (nextSeason) selectLeaderboardSeason(nextSeason.id)
+}
+
 watch(currentRoundId, () => {
   showVotingRules.value = false
 })
@@ -1971,6 +2026,36 @@ onUnmounted(() => {
 
 .leaderboard-page__heading {
   color: var(--leaderboard-fg) !important;
+}
+
+.leaderboard-page__season-button {
+  display: inline-flex;
+  width: 1.4rem;
+  height: 1.4rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--leaderboard-border);
+  color: var(--leaderboard-fg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease;
+}
+
+.leaderboard-page__season-button:not(:disabled):hover {
+  border-color: var(--leaderboard-fg);
+  background-color: var(--leaderboard-fg);
+  color: var(--leaderboard-table-bg);
+}
+
+.leaderboard-page__season-button:disabled {
+  cursor: default;
+  opacity: 0.28;
+}
+
+.leaderboard-page__season-button:focus-visible {
+  outline: 1px solid var(--leaderboard-fg);
+  outline-offset: 3px;
 }
 
 .leaderboard-page--light .leaderboard-page__table {

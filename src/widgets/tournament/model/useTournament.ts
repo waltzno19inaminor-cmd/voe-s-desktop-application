@@ -40,6 +40,8 @@ export const DEFAULT_TOURNAMENT: TournamentEvent = {
 export const allTournaments = ref<TournamentEvent[]>([{ ...DEFAULT_TOURNAMENT }])
 export const currentTournament = computed(() => allTournaments.value[0] || { ...DEFAULT_TOURNAMENT })
 export const openedSeason = ref<TournamentSeason | null>(null)
+export const tournamentSeasons = ref<TournamentSeason[]>([])
+export const selectedLeaderboardSeasonId = ref('')
 export const openedSeasonRounds = ref<TournamentRound[]>([])
 export const isTournamentLoading = ref(true)
 export const isRegistering = ref(false)
@@ -112,12 +114,19 @@ export function initSeasonsListener(eventId?: string) {
   isSeasonsReady.value = false
   isRoundsReady.value = false
   openedSeason.value = null
+  tournamentSeasons.value = []
+  selectedLeaderboardSeasonId.value = ''
   openedSeasonRounds.value = []
   seasonsEventId = eventId
   const seasonsCol = collection(db, 'tournaments', eventId, 'seasons')
 
   seasonsUnsubscribe = onSnapshot(seasonsCol, (snapshot) => {
     isSeasonsReady.value = true
+    tournamentSeasons.value = snapshot.docs.map((seasonSnapshot, index) => ({
+      ...seasonSnapshot.data(),
+      id: seasonSnapshot.id,
+      ordinal: index + 1
+    }) as TournamentSeason)
     const openedSeasonIndex = snapshot.docs.findIndex((seasonSnapshot) => {
       const seasonData = seasonSnapshot.data()
       return String(seasonData.status || '').toLowerCase() === 'opened'
@@ -130,7 +139,13 @@ export function initSeasonsListener(eventId?: string) {
 
     if (openedSeasonSnapshot) {
       initRoundsListener(eventId, openedSeasonSnapshot.id)
-      initLeaderboardListener(eventId, openedSeasonSnapshot.id)
+      const selectedSeasonExists = tournamentSeasons.value.some(
+        (season) => season.id === selectedLeaderboardSeasonId.value
+      )
+      if (!selectedSeasonExists) {
+        selectedLeaderboardSeasonId.value = openedSeasonSnapshot.id
+      }
+      initLeaderboardListener(eventId, selectedLeaderboardSeasonId.value)
     } else {
       terminateRoundsListener()
       isRoundsReady.value = true
@@ -144,8 +159,18 @@ export function initSeasonsListener(eventId?: string) {
     isSeasonsReady.value = true
     openedSeasonRounds.value = []
     openedSeason.value = null
+    tournamentSeasons.value = []
+    selectedLeaderboardSeasonId.value = ''
     console.warn('[Tournament] Error listening to seasons collection:', err)
   })
+}
+
+export function selectLeaderboardSeason(seasonId: string): void {
+  if (!seasonsEventId || !seasonId) return
+  if (!tournamentSeasons.value.some((season) => season.id === seasonId)) return
+
+  selectedLeaderboardSeasonId.value = seasonId
+  initLeaderboardListener(seasonsEventId, seasonId)
 }
 
 function initLeaderboardListener(eventId: string, seasonId: string) {
@@ -451,6 +476,8 @@ export function terminateTournamentListeners() {
   terminateLeaderboardListener()
   terminateRoundsListener()
   openedSeasonRounds.value = []
+  tournamentSeasons.value = []
+  selectedLeaderboardSeasonId.value = ''
   seasonsEventId = null
   isSeasonsReady.value = false
   isRoundsReady.value = false
