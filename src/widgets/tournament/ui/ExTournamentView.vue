@@ -558,15 +558,16 @@
           </div>
 
           <div class="mt-20 flex w-full min-h-0 flex-1 flex-col items-stretch gap-4 sm:flex-row sm:justify-between">
-            <ExPanel
-              variant="light"
-              :show-corners="true"
-              :no-padding="true"
-              :no-shadow="true"
-              :style="{ backgroundColor: votingSurfaceColor }"
-              class="registered-voting-panel min-w-0 w-full sm:w-1/2 sm:flex-none"
-            >
-              <div class="px-4 py-3">
+            <div class="registered-voting-panel-column min-w-0 w-full sm:w-1/2 sm:flex-none">
+              <ExPanel
+                variant="light"
+                :show-corners="true"
+                :no-padding="true"
+                :no-shadow="true"
+                :style="{ backgroundColor: votingSurfaceColor }"
+                class="registered-voting-panel w-full"
+              >
+              <div class="flex h-full min-h-[280px] flex-col px-4 py-3">
                 <div class="mb-3 flex flex-wrap items-center gap-5">
                   <span class="registered-fg font-mono text-[10px] font-black tracking-[0.12em]">
                     {{ locale === 'ru' ? 'Выберите актив' : 'Select asset' }}
@@ -646,11 +647,40 @@
                     </span>
                   </div>
                 </div>
+
               </div>
-            </ExPanel>
+              </ExPanel>
+
+              <button
+                type="button"
+                class="registered-rules-button mt-3 border px-2.5 py-1.5 font-mono text-[8px] font-black uppercase tracking-[0.18em] transition-all duration-200"
+                :aria-pressed="showVotingRules"
+                @click="showVotingRules = !showVotingRules"
+              >
+                {{ showVotingRules
+                  ? (locale === 'ru' ? 'К голосованию' : 'Back to voting')
+                  : (locale === 'ru' ? 'Правила' : 'Rules')
+                }}
+              </button>
+            </div>
 
             <div class="registered-selected-asset-card min-w-0 w-full sm:w-2/5 sm:flex-none">
-              <div v-if="selectedAsset" class="flex h-full min-h-[280px] flex-col">
+              <Transition name="registered-rules-reveal" mode="out-in">
+              <div v-if="showVotingRules" key="voting-rules" class="registered-rules-card scroll-minimal flex h-full min-h-[280px] flex-col overflow-y-auto">
+                <div class="registered-fg font-mono text-xl font-black uppercase tracking-[0.12em] sm:text-2xl">
+                  {{ locale === 'ru' ? 'Правила оценки' : 'Scoring rules' }}
+                </div>
+                <ol class="mt-6 space-y-0">
+                  <li v-for="rule in votingRules" :key="rule.number" class="registered-rule flex gap-4 py-4">
+                    <span class="registered-muted shrink-0 font-mono text-[10px] font-black tracking-[0.14em]">{{ rule.number }}</span>
+                    <span class="registered-fg font-mono text-sm font-semibold leading-relaxed tracking-[0.035em] sm:text-base">
+                      {{ rule.text }}
+                    </span>
+                  </li>
+                </ol>
+              </div>
+
+              <div v-else-if="selectedAsset" key="selected-asset" class="flex h-full min-h-[280px] flex-col">
                 <div class="flex items-start gap-5">
                 <span
                   v-if="selectedAsset.isForex"
@@ -739,6 +769,7 @@
                   </button>
                 </div>
               </div>
+              </Transition>
             </div>
           </div>
         </div>
@@ -1096,6 +1127,7 @@ const allowedTournamentAssets = computed(() => {
 })
 
 const selectedAssetKey = ref('')
+const showVotingRules = ref(false)
 
 const selectAsset = (assetKey: string) => {
   selectedAssetKey.value = assetKey
@@ -1245,6 +1277,32 @@ const localVotingResolutionEnd = computed(() => {
   return votingResolutionEndMillis.value ? formatLocalTime(votingResolutionEndMillis.value) : ''
 })
 
+const normalizeJudgeRules = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map((rule) => String(rule || '').trim()).filter(Boolean)
+  }
+
+  return typeof value === 'string'
+    ? value.split(/\r?\n/).map((rule) => rule.trim()).filter(Boolean)
+    : []
+}
+
+const replaceRuleTimeWindow = (rule: string) => {
+  const timeWindow = String(timeWindowMinutes.value || '—')
+  return rule.replace(/\{\{\s*timeWindow\s*\}\}|\{\s*timeWindow\s*\}|\[\s*timeWindow\s*\]|\btimeWindow\b/gi, timeWindow)
+}
+
+const votingRules = computed(() => {
+  const source = locale.value === 'ru'
+    ? openedSeason.value?.judgeRulesRu
+    : openedSeason.value?.judgeRulesEn
+
+  return normalizeJudgeRules(source).map((text, index) => ({
+    number: String(index + 1).padStart(2, '0'),
+    text: replaceRuleTimeWindow(text)
+  }))
+})
+
 const votingGuidance = computed(() => {
   const resolutionTime = localVotingResolutionEnd.value
   if (!resolutionTime) {
@@ -1346,6 +1404,10 @@ const toRomanNumeral = (value: number) => {
 const currentSeasonRoman = computed(() => {
   const ordinal = openedSeason.value?.ordinal
   return ordinal ? toRomanNumeral(ordinal) : '—'
+})
+
+watch(currentRoundId, () => {
+  showVotingRules.value = false
 })
 
 const formatSeasonDate = (dateValue: any) => {
@@ -1737,11 +1799,48 @@ onUnmounted(() => {
   border-color: var(--registered-border);
 }
 
+.registered-rules-button {
+  border-color: var(--registered-border);
+  color: var(--registered-muted);
+}
+
+.registered-rules-button:hover {
+  border-color: var(--registered-fg);
+  background-color: color-mix(in srgb, var(--registered-fg) 6%, transparent);
+  color: var(--registered-fg);
+}
+
+.registered-rules-button:focus-visible {
+  outline: 1px solid var(--registered-fg);
+  outline-offset: 3px;
+}
+
 .registered-selected-asset-card {
   background-color: transparent;
   box-shadow: none;
   min-height: max(280px, calc(100% - 12rem));
   padding: 1rem 1.5rem;
+}
+
+.registered-rules-card {
+  padding: 1rem 1.5rem;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.registered-rule + .registered-rule {
+  border-top: 1px solid color-mix(in srgb, var(--registered-border) 72%, transparent);
+}
+
+.registered-rules-reveal-enter-active,
+.registered-rules-reveal-leave-active {
+  transition: opacity 260ms ease, transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.registered-rules-reveal-enter-from,
+.registered-rules-reveal-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .registered-vote-track {

@@ -65,4 +65,6 @@ export interface TournamentSeason {
   startsAt?: any
   endsAt?: any
   timeWindow?: number
+  judgeRulesRu?: string[] | string
+  judgeRulesEn?: string[] | string
 }
