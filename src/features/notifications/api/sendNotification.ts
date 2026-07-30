@@ -6,12 +6,12 @@ import {
   getDoc,
 } from 'firebase/firestore'
 import { db } from '@/shared/firebase.client'
-import type { Notification } from '@/entities/notification/model/notification.types'
+import type { NonEventNotificationType, Notification } from '@/entities/notification/model/notification.types'
 
 type SendNotificationPayload = {
   toUserId: string
 
-  type: Notification['type']
+  type: NonEventNotificationType
   content?: string
 
   actorId?: string
@@ -52,7 +52,7 @@ export async function sendNotification(payload: SendNotificationPayload) {
     ? `${actorLabel} ${type === 'reply_to_you' ? 'replied to you' : 'sent you a notification'}.`
     : 'You have a new notification.'
 
-  const notification: Omit<Notification, 'id'> = {
+  const notification = {
     type,
     content: content?.trim() || fallbackContent,
     target,

@@ -57,10 +57,13 @@
           >
             <span v-if="!notification.isRead" class="notification-item__unread" aria-hidden="true" />
             <span class="block pr-4 font-mono text-[8px] font-black uppercase tracking-[0.16em] text-theme-text/45">
-              {{ typeLabel(notification.type) }} · {{ timeAgo(notification.createdAt) }}
+              {{ notification.type === 'event' ? eventMeta(notification) : typeLabel(notification.type) }} · {{ timeAgo(notification.createdAt) }}
             </span>
             <span class="mt-2 block pr-4 font-mono text-[11px] leading-relaxed tracking-[0.04em] text-theme-text/90">
               {{ notification.content }}
+              <strong v-if="notification.type === 'event'" class="notification-item__award ml-1.5 font-black tracking-[0.08em]">
+                {{ eventAward(notification) }}
+              </strong>
             </span>
           </button>
         </div>
@@ -78,7 +81,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { timeAgo } from '~/composables/timeAgo'
-import type { NotificationType } from '~/entities/notification/model/notification.types'
+import type { EventNotification, NotificationType } from '~/entities/notification/model/notification.types'
 import { useNotificationStore } from '~/features/store/useNotifications'
 
 const props = defineProps<{
@@ -122,9 +125,22 @@ const typeLabel = (type: NotificationType) => {
     system: ['Система', 'System'],
     tournament: ['Событие', 'Event'],
     leaderboard: ['Лидеры', 'Leaders'],
+    event: ['Событие', 'Event'],
   }
 
   return labels[type]?.[props.locale === 'ru' ? 0 : 1] || type
+}
+
+const eventMeta = (notification: EventNotification) => (
+  `${notification.eventName} · ${props.locale === 'ru' ? 'СЕЗОН' : 'SEASON'} ${notification.season} · ${props.locale === 'ru' ? 'РАУНД' : 'ROUND'} ${notification.round}`
+)
+
+const eventAward = (notification: EventNotification) => {
+  if (notification.subtype === 'points') {
+    return `${notification.points >= 0 ? '+' : ''}${notification.points} ${props.locale === 'ru' ? 'ОЧКОВ' : 'POINTS'}`
+  }
+
+  return notification.prize
 }
 
 const handleOutsideClick = (event: MouseEvent) => {
@@ -174,6 +190,11 @@ onBeforeUnmount(() => {
   top: 17px;
   transform: rotate(45deg);
   width: 5px;
+}
+
+.notification-item__award {
+  color: var(--theme-text);
+  white-space: nowrap;
 }
 
 .notification-loader {

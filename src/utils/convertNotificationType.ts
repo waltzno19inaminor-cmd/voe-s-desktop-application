@@ -10,5 +10,6 @@ export function convertNotificationType(type: NotificationType) {
     if(type === 'system') return 'System notification'
     if(type === 'tournament') return 'Tournament update'
     if(type === 'leaderboard') return 'Leaderboard update'
+    if(type === 'event') return 'Event update'
     return 'New notification'
 }
