@@ -8,4 +8,7 @@ export function convertNotificationType(type: NotificationType) {
     if(type === 'followed') return 'followed you'
     if(type === 'saved') return 'saved your thread'
     if(type === 'system') return 'System notification'
+    if(type === 'tournament') return 'Tournament update'
+    if(type === 'leaderboard') return 'Leaderboard update'
+    return 'New notification'
 }

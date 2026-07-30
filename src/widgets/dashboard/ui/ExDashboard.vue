@@ -139,6 +139,7 @@
             </Teleport>
           </div>
 
+          <ExNotificationCenter :user-id="authStore.user?.uid" :locale="locale" />
           <!-- Theme Toggle -->
           <button
             class="dashboard-icon-toggle opacity-30 hover:opacity-100 transition-all duration-300"
@@ -299,6 +300,7 @@ import ExTag from "~/shared/ui/ExTag.vue"
 import ExIdentity from "~/shared/ui/ExIdentity.vue"
 import ExPanel from "~/shared/ui/ExPanel.vue"
 import ExButton from "~/shared/ui/ExButton.vue"
+import ExNotificationCenter from '~/entities/notification/ui/ExNotificationCenter.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExProfileOverlay from '~/widgets/profile/ui/ExProfileOverlay.vue'

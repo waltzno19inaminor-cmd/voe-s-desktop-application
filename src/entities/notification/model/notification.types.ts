@@ -1,12 +1,23 @@
+import type { Timestamp } from 'firebase/firestore'
+
+export type NotificationTime = Timestamp | Date | string | null
+
+/** A document in users/{userId}/notifications. */
 export interface Notification {
   id: string
-
   type: NotificationType
+
+  /** Human-readable message shown in the notification centre. */
+  content: string
+  /** Set by Firestore with serverTimestamp when the notification is created. */
+  createdAt: NotificationTime
+  isRead: boolean
+  readAt?: NotificationTime
 
   actorId?: string       
  
   actorLabel?: string    
-  target: {
+  target?: {
     entity: EntityType  
     id: string
   }
@@ -18,8 +29,6 @@ export interface Notification {
     threadAuthorId?: string
   }
 
-  createdAt: string
-  isRead: boolean
 }
 
 export type EntityType =
@@ -36,3 +45,5 @@ export type NotificationType =
   | 'saved'
   | 'followed'
   | 'system'
+  | 'tournament'
+  | 'leaderboard'

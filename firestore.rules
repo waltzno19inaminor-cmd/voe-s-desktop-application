@@ -80,7 +80,8 @@ service cloud.firestore {
     match /users/{userId}/{subcollection}/{docId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
-        && subcollection != "likedThreads";
+        && subcollection != "likedThreads"
+        && subcollection != "notifications";
       allow delete: if false;
     }
 
@@ -100,6 +101,57 @@ service cloud.firestore {
           == (normalizedThreadLikes(threadId) > 0 ? normalizedThreadLikes(threadId) - 1 : 0);
 
       allow update: if false;
+    }
+
+    match /users/{userId}/notifications/{notificationId} {
+      // A recipient may see notifications addressed only to them.
+      allow read: if isOwner(userId);
+
+      // Forum reply notifications may be emitted by the author of a reply only
+      // to the actual author of the replied-to message. System, tournament and
+      // leaderboard notifications are written by a trusted backend (Admin SDK).
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasAll([
+          "type",
+          "content",
+          "createdAt",
+          "isRead",
+          "actorId",
+          "target"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "type",
+          "content",
+          "createdAt",
+          "isRead",
+          "actorId",
+          "actorLabel",
+          "target",
+          "context"
+        ])
+        && request.resource.data.type == "reply_to_you"
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 500
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.isRead == false
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.target.entity == "reply"
+        && request.resource.data.target.id is string
+        && get(/databases/$(database)/documents/replies/$(request.resource.data.target.id)).data.authorId == userId;
+
+      // Reading is intentionally one-way: the client cannot modify content or
+      // turn an already read notification back into an unread notification.
+      allow update: if isOwner(userId)
+        && resource.data.isRead == false
+        && request.resource.data.isRead == true
+        && request.resource.data.readAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          "isRead",
+          "readAt"
+        ]);
+
+      allow delete: if false;
     }
 
     match /tournaments/{tournamentId} {

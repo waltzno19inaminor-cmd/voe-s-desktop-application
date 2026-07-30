@@ -12,11 +12,12 @@ type SendNotificationPayload = {
   toUserId: string
 
   type: Notification['type']
+  content?: string
 
   actorId?: string
   actorLabel?: string
 
-  target: Notification['target']
+  target: NonNullable<Notification['target']>
   context?: Notification['context']
 }
 
@@ -27,6 +28,7 @@ export async function sendNotification(payload: SendNotificationPayload) {
   const {
     toUserId,
     type,
+    content,
     actorId,
     actorLabel,
     target,
@@ -46,8 +48,13 @@ export async function sendNotification(payload: SendNotificationPayload) {
     throw new Error(`User ${toUserId} not found`)
   }
 
+  const fallbackContent = actorLabel
+    ? `${actorLabel} ${type === 'reply_to_you' ? 'replied to you' : 'sent you a notification'}.`
+    : 'You have a new notification.'
+
   const notification: Omit<Notification, 'id'> = {
     type,
+    content: content?.trim() || fallbackContent,
     target,
     createdAt: new Date().toISOString(),
     isRead: false,
