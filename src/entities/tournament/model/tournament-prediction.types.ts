@@ -13,22 +13,10 @@ export interface TournamentPrediction {
 }
 
 export interface TournamentAssetResult {
-  assetId: string
   asset: string
-  yahooSymbol: string
-  session: 'UTC_24H' | 'NYSE'
-  referencePrice: number
-  reachedPrice: number
-  reachedAt: any
+  initialPrice: number
+  finalPrice: number
   verdict: TournamentPredictionDirection
-  resolutionEndsAt: any
-  timeWindowMinutes: number
-  startPrice?: number
-  endPrice?: number
-  sessionHigh?: number
-  sessionHighAt?: any
-  sessionLow?: number
-  sessionLowAt?: any
 }
 
 export interface TournamentRound {

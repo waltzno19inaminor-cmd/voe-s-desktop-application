@@ -75,17 +75,9 @@ interface YahooCandle {
 interface AssetResolution {
   assetId: string
   asset: string
-  yahooSymbol: string
-  session: MarketSession
   direction: PredictionDirection
-  startPrice: number
-  endPrice: number
-  referencePrice: number
-  sessionHigh: number
-  sessionHighAt: Date
-  sessionLow: number
-  sessionLowAt: Date
-  resolutionEndsAt: Date
+  initialPrice: number
+  finalPrice: number
 }
 
 interface LeaderboardAssetStat {
@@ -129,6 +121,8 @@ const YAHOO_CHART_ENDPOINTS = [
   'https://query2.finance.yahoo.com/v8/finance/chart'
 ] as const
 const MINUTE_MS = 60 * 1000
+const CANDLE_INTERVAL_MINUTES = 30
+const CANDLE_INTERVAL_MS = CANDLE_INTERVAL_MINUTES * MINUTE_MS
 const MAX_ATOMIC_WRITES = 450
 const YAHOO_MAX_ATTEMPTS = 4
 
@@ -405,46 +399,12 @@ async function settleTournament(input: {
     }))
   }
 
-  const serializedResults = Object.fromEntries(
-    resolutions.map((resolution) => [
-      resolution.assetId,
-      {
-        asset: resolution.asset,
-        yahooSymbol: resolution.yahooSymbol,
-        session: resolution.session,
-        direction: resolution.direction,
-        startPrice: resolution.startPrice,
-        endPrice: resolution.endPrice,
-        referencePrice: resolution.referencePrice,
-        sessionHigh: resolution.sessionHigh,
-        sessionHighAt: resolution.sessionHighAt,
-        sessionLow: resolution.sessionLow,
-        sessionLowAt: resolution.sessionLowAt,
-        resolutionEndsAt: resolution.resolutionEndsAt,
-        timeWindowMinutes
-      }
-    ])
-  )
-
   const assetResults = resolutions.map((resolution) => {
-    const verdictIsLong = resolution.direction === 'LONG'
     return {
-      assetId: resolution.assetId,
       asset: resolution.asset,
-      yahooSymbol: resolution.yahooSymbol,
-      session: resolution.session,
-      referencePrice: resolution.referencePrice,
-      reachedPrice: verdictIsLong ? resolution.sessionHigh : resolution.sessionLow,
-      reachedAt: verdictIsLong ? resolution.sessionHighAt : resolution.sessionLowAt,
-      verdict: resolution.direction,
-      resolutionEndsAt: resolution.resolutionEndsAt,
-      timeWindowMinutes,
-      startPrice: resolution.startPrice,
-      endPrice: resolution.endPrice,
-      sessionHigh: resolution.sessionHigh,
-      sessionHighAt: resolution.sessionHighAt,
-      sessionLow: resolution.sessionLow,
-      sessionLowAt: resolution.sessionLowAt
+      initialPrice: resolution.initialPrice,
+      finalPrice: resolution.finalPrice,
+      verdict: resolution.direction
     }
   })
 
@@ -453,7 +413,6 @@ async function settleTournament(input: {
     fields: {
       status: 'closed',
       assetResults,
-      results: serializedResults,
       nextRoundId
     },
     serverTimestampFields: ['resolvedAt'],
@@ -615,69 +574,35 @@ async function resolveAssetDirection(
   if (cutoffMs <= endsAtMs) {
     throw new Error(`${asset.symbol}: resolution cutoff must be later than endsAt.`)
   }
+  if (!isThirtyMinuteBoundary(startsAtMs) || !isThirtyMinuteBoundary(endsAtMs) || !isThirtyMinuteBoundary(cutoffMs)) {
+    throw new Error(
+      `${asset.symbol}: startsAt, endsAt and endsAt + timeWindow must fall exactly on a 30-minute UTC boundary.`
+    )
+  }
 
-  const { candles, yahooSymbol } = await fetchYahooCandles(asset, startsAtMs, cutoffMs)
-  const startCandle = findExactMinuteCandle(candles, startsAtMs)
-  const endCandle = findExactMinuteCandle(candles, endsAtMs)
+  const { candles } = await fetchYahooCandles(asset, startsAtMs, cutoffMs)
+  const startCandle = findCandleEndingAt(candles, startsAtMs)
+  const finalCandle = findCandleEndingAt(candles, cutoffMs)
 
   if (!startCandle) {
-    throw new Error(`${asset.symbol}: Yahoo has no exact 1-minute candle at startsAt.`)
+    throw new Error(`${asset.symbol}: Yahoo has no exact 30-minute candle closing at startsAt.`)
   }
-  if (!endCandle) {
-    throw new Error(`${asset.symbol}: Yahoo has no exact 1-minute candle at endsAt.`)
-  }
-
-  const referencePrice = (startCandle.open + endCandle.open) / 2
-  const postVotingCandles = candles.filter((candle) => {
-    return candle.timestampMs >= floorToMinute(endsAtMs)
-      && candle.timestampMs < cutoffMs
-  })
-
-  if (!postVotingCandles.length) {
-    throw new Error(`${asset.symbol}: no candles between endsAt and the market-session close.`)
+  if (!finalCandle) {
+    throw new Error(`${asset.symbol}: Yahoo has no exact 30-minute candle closing at endsAt + timeWindow.`)
   }
 
-  const sessionHigh = Math.max(...postVotingCandles.map((candle) => candle.high))
-  const sessionLow = Math.min(...postVotingCandles.map((candle) => candle.low))
-  const highCandle = postVotingCandles.find((candle) => candle.high === sessionHigh)
-  const lowCandle = postVotingCandles.find((candle) => candle.low === sessionLow)
-
-  if (!highCandle || !lowCandle) {
-    throw new Error(`${asset.symbol}: failed to locate session extrema.`)
-  }
-
-  const reachedAboveReference = sessionHigh > referencePrice
-  const reachedBelowReference = sessionLow < referencePrice
-  let direction: PredictionDirection
-
-  if (reachedAboveReference && !reachedBelowReference) {
-    direction = 'LONG'
-  } else if (!reachedAboveReference && reachedBelowReference) {
-    direction = 'SHORT'
-  } else if (!reachedAboveReference && !reachedBelowReference) {
-    throw new Error(`${asset.symbol}: price never moved away from the reference price.`)
-  } else if (highCandle.timestampMs === lowCandle.timestampMs) {
-    throw new Error(
-      `${asset.symbol}: high and low occurred in the same minute; 1-minute Yahoo data cannot determine order safely.`
-    )
-  } else {
-    direction = lowCandle.timestampMs < highCandle.timestampMs ? 'SHORT' : 'LONG'
+  const initialPrice = startCandle.close
+  const finalPrice = finalCandle.close
+  if (finalPrice === initialPrice) {
+    throw new Error(`${asset.symbol}: final close equals initial close; no fair verdict can be assigned.`)
   }
 
   return {
     assetId: asset.assetId,
     asset: asset.symbol,
-    yahooSymbol,
-    session: asset.session,
-    direction,
-    startPrice: startCandle.open,
-    endPrice: endCandle.open,
-    referencePrice,
-    sessionHigh,
-    sessionHighAt: new Date(highCandle.timestampMs),
-    sessionLow,
-    sessionLowAt: new Date(lowCandle.timestampMs),
-    resolutionEndsAt: new Date(cutoffMs)
+    direction: finalPrice > initialPrice ? 'LONG' : 'SHORT',
+    initialPrice,
+    finalPrice
   }
 }
 
@@ -711,9 +636,9 @@ async function fetchYahooCandlesForSymbol(
   cutoffMs: number
 ): Promise<YahooCandle[]> {
   const query = new URLSearchParams({
-    period1: String(Math.floor((startsAtMs - MINUTE_MS) / 1000)),
-    period2: String(Math.ceil((cutoffMs + 2 * MINUTE_MS) / 1000)),
-    interval: '1m',
+    period1: String(Math.floor((startsAtMs - CANDLE_INTERVAL_MS) / 1000)),
+    period2: String(Math.ceil((cutoffMs + CANDLE_INTERVAL_MS) / 1000)),
+    interval: '30m',
     includePrePost: asset.session === 'NYSE' ? 'false' : 'true',
     events: 'div,splits',
     lang: 'en-US',
@@ -1275,13 +1200,16 @@ function makeUpdateWrite(input: {
   }
 }
 
-function findExactMinuteCandle(candles: YahooCandle[], targetMs: number): YahooCandle | undefined {
-  const minute = floorToMinute(targetMs)
-  return candles.find((candle) => floorToMinute(candle.timestampMs) === minute)
+function findCandleEndingAt(candles: YahooCandle[], endMs: number): YahooCandle | undefined {
+  const startsAtMs = endMs - CANDLE_INTERVAL_MS
+  return candles.find((candle) => candle.timestampMs === startsAtMs)
 }
 
-function floorToMinute(millis: number): number {
-  return Math.floor(millis / MINUTE_MS) * MINUTE_MS
+function isThirtyMinuteBoundary(millis: number): boolean {
+  const date = new Date(millis)
+  return date.getUTCMinutes() % CANDLE_INTERVAL_MINUTES === 0
+    && date.getUTCSeconds() === 0
+    && date.getUTCMilliseconds() === 0
 }
 
 function getNextUtcCalendarDay(nowMs: number): Date {
