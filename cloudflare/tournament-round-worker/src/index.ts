@@ -223,6 +223,10 @@ async function settleTournament(input: {
   }
 
   const season = openedSeasons[0]
+  const seasonOrdinal = seasons.findIndex((entry) => entry.id === season.id) + 1
+  if (seasonOrdinal < 1) {
+    throw new Error(`Could not determine ordinal for opened season ${season.id}.`)
+  }
   const rounds = await firestore.listDocuments(
     `tournaments/${tournamentId}/seasons/${season.id}`,
     'rounds'
@@ -242,6 +246,10 @@ async function settleTournament(input: {
   }
 
   const round = openedRounds[0]
+  const roundOrdinal = rounds.findIndex((entry) => entry.id === round.id) + 1
+  if (roundOrdinal < 1) {
+    throw new Error(`Could not determine ordinal for opened round ${round.id}.`)
+  }
   const startsAt = requireDate(round.data.startsAt, 'round.startsAt')
   const endsAt = requireDate(round.data.endsAt, 'round.endsAt')
   if (endsAt.getTime() <= startsAt.getTime()) {
@@ -367,6 +375,8 @@ async function settleTournament(input: {
     'leaderboard'
   )
   const leaderboardByUserId = new Map(leaderboardDocuments.map((entry) => [entry.id, entry]))
+  const eventNameEn = requireString(tournament.data.title, 'tournament.title')
+  const eventNameRu = readOptionalString(tournament.data.titleRu) || eventNameEn
 
   const writes: FirestoreWrite[] = []
   for (const [userId, delta] of userDeltas) {
@@ -397,6 +407,28 @@ async function settleTournament(input: {
         ? { updateTime: existing.updateTime }
         : { exists: false }
     }))
+
+    if (delta.points > 0) {
+      writes.push(makeUpdateWrite({
+        name: firestore.documentName(
+          `users/${userId}/notifications/event_points_${tournamentId}_${season.id}_${round.id}`
+        ),
+        fields: {
+          type: 'event',
+          subtype: 'points',
+          contentRu: 'За верные прогнозы в раунде вам начислены очки.',
+          contentEn: 'Points have been awarded for your correct predictions.',
+          eventNameRu,
+          eventNameEn,
+          season: seasonOrdinal,
+          round: roundOrdinal,
+          points: delta.points,
+          isRead: false
+        },
+        serverTimestampFields: ['createdAt'],
+        precondition: { exists: false }
+      }))
+    }
   }
 
   const assetResults = resolutions.map((resolution) => {
@@ -1328,6 +1360,12 @@ function requireString(value: unknown, fieldName: string): string {
     throw new Error(`${fieldName} must be a non-empty string.`)
   }
   return value
+}
+
+function readOptionalString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim()
+  return normalized || undefined
 }
 
 function requirePositiveInteger(value: unknown, fieldName: string): number {
