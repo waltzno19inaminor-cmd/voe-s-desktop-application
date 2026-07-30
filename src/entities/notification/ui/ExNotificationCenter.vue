@@ -60,7 +60,7 @@
               {{ notification.type === 'event' ? eventMeta(notification) : typeLabel(notification.type) }} · {{ timeAgo(notification.createdAt) }}
             </span>
             <span class="mt-2 block pr-4 font-mono text-[11px] leading-relaxed tracking-[0.04em] text-theme-text/90">
-              {{ notification.content }}
+              {{ notificationContent(notification) }}
               <strong v-if="notification.type === 'event'" class="notification-item__award ml-1.5 font-black tracking-[0.08em]">
                 {{ eventAward(notification) }}
               </strong>
@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { timeAgo } from '~/composables/timeAgo'
-import type { EventNotification, NotificationType } from '~/entities/notification/model/notification.types'
+import type { EventNotification, Notification, NotificationType } from '~/entities/notification/model/notification.types'
 import { useNotificationStore } from '~/features/store/useNotifications'
 
 const props = defineProps<{
@@ -132,7 +132,11 @@ const typeLabel = (type: NotificationType) => {
 }
 
 const eventMeta = (notification: EventNotification) => (
-  `${notification.eventName} · ${props.locale === 'ru' ? 'СЕЗОН' : 'SEASON'} ${notification.season} · ${props.locale === 'ru' ? 'РАУНД' : 'ROUND'} ${notification.round}`
+  `${props.locale === 'ru' ? notification.eventNameRu : notification.eventNameEn} · ${props.locale === 'ru' ? 'СЕЗОН' : 'SEASON'} ${notification.season} · ${props.locale === 'ru' ? 'РАУНД' : 'ROUND'} ${notification.round}`
+)
+
+const notificationContent = (notification: Notification) => (
+  props.locale === 'ru' ? notification.contentRu : notification.contentEn
 )
 
 const eventAward = (notification: EventNotification) => {

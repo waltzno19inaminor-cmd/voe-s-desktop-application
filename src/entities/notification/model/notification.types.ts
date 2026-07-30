@@ -26,7 +26,8 @@ interface NotificationBase {
   type: Exclude<NotificationType, 'event'>
 
   /** Human-readable message shown in the notification centre. */
-  content: string
+  contentRu: string
+  contentEn: string
   /** Set by Firestore with serverTimestamp when the notification is created. */
   createdAt: NotificationTime
   isRead: boolean
@@ -49,7 +50,8 @@ interface NotificationBase {
 interface EventNotificationBase extends Omit<NotificationBase, 'type'> {
   type: 'event'
   subtype: EventNotificationSubtype
-  eventName: string
+  eventNameRu: string
+  eventNameEn: string
   /** Ordinal number of the season, stored as a Firestore int64. */
   season: number
   /** Ordinal number of the round, stored as a Firestore int64. */

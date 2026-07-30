@@ -113,7 +113,8 @@ service cloud.firestore {
       allow create: if isSignedIn()
         && request.resource.data.keys().hasAll([
           "type",
-          "content",
+          "contentRu",
+          "contentEn",
           "createdAt",
           "isRead",
           "actorId",
@@ -121,7 +122,8 @@ service cloud.firestore {
         ])
         && request.resource.data.keys().hasOnly([
           "type",
-          "content",
+          "contentRu",
+          "contentEn",
           "createdAt",
           "isRead",
           "actorId",
@@ -130,9 +132,12 @@ service cloud.firestore {
           "context"
         ])
         && request.resource.data.type == "reply_to_you"
-        && request.resource.data.content is string
-        && request.resource.data.content.size() > 0
-        && request.resource.data.content.size() <= 500
+        && request.resource.data.contentRu is string
+        && request.resource.data.contentRu.size() > 0
+        && request.resource.data.contentRu.size() <= 500
+        && request.resource.data.contentEn is string
+        && request.resource.data.contentEn.size() > 0
+        && request.resource.data.contentEn.size() <= 500
         && request.resource.data.createdAt == request.time
         && request.resource.data.isRead == false
         && request.resource.data.actorId == request.auth.uid

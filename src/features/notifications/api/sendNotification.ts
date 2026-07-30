@@ -12,7 +12,8 @@ type SendNotificationPayload = {
   toUserId: string
 
   type: NonEventNotificationType
-  content?: string
+  contentRu?: string
+  contentEn?: string
 
   actorId?: string
   actorLabel?: string
@@ -28,7 +29,8 @@ export async function sendNotification(payload: SendNotificationPayload) {
   const {
     toUserId,
     type,
-    content,
+    contentRu,
+    contentEn,
     actorId,
     actorLabel,
     target,
@@ -48,13 +50,17 @@ export async function sendNotification(payload: SendNotificationPayload) {
     throw new Error(`User ${toUserId} not found`)
   }
 
-  const fallbackContent = actorLabel
+  const fallbackContentEn = actorLabel
     ? `${actorLabel} ${type === 'reply_to_you' ? 'replied to you' : 'sent you a notification'}.`
     : 'You have a new notification.'
+  const fallbackContentRu = actorLabel
+    ? `${actorLabel} ${type === 'reply_to_you' ? 'ответил вам' : 'отправил вам уведомление'}.`
+    : 'У вас новое уведомление.'
 
   const notification = {
     type,
-    content: content?.trim() || fallbackContent,
+    contentRu: contentRu?.trim() || fallbackContentRu,
+    contentEn: contentEn?.trim() || fallbackContentEn,
     target,
     createdAt: new Date().toISOString(),
     isRead: false,

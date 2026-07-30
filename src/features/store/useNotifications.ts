@@ -32,12 +32,13 @@ export const useNotificationStore = defineStore('notification', {
       this.unsubscribe = onSnapshot(notificationsQuery, (snapshot) => {
 
         this._buffer = snapshot.docs.map((notificationDoc) => {
-          const data = notificationDoc.data() as Omit<Notification, 'id'>
+          const data = notificationDoc.data() as Omit<Notification, 'id'> & { content?: string }
 
           return {
             id: notificationDoc.id,
             ...data,
-            content: data.content || 'You have a new notification.',
+            contentRu: data.contentRu || data.content || 'У вас новое уведомление.',
+            contentEn: data.contentEn || data.content || 'You have a new notification.',
             isRead: Boolean(data.isRead),
           }
         })
