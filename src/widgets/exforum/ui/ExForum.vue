@@ -822,7 +822,7 @@
             </button>
 
             <button
-              class="group relative overflow-hidden h-12 w-64 border-2 transition-all duration-500 flex items-center justify-center space-x-4"
+              class="group relative flex h-12 w-64 items-center justify-center gap-3 overflow-hidden border-2 px-5 transition-all duration-500"
               :class="isNewArticleFormValid && !isSubmittingArticle ? 'border-black hover:bg-black cursor-pointer' : 'border-current/20 cursor-not-allowed'"
               :disabled="!isNewArticleFormValid || isSubmittingArticle"
               @click="submitNewArticle"
@@ -834,7 +834,7 @@
                     ]">
                 {{ locale === 'ru' ? 'ПРОДОЛЖИТЬ' : 'CONTINUE' }}
               </span>
-              <span class="text-xl relative z-10 transition-all duration-500 font-light leading-none absolute right-6"
+              <span class="relative z-10 shrink-0 text-xl font-light leading-none transition-all duration-500"
                     :class="[
                       isSubmittingArticle ? 'opacity-0' : 'opacity-100',
                       isNewArticleFormValid ? 'text-black group-hover:text-white group-hover:translate-x-1' : 'text-current opacity-30'
