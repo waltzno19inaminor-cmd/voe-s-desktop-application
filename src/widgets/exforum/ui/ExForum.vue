@@ -3009,6 +3009,16 @@ watch(isCreatingArticle, (newVal) => {
 })
 
 watch(creationStep, (step) => {
+  if (step !== 'board') {
+    // The pencil hides the native cursor on <html> and <body>. Always restore
+    // it when leaving the board, including the direct Back → metadata route.
+    stopBoardDrawingMode()
+    activeBoardTool.value = null
+    activeBoardInteraction.value = null
+    isSpacePressed.value = false
+    return
+  }
+
   if (step === 'board') {
     renderBoardDrawingCanvas()
 
