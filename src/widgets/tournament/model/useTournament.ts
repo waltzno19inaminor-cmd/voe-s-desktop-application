@@ -224,7 +224,9 @@ async function loadLeaderboardDisplayNames(
         userId: entry.userId,
         profile: {
           displayName: String(userData?.displayName || '').trim(),
-          photoURL: await resolveLeaderboardPhotoUrl(userData?.photoURL || userData?.photoUrl)
+          photoURL: await resolveLeaderboardPhotoUrl(
+            userData?.avatarUrl || userData?.photoURL || userData?.photoUrl
+          )
         }
       }
     } catch (err) {

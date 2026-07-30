@@ -11,6 +11,50 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isReplyLikeCounterUpdate(replyId) {
+      let likePath = /databases/$(database)/documents/replies/$(replyId)/likes/$(request.auth.uid);
+
+      return isSignedIn()
+        && resource.data.likes is int
+        && request.resource.data.likes is int
+        && request.resource.data.likes >= 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likes"])
+        && (
+          (!exists(likePath)
+            && existsAfter(likePath)
+            && request.resource.data.likes == resource.data.likes + 1)
+          || (exists(likePath)
+            && !existsAfter(likePath)
+            && request.resource.data.likes == resource.data.likes - 1)
+        );
+    }
+
+    function isThreadLikeCounterUpdate(threadId) {
+      let likePath = /databases/$(database)/documents/users/$(request.auth.uid)/likedThreads/$(threadId);
+      let storedLikes = resource.data.get("likesCount", 0);
+      let currentLikes = storedLikes is number && storedLikes > 0 ? storedLikes : 0;
+
+      return isSignedIn()
+        && storedLikes is number
+        && request.resource.data.likesCount is number
+        && request.resource.data.likesCount >= 0
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["likesCount"])
+        && (
+          (!exists(likePath)
+            && existsAfter(likePath)
+            && request.resource.data.likesCount == currentLikes + 1)
+          || (exists(likePath)
+            && !existsAfter(likePath)
+            && currentLikes > 0
+            && request.resource.data.likesCount == currentLikes - 1)
+        );
+    }
+
+    function normalizedThreadLikes(threadId) {
+      let storedLikes = get(/databases/$(database)/documents/threads/$(threadId)).data.get("likesCount", 0);
+      return storedLikes is number && storedLikes > 0 ? storedLikes : 0;
+    }
+
     match /users/{userId} {
       // Leaderboard needs public profile fields (displayName/photoURL) for signed-in users.
       // Writes remain restricted to the profile owner below.
@@ -34,8 +78,28 @@ service cloud.firestore {
     }
 
     match /users/{userId}/{subcollection}/{docId} {
-      allow read, create, update: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && subcollection != "likedThreads";
       allow delete: if false;
+    }
+
+    match /users/{userId}/likedThreads/{threadId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(["likedAt", "threadId"])
+        && request.resource.data.threadId == threadId
+        && request.resource.data.likedAt == request.time
+        && getAfter(/databases/$(database)/documents/threads/$(threadId)).data.likesCount
+          == normalizedThreadLikes(threadId) + 1;
+
+      allow delete: if isOwner(userId)
+        && resource.data.threadId == threadId
+        && getAfter(/databases/$(database)/documents/threads/$(threadId)).data.likesCount
+          == (normalizedThreadLikes(threadId) > 0 ? normalizedThreadLikes(threadId) - 1 : 0);
+
+      allow update: if false;
     }
 
     match /tournaments/{tournamentId} {
@@ -186,7 +250,16 @@ service cloud.firestore {
 
     match /threads/{threadId} {
       allow read: if true;
-      allow create, update: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.get("likesCount", 0) is number
+        && request.resource.data.get("likesCount", 0) >= 0;
+      allow update: if isSignedIn()
+        && (
+          (resource.data.authorId == request.auth.uid
+            && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["likesCount"]))
+          || isThreadLikeCounterUpdate(threadId)
+        );
       allow delete: if false;
     }
 
@@ -197,9 +270,26 @@ service cloud.firestore {
         && request.resource.data.authorId == request.auth.uid;
 
       allow update: if isSignedIn()
-        && resource.data.authorId == request.auth.uid;
+        && (
+          resource.data.authorId == request.auth.uid
+          || isReplyLikeCounterUpdate(replyId)
+        );
 
       allow delete: if false;
+
+      match /likes/{userId} {
+        allow read: if isOwner(userId);
+
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(["createdAt"])
+          && request.resource.data.createdAt == request.time
+          && getAfter(/databases/$(database)/documents/replies/$(replyId)).data.likes == get(/databases/$(database)/documents/replies/$(replyId)).data.likes + 1;
+
+        allow update: if false;
+
+        allow delete: if isOwner(userId)
+          && getAfter(/databases/$(database)/documents/replies/$(replyId)).data.likes == get(/databases/$(database)/documents/replies/$(replyId)).data.likes - 1;
+      }
     }
   }
 }
