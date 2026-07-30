@@ -10,6 +10,8 @@ export interface TournamentEvent {
   descriptionRu?: string
   rules?: string[]
   rulesRu?: string[]
+  judgeRulesRu?: unknown
+  judgeRulesEn?: unknown
   imageUrl: string
   bannerUrl: string
   announceDate: string // ISO string or YYYY-MM-DD
@@ -65,6 +67,4 @@ export interface TournamentSeason {
   startsAt?: any
   endsAt?: any
   timeWindow?: number
-  judgeRulesRu?: string[] | string
-  judgeRulesEn?: string[] | string
 }

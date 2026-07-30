@@ -664,13 +664,16 @@
               </button>
             </div>
 
-            <div class="registered-selected-asset-card min-w-0 w-full sm:w-2/5 sm:flex-none">
+            <div
+              class="registered-selected-asset-card min-w-0 w-full sm:w-2/5 sm:flex-none"
+              :class="showVotingRules ? 'registered-selected-asset-card--rules' : ''"
+            >
               <Transition name="registered-rules-reveal" mode="out-in">
               <div v-if="showVotingRules" key="voting-rules" class="registered-rules-card scroll-minimal flex h-full min-h-[280px] flex-col overflow-y-auto">
                 <div class="registered-fg font-mono text-xl font-black uppercase tracking-[0.12em] sm:text-2xl">
                   {{ locale === 'ru' ? 'Правила оценки' : 'Scoring rules' }}
                 </div>
-                <ol class="mt-6 space-y-0">
+                <ol v-if="votingRules.length" class="mt-6 space-y-0">
                   <li v-for="rule in votingRules" :key="rule.number" class="registered-rule flex gap-4 py-4">
                     <span class="registered-muted shrink-0 font-mono text-[10px] font-black tracking-[0.14em]">{{ rule.number }}</span>
                     <span class="registered-fg font-mono text-sm font-semibold leading-relaxed tracking-[0.035em] sm:text-base">
@@ -678,6 +681,9 @@
                     </span>
                   </li>
                 </ol>
+                <p v-else class="registered-muted mt-6 font-mono text-xs font-semibold uppercase tracking-[0.12em]">
+                  {{ locale === 'ru' ? 'Правила сезона не добавлены' : 'Season rules are not configured' }}
+                </p>
               </div>
 
               <div v-else-if="selectedAsset" key="selected-asset" class="flex h-full min-h-[280px] flex-col">
@@ -1278,13 +1284,24 @@ const localVotingResolutionEnd = computed(() => {
 })
 
 const normalizeJudgeRules = (value: unknown): string[] => {
-  if (Array.isArray(value)) {
-    return value.map((rule) => String(rule || '').trim()).filter(Boolean)
+  if (typeof value === 'string') {
+    return value.split(/\r?\n/).map((rule) => rule.trim()).filter(Boolean)
   }
 
-  return typeof value === 'string'
-    ? value.split(/\r?\n/).map((rule) => rule.trim()).filter(Boolean)
-    : []
+  if (Array.isArray(value)) {
+    return value.flatMap((rule) => normalizeJudgeRules(rule))
+  }
+
+  if (!value || typeof value !== 'object') return []
+
+  const ruleObject = value as Record<string, unknown>
+  for (const key of ['text', 'rule', 'content', 'value']) {
+    if (key in ruleObject) return normalizeJudgeRules(ruleObject[key])
+  }
+
+  return Object.keys(ruleObject)
+    .sort((left, right) => left.localeCompare(right, undefined, { numeric: true }))
+    .flatMap((key) => normalizeJudgeRules(ruleObject[key]))
 }
 
 const replaceRuleTimeWindow = (rule: string) => {
@@ -1294,8 +1311,8 @@ const replaceRuleTimeWindow = (rule: string) => {
 
 const votingRules = computed(() => {
   const source = locale.value === 'ru'
-    ? openedSeason.value?.judgeRulesRu
-    : openedSeason.value?.judgeRulesEn
+    ? targetEvent.value?.judgeRulesRu
+    : targetEvent.value?.judgeRulesEn
 
   return normalizeJudgeRules(source).map((text, index) => ({
     number: String(index + 1).padStart(2, '0'),
@@ -1823,9 +1840,15 @@ onUnmounted(() => {
 }
 
 .registered-rules-card {
-  padding: 1rem 1.5rem;
+  padding: 0;
   background-color: transparent;
   box-shadow: none;
+}
+
+@media (min-width: 640px) {
+  .registered-selected-asset-card--rules {
+    transform: translateY(-2rem);
+  }
 }
 
 .registered-rule + .registered-rule {
