@@ -1243,7 +1243,9 @@ const currentUserPrediction = computed(() => {
   if (prediction) return getPredictionDirection(prediction)
 
   const localPrediction = submittedPrediction.value
-  return localPrediction?.seasonId === openedSeason.value?.id
+  if (!localPrediction) return ''
+
+  return localPrediction.seasonId === openedSeason.value?.id
     && localPrediction.roundId === currentRoundId.value
     && localPrediction.assetKey === selectedAsset.value.key
     ? localPrediction.direction
@@ -1267,7 +1269,9 @@ const getAssetPredictionDirection = (asset: { key: string; symbol?: unknown; nam
   if (prediction) return getPredictionDirection(prediction)
 
   const localPrediction = submittedPrediction.value
-  return localPrediction?.seasonId === openedSeason.value?.id
+  if (!localPrediction) return ''
+
+  return localPrediction.seasonId === openedSeason.value?.id
     && localPrediction.roundId === currentRoundId.value
     && localPrediction.assetKey === asset.key
     ? localPrediction.direction
