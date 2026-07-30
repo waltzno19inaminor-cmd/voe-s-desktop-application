@@ -1176,11 +1176,37 @@ const normalizeAssetIdentifier = (value: unknown) => {
 }
 
 const getPredictionAssetIdentifier = (prediction: TournamentPrediction) => {
-  const candidate = prediction.assetId ?? prediction.assetSymbol ?? prediction.symbol ?? prediction.asset
-  if (candidate && typeof candidate === 'object') {
-    return candidate.symbol || candidate.name || ''
+  const candidates = [
+    prediction.assetId,
+    prediction.assetSymbol,
+    prediction.symbol,
+    prediction.asset
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    if (typeof candidate === 'object') {
+      const nestedCandidate = candidate.symbol || candidate.name || ''
+      if (nestedCandidate) return nestedCandidate
+      continue
+    }
+    if (String(candidate).trim()) return candidate
   }
-  return candidate || ''
+
+  const predictionId = String(prediction.id || '')
+  const predictionUserId = getPredictionUserId(prediction)
+  const idPrefix = predictionUserId ? `${predictionUserId}_` : ''
+  return idPrefix && predictionId.startsWith(idPrefix)
+    ? predictionId.slice(idPrefix.length)
+    : ''
+}
+
+const getPredictionUserId = (prediction: TournamentPrediction) => {
+  if (String(prediction.userId || '').trim()) return String(prediction.userId).trim()
+
+  const predictionId = String(prediction.id || '')
+  const separatorIndex = predictionId.indexOf('_')
+  return separatorIndex > 0 ? predictionId.slice(0, separatorIndex) : ''
 }
 
 const selectedAssetPredictions = computed(() => {
@@ -1213,7 +1239,7 @@ const currentUserPrediction = computed(() => {
   const userId = authStore.user?.uid
   if (!userId || !selectedAsset.value) return ''
 
-  const prediction = selectedAssetPredictions.value.find((item) => String(item.userId || '') === String(userId))
+  const prediction = selectedAssetPredictions.value.find((item) => getPredictionUserId(item) === userId)
   if (prediction) return getPredictionDirection(prediction)
 
   return submittedPrediction.value?.seasonId === openedSeason.value?.id
@@ -1233,7 +1259,7 @@ const getAssetPredictionDirection = (asset: { key: string; symbol?: unknown; nam
   ].filter(Boolean))
 
   const prediction = roundPredictions.value.find((item) => {
-    if (String(item.userId || '') !== String(userId)) return false
+    if (getPredictionUserId(item) !== userId) return false
     return assetIdentifiers.has(normalizeAssetIdentifier(getPredictionAssetIdentifier(item)))
   })
 
@@ -1672,6 +1698,21 @@ watch([() => authStore.user?.uid, () => targetEvent.value?.id], ([newUid, newEve
 watch([() => openedSeason.value?.id, currentRoundId], () => {
   submittedPrediction.value = null
 })
+
+watch(
+  [roundPredictions, allowedTournamentAssets, () => authStore.user?.uid, currentRoundId],
+  () => {
+    const userId = authStore.user?.uid
+    if (!userId || !allowedTournamentAssets.value.length) return
+
+    const votedAsset = allowedTournamentAssets.value.find((asset) => (
+      Boolean(getAssetPredictionDirection(asset))
+    ))
+
+    if (votedAsset) selectedAssetKey.value = votedAsset.key
+  },
+  { immediate: true }
+)
 
 watch(
   [() => targetEvent.value?.id, () => openedSeason.value?.id, currentRoundId, () => authStore.user?.uid],

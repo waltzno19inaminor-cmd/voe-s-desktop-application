@@ -1,6 +1,7 @@
 export type TournamentPredictionDirection = 'LONG' | 'SHORT'
 
 export interface TournamentPrediction {
+  id?: string
   userId?: string
   assetId?: string
   asset?: string | { symbol?: string; name?: string }
