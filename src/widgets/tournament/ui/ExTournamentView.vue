@@ -1546,6 +1546,7 @@ const introSignature = computed(() => {
     openedSeason.value.ordinal,
     toMillis(openedSeason.value.startsAt),
     toMillis(openedSeason.value.endsAt),
+    displayedRound.value?.round.id,
     currentRound.value,
     displayedRound.value?.startsAtMillis,
     displayedRound.value?.endsAtMillis,
