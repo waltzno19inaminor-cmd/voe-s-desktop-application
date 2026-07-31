@@ -30056,7 +30056,7 @@
     "symbol": "SPX500",
     "name": "S&P 500 Index",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/usd.svg",
+    "icon": "/assets_icons/SPX500.svg",
     "description": "Global Equity Index",
     "contractSize": 50,
     "currency": "USD"
@@ -30065,7 +30065,7 @@
     "symbol": "NAS100",
     "name": "Nasdaq 100 Index",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/usd.svg",
+    "icon": "/assets_icons/NAS100.svg",
     "description": "Global Equity Index",
     "contractSize": 20,
     "currency": "USD"
@@ -30074,7 +30074,7 @@
     "symbol": "US30",
     "name": "Dow Jones Industrial",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/usd.svg",
+    "icon": "/assets_icons/US30.svg",
     "description": "Global Equity Index",
     "contractSize": 5,
     "currency": "USD"
@@ -30083,7 +30083,7 @@
     "symbol": "GER40",
     "name": "DAX 40 Index",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/eur.svg",
+    "icon": "/assets_icons/GER40.svg",
     "description": "Global Equity Index",
     "contractSize": 25,
     "currency": "EUR"
@@ -30092,7 +30092,7 @@
     "symbol": "UK100",
     "name": "FTSE 100 Index",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/gbp.svg",
+    "icon": "/assets_icons/UK100.svg",
     "description": "Global Equity Index",
     "contractSize": 10,
     "currency": "GBP"
@@ -30101,7 +30101,7 @@
     "symbol": "JPN225",
     "name": "Nikkei 225",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/jpy.svg",
+    "icon": "/assets_icons/JPN225.svg",
     "description": "Global Equity Index",
     "contractSize": 500,
     "currency": "JPY"
@@ -30128,7 +30128,7 @@
     "symbol": "FRA40",
     "name": "CAC 40 Index",
     "type": "Indices",
-    "icon": "https://wise.com/web-art/assets/flags/eur.svg",
+    "icon": "/assets_icons/FRA40.svg",
     "description": "Global Equity Index",
     "contractSize": 10,
     "currency": "EUR"
