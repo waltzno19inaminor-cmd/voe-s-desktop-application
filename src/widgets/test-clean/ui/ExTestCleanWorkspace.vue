@@ -216,6 +216,7 @@ import ExPaywallOverlay from '~/widgets/genesis/ui/ExPaywallOverlay.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useWorkspaceStore } from '~/widgets/test-clean/model/useWorkspace'
 import { useAuthStore } from '~/entities/user/auth.store'
+import { useNotificationStore } from '~/features/store/useNotifications'
 import { storeToRefs } from 'pinia'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -272,6 +273,7 @@ const genesisBottomTooltip = (key) => {
 
 const workspaceStore = useWorkspaceStore()
 const authStore = useAuthStore()
+const notificationStore = useNotificationStore()
 const { hasInitialized, isAssembled, showBloom, isTesseractEnabled, isNodeMapActive } = storeToRefs(workspaceStore)
 const activeTab = ref('')
 const showPaywall = ref(false)
@@ -529,6 +531,14 @@ watch(activeTab, (newTab) => {
   setScrollLock(newTab)
 }, { immediate: true })
 
+watch(() => authStore.user?.uid, (userId) => {
+  if (userId) {
+    notificationStore.subscribe(userId)
+  } else {
+    notificationStore.unsubscribeFromNotifications()
+  }
+}, { immediate: true })
+
 watch(shouldPlayDashboardScore, (shouldPlay) => {
   if (shouldPlay) {
     playDashboardScore(true)
@@ -584,6 +594,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
   stopDashboardScore(false)
+  notificationStore.unsubscribeFromNotifications()
   document.body.style.overflow = ''
   document.body.style.height = ''
 })

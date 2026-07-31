@@ -79,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { timeAgo } from '~/composables/timeAgo'
 import type { EventNotification, Notification, NotificationType } from '~/entities/notification/model/notification.types'
 import { useNotificationStore } from '~/features/store/useNotifications'
@@ -96,15 +96,6 @@ const isOpen = ref(false)
 const notifications = computed(() => notificationStore.notifications)
 const unreadCount = computed(() => notificationStore.unreadCount)
 const isReady = computed(() => notificationStore.isReady)
-
-const subscribe = (userId?: string | null) => {
-  if (userId) {
-    notificationStore.subscribe(userId)
-    return
-  }
-
-  notificationStore.unsubscribeFromNotifications()
-}
 
 const markAsRead = async (notificationId: string) => {
   await notificationStore.markNotificationAsRead(notificationId)
@@ -153,15 +144,12 @@ const handleOutsideClick = (event: MouseEvent) => {
   }
 }
 
-watch(() => props.userId, subscribe, { immediate: true })
-
 onMounted(() => {
   document.addEventListener('mousedown', handleOutsideClick)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
-  notificationStore.unsubscribeFromNotifications()
 })
 </script>
 

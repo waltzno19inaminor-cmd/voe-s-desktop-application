@@ -26,6 +26,11 @@ export const useNotificationStore = defineStore('notification', {
       if (this.isListening && this.activeUserId === userId) return
       if (this.isListening) this.unsubscribeFromNotifications()
 
+      this.activeUserId = userId
+      this.isReady = false
+      this.notifications = []
+      this._buffer = []
+
       const col = collection(db, 'users', userId, 'notifications')
       const notificationsQuery = query(col, orderBy('createdAt', 'desc'), limit(50))
 
@@ -55,6 +60,8 @@ export const useNotificationStore = defineStore('notification', {
       }, (error) => {
         this.isListening = false
         this.isReady = true
+        this.notifications = []
+        this._buffer = []
         this.unsubscribe = null
 
         if (this._debounceTimer) {
@@ -68,7 +75,6 @@ export const useNotificationStore = defineStore('notification', {
       })
 
       this.isListening = true
-      this.activeUserId = userId
     },
 
     unsubscribeFromNotifications() {
