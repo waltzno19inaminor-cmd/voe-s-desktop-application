@@ -1,6 +1,6 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "JLJ",
+  "productName": "J.L.JÖRMUNGANDR",
   "version": "1.0.5",
   "identifier": "com.voe.app",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "JLJ",
+        "title": "J.L.JÖRMUNGANDR",
         "width": 1200,
         "height": 800,
         "resizable": false,
@@ -32,14 +32,22 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "publisher": "VOSHE D.O.O.",
-    "copyright": "Copyright © 2026 VOSHE D.O.O.",
-    "shortDescription": "JLJ Desktop Application",
-    "longDescription": "JLJ is a desktop application for advanced trading performance analysis.",
+    "publisher": "VOSHE COMPANY DOO",
+    "copyright": "Copyright © 2026 VOSHE COMPANY DOO",
+    "shortDescription": "J.L.JÖRMUNGANDR Desktop Application",
+    "longDescription": "J.L.JÖRMUNGANDR is a desktop application for advanced trading performance analysis.",
     "icon": [
       "icons/jor.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "allowDowngrades": false,
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "installMode": "currentUser",
+        "startMenuFolder": "VOSHE COMPANY DOO"
+      }
+    }
   },
   "plugins": {
     "updater": {
