@@ -44,9 +44,16 @@
 
       <!-- ── PHASE SWITCHER ── -->
       <Transition name="step-fade" mode="out-in">
+        <!-- ── AUTH CHECK: keep forms hidden until Firebase resolves persisted session ── -->
+        <div v-if="isAuthResolving" key="auth-check" class="w-full flex min-h-20 items-center justify-center">
+          <div class="relative h-5 w-5">
+            <div class="absolute inset-0 rounded-full border border-theme-text/20"></div>
+            <div class="absolute inset-0 animate-spin rounded-full border border-transparent border-t-theme-text"></div>
+          </div>
+        </div>
 
         <!-- ── AUTHENTICATED: boot prompt ── -->
-        <div v-if="isAuthenticated && phase === 'auth'" key="authenticated" class="w-full flex flex-col items-center space-y-5">
+        <div v-else-if="isAuthenticated && phase === 'auth'" key="authenticated" class="w-full flex flex-col items-center space-y-5">
 	          <div class="w-full border border-theme-border bg-theme-text/[0.05] p-4 flex items-center space-x-4">
             <div class="w-2 h-2 nier-bg-inverted rounded-full animate-pulse shrink-0"></div>
             <div class="flex flex-col min-w-0">
@@ -62,7 +69,7 @@
         </div>
 
         <!-- ── NOT AUTHENTICATED: login / register ── -->
-        <div v-else-if="!isAuthenticated && phase === 'auth'" key="auth-panel" class="w-full flex flex-col space-y-5">
+        <div v-else-if="authStore.authReady && !isAuthenticated && phase === 'auth'" key="auth-panel" class="w-full flex flex-col space-y-5">
 
           <!-- Tab switcher -->
 	          <div class="flex border border-theme-border">
@@ -246,6 +253,7 @@ const activeTabStyle = computed(() => ({
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const isAuthResolving = computed(() => phase.value === 'auth' && !authStore.authReady)
 
 // ── Auth state ──
 const authTab = ref<'login' | 'register'>('login')
