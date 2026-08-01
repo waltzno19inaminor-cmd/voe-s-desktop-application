@@ -62,11 +62,11 @@
                 :key="zoom"
                 type="button"
                 class="pointer-events-auto relative flex h-5 w-12 items-center justify-center overflow-hidden border border-black/20 bg-white text-[9px] font-mono tracking-tighter transition-all"
-                :class="Math.round(boardScale * 100) === zoom ? 'bg-black !text-white opacity-100' : 'text-black/55 opacity-70 hover:bg-black/5 hover:text-black hover:opacity-100'"
+                :class="Math.round(boardScale * 100) === zoom ? '!border-black !bg-black !text-white opacity-100' : 'text-black/55 opacity-70 hover:bg-black/5 hover:text-black hover:opacity-100'"
                 @click.stop="setArticleBoardScale(zoom / 100)"
               >
                 <div v-if="Math.round(boardScale * 100) === zoom" class="absolute inset-0 bg-white/10 animate-pulse"></div>
-                <span class="relative z-10">{{ zoom }}%</span>
+                <span class="relative z-10" :class="Math.round(boardScale * 100) === zoom ? '!text-white' : ''">{{ zoom }}%</span>
                 <div class="absolute right-0 top-0 h-1 w-1 bg-current opacity-20"></div>
               </button>
             </div>
