@@ -105,7 +105,7 @@ const {
            class="theme-tooltip-panel fixed z-[2147483647] pointer-events-none border px-5 py-4 min-w-[240px] shadow-[0_12px_30px_rgba(0,0,0,0.22)]"
            :style="{ left: hoveredCalendarDayTooltip.x + 'px', top: hoveredCalendarDayTooltip.y + 'px' }">
         <div class="flex items-center justify-between mb-3 pb-2 border-b border-black/10 dark:border-white/10">
-          <div class="text-[10px] font-mono uppercase tracking-[0.32em] opacity-40">{{ hoveredCalendarDayTooltip.date }}</div>
+          <div class="text-[10px] font-mono uppercase tracking-[0.32em] text-black/85 dark:text-white/40">{{ hoveredCalendarDayTooltip.date }}</div>
           <div class="text-[13px] font-mono font-black tracking-[0.12em] whitespace-nowrap ml-4"
                :class="hoveredCalendarDayTooltip.pnl > 0 ? 'nier-text-primary' : hoveredCalendarDayTooltip.pnl < 0 ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'">
             {{ hoveredCalendarDayTooltip.value }}
@@ -115,7 +115,7 @@ const {
           <div v-for="(trade, idx) in hoveredCalendarDayTooltip.trades" :key="idx"
                class="flex items-center justify-between text-[11px] font-mono gap-4">
             <div class="flex items-center space-x-3">
-              <span class="opacity-40">{{ new Date(trade.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+              <span class="text-black/85 dark:text-white/40">{{ new Date(trade.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
               <span class="opacity-80 font-bold">{{ trade.asset || 'UNKNOWN' }}</span>
             </div>
             <span class="font-black whitespace-nowrap" :class="getCalendarTradePnl(trade) > 0 ? 'text-emerald-500' : getCalendarTradePnl(trade) < 0 ? 'text-rose-500' : 'text-white'">
