@@ -1,5 +1,5 @@
 <script setup>
-import { provide } from 'vue'
+import { computed, provide } from 'vue'
 import { useExTradeEntry } from '../model/useExTradeEntry'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 
@@ -23,12 +23,28 @@ const state = useExTradeEntry(props, emit)
 provide('tradeState', state)
 
 const { isDark, scrollContainer } = state
+
+const tradeEntryThemeStyle = computed(() => isDark.value
+  ? {
+      '--theme-bg': '#000000',
+      '--theme-bg-rgb': '0 0 0',
+      '--theme-panel': 'rgba(5, 5, 5, 0.92)',
+      '--theme-text': '#F9F6F0',
+      '--theme-text-rgb': '249 246 240',
+      '--theme-border': 'rgba(249, 246, 240, 0.12)',
+      backgroundColor: '#000000'
+    }
+  : {
+      backgroundColor: 'var(--theme-bg)'
+    }
+)
 </script>
 
 <template>
   <div ref="scrollContainer" 
        class="flex flex-col items-center h-full w-full overflow-y-auto custom-scrollbar transition-colors duration-500 pb-40 bg-theme-bg nier-text-primary"
-       :class="{ dark: isDark }">
+       :class="isDark ? 'dark is-dark theme-dark' : 'theme-light'"
+       :style="tradeEntryThemeStyle">
      <DesignVignette :is-dark="isDark" />
      
      <ExTradeEntryCmeNotice />

@@ -37,7 +37,7 @@ const closeModeText = (key) => {
              <div class="relative flex items-center justify-center w-12 h-12">
                 <div class="absolute inset-0 border border-black/20 dark:border-white/20 rotate-45 group-hover:bg-black dark:group-hover:bg-white group-hover:border-black dark:border-white transition-all duration-500 shadow-xl"
                      :class="{ 'nier-bg-inverted border-black dark:border-white': viewMode === 'journal' }"></div>
-                <div class="w-2.5 h-2.5 border-t-2 border-r-2 relative z-10 transition-all duration-700 dark:group-hover:border-black" 
+                <div class="w-2.5 h-2.5 border-t-2 border-r-2 relative z-10 transition-all duration-700 group-hover:border-white dark:group-hover:border-black" 
                      :class="[
                        viewMode === 'tactical' ? 'rotate-45 border-black dark:border-white' : '-rotate-[135deg] border-white dark:border-black',
                        { 'border-white dark:border-black': viewMode === 'journal' }
