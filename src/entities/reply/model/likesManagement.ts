@@ -22,6 +22,25 @@ export async function likeReply(replyId: string, userId: string) {
   })
 }
 
+export async function toggleReplyLike(replyId: string, userId: string): Promise<boolean> {
+  const replyRef = doc(db, 'replies', replyId)
+  const likeRef = doc(db, 'replies', replyId, 'likes', userId)
+
+  return runTransaction(db, async (transaction) => {
+    const likeSnap = await transaction.get(likeRef)
+
+    if (likeSnap.exists()) {
+      transaction.delete(likeRef)
+      transaction.update(replyRef, { likes: increment(-1) })
+      return false
+    }
+
+    transaction.set(likeRef, { createdAt: serverTimestamp() })
+    transaction.update(replyRef, { likes: increment(1) })
+    return true
+  })
+}
+
 
 
 

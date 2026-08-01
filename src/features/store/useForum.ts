@@ -116,18 +116,12 @@ export const useForumStore = defineStore('forum', {
         }
     },
 
-      async addReply(reply: Reply) {
-        if(this.loading) return;
-        this.loading = true;
-        try {
-          const currentList = this.replies.get(reply.threadId) || [];
+      addReply(reply: Reply) {
+        const currentList = this.replies.get(reply.threadId) || []
+        const newList = [...currentList, reply]
 
-          const newList = [...currentList, reply];
-
-          this.replies.set(reply.threadId, newList);
-        }finally{
-          this.loading = false;
-        }
+        this.replies.set(reply.threadId, newList)
+        this.replies = new Map(this.replies)
       },
 
       async createReply(threadId: string, replyData: Omit<Reply, 'id' | 'threadId' | 'createdAt'>) {
@@ -439,6 +433,21 @@ export const useForumStore = defineStore('forum', {
 
     this.replies.set(threadId, list)
     return list
+    },
+
+    updateReplyLikeState(threadId: string, replyId: string, isLiked: boolean, wasLiked: boolean) {
+      if (isLiked === wasLiked) return
+
+      const currentReplies = this.replies.get(threadId)
+      if (!currentReplies) return
+
+      const likesDelta = isLiked ? 1 : -1
+      const updatedReplies = currentReplies.map((reply) => reply.id === replyId
+        ? { ...reply, likes: Math.max(0, Number(reply.likes || 0) + likesDelta) }
+        : reply)
+
+      this.replies.set(threadId, updatedReplies)
+      this.replies = new Map(this.replies)
     },
 
     async fetchUser(userId: string) {

@@ -616,6 +616,10 @@
               <p :class="{'italic opacity-50': comment.status === 'hidden'}">{{ comment.content?.text }}</p>
 
               <div v-if="comment.status !== 'hidden'" class="mt-2 flex justify-end items-center">
+                <button type="button" :disabled="!isAuthenticated || isReplyLikePending(comment.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(comment.id) }" :aria-pressed="isReplyLiked(comment.id)" @click="toggleCommentLike(comment)">
+                  <svg class="article-comment-like__heart" :class="isReplyLiked(comment.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                  {{ isReplyLiked(comment.id) ? articleLabels.liked : articleLabels.like }}
+                </button>
                 <button @click="toggleReplyForm(comment.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
                   {{ replyingToId === comment.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                 </button>
@@ -652,6 +656,10 @@
                   <p :class="{'italic opacity-50': reply.status === 'hidden'}">{{ reply.content?.text }}</p>
 
                   <div v-if="reply.status !== 'hidden'" class="mt-2 flex justify-end items-center">
+                    <button type="button" :disabled="!isAuthenticated || isReplyLikePending(reply.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(reply.id) }" :aria-pressed="isReplyLiked(reply.id)" @click="toggleCommentLike(reply)">
+                      <svg class="article-comment-like__heart" :class="isReplyLiked(reply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                      {{ isReplyLiked(reply.id) ? articleLabels.liked : articleLabels.like }}
+                    </button>
                     <button @click="toggleReplyForm(reply.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
                       {{ replyingToId === reply.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                     </button>
@@ -688,6 +696,10 @@
                       <p :class="{'italic opacity-50': subreply.status === 'hidden'}">{{ subreply.content?.text }}</p>
 
                       <div v-if="subreply.status !== 'hidden'" class="mt-2 flex justify-end items-center">
+                        <button type="button" :disabled="!isAuthenticated || isReplyLikePending(subreply.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(subreply.id) }" :aria-pressed="isReplyLiked(subreply.id)" @click="toggleCommentLike(subreply)">
+                          <svg class="article-comment-like__heart" :class="isReplyLiked(subreply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+                          {{ isReplyLiked(subreply.id) ? articleLabels.liked : articleLabels.like }}
+                        </button>
                         <button @click="toggleReplyForm(subreply.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
                           {{ replyingToId === subreply.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                         </button>
@@ -738,7 +750,7 @@
         <!-- METADATA STEP -->
         <div v-if="creationStep === 'metadata'" class="flex flex-col h-full px-8 md:px-16 xl:px-32 py-10 relative overflow-hidden w-full max-w-7xl mx-auto" key="metadata">
           <!-- DRAFT METADATA HEADER -->
-          <div class="flex flex-col md:flex-row justify-between md:items-end border-b-2 border-current/20 pb-4 mb-6 mt-6 space-y-4 md:space-y-0 shrink-0">
+          <div class="relative z-20 flex flex-col md:flex-row justify-between md:items-end border-b-2 border-current/20 pb-4 mb-6 mt-6 space-y-4 md:space-y-0 shrink-0">
             <div class="flex flex-col space-y-2">
               <span class="text-[10px] font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
                 {{ locale === 'ru' ? 'Редактор' : 'Editor' }} // {{ formatJournalDate() }}
@@ -755,9 +767,12 @@
                 <button
                   v-for="type in articleTypes"
                   :key="type.value"
+                  type="button"
+                  :data-article-type="type.value"
                   class="text-[11px] font-mono tracking-widest uppercase transition-all duration-300 border-b"
                   :class="newArticleForm.type === type.value ? 'opacity-100 border-current pb-1 font-bold' : 'opacity-50 border-transparent hover:opacity-100 pb-1'"
-                  @click="newArticleForm.type = type.value"
+                  @pointerdown.stop.prevent="selectArticleType(type.value)"
+                  @click.stop.prevent="selectArticleType(type.value)"
                 >
                   {{ type.label }}
                 </button>
@@ -766,7 +781,7 @@
           </div>
 
           <!-- MAIN EDITORIAL CANVAS -->
-          <div class="flex-grow flex flex-col justify-center w-full max-w-5xl mx-auto space-y-6 min-h-0 pt-2 pb-6">
+          <div class="relative z-10 flex-grow flex flex-col justify-center w-full max-w-5xl mx-auto space-y-6 min-h-0 pt-2 pb-6">
 
             <!-- Huge Title Input -->
             <div class="flex flex-col items-center group/title relative w-full shrink-0 pt-4">
@@ -790,7 +805,7 @@
             <div class="w-16 h-px bg-current/30 mx-auto my-2 shrink-0"></div>
 
             <!-- Description Textarea -->
-            <div class="flex flex-col items-center group/desc relative w-full flex-grow min-h-0">
+            <div class="flex flex-col items-center group/desc relative w-full flex-grow min-h-[8.5rem]">
               <span class="text-xs md:text-sm font-sans tracking-[0.2em] font-light uppercase transition-opacity duration-300 mb-4 shrink-0" :class="newArticleForm.description ? 'opacity-30' : 'opacity-60 group-focus-within/desc:opacity-100'">
                 {{ locale === 'ru' ? 'Введите описание' : 'Enter Description' }}
               </span>
@@ -798,7 +813,7 @@
                 v-model="newArticleForm.description"
                 @input="newArticleForm.description = newArticleForm.description.replace(/[\r\n]+/g, ' ')"
                 maxlength="200"
-                class="w-full h-full flex-grow min-h-0 bg-transparent text-lg md:text-xl lg:text-2xl font-serif text-center focus:outline-none transition-colors resize-none placeholder:text-current/20 leading-normal text-current/90"
+                class="w-full h-full flex-grow min-h-[6.5rem] bg-transparent text-lg md:text-xl lg:text-2xl font-serif text-center focus:outline-none transition-colors resize-none placeholder:text-current/20 leading-normal text-current/90"
                 :placeholder="locale === 'ru' ? 'Краткое описание или тезис вашей статьи...' : 'Brief description or thesis of your article...'"
               ></textarea>
               <div class="absolute bottom-2 w-full flex justify-end px-4 shrink-0 pointer-events-none">
@@ -810,9 +825,9 @@
           </div>
 
           <!-- LAUNCH FOOTER -->
-          <div class="border-t-2 border-current/20 pt-4 mt-auto flex justify-between items-center shrink-0">
+          <div class="relative z-20 border-t-2 border-current/20 pt-4 mt-auto flex justify-between items-center shrink-0">
             <!-- Cancel / Delete Draft Button (Bottom Left) -->
-            <button class="text-[11px] font-mono tracking-widest uppercase opacity-60 hover:opacity-100 transition-opacity flex items-center gap-2 group/cancel"
+            <button type="button" class="text-[11px] font-mono tracking-widest uppercase opacity-60 hover:opacity-100 transition-opacity flex items-center gap-2 group/cancel"
                     @click="hasDraft ? (clearDraft(), isCreatingArticle = false) : isCreatingArticle = false">
               <svg class="w-4 h-4 transition-transform group-hover/cancel:-translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path v-if="!hasDraft" d="M19 12H5M5 12l7-7M5 12l7 7"></path>
@@ -2234,6 +2249,7 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import allAssets from '~/shared/data/global_assets.json'
 import type { Comment } from '~/entities/comment/types/comment.types'
 import type { Reply } from '~/entities/reply/model/reply.types'
+import { isReplyLikedByUser, toggleReplyLike } from '~/entities/reply/model/likesManagement'
 import type { DiaryEntry } from '~/entities/diary/model/diary.types'
 import type { ExNode, ExNodeMode, ExNodeSignal } from '~/entities/exnode/model/exnode.types'
 import type { StrategyProfile } from '~/features/store/useStrategyTrades'
@@ -2331,6 +2347,8 @@ const articleLabels = computed(() => locale.value === 'ru'
       writeComment: 'Напишите комментарий...',
       signInToComment: 'Войдите, чтобы оставить комментарий.',
       postComment: 'Опубликовать комментарий',
+      like: 'Нравится',
+      liked: 'Понравилось',
       likes: 'лайков',
       noComments: 'Комментариев пока нет',
       leaveFullscreen: 'Покинуть полноэкранный режим'
@@ -2350,6 +2368,8 @@ const articleLabels = computed(() => locale.value === 'ru'
       writeComment: 'Write a comment...',
       signInToComment: 'Sign in to join the discussion.',
       postComment: 'Post comment',
+      like: 'Like',
+      liked: 'Liked',
       likes: 'Likes',
       noComments: 'No comments yet.',
       leaveFullscreen: 'Leave fullscreen mode'
@@ -2798,9 +2818,63 @@ const commentDraft = ref('')
 const commentInputRef = ref<HTMLTextAreaElement | null>(null)
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const currentUserName = computed(() => authStore.user?.displayName?.trim() || authStore.user?.email?.trim() || 'Authenticated user')
+const likedReplyIds = ref<Set<string>>(new Set())
+const pendingReplyLikeIds = ref<Set<string>>(new Set())
+let replyLikeLoadRequestId = 0
 const articleComments = computed(() => {
   return comments.value
 })
+
+const isReplyLiked = (replyId: string) => likedReplyIds.value.has(replyId)
+const isReplyLikePending = (replyId: string) => pendingReplyLikeIds.value.has(replyId)
+
+const loadReplyLikeStates = async () => {
+  const requestId = ++replyLikeLoadRequestId
+  const userId = authStore.user?.uid
+  const replyIds = comments.value
+    .filter((reply) => reply.status !== 'hidden')
+    .map((reply) => reply.id)
+
+  if (!userId || !replyIds.length) {
+    if (requestId === replyLikeLoadRequestId) likedReplyIds.value = new Set()
+    return
+  }
+
+  const results = await Promise.all(replyIds.map(async (replyId) => {
+    try {
+      return (await isReplyLikedByUser(replyId, userId)) ? replyId : null
+    } catch (error) {
+      console.warn('[Forum] Failed to load reply like state:', error)
+      return null
+    }
+  }))
+
+  if (requestId !== replyLikeLoadRequestId || authStore.user?.uid !== userId) return
+  likedReplyIds.value = new Set(results.filter((replyId): replyId is string => replyId !== null))
+}
+
+const toggleCommentLike = async (reply: Reply) => {
+  const userId = authStore.user?.uid
+  if (!userId || reply.status === 'hidden' || isReplyLikePending(reply.id)) return
+
+  const wasLiked = isReplyLiked(reply.id)
+  pendingReplyLikeIds.value = new Set(pendingReplyLikeIds.value).add(reply.id)
+
+  try {
+    const isLiked = await toggleReplyLike(reply.id, userId)
+    const nextLikedReplyIds = new Set(likedReplyIds.value)
+    if (isLiked) nextLikedReplyIds.add(reply.id)
+    else nextLikedReplyIds.delete(reply.id)
+    likedReplyIds.value = nextLikedReplyIds
+    forumStore.updateReplyLikeState(reply.threadId, reply.id, isLiked, wasLiked)
+  } catch (error) {
+    console.error('[Forum] Failed to toggle reply like:', error)
+  } finally {
+    const nextPendingReplyLikeIds = new Set(pendingReplyLikeIds.value)
+    nextPendingReplyLikeIds.delete(reply.id)
+    pendingReplyLikeIds.value = nextPendingReplyLikeIds
+  }
+}
 
 type CommentNode = Reply & { children: CommentNode[] }
 
@@ -3125,6 +3199,10 @@ const selectedTypeLabel = computed(() => {
   const t = articleTypes.value.find(t => t.value === newArticleForm.value.type)
   return t ? t.label : ''
 })
+
+const selectArticleType = (type: string) => {
+  newArticleForm.value.type = type
+}
 
 const isNewArticleFormValid = computed(() => {
   return newArticleForm.value.title.trim() !== '' &&
@@ -3820,6 +3898,13 @@ watch(() => authStore.user, (user) => {
   }
 }, { immediate: true })
 
+watch([
+  () => authStore.user?.uid,
+  () => comments.value.map((reply) => reply.id).join('|')
+], () => {
+  void loadReplyLikeStates()
+}, { immediate: true })
+
 // v-click-outside directive logic setup inside component (or via vueuse if available,
 // but since we are in a single file, a simple window event listener is better for the dropdown,
 // but we'll use a standard workaround if v-click-outside isn't registered globally. Let's assume it might not be.
@@ -4017,9 +4102,11 @@ watch(selectedArticle, async (article) => {
   isLiked.value = false
   isBookmarked.value = false
 
-  if (article && authStore.user && !isSystemJournalArticleId(article.id)) {
+  if (article && !isSystemJournalArticleId(article.id)) {
     forumStore.fetchReplies(article.id) // Fetch replies from Firestore
+  }
 
+  if (article && authStore.user && !isSystemJournalArticleId(article.id)) {
     const [liked, saved] = await Promise.all([
       forumStore.isThreadLiked(authStore.user.uid, article.id),
       forumStore.isThreadSaved(authStore.user.uid, article.id)
@@ -5861,6 +5948,61 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 
 .article-comment-meta span {
   margin-top: 0;
+}
+
+.article-comment-like {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  padding: 0.38rem 0.58rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  opacity: 0.58;
+  text-transform: uppercase;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, opacity 180ms ease;
+}
+
+.article-comment-like:hover:not(:disabled) {
+  border-color: color-mix(in srgb, currentColor 60%, transparent);
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  opacity: 1;
+}
+
+.article-comment-like--active {
+  border-color: #090909;
+  background: #090909;
+  color: #fff;
+  box-shadow: 0 0 16px rgba(9, 9, 9, 0.18);
+  opacity: 1;
+}
+
+:global(.dark) .article-comment-like--active {
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  color: #090909;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
+}
+
+.article-comment-like__heart {
+  width: 0.82rem;
+  height: 0.82rem;
+  flex: 0 0 auto;
+  transition: color 180ms ease, fill 180ms ease, filter 180ms ease, transform 180ms ease;
+}
+
+.article-comment-like--active .article-comment-like__heart {
+  filter: drop-shadow(0 0 5px rgba(244, 63, 94, 0.82));
+  transform: scale(1.08);
+}
+
+.article-comment-like:disabled {
+  cursor: default;
+  opacity: 0.3;
 }
 
 .article-comment p,
