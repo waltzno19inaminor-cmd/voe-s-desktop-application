@@ -675,8 +675,8 @@
 
           <!-- T DIST TOGGLE -->
           <button @click="showRobustnessTDist = !showRobustnessTDist; if (showRobustnessTDist) showRobustnessNormalDist = false"
-                  class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent nier-text-primary opacity-60 hover:opacity-100 hover:border-black/10 dark:hover:border-white/10 hover:bg-black/5 dark:hover:bg-white/5"
-                  :class="showRobustnessTDist ? 'bg-black/10 dark:bg-white/10 opacity-100 border-black/20 dark:border-white/20' : ''">
+                  class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
+                  :class="showRobustnessTDist ? 'bg-white/10 opacity-100 border-white/20' : ''">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
               <path d="M4 16c2-6 4-10 8-10s6 4 8 10" />
             </svg>
