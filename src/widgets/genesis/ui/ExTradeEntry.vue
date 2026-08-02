@@ -42,7 +42,7 @@ const tradeEntryThemeStyle = computed(() => isDark.value
 
 <template>
   <div ref="scrollContainer" 
-       class="flex flex-col items-center h-full w-full overflow-y-auto custom-scrollbar transition-colors duration-500 pb-40 bg-theme-bg nier-text-primary"
+       class="trade-entry-shell flex flex-col items-center h-full w-full overflow-x-hidden overflow-y-auto custom-scrollbar transition-colors duration-500 pb-40 bg-theme-bg nier-text-primary"
        :class="isDark ? 'dark is-dark theme-dark' : 'theme-light'"
        :style="tradeEntryThemeStyle">
      <DesignVignette :is-dark="isDark" />
@@ -64,6 +64,18 @@ const tradeEntryThemeStyle = computed(() => isDark.value
 }
 .custom-scrollbar::-webkit-scrollbar {
   display: none !important;
+}
+
+.trade-entry-shell.page-reify-enter-active,
+.trade-entry-shell.page-reify-leave-active {
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.trade-entry-shell.page-reify-enter-from,
+.trade-entry-shell.page-reify-leave-to {
+  opacity: 0 !important;
+  transform: none !important;
+  filter: none !important;
 }
 
 .nier-input {
@@ -157,6 +169,16 @@ input[type=number] {
 .nier-fade-enter-from, .nier-fade-leave-to {
   opacity: 0;
   transform: translateY(10px);
+}
+
+.trade-footer-fade-enter-active,
+.trade-footer-fade-leave-active {
+  transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), filter 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.trade-footer-fade-enter-from,
+.trade-footer-fade-leave-to {
+  opacity: 0;
+  filter: blur(4px);
 }
 
 .sector-swap-enter-active, .sector-swap-leave-active {

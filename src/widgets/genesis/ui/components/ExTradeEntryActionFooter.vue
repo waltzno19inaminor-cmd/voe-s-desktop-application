@@ -27,8 +27,9 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
 
 <template>
 <!-- BOTTOM PANEL (NIER CHASSIS) -->
-    <Transition name="nier-fade">
-      <div v-if="!showEntryMethod" class="fixed bottom-0 mb-4 left-1/2 -translate-x-1/2 z-[1100] w-fit max-w-[calc(100vw-2rem)] font-sans">
+    <Transition name="trade-footer-fade">
+      <div v-if="!showEntryMethod" class="pointer-events-none fixed inset-x-0 bottom-0 z-[1100] mb-4 flex justify-center px-6 font-sans">
+        <div class="pointer-events-auto w-full max-w-5xl">
         <!-- NIER SECTOR TABS AND SWITCHER -->
       <div class="flex justify-between items-end w-full px-2">
         <div class="flex gap-0.5 bg-black/60 p-1 border-t border-l border-r border-white/30">
@@ -50,13 +51,13 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
       </div>
 
       <!-- MAIN CHASSIS -->
-      <div class="relative inline-flex max-w-full items-center bg-[#0a0a0a]/80 border border-white/30 px-8 h-16 transition-all duration-500 ">
+      <div class="relative flex h-16 w-full items-center bg-[#0a0a0a]/80 border border-white/30 px-8">
         
         <div class="absolute inset-0 pointer-events-none opacity-[0.08] overflow-hidden">
           <div class="w-full h-px bg-white animate-scan"></div>
         </div>
 
-        <div class="flex items-center gap-6 relative z-10">
+        <div class="flex w-full items-center gap-6 relative z-10">
           
           <!-- BLOCK: ID -->
           <div class="flex items-center gap-6 pr-6 border-r border-white/10 shrink-0">
@@ -244,7 +245,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
           </div>
 
           <!-- BLOCK: OUTPUT -->
-          <div class="flex items-center gap-6 pl-6 border-l border-white/10 shrink-0 justify-end">
+          <div class="ml-auto flex w-[240px] shrink-0 items-center justify-end gap-6 border-l border-white/10 pl-6">
             <div class="flex flex-col items-end gap-0.5">
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">Yield_Est</span>
               <div v-if="isClosed && resultMode === 'manual'" class="flex items-center">
@@ -280,6 +281,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
         <div class="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-white/40 rotate-45 border border-black"></div>
 
       </div>
+        </div>
     </div>
     </Transition>
     
