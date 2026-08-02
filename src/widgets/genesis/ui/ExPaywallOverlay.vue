@@ -84,9 +84,9 @@
                 ><g transform="matrix(.47407 0 0 .47407 .383 .422)"><clipPath id="prefix__a"><path d="M0 0h1080v1080H0z"/></clipPath><g clip-path="url(#prefix__a)"><path d="M1033.05 324.45c-.19-137.9-107.59-250.92-233.6-291.7-156.48-50.64-362.86-43.3-512.28 27.2-181.1 85.46-237.99 272.66-240.11 459.36-1.74 153.5 13.58 557.79 241.62 560.67 169.44 2.15 194.67-216.18 273.07-321.33 55.78-74.81 127.6-95.94 216.01-117.82 151.95-37.61 255.51-157.53 255.29-316.38z" fill-rule="nonzero"/></g></g></svg>
                 <span
                   class="text-xs sm:text-sm font-black tracking-[0.2em] uppercase transition-colors relative z-10"
-                  :class="'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]'"
+                  :class="isDark ? 'text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]' : 'text-[#171411]'"
                 >
-                  {{ locale === 'ru' ? 'ОФОРМИТЬ ПОДПИСКУ НА PATREON' : 'GET THE FULL APP ON PATREON' }}
+                  {{ locale === 'ru' ? 'КУПИТЬ КЛЮЧ НА PATREON' : 'GET THE FULL APP ON PATREON' }}
                 </span>
               </button>
 
