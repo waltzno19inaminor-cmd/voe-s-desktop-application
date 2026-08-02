@@ -31,7 +31,7 @@
             {{ node.likesCount }} {{ spotlightLabels.likes }}
           </span>
         </div>
-
+        
         <div class="flex items-center space-x-4 group-hover:translate-x-2 transition-transform duration-700">
           <span class="text-[9px] font-mono tracking-[0.4em] opacity-30 uppercase group-hover:opacity-100 transition-all duration-300 transform origin-left group-hover:scale-110 inline-block">{{ spotlightLabels.accessNode }}</span>
           <span class="text-2xl opacity-20 group-hover:opacity-100 pb-1">→</span>

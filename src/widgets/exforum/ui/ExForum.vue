@@ -225,7 +225,6 @@
             @click="closeReader"
             class="article-reader-back group"
             :aria-label="articleLabels.returnToJournal"
-            :title="articleLabels.returnToJournal"
           >
             <span class="article-reader-back-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter">
@@ -244,7 +243,7 @@
             <div class="mt-6 mb-5 flex w-3/4 max-w-md items-center gap-4">
               <div class="h-[1px] w-8 bg-current/10 shrink-0"></div>
               <span class="text-[9px] font-mono tracking-[0.3em] uppercase text-current/40 shrink-0">
-                {{ locale === 'ru' ? 'АВТОР' : 'BY' }} <span class="text-current/70 font-bold ml-1">{{ selectedArticle.author }}</span>
+                {{ locale === 'ru' ? 'АВТОР' : 'BY' }} <span class="text-current/70 font-bold ml-1">{{ selectedArticle.author }}</span><ExUserStatusBadge v-if="selectedArticleAuthorStatus" :status="selectedArticleAuthorStatus" class="ml-2 align-middle" />
               </span>
               <div class="h-[1px] flex-1 bg-current/10"></div>
             </div>
@@ -261,7 +260,7 @@
       </header>
 
       <main class="relative z-10 box-border flex w-full max-w-full flex-col flex-none overflow-hidden py-6 gap-6">
-
+        
         <!-- MODE SWITCHER -->
         <div class="flex justify-center w-full shrink-0">
           <div class="flex items-center bg-current/5 border border-current/10 p-1 font-mono text-[10px] uppercase tracking-widest text-current/60">
@@ -405,7 +404,7 @@
         <section v-else class="flex-1 w-full overflow-y-auto scroll-minimal px-6 pb-12">
           <div class="max-w-[800px] mx-auto flex flex-col items-center gap-12 text-black">
             <template v-for="(node, index) in selectedArticleTextBlocks" :key="node.id || index">
-
+              
               <div class="w-full flex flex-col items-center">
                 <!-- LEGACY BLOCKS -->
                 <div v-if="node.type === 'heading'" class="w-full flex flex-col gap-4 font-serif italic break-words">
@@ -541,14 +540,15 @@
       </main>
 
       <div class="flex items-center gap-3 px-6 pb-6">
-        <button
-          class="flex items-center gap-2 px-5 py-2.5 border border-current/10 bg-white/50 text-[10px] font-mono tracking-widest uppercase hover:bg-black/5 hover:border-current/30 transition-all active:scale-95 group"
+        <button 
+          :disabled="isArticleLikePending"
+          class="flex items-center gap-2 px-5 py-2.5 border border-current/10 bg-white/50 text-[10px] font-mono tracking-widest uppercase hover:bg-black/5 hover:border-current/30 transition-all active:scale-95 group disabled:opacity-60"
           @click="toggleLike"
         >
           <svg class="w-4 h-4 transition-transform group-active:scale-75" :class="isLiked ? 'fill-red-500 text-red-500' : 'fill-transparent text-current/50'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"></path></svg>
           <span>{{ isLiked ? (locale === 'ru' ? 'Понравилось' : 'Liked') : (locale === 'ru' ? 'Нравится' : 'Like') }}</span>
         </button>
-        <button
+        <button 
           class="flex items-center gap-2 px-5 py-2.5 border border-current/10 bg-white/50 text-[10px] font-mono tracking-widest uppercase hover:bg-black/5 hover:border-current/30 transition-all active:scale-95 group"
           @click="toggleBookmark"
         >
@@ -606,7 +606,7 @@
             <article class="article-comment !pb-2 !border-none">
               <div class="article-comment-head">
                 <div>
-                  <h3 :class="{'opacity-50': comment.status === 'hidden'}">{{ comment.author || 'Anonymous' }}</h3>
+                  <h3 :class="{'opacity-50': comment.status === 'hidden'}">{{ comment.author || 'Anonymous' }}<ExUserStatusBadge v-if="getSelectedAuthorStatus(comment.authorId)" :status="getSelectedAuthorStatus(comment.authorId)!" class="ml-2 align-middle" /></h3>
                 </div>
                 <div class="article-comment-meta">
                   <span>{{ formatCommentDate(comment.createdAt) }}</span>
@@ -614,7 +614,7 @@
                 </div>
               </div>
               <p :class="{'italic opacity-50': comment.status === 'hidden'}">{{ comment.content?.text }}</p>
-
+              
               <div v-if="comment.status !== 'hidden'" class="mt-2 flex justify-end items-center">
                 <button type="button" :disabled="!isAuthenticated || isReplyLikePending(comment.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(comment.id) }" :aria-pressed="isReplyLiked(comment.id)" @click="toggleCommentLike(comment)">
                   <svg class="article-comment-like__heart" :class="isReplyLiked(comment.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
@@ -646,7 +646,7 @@
                 <article class="article-comment !pb-2 !border-none">
                   <div class="article-comment-head">
                     <div>
-                      <h3 :class="{'opacity-50': reply.status === 'hidden'}">{{ reply.author || 'Anonymous' }}</h3>
+                      <h3 :class="{'opacity-50': reply.status === 'hidden'}">{{ reply.author || 'Anonymous' }}<ExUserStatusBadge v-if="getSelectedAuthorStatus(reply.authorId)" :status="getSelectedAuthorStatus(reply.authorId)!" class="ml-2 align-middle" /></h3>
                     </div>
                     <div class="article-comment-meta">
                       <span>{{ formatCommentDate(reply.createdAt) }}</span>
@@ -654,7 +654,7 @@
                     </div>
                   </div>
                   <p :class="{'italic opacity-50': reply.status === 'hidden'}">{{ reply.content?.text }}</p>
-
+                  
                   <div v-if="reply.status !== 'hidden'" class="mt-2 flex justify-end items-center">
                     <button type="button" :disabled="!isAuthenticated || isReplyLikePending(reply.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(reply.id) }" :aria-pressed="isReplyLiked(reply.id)" @click="toggleCommentLike(reply)">
                       <svg class="article-comment-like__heart" :class="isReplyLiked(reply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
@@ -686,7 +686,7 @@
                     <article class="article-comment !pb-2 !border-none">
                       <div class="article-comment-head">
                         <div>
-                          <h3 :class="{'opacity-50': subreply.status === 'hidden'}">{{ subreply.author || 'Anonymous' }}</h3>
+                          <h3 :class="{'opacity-50': subreply.status === 'hidden'}">{{ subreply.author || 'Anonymous' }}<ExUserStatusBadge v-if="getSelectedAuthorStatus(subreply.authorId)" :status="getSelectedAuthorStatus(subreply.authorId)!" class="ml-2 align-middle" /></h3>
                         </div>
                         <div class="article-comment-meta">
                           <span>{{ formatCommentDate(subreply.createdAt) }}</span>
@@ -694,7 +694,7 @@
                         </div>
                       </div>
                       <p :class="{'italic opacity-50': subreply.status === 'hidden'}">{{ subreply.content?.text }}</p>
-
+                      
                       <div v-if="subreply.status !== 'hidden'" class="mt-2 flex justify-end items-center">
                         <button type="button" :disabled="!isAuthenticated || isReplyLikePending(subreply.id)" class="article-comment-like" :class="{ 'article-comment-like--active': isReplyLiked(subreply.id) }" :aria-pressed="isReplyLiked(subreply.id)" @click="toggleCommentLike(subreply)">
                           <svg class="article-comment-like__heart" :class="isReplyLiked(subreply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
@@ -729,10 +729,10 @@
                 {{ expandedComments.has(comment.id) ? (locale === 'ru' ? 'Скрыть' : 'Hide') : (locale === 'ru' ? `Показать еще ${comment.children.length - 5}` : `Show ${comment.children.length - 5} more`) }}
               </button>
             </div>
-
+            
             <hr v-if="index !== nestedComments.length - 1" class="w-full border-current/10 my-8" />
           </div>
-
+          
           <button v-if="nestedComments.length > 5" @click="toggleCommentExpand('root')" class="text-[10px] font-mono uppercase tracking-widest bg-current/5 py-4 hover:bg-current/10 transition-colors w-full border border-current/10 mt-8">
             {{ expandedComments.has('root') ? (locale === 'ru' ? 'Скрыть комментарии' : 'Hide comments') : (locale === 'ru' ? `Показать еще ${nestedComments.length - 5} комментариев` : `Show ${nestedComments.length - 5} more comments`) }}
           </button>
@@ -746,7 +746,7 @@
     <!-- ARTICLE CREATION VIEW -->
     <div v-else-if="isCreatingArticle" class="absolute inset-0 z-50 bg-theme-bg overflow-hidden flex flex-col w-full" key="creator">
       <Transition name="fade-slide" mode="out-in">
-
+        
         <!-- METADATA STEP -->
         <div v-if="creationStep === 'metadata'" class="flex flex-col h-full px-8 md:px-16 xl:px-32 py-10 relative overflow-hidden w-full max-w-7xl mx-auto" key="metadata">
           <!-- DRAFT METADATA HEADER -->
@@ -757,7 +757,7 @@
               </span>
               <span class="font-serif italic text-2xl text-current/80">{{ currentUserName }}</span>
             </div>
-
+            
             <!-- INLINE CATEGORY SELECTOR -->
             <div class="flex flex-col md:items-end space-y-4">
               <span class="text-xs md:text-sm font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
@@ -782,7 +782,7 @@
 
           <!-- MAIN EDITORIAL CANVAS -->
           <div class="relative z-10 flex-grow flex flex-col justify-center w-full max-w-5xl mx-auto space-y-6 min-h-0 pt-2 pb-6">
-
+            
             <!-- Huge Title Input -->
             <div class="flex flex-col items-center group/title relative w-full shrink-0 pt-4">
               <span class="text-xs md:text-sm font-sans tracking-[0.2em] font-light uppercase transition-opacity duration-300 mb-2" :class="newArticleForm.title ? 'opacity-30' : 'opacity-60 group-focus-within/title:opacity-100'">
@@ -801,7 +801,7 @@
                 </span>
               </div>
             </div>
-
+            
             <div class="w-16 h-px bg-current/30 mx-auto my-2 shrink-0"></div>
 
             <!-- Description Textarea -->
@@ -842,7 +842,7 @@
               :disabled="!isNewArticleFormValid || isSubmittingArticle"
               @click="submitNewArticle"
             >
-              <span class="text-[11px] font-mono tracking-[0.4em] uppercase relative z-10 font-bold transition-all duration-500"
+              <span class="text-[11px] font-mono tracking-[0.4em] uppercase relative z-10 font-bold transition-all duration-500" 
                     :class="[
                       isSubmittingArticle ? 'opacity-0' : '',
                       isNewArticleFormValid ? 'text-black opacity-100 group-hover:text-white' : 'text-current opacity-30'
@@ -856,7 +856,7 @@
                     ]">
                 →
               </span>
-              <svg class="w-5 h-5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 animate-spin text-white transition-opacity duration-300"
+              <svg class="w-5 h-5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 animate-spin text-white transition-opacity duration-300" 
                    :class="isSubmittingArticle ? 'opacity-100' : 'opacity-0'"
                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
@@ -922,8 +922,8 @@
               @contextmenu.prevent.stop="handleNodeContextMenu($event, node.id)"
             >
               <!-- Drag Handle -->
-              <div
-                data-board-node-handle
+              <div 
+                data-board-node-handle 
                 :data-node-id="node.id"
                 class="absolute top-0 left-0 w-full h-4 bg-black/5 hover:bg-black/10 cursor-move opacity-0 group-hover/node:opacity-100 transition-opacity z-10"
               ></div>
@@ -1140,8 +1140,8 @@
               ></div>
 
               <!-- Resize Handle -->
-              <div
-                data-board-resize
+              <div 
+                data-board-resize 
                 :data-node-id="node.id"
                 class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-0 group-hover/node:opacity-100 transition-opacity z-10 flex items-end justify-end p-1"
               >
@@ -1156,8 +1156,7 @@
                :style="{ left: outOfBoundsIndicator.x + 'px', top: outOfBoundsIndicator.y + 'px', transform: 'translate(-50%, -50%)' }">
             <div class="w-10 h-10 flex items-center justify-center transition-transform duration-100 cursor-pointer group"
                  :style="{ transform: `rotate(${outOfBoundsIndicator.angle}deg)` }"
-                 @click="focusBoardNode(outOfBoundsIndicator.id)"
-                 :title="(locale === 'ru' ? 'Найти ' : 'Focus ') + outOfBoundsIndicator.name">
+                 @click="focusBoardNode(outOfBoundsIndicator.id)">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="drop-shadow-sm transition-transform group-hover:scale-125 text-black">
                 <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
@@ -1176,7 +1175,7 @@
           </div>
 
           <!-- Tooltip at the top center -->
-          <div
+          <div 
             v-if="activeBoardTool && activeBoardTool !== 'pencil'"
             class="pointer-events-none absolute top-8 left-1/2 transform -translate-x-1/2 z-[9999] px-4 py-2 bg-black text-white text-[10px] font-mono tracking-widest uppercase shadow-lg"
           >
@@ -1189,18 +1188,16 @@
                @pointermove.stop
                @pointerenter="boardDrawing.isBoardDrawingCursorVisible.value = false">
           <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="flex flex-col items-center py-2 px-1 border-black/20 !w-fit">
-            <button class="p-2 transition-colors group relative"
+            <button class="p-2 transition-colors group relative" 
                     :class="activeBoardTool === 'text' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    :title="locale === 'ru' ? 'Текст' : 'Text Node'"
                     @click.stop="activeBoardTool = activeBoardTool === 'text' ? null : 'text'">
               <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'text' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M4 7V4h16v3M9 20h6M12 4v16" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
             <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative"
+            <button class="p-2 transition-colors group relative" 
                     :class="activeBoardTool === 'image' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    :title="locale === 'ru' ? 'Изображение' : 'Image Node'"
                     @click.stop="activeBoardTool = activeBoardTool === 'image' ? null : 'image'">
               <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'image' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1209,9 +1206,8 @@
               </svg>
             </button>
             <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative"
+            <button class="p-2 transition-colors group relative" 
                     :class="activeBoardTool === 'drawing' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    :title="locale === 'ru' ? 'Рисунок' : 'Drawing Node'"
                     @click.stop="activeBoardTool = activeBoardTool === 'drawing' ? null : 'drawing'">
               <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'drawing' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 19l7-7 3 3-7 7-3-3z"/>
@@ -1221,9 +1217,8 @@
               </svg>
             </button>
             <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative"
+            <button class="p-2 transition-colors group relative" 
                     :class="activeBoardTool === 'pencil' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    :title="locale === 'ru' ? 'Карандаш' : 'Pencil'"
                     @click.stop="activeBoardTool = activeBoardTool === 'pencil' ? null : 'pencil'">
               <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'pencil' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
@@ -1234,7 +1229,6 @@
               <button
                 class="flex h-9 w-9 items-center justify-center font-mono text-[9px] font-black uppercase tracking-widest transition-colors"
                 :class="activeBoardTool === 'strategy-node' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5 hover:text-black'"
-                :title="locale === 'ru' ? 'Стратегия' : 'Strategy'"
                 @click.stop="activeBoardTool = activeBoardTool === 'strategy-node' ? null : 'strategy-node'"
               >
                 {{ boardUiLabels.strategyTool }}
@@ -1243,7 +1237,6 @@
               <button
                 class="flex h-9 w-9 items-center justify-center font-mono text-[9px] font-black uppercase tracking-widest transition-colors"
                 :class="activeBoardTool === 'trade-node' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5 hover:text-black'"
-                :title="locale === 'ru' ? 'Сделки' : 'Trades'"
                 @click.stop="activeBoardTool = activeBoardTool === 'trade-node' ? null : 'trade-node'"
               >
                 {{ boardUiLabels.tradeTool }}
@@ -1251,7 +1244,7 @@
             </template>
           </ExPanel>
           </div>
-
+          
           <!-- Right Vertical Toolbar (Pencil Settings) -->
           <div v-if="activeBoardTool === 'pencil'" data-board-chrome class="absolute right-6 top-1/2 -translate-y-1/2 z-50 w-12 cursor-auto"
                @pointerdown.stop
@@ -1261,8 +1254,7 @@
                <!-- Brush Tool -->
                <button class="p-2 transition-colors group relative"
                        :class="boardDrawing.boardDrawingTool.value === 'pencil' ? 'bg-black/10' : 'hover:bg-black/5'"
-                       @click="boardDrawing.boardDrawingTool.value = 'pencil'"
-                       :title="locale === 'ru' ? 'Кисть' : 'Brush'">
+                       @click="boardDrawing.boardDrawingTool.value = 'pencil'">
                   <div class="w-5 h-5 flex items-center justify-center">
                     <div class="w-2 h-2 rounded-full bg-black"></div>
                   </div>
@@ -1273,8 +1265,7 @@
                <!-- Eraser Tool -->
                <button class="p-2 transition-colors group relative"
                        :class="boardDrawing.boardDrawingTool.value === 'eraser' ? 'bg-black/10' : 'hover:bg-black/5'"
-                       @click="boardDrawing.boardDrawingTool.value = 'eraser'"
-                       :title="locale === 'ru' ? 'Ластик' : 'Eraser'">
+                       @click="boardDrawing.boardDrawingTool.value = 'eraser'">
                   <div class="w-5 h-5 flex items-center justify-center">
                     <div class="w-2 h-2 rounded-full border-2" :class="boardDrawing.boardDrawingTool.value === 'eraser' ? 'border-black' : 'border-black/60 group-hover:border-black'"></div>
                   </div>
@@ -1546,7 +1537,7 @@
               </div>
           </Transition>
         </div>
-
+        
 
         <!-- PREVIEW STEP -->
         <!-- Note: This logic is bypassed, user sees the ExPanel instead -->
@@ -1582,10 +1573,10 @@
               <!-- Nodes -->
               <div class="flex flex-col w-full gap-12">
                 <template v-for="(node, index) in previewNodes" :key="node.id">
-
+                  
                   <!-- NODE WRAPPER WITH CONTROLS -->
                   <div class="group relative w-full flex flex-col items-center">
-
+                    
                     <!-- NODE CONTENT -->
                     <div class="w-full">
                       <!-- TEXT -->
@@ -1603,7 +1594,7 @@
                       <!-- SIGNAL HEADER -->
                       <div v-else-if="(node as any).type === 'signal-header'" class="w-full flex justify-center py-6">
                         <div class="flex flex-row items-center justify-between w-full max-w-[800px] border border-black/10 bg-white shadow-sm overflow-hidden">
-
+                          
                           <!-- Current Price -->
                           <div class="flex flex-col items-center justify-center flex-1 py-8 px-4" :class="(node as any).cp ? 'bg-blue-50/50' : ''">
                             <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
@@ -1706,7 +1697,7 @@
                           <span class="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 text-center">
                             {{ locale === 'ru' ? 'СДЕЛКА' : 'TRADE' }}
                           </span>
-
+                          
                           <span class="flex w-full items-start justify-between gap-3 border-t border-black/5 pt-4">
                             <span class="flex min-w-0 flex-col">
                               <span class="max-w-full truncate text-2xl font-black uppercase tracking-widest text-black/80">
@@ -1862,7 +1853,7 @@
           class="exforum-frontpage-bg-image absolute inset-y-0 left-0 h-full min-h-screen w-auto max-w-none select-none object-contain opacity-[0.06]"
         />
       </div>
-
+      
       <!-- Masthead -->
       <header
         class="border-b-4 border-double border-current/20 flex flex-col items-center px-8 relative z-10"
@@ -1888,7 +1879,6 @@
             <button
               class="journal-filter-button !px-2"
               :class="{ 'is-active': activeJournalFilter === 'LIKED' }"
-              title="Liked Posts"
               type="button"
               @click="setJournalFilter('LIKED')"
             >
@@ -1897,7 +1887,6 @@
             <button
               class="journal-filter-button !px-2"
               :class="{ 'is-active': activeJournalFilter === 'BOOKMARKED' }"
-              title="Saved Posts"
               type="button"
               @click="setJournalFilter('BOOKMARKED')"
             >
@@ -1974,9 +1963,9 @@
 
       <!-- Main Journal Body -->
       <div class="flex-grow relative z-10 pb-0">
-
+        
         <!-- Loading State -->
-        <div v-if="isForumJournalLoading" class="flex flex-col items-center justify-center py-32 opacity-50 space-y-4">
+        <div v-if="forumStore.loading" class="flex flex-col items-center justify-center py-32 opacity-50 space-y-4">
           <svg class="w-8 h-8 animate-spin text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
              <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
           </svg>
@@ -2005,7 +1994,6 @@
               <button
                 class="flex h-11 w-11 items-center justify-center border border-current/15 text-current/45 transition-all opacity-0 group-hover:opacity-100 hover:border-current/40 hover:bg-current/5 hover:text-current"
                 type="button"
-                :title="locale === 'ru' ? 'Редактировать статью' : 'Edit article'"
                 @click="startEditArticle(thread)"
               >
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -2053,7 +2041,7 @@
                 </div>
               </div>
             </section>
-
+            
             <section
               v-if="pagedSignals.length > 0"
               class="journal-sector px-8 pb-8 pt-6"
@@ -2126,7 +2114,7 @@
         <!-- Pagination Controls -->
         <div v-if="hasJournalPagination" class="p-12 flex flex-col items-center space-y-8 border-t border-current/10 mt-12">
            <div class="flex items-center space-x-12">
-              <button v-if="currentPage > 1" @click="navigateToPage(currentPage - 1)"
+              <button v-if="currentPage > 1" @click="navigateToPage(currentPage - 1)" 
                       class="px-8 py-3 border border-current/10 text-[9px] font-mono tracking-[0.4em] uppercase opacity-40 hover:opacity-100 hover:bg-current/[0.02] transition-all">
                 {{ journalLabels.previousPage }}
               </button>
@@ -2135,7 +2123,7 @@
                 {{ journalLabels.nextPage }} // {{ journalLabels.archivePrefix }}0{{ currentPage + 1 }} ]
               </button>
            </div>
-
+           
            <div class="text-[7px] font-mono opacity-20 uppercase tracking-[0.8em]">{{ journalLabels.endOfArchive }}</div>
         </div>
 
@@ -2155,12 +2143,12 @@
     <!-- NODE CONTEXT MENU Overlay -->
     <Teleport to="body">
       <Transition name="fade-slide">
-        <div v-if="nodeContextMenu"
+        <div v-if="nodeContextMenu" 
              class="fixed z-[100000000] pointer-events-auto"
              :style="{ left: nodeContextMenu.x + 'px', top: nodeContextMenu.y + 'px' }"
              @pointerdown.stop
              @contextmenu.prevent.stop>
-
+            
             <div class="flex flex-col space-y-1.5">
               <div class="w-2 h-2 bg-black rotate-45 absolute -left-1 -top-1 animate-pulse"></div>
 
@@ -2186,7 +2174,7 @@
              class="absolute bottom-8 left-1/2 -translate-x-1/2 z-[100000] flex flex-col items-center w-full max-w-3xl bg-white/90 backdrop-blur-md border border-black/10 shadow-[0_20px_40px_rgba(0,0,0,0.08)] pointer-events-auto text-[#2c2c2a] transition-colors duration-500"
              @pointerdown.stop
              @contextmenu.prevent.stop>
-
+             
           <!-- Accent corners -->
           <div class="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-black opacity-30"></div>
           <div class="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-black opacity-30"></div>
@@ -2254,7 +2242,9 @@ import type { DiaryEntry } from '~/entities/diary/model/diary.types'
 import type { ExNode, ExNodeMode, ExNodeSignal } from '~/entities/exnode/model/exnode.types'
 import type { StrategyProfile } from '~/features/store/useStrategyTrades'
 import type { Thread } from '~/entities/thread/model/thread.types'
+import { normalizeUserProfileStatuses, type UserProfileStatus } from '~/entities/user/model/user-status.types'
 import type { JournalArticle, JournalArticleBoard, JournalArticleBoardConnection, JournalArticleBoardNode, JournalArticleBoardPort } from '~/entities/journal-article/types/journal-article.types'
+import ExUserStatusBadge from '~/widgets/exforum/ui/ExUserStatusBadge.vue'
 import ExNodeCard from '~/entities/exnode/ui/ExNodeCard.vue'
 import ExJournalSpotlight from '~/widgets/exforum/ui/ExJournalSpotlight.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -2267,7 +2257,6 @@ const themeStore = useThemeStore()
 const authStore = useAuthStore()
 const forumStore = useForumStore()
 const strategyTradesStore = useStrategyTradesStore()
-const isInitialJournalLoading = ref(true)
 
 // Archival State
 const searchQuery = ref('')
@@ -2525,6 +2514,7 @@ const threadToJournalNode = (thread: Thread & Record<string, any>): ExNode => {
     mode,
     title: thread.title || boardUiLabels.value.untitled,
     author: getThreadAuthorName(thread),
+    authorStatus: getSelectedAuthorStatus(thread.authorId),
     category: thread.categoryLabel || thread.subcategory || thread.category || mode,
     thesis_brief: description,
     tags: Array.isArray(thread.tags) ? thread.tags : [],
@@ -2571,163 +2561,8 @@ const threadToJournalArticle = (thread: Thread & Record<string, any>): JournalAr
 const currentPage = computed(() => Number(route.query.page) || 1)
 const nodesPerPage = 12
 
-const SYSTEM_FTMO_THREAD_ID = 'system-ftmo-rules-hidden-rules-trader-losses'
-const SYSTEM_APP_AUTHOR_ID = 'jlj-jormungandr-app'
-
-const systemFtmoNodePayloads = [
-  {
-    id: 'n0',
-    title: 'N0. PROP-FIRMS challenge',
-    text: `<p><strong style="color:#111827">Main thought:</strong> PROP-FIRMS does not hide rules, but the <em>practical mechanics</em> of these rules require a separate skill.</p><blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #111827;background:rgba(17,24,39,.05)">A profitable strategy does not equal readiness to pass the challenge.</blockquote>`,
-    position: { x: 36, y: 22 },
-    size: { width: 22, height: 10 },
-    order: 0
-  },
-  {
-    id: 'n1',
-    title: 'N1. Official limits',
-    text: `<p><strong style="color:#991b1b">Limits are the framework of the challenge.</strong> They apply constantly, even when the overall picture looks healthy.</p><ul style="margin:10px 0 0 18px;list-style:disc"><li><strong>Max Daily Loss:</strong> approximately 5% on the classic path and about 3% on the 1-step.</li><li><strong>Max Total Loss:</strong> about 10% of the starting balance; sometimes trailing bound.</li><li><strong>Profit Target:</strong> +10% / +5% over two stages or about +10% for one stage.</li></ul><p style="color:#7f1d1d"><em>Breaching the daily limit closes the account, even if the week is in profit.</em></p>`,
-    position: { x: 4, y: 4 },
-    size: { width: 24, height: 14 },
-    order: 1
-  },
-  {
-    id: 'n2',
-    title: 'N2. Consistency rules',
-    text: `<p><strong style="color:#854d0e">PROP-FIRMS verifies not only the result, but the form of the result.</strong></p><ul style="margin:10px 0 0 18px;list-style:disc"><li><strong>Minimum Trading Days:</strong> minimum of around 4 trading days per stage.</li><li><strong>Best Day Rule:</strong> your best day should not carry the entire result.</li><li><strong>Scaling / Profit Split:</strong> balance and share growth depends on meeting plan conditions.</li></ul><blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #a16207;background:rgba(245,158,11,.08)">A single lucky trade can hit the target, but won't necessarily qualify you to pass the system.</blockquote>`,
-    position: { x: 4, y: 25 },
-    size: { width: 24, height: 15 },
-    order: 2
-  },
-  {
-    id: 'n3',
-    title: 'N3. Operational restrictions',
-    text: `<p><strong style="color:#1d4ed8">The most common violations arise not from the trade idea, but from execution.</strong></p><ul style="margin:10px 0 0 18px;list-style:disc"><li><strong>News Trading:</strong> the ban is a narrow window before/after the news, not the whole day.</li><li><strong>Weekend Holding:</strong> standard accounts require closing before the weekend.</li><li><strong>EA / robots:</strong> not just entry, but stop modifications, TP, and partial closes count.</li></ul><p><span style="color:#2563eb;font-weight:700">Swing account</span> removes some restrictions, but usually at the cost of lower leverage.</p>`,
-    position: { x: 34, y: 2 },
-    size: { width: 26, height: 15 },
-    order: 3
-  },
-  {
-    id: 'n4',
-    title: 'N4. Hidden mechanics',
-    text: `<p><strong style="color:#047857">These aren't hidden rules, but unobvious mathematics.</strong></p><ul style="margin:10px 0 0 18px;list-style:disc"><li><strong>Equity-based drawdown:</strong> the limit can be breached by floating equity while the position is still open.</li><li><strong>Best Day Rule:</strong> calculated as the share of the best day out of the sum of all green days.</li></ul><blockquote style="margin:12px 0;padding:10px 14px;border-left:3px solid #059669;background:rgba(16,185,129,.08)">$7000 + $4000 = $11000. A best day of $7000 is 64%, meaning the share must be diluted with new green days.</blockquote>`,
-    position: { x: 68, y: 6 },
-    size: { width: 26, height: 16 },
-    order: 4
-  },
-  {
-    id: 'n5',
-    title: 'N5. Why traders fail',
-    text: `<p><strong style="color:#7e22ce">The challenge breaks not only the risk model, but also the trader's mental state.</strong></p><ul style="margin:10px 0 0 18px;list-style:disc"><li><strong>Setup bias:</strong> "there must be a setup today", even though the market often just provides noise.</li><li><strong>Confirmation bias:</strong> a trader sees what they want to see.</li><li><strong>Overtrading:</strong> inaction turns into anxiety.</li><li><strong>Emotional drift:</strong> after a series of losses, decisions are made by a different person entirely.</li></ul><p style="color:#92400e"><strong>⚠️ Caution:</strong> broad phrasing like "at the firm's discretion" and detection of similar trades are areas of trader complaints, not necessarily proven facts of firm misconduct.</p>`,
-    position: { x: 68, y: 28 },
-    size: { width: 26, height: 18 },
-    order: 5
-  }
-] as const
-
-const systemFtmoConnectionPairs = [
-  ['n0', 'n1'], ['n0', 'n2'], ['n0', 'n3'], ['n0', 'n4'], ['n0', 'n5'],
-  ['n1', 'n4'], ['n2', 'n5'], ['n3', 'n4'], ['n4', 'n5']
-] as const
-
-const createSystemFtmoBoardNode = (payload: typeof systemFtmoNodePayloads[number]): JournalArticleBoardNode => ({
-  id: `ftmo-${payload.id}`,
-  type: 'text',
-  title: payload.title,
-  text: payload.text,
-  position: payload.position,
-  size: payload.size,
-  isQuestion: payload.id === 'n0'
-})
-
-const createSystemFtmoTextBlock = (payload: typeof systemFtmoNodePayloads[number]) => {
-  const data = createSystemFtmoBoardNode(payload)
-  return {
-    ...data,
-    order: payload.order,
-    schemaVersion: 1,
-    sourceNodeId: data.id,
-    label: payload.id === 'n0' ? 'ВОПРОС' : 'ТЕКСТ',
-    data
-  }
-}
-
-const systemFtmoBoard: JournalArticleBoard = {
-  gridSize: 28,
-  magnet: { enabled: true, mode: 'grid' },
-  size: { width: 100, height: 52 },
-  nodes: systemFtmoNodePayloads.map(createSystemFtmoBoardNode),
-  connections: systemFtmoConnectionPairs.map(([from, to], index) => ({
-    id: `ftmo-link-${index + 1}`,
-    fromId: `ftmo-${from}`,
-    toId: `ftmo-${to}`,
-    fromPort: from === 'n0' ? (to === 'n1' || to === 'n2' ? 'left' : 'right') : 'right',
-    toPort: 'left'
-  })),
-  strokes: []
-}
-
-const systemFtmoTextBlocks = systemFtmoNodePayloads.map(createSystemFtmoTextBlock)
-
-const systemFtmoThread = computed(() => {
-  const publishedAt = '2026-07-18T00:00:00.000Z'
-  const thesisText = 'PROP-FIRMS rules map: what is officially written, which mechanics are unobvious at the start, and why these very constraints often turn profitable trading into a failed challenge.'
-
-  return {
-    id: SYSTEM_FTMO_THREAD_ID,
-    title: 'PROP-FIRMS — rules, hidden rules and why traders lose money',
-    description: thesisText,
-    summary: thesisText,
-    category: 'QUESTION',
-    subcategory: 'Analytics',
-    categoryLabel: 'Analytics',
-    journalMode: 'QUESTION',
-    articleType: 'QUESTION',
-    author: 'J.L.Jörmungandr',
-    authorId: SYSTEM_APP_AUTHOR_ID,
-    authorData: {
-      uid: SYSTEM_APP_AUTHOR_ID,
-      displayName: 'J.L.Jörmungandr',
-      type: 'system'
-    },
-    createdAt: publishedAt,
-    publishedAt,
-    updatedAt: publishedAt,
-    lastActivityAt: publishedAt,
-    lastMeaningfulAt: publishedAt,
-    repliesCount: 0,
-    likesCount: 0,
-    status: 'active',
-    thesis: {
-      text: thesisText,
-      blocks: systemFtmoTextBlocks
-    },
-    board: systemFtmoBoard,
-    boardNodes: systemFtmoBoard.nodes,
-    boardConnections: systemFtmoBoard.connections,
-    boardStrokes: systemFtmoBoard.strokes,
-    textBlocks: systemFtmoTextBlocks,
-    textBlockOrder: systemFtmoTextBlocks.map(block => block.id),
-    content: {
-      type: 'exforum-article-board',
-      board: systemFtmoBoard,
-      thesis: {
-        text: thesisText,
-        blocks: systemFtmoTextBlocks
-      },
-      textBlocks: systemFtmoTextBlocks,
-      textBlockOrder: systemFtmoTextBlocks.map(block => block.id)
-    },
-    tags: ['PROP-FIRMS', 'prop trading', 'challenge', 'risk management', 'psychology']
-  } as Thread & Record<string, any>
-})
-
 const journalThreads = computed(() => {
-  const firestoreThreads = Array.from(forumStore.threads.values()) as Array<Thread & Record<string, any>>
-  return [
-    systemFtmoThread.value,
-    ...firestoreThreads.filter(thread => thread.id !== SYSTEM_FTMO_THREAD_ID)
-  ]
+  return Array.from(forumStore.threads.values()) as Array<Thread & Record<string, any>>
 })
 const myArticleThreads = computed(() => {
   const userId = authStore.user?.uid
@@ -2739,8 +2574,6 @@ const myArticleThreads = computed(() => {
 const journalNodes = computed(() => journalThreads.value
   .map(threadToJournalNode)
   .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()))
-
-const isForumJournalLoading = computed(() => isInitialJournalLoading.value || forumStore.loading)
 
 const filteredNodes = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -2814,6 +2647,23 @@ const comments = computed(() => {
   if (!selectedArticle.value) return []
   return forumStore.replies.get(selectedArticle.value.id) || []
 })
+function getSelectedAuthorStatus(authorId?: string): UserProfileStatus | null {
+  if (!authorId) return null
+  const user = forumStore.users.get(authorId)
+  return normalizeUserProfileStatuses(user?.status).find((status) => status.isSelected) || null
+}
+const selectedArticleAuthorStatus = computed(() => getSelectedAuthorStatus(selectedThread.value?.authorId))
+const forumAuthorIds = computed(() => {
+  const authorIds = new Set<string>()
+  journalThreads.value.forEach((thread) => {
+    if (thread.authorId) authorIds.add(thread.authorId)
+  })
+  if (selectedThread.value?.authorId) authorIds.add(selectedThread.value.authorId)
+  comments.value.forEach((comment) => {
+    if (comment.authorId) authorIds.add(comment.authorId)
+  })
+  return [...authorIds]
+})
 const commentDraft = ref('')
 const commentInputRef = ref<HTMLTextAreaElement | null>(null)
 const isAuthenticated = computed(() => authStore.isAuthenticated)
@@ -2876,6 +2726,17 @@ const toggleCommentLike = async (reply: Reply) => {
   }
 }
 
+watch(forumAuthorIds, (authorIds) => {
+  void Promise.all(authorIds.map((authorId) => forumStore.fetchUser(authorId)))
+}, { immediate: true })
+
+watch([
+  () => authStore.user?.uid,
+  () => comments.value.map((reply) => reply.id).join('|')
+], () => {
+  void loadReplyLikeStates()
+}, { immediate: true })
+
 type CommentNode = Reply & { children: CommentNode[] }
 
 const nestedComments = computed(() => {
@@ -2906,7 +2767,7 @@ const nestedComments = computed(() => {
   roots.forEach((root: CommentNode) => {
     root.children.forEach((level2: CommentNode) => {
       const flattenedLevel3: CommentNode[] = []
-
+      
       const extractLevel3 = (nodes: CommentNode[]) => {
         nodes.forEach(n => {
           flattenedLevel3.push(n)
@@ -2915,14 +2776,14 @@ const nestedComments = computed(() => {
           }
         })
       }
-
+      
       extractLevel3(level2.children)
       flattenedLevel3.sort(sortByDate)
       level2.children = flattenedLevel3
     })
     root.children.sort(sortByDate)
   })
-
+  
   return roots
 })
 
@@ -3125,7 +2986,7 @@ watch(creationStep, (step) => {
           size: { width: 8, height: 3 }
         } as any)
       }
-
+      
       if (!hasAsset) {
         boardNodes.value.push({
           id: `node_asset_${Date.now()}`,
@@ -3135,7 +2996,7 @@ watch(creationStep, (step) => {
           size: { width: 9, height: 3 }
         } as any)
       }
-
+      
       if (!hasTargetPrice) {
         boardNodes.value.push({
           id: `node_tp_${Date.now()}`,
@@ -3262,7 +3123,7 @@ const cancelArticleEditing = () => {
 const submitNewArticle = () => {
   if (!isNewArticleFormValid.value) return
   isSubmittingArticle.value = true
-
+  
   // Animation duration matches the 700ms in CSS, user asked to not add actual saving logic yet
   setTimeout(() => {
     isSubmittingArticle.value = false
@@ -3523,7 +3384,7 @@ const previewNodeOrder = ref<string[]>([])
 const initializePreviewOrder = () => {
   const nodes = [...boardNodes.value]
   const orderedIds: string[] = []
-
+  
   if (isQuestionArticle.value) {
     const qNodeIdx = nodes.findIndex((n: any) => n.type === 'text' && n.isQuestion)
     if (qNodeIdx > -1) orderedIds.push(nodes.splice(qNodeIdx, 1)[0]!.id)
@@ -3538,7 +3399,7 @@ const initializePreviewOrder = () => {
       if (!previewNodeOrder.value.includes('signal-header')) {
         orderedIds.push('signal-header')
       }
-
+      
       const idsToRemove = [
         cpIdx > -1 ? nodes[cpIdx]!.id : null,
         aIdx > -1 ? nodes[aIdx]!.id : null,
@@ -3622,7 +3483,7 @@ const handleNodeContextMenu = (e: MouseEvent, nodeId: string) => {
       return
     }
   }
-
+  
   nodeContextMenu.value = {
     x: e.clientX,
     y: e.clientY,
@@ -3867,17 +3728,9 @@ function resetTextColor() {
 }
 
 onMounted(() => {
-  void (async () => {
-    isInitialJournalLoading.value = true
-    try {
-      await forumStore.fetchThreadList(100, 'createdAt')
-    } catch (error) {
-      console.error('Failed to load ExForum threads:', error)
-    } finally {
-      isInitialJournalLoading.value = false
-    }
-  })()
-
+  void forumStore.fetchThreadList(100, 'createdAt').catch((error) => {
+    console.error('Failed to load ExForum threads:', error)
+  })
   void strategyTradesStore.init()
   window.addEventListener('pointerdown', closeNodeContextMenu)
   document.addEventListener('selectionchange', saveTextSelection)
@@ -3898,20 +3751,13 @@ watch(() => authStore.user, (user) => {
   }
 }, { immediate: true })
 
-watch([
-  () => authStore.user?.uid,
-  () => comments.value.map((reply) => reply.id).join('|')
-], () => {
-  void loadReplyLikeStates()
-}, { immediate: true })
-
-// v-click-outside directive logic setup inside component (or via vueuse if available,
-// but since we are in a single file, a simple window event listener is better for the dropdown,
-// but we'll use a standard workaround if v-click-outside isn't registered globally. Let's assume it might not be.
+// v-click-outside directive logic setup inside component (or via vueuse if available, 
+// but since we are in a single file, a simple window event listener is better for the dropdown, 
+// but we'll use a standard workaround if v-click-outside isn't registered globally. Let's assume it might not be. 
 // Wait, I used v-click-outside in the template, I should replace it with a simple @click.away or similar if it's not available.
 // Actually VueUse `onClickOutside` is safer. Let's just use a transparent overlay for the dropdown instead to be safe.)
 
-type BoardInteraction =
+type BoardInteraction = 
   | { type: 'pan'; startClientX: number; startClientY: number; startPanX: number; startPanY: number }
   | { type: 'moveNode'; node: any; startClientX: number; startClientY: number; startNodeX: number; startNodeY: number }
   | { type: 'resizeNode'; node: any; startClientX: number; startClientY: number; startNodeW: number; startNodeH: number }
@@ -3970,7 +3816,7 @@ const handleGlobalImageUpload = (e: Event) => {
     }
   }
   reader.readAsDataURL(file)
-
+  
   if (globalImageInput.value) {
     globalImageInput.value.value = ''
   }
@@ -4017,16 +3863,16 @@ const centerBoardOnMainNode = (isFullScreen = false) => {
   let mainNode = boardNodes.value.find((n: any) => n.type === 'asset' || (n.type === 'text' && n.isQuestion))
   if (!mainNode) mainNode = boardNodes.value[0]
   if (!mainNode) return
-
+  
   const grid = boardGridSize.value
   const nodeCenterX = (mainNode.position.x + (mainNode.size.width / 2)) * grid
   const nodeCenterY = (mainNode.position.y + (mainNode.size.height / 2)) * grid
-
+  
   const viewportRect = isFullScreen ? getArticleBoardViewportRect() : null
   const vWidth = viewportRect?.width ?? (typeof window !== 'undefined' ? window.innerWidth : 1200)
   const vHeight = viewportRect?.height ?? (typeof window !== 'undefined' ? (isFullScreen ? window.innerHeight : window.innerHeight * 0.68) : 800)
   const scale = isFullScreen ? boardScale.value : 0.82
-
+  
   boardPan.value = {
     x: (vWidth / 2) - (nodeCenterX * scale),
     y: (vHeight / 2.5) - (nodeCenterY * scale)
@@ -4070,22 +3916,33 @@ const resetArticleBoardFullscreenView = () => {
 
 const isLiked = ref(false)
 const isBookmarked = ref(false)
-const isSystemJournalArticleId = (id?: string) => id === SYSTEM_FTMO_THREAD_ID
+const isArticleLikePending = ref(false)
+let articleInteractionLoadRequestId = 0
 
 const toggleLike = async () => {
-  if (!authStore.user || !selectedArticle.value) return
-  if (isSystemJournalArticleId(selectedArticle.value.id)) return
-  isLiked.value = !isLiked.value
+  const userId = authStore.user?.uid
+  const articleId = selectedArticle.value?.id
+  if (!userId || !articleId || isArticleLikePending.value) return
+
+  const operationId = ++articleInteractionLoadRequestId
+  isArticleLikePending.value = true
+
   try {
-    await forumStore.toggleThreadLike(authStore.user.uid, selectedArticle.value.id, isLiked.value)
+    const result = await forumStore.toggleThreadLike(userId, articleId)
+    if (selectedArticle.value?.id === articleId) {
+      isLiked.value = result.isLiked
+    }
   } catch (error) {
-    isLiked.value = !isLiked.value // revert
+    console.error('[Forum] Failed to toggle thread like:', error)
+  } finally {
+    if (operationId === articleInteractionLoadRequestId) {
+      isArticleLikePending.value = false
+    }
   }
 }
 
 const toggleBookmark = async () => {
   if (!authStore.user || !selectedArticle.value) return
-  if (isSystemJournalArticleId(selectedArticle.value.id)) return
   isBookmarked.value = !isBookmarked.value
   try {
     await forumStore.toggleThreadSave(authStore.user.uid, selectedArticle.value.id, isBookmarked.value)
@@ -4094,7 +3951,13 @@ const toggleBookmark = async () => {
   }
 }
 
-watch(selectedArticle, async (article) => {
+watch([
+  () => selectedArticle.value?.id,
+  () => authStore.user?.uid
+], async ([articleId, userId]) => {
+  const requestId = ++articleInteractionLoadRequestId
+  isArticleLikePending.value = false
+  const article = selectedArticle.value
   boardNodes.value = article ? cloneBoardNodes(article.board.nodes) : []
   boardConnections.value = article?.board.connections ? JSON.parse(JSON.stringify(article.board.connections)) : []
   boardStrokes.value = article?.board.strokes ? JSON.parse(JSON.stringify(article.board.strokes)) : []
@@ -4102,16 +3965,16 @@ watch(selectedArticle, async (article) => {
   isLiked.value = false
   isBookmarked.value = false
 
-  if (article && !isSystemJournalArticleId(article.id)) {
+  if (article) {
     forumStore.fetchReplies(article.id) // Fetch replies from Firestore
   }
 
-  if (article && authStore.user && !isSystemJournalArticleId(article.id)) {
+  if (article && userId) {
     const [liked, saved] = await Promise.all([
-      forumStore.isThreadLiked(authStore.user.uid, article.id),
-      forumStore.isThreadSaved(authStore.user.uid, article.id)
+      forumStore.isThreadLiked(userId, article.id),
+      forumStore.isThreadSaved(userId, article.id)
     ])
-    if (selectedArticle.value?.id === article.id) {
+    if (requestId === articleInteractionLoadRequestId && selectedArticle.value?.id === articleId && authStore.user?.uid === userId) {
       isLiked.value = liked
       isBookmarked.value = saved
     }
@@ -4129,7 +3992,6 @@ const submitComment = async (parentId?: string) => {
   const text = commentDraft.value.trim()
 
   if (!article || !user || !text) return
-  if (isSystemJournalArticleId(article.id)) return
 
   const replyData: any = {
     authorId: user.uid,
@@ -4447,11 +4309,11 @@ const handleAssetIconError = (symbol: string) => {
 
 const isSignalBoardValid = computed(() => {
   if (!isSignalArticle.value) return true
-
+  
   const hasValidAsset = boardNodes.value.some((node: any) => node.type === 'asset' && String(node.asset || '').trim())
   const hasValidCurrentPrice = boardNodes.value.some((node: any) => node.type === 'price' && node.priceKind === 'current' && String(node.value || '').trim())
   const hasValidTargetPrice = boardNodes.value.some((node: any) => node.type === 'price' && node.priceKind === 'target' && String(node.value || '').trim())
-
+  
   return hasValidAsset && hasValidCurrentPrice && hasValidTargetPrice
 })
 
@@ -4776,7 +4638,7 @@ const startWindowTracking = () => {
   window.addEventListener('pointermove', handleBoardPointerMove)
   window.addEventListener('pointerup', stopBoardInteraction)
   window.addEventListener('pointercancel', stopBoardInteraction)
-
+  
   if (boardDrawing.isBoardDrawingPointerDown.value) {
      window.addEventListener('pointermove', handleGlobalBoardDrawingMove)
      window.addEventListener('pointerup', handleGlobalBoardDrawingUp)
@@ -4960,10 +4822,10 @@ const outOfBoundsIndicator = computed(() => {
   const winW = typeof window !== 'undefined' ? window.innerWidth : 1000
   const winH = typeof window !== 'undefined' ? window.innerHeight : 1000
 
-  const isOffScreen =
-    screenX + nodeWidth < 0 ||
-    screenX > winW ||
-    screenY + nodeHeight < 0 ||
+  const isOffScreen = 
+    screenX + nodeWidth < 0 || 
+    screenX > winW || 
+    screenY + nodeHeight < 0 || 
     screenY > winH
 
   if (!isOffScreen) return null
@@ -5012,7 +4874,7 @@ watch([
 const startBoardPan = (event: PointerEvent) => {
   const target = event.target as HTMLElement | null
   if (creationStep.value === 'board' && isBoardChromeTarget(target)) return
-
+  
   if (creationStep.value === 'board' && activeBoardTool.value) {
     if (activeBoardTool.value === 'pencil' && !isSpacePressed.value) {
       syncBoardDrawingRefs()
@@ -5020,7 +4882,7 @@ const startBoardPan = (event: PointerEvent) => {
       startWindowTracking()
       return
     }
-
+    
     if (!isSpacePressed.value) {
       // Click to add node
       const rect = boardWorldRef.value?.getBoundingClientRect()
@@ -5218,21 +5080,21 @@ const handleBoardPointerMove = (event: PointerEvent) => {
   } else if (interaction.type === 'moveNode') {
     const deltaWorldX = event.clientX - interaction.startClientX
     const deltaWorldY = event.clientY - interaction.startClientY
-
+    
     // Smooth fractional position
     const freeX = interaction.startNodeX + deltaWorldX / boardGridSize.value
     const freeY = interaction.startNodeY + deltaWorldY / boardGridSize.value
-
+    
     interaction.node.position.x = freeX
     interaction.node.position.y = freeY
   } else if (interaction.type === 'resizeNode') {
     const deltaWorldX = event.clientX - interaction.startClientX
     const deltaWorldY = event.clientY - interaction.startClientY
-
+    
     // Smooth fractional size
     const freeW = interaction.startNodeW + deltaWorldX / boardGridSize.value
     const newWidth = Math.max(4, freeW)
-
+    
     let newHeight = interaction.node.size.height
     if (interaction.node.type === 'image') {
       const aspect = interaction.startNodeW / interaction.startNodeH
@@ -5254,7 +5116,7 @@ const stopBoardInteraction = () => {
       // Snap to grid on drop
       const snappedX = Math.round(interaction.node.position.x)
       const snappedY = Math.round(interaction.node.position.y)
-
+      
       // Check overlap
       if (!checkNodeOverlap(snappedX, snappedY, Math.round(interaction.node.size.width), Math.round(interaction.node.size.height), interaction.node.id)) {
         interaction.node.position.x = snappedX
@@ -5268,7 +5130,7 @@ const stopBoardInteraction = () => {
       // Snap to grid on drop
       const snappedW = Math.round(interaction.node.size.width)
       const snappedH = Math.round(interaction.node.size.height)
-
+      
       if (!checkNodeOverlap(Math.round(interaction.node.position.x), Math.round(interaction.node.position.y), snappedW, snappedH, interaction.node.id)) {
         interaction.node.size.width = snappedW
         interaction.node.size.height = snappedH
@@ -5326,7 +5188,7 @@ const formatCommentDate = (value: any) => {
   else if (value.toMillis) date = new Date(value.toMillis())
   else if (value.seconds) date = new Date(value.seconds * 1000)
   else date = new Date(value)
-
+  
   return new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
     month: 'short',
     day: '2-digit',
@@ -5365,7 +5227,7 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   --text-heading: #050505 !important;
   --text-description: rgba(18, 18, 18, 0.45) !important;
   --icon-color-mode: black !important;
-
+  
   background-color: var(--theme-bg) !important;
   color: var(--theme-text) !important;
 }
@@ -5928,10 +5790,10 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 
 .article-comment h3 {
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-style: italic;
   line-height: 1;
-  color: color-mix(in srgb, currentColor 78%, transparent);
+  color: color-mix(in srgb, currentColor 96%, transparent);
 }
 
 .article-comment span {
@@ -5939,15 +5801,24 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   margin-top: 8px;
 }
 
+.article-comment :deep(.user-status-badge) {
+  display: inline-flex;
+  margin-top: 0;
+  opacity: 1;
+}
+
 .article-comment-meta {
   display: flex;
   gap: 18px;
   text-align: right;
   white-space: nowrap;
+  color: color-mix(in srgb, currentColor 88%, transparent);
+  opacity: 0.88;
 }
 
 .article-comment-meta span {
   margin-top: 0;
+  opacity: 1;
 }
 
 .article-comment-like {
