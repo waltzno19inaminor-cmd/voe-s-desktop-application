@@ -17,12 +17,14 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   }
 
   onMounted(() => {
-    window.addEventListener('pointerup', clearActiveWire)
+    // Wire ports complete the drag on mouseup. Using pointerup here clears
+    // the active wire before the passive port receives its mouseup event.
+    window.addEventListener('mouseup', clearActiveWire)
     window.addEventListener('pointercancel', clearActiveWire)
   })
 
   onBeforeUnmount(() => {
-    window.removeEventListener('pointerup', clearActiveWire)
+    window.removeEventListener('mouseup', clearActiveWire)
     window.removeEventListener('pointercancel', clearActiveWire)
   })
 
