@@ -56,11 +56,11 @@ const l = (key) => labels[locale.value]?.[key] || labels.en[key] || key
            <!-- Price Group -->
            <div class="flex gap-8">
               <div class="flex flex-col">
-                 <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em]">Entry_Point</span>
+                 <span class="text-[7px] font-mono uppercase tracking-[0.3em] text-black/60 dark:text-white/70">Entry_Point</span>
                  <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">{{ (+entry || 0).toFixed(2) }}</span>
               </div>
               <div class="flex flex-col">
-                 <span class="text-[7px] font-mono opacity-40 uppercase tracking-[0.3em]">Exit_Target</span>
+                 <span class="text-[7px] font-mono uppercase tracking-[0.3em] text-black/60 dark:text-white/70">Exit_Target</span>
                  <span class="text-[12px] font-mono font-bold nier-text-primary tabular-nums">{{ (+exit || 0).toFixed(2) }}</span>
               </div>
            </div>
