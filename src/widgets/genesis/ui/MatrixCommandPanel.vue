@@ -1,7 +1,7 @@
 <template>
   <Transition name="hud-pop">
     <div v-if="!activeWire && activeTab === 'genesis'"
-         class="fixed bottom-12 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center w-full max-w-3xl bg-nier-white/90 dark:bg-nier-black/90 backdrop-blur-xl border border-nier-border-light dark:border-nier-border-dark shadow-[0_30px_60px_rgba(0,0,0,0.4)] pointer-events-auto text-nier-text-light dark:text-nier-text-dark transition-colors duration-500"
+         class="fixed bottom-[72px] left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center w-full max-w-3xl bg-nier-white/90 dark:bg-nier-black/90 backdrop-blur-xl border border-nier-border-light dark:border-nier-border-dark shadow-[0_30px_60px_rgba(0,0,0,0.4)] pointer-events-auto text-nier-text-light dark:text-nier-text-dark transition-colors duration-500"
          style="-webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); transform: translateX(-50%) translateZ(0);">
 
       <!-- Corner Brackets -->
