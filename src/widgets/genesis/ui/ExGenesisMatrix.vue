@@ -277,6 +277,7 @@ import { useMatrixBoot } from '../model/matrix/useMatrixBoot'
 import { useMatrixZones } from '../model/matrix/useMatrixZones'
 import { useMatrixUploads } from '../model/matrix/useMatrixUploads'
 import { usePathMath } from '../model/matrix/usePathMath'
+import { useExGenesisMatrixUndo } from '../model/matrix/useExGenesisMatrixUndo'
 import { collectMatrixImageUrls, preloadImageUrls } from '../model/matrix/useMatrixImagePreload'
 
 import { initAssetService } from '@/shared/api/asset.service'
@@ -290,6 +291,7 @@ const boot = useMatrixBoot()
 const zoneTools = useMatrixZones(state)
 const uploads = useMatrixUploads(state)
 const pathMath = usePathMath(state)
+const undoManager = useExGenesisMatrixUndo()
 const activeFilePreviewNode = ref<any | null>(null)
 
 const windowSize = ref({ width: typeof window !== 'undefined' ? window.innerWidth : 1000, height: typeof window !== 'undefined' ? window.innerHeight : 1000 })
