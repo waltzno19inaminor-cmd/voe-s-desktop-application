@@ -113,11 +113,6 @@
                       >
                         {{ leaderboardDisplayNames[entry.userId] || entry.userId }}
                       </span>
-                      <span v-if="getLeaderboardAssetStats(entry).length" class="leaderboard-page__asset-stats">
-                        <span v-for="assetStat in getLeaderboardAssetStats(entry)" :key="assetStat.assetId">
-                          {{ assetStat.asset }} {{ assetStat.correctPredictions }}/{{ assetStat.totalPredictions }}
-                        </span>
-                      </span>
                     </div>
                   </div>
                   <span class="text-right font-black tracking-[0.1em]">{{ getLeaderboardTotalPredictions(entry) }}</span>
@@ -2164,26 +2159,6 @@ onUnmounted(() => {
   font-size: clamp(0.7rem, 1vw, 0.9rem);
   font-weight: 900;
   text-transform: uppercase;
-}
-
-.leaderboard-page__asset-stats {
-  display: flex;
-  gap: 0.35rem;
-  margin-top: 0.2rem;
-  min-width: 0;
-  overflow: hidden;
-  color: currentColor;
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.2;
-  opacity: 0.52;
-  white-space: nowrap;
-}
-
-.leaderboard-page__asset-stats span + span::before {
-  content: '·';
-  margin-right: 0.35rem;
 }
 
 .leaderboard-page__top-name {
