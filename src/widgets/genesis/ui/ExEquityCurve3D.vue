@@ -601,7 +601,7 @@
     </div>
 
     <!-- RIGHT PANEL -->
-    <div v-if="!showMetricsPanel && !showSimulator"
+    <div v-if="!showMetricsPanel && !showSimulator && (!showDistribution3D || (!showRobustnessHistogram && !showQQPlot))"
          class="absolute right-12 top-1/2 -translate-y-1/2 z-[110] flex flex-col items-center justify-center pointer-events-none">
       <div class="pointer-events-auto flex flex-col items-center space-y-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/20 p-2 relative">
         <!-- Corner Accents -->
