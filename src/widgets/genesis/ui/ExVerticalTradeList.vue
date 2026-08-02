@@ -47,11 +47,11 @@
               %
             </button>
           </div>
-          <button @click="colorMode = 'monochrome'" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Монохром' : 'Monochrome'">
+          <button @click="setColorMode('monochrome')" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Монохром' : 'Monochrome'">
             <div class="absolute top-0.5 left-0.5 w-1.5 h-1.5 border border-black dark:border-white transition-opacity" :class="colorMode === 'monochrome' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
             <div class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 nier-bg-inverted transition-opacity" :class="colorMode === 'monochrome' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
           </button>
-          <button @click="colorMode = 'colorful'" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Цветной' : 'Colorful'">
+          <button @click="setColorMode('colorful')" class="relative w-4 h-4 transition-all group" :title="locale === 'ru' ? 'Цветной' : 'Colorful'">
             <div class="absolute top-0.5 left-0.5 w-1.5 h-1.5 border border-red-500 transition-opacity" :class="colorMode === 'colorful' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
             <div class="absolute bottom-0.5 right-0.5 w-1.5 h-1.5 bg-green-500 transition-opacity" :class="colorMode === 'colorful' ? 'opacity-100' : 'opacity-30 group-hover:opacity-60'"></div>
           </button>
@@ -523,7 +523,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 
 const { locale, t } = useI18n()
@@ -562,6 +562,27 @@ const resultDisplayMode = ref<'currency' | 'percent'>(props.resultDisplayMode ||
 const openFilterId = ref<string | null>(null)
 const filterBarRef = ref<HTMLElement | null>(null)
 const showHiddenTrades = ref(true)
+
+const emitDisplaySettings = () => {
+  emit('display-settings-change', {
+    resultDisplayMode: resultDisplayMode.value,
+    colorMode: colorMode.value
+  })
+}
+
+const setColorMode = (mode: 'monochrome' | 'colorful') => {
+  if (colorMode.value === mode) return
+  colorMode.value = mode
+  emitDisplaySettings()
+}
+
+watch(() => props.resultDisplayMode, (mode) => {
+  if (mode && resultDisplayMode.value !== mode) resultDisplayMode.value = mode
+})
+
+watch(() => props.colorMode, (mode) => {
+  if (mode && colorMode.value !== mode) colorMode.value = mode
+})
 
 const toggleTradeExpand = (tradeId: string) => {
   expandedTradeId.value = expandedTradeId.value === tradeId ? null : tradeId
@@ -671,6 +692,7 @@ const setResultDisplayMode = (mode: 'currency' | 'percent') => {
   if (selectedProfitTier.value !== 'ALL' && selectedProfitTier.value !== 'CUSTOM') {
     selectedProfitTier.value = 'ALL'
   }
+  emitDisplaySettings()
 }
 
 const activeFilterChips = computed(() => {
@@ -1980,6 +2002,10 @@ const filteredTrades = computed(() => {
     return true
   })
 })
+
+watch(filteredTrades, (trades) => {
+  if (filtersOnly.value) emit('filtered-trades-change', trades)
+}, { immediate: true })
 
 const selectedTradeIds = ref<string[]>([])
 
