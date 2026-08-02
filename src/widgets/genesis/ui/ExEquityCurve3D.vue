@@ -37,19 +37,6 @@
             @wheel="handleWheel">
     </canvas>
 
-    <Transition name="protocol-slide">
-      <div v-if="showDistribution3D"
-           class="absolute top-12 left-1/2 z-30 w-[min(560px,calc(100vw-320px))] -translate-x-1/2 pointer-events-none">
-        <div class="relative border border-white/20 bg-[#0a0a0a]/80 px-7 py-4 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
-          <div class="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-black dark:border-white nier-bg-panel"></div>
-          <div class="text-center text-[9px] font-mono uppercase tracking-[0.42em] opacity-55">Next step</div>
-          <div class="mt-3 text-center text-base font-sans font-semibold leading-6 text-white">
-            {{ formatSentenceCase(robustnessExplanation.action.replace('Recommended action: ', '')) }}
-          </div>
-        </div>
-      </div>
-    </Transition>
-
     <!-- TOP-CENTER WARNING BANNER (teleported to body) -->
     <Teleport to="body">
       <Transition name="robustness-warn">
@@ -232,9 +219,6 @@
           <div v-else class="flex flex-col">
             <span class="text-6xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm">
               {{ displayBalance }}
-            </span>
-            <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-              {{ apiSyncStatusMessage || 'REIFIED_BALANCE_SNAPSHOT' }}
             </span>
           </div>
         </div>
@@ -2146,8 +2130,6 @@ const computeQQPlotPositions = (qqPoints: { theoretical: number; actual: number 
 
 
 // --- 3D MATH TYPES --- //
-import { useExRobustness } from '../model/useExRobustness'
-
 interface Point3D { x: number; y: number; z: number }
 interface Point2D { x: number; y: number; opacity: number; depth: number }
 interface CurvePoint extends Point3D { value: number; dateLabel: string; isProjection?: boolean }
@@ -2619,15 +2601,6 @@ const resetView = () => {
   viewScale.value = 2.2
   viewOffset.value = { x: 0, y: 0 }
 }
-
-const formatSentenceCase = (text: string) => text ? text.charAt(0).toUpperCase() + text.slice(1) : ''
-
-const { robustnessExplanation, robustnessVisualizationStatus } = useExRobustness(
-  diagnosticStats,
-  strategyMetrics,
-  getFilteredTrades,
-  (trade: any) => getTradePnl(trade, strategyMetrics.value?.initialDeposit || tradeStore.getInitialDeposit(selectedStrategyId.value) || 1000)
-)
 
 let rafId: number
 const update = () => {
