@@ -355,7 +355,7 @@ const formatDateTactical = (dateStr) => {
              </div>
           </div>
 
-          <div v-else key="journal" class="flex flex-col space-y-8">
+          <div v-else key="journal" class="flex flex-col space-y-8 nier-text-primary">
             <div class="flex items-center justify-between w-full border-b border-black/5 dark:border-white/5 pb-6">
               <div class="flex items-center space-x-4">
                 <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45"></div>
@@ -381,9 +381,9 @@ const formatDateTactical = (dateStr) => {
             </div>
 
             <!-- NOTES TAB CONTENT -->
-            <div v-if="archiveMode === 'notes'" class="flex flex-col space-y-8">
+            <div v-if="archiveMode === 'notes'" class="flex flex-col space-y-8 nier-text-primary">
                <!-- NEW NOTE TEXTAREA -->
-               <div v-if="isCreatingNote" class="flex flex-col space-y-4 bg-black/[0.03] dark:bg-white/[0.03] p-8 border nier-border-primary relative">
+               <div v-if="isCreatingNote" class="flex flex-col space-y-4 bg-black/[0.03] dark:bg-white/[0.03] p-8 border nier-border-primary relative nier-text-primary">
                     <div class="absolute top-4 right-4 flex space-x-4">
                        <button @click="cancelNoteEdit" class="text-[10px] font-mono uppercase tracking-widest opacity-40 hover:opacity-100">{{ locale === 'ru' ? 'Отмена' : 'Cancel' }}</button>
                     </div>
@@ -497,7 +497,7 @@ const formatDateTactical = (dateStr) => {
             </div>
 
             <!-- IMAGES TAB CONTENT -->
-            <div v-else-if="archiveMode === 'images'">
+            <div v-else-if="archiveMode === 'images'" class="nier-text-primary">
               <div v-if="journalEntries.length === 0" class="flex flex-col items-center justify-center py-32 border border-dashed nier-border-primary opacity-30">
               <div class="w-12 h-px nier-bg-inverted mb-6 animate-pulse"></div>
               <span class="text-[9px] font-mono tracking-[0.6em] uppercase nier-text-primary">{{ locale === 'ru' ? 'Архив_Доказательств_Пуст' : 'No_Evidences_In_The_Archive' }}</span>
@@ -506,7 +506,7 @@ const formatDateTactical = (dateStr) => {
               </div>
             </div>
 
-            <div v-else class="grid grid-cols-2 gap-8">
+            <div v-else class="grid grid-cols-2 gap-8 nier-text-primary">
                  <ExPanel v-for="entry in journalEntries" :key="entry.id" variant="light" :no-padding="true" :show-corners="true" :no-shadow="true"
                        class="group flex flex-col transition-all duration-500 hover:!border-black/30 dark:hover:!border-white/30 !border-black/10 dark:!border-white/10 nier-text-primary">
                     
