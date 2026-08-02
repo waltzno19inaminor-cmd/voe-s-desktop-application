@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import type { useMatrixState, Point, Node } from './useMatrixState'
 
 export function isTextEditingTarget(target: EventTarget | null) {
@@ -11,6 +11,20 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   const suppressNextBackgroundClick = ref(false)
 
   const activeWireRaw = ref<{ fromId: string, fromPort?: 'left'|'right'|'top'|'bottom', current: Point } | null>(null)
+
+  const clearActiveWire = () => {
+    activeWireRaw.value = null
+  }
+
+  onMounted(() => {
+    window.addEventListener('pointerup', clearActiveWire)
+    window.addEventListener('pointercancel', clearActiveWire)
+  })
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('pointerup', clearActiveWire)
+    window.removeEventListener('pointercancel', clearActiveWire)
+  })
 
   const screenToWorld = (clientX: number, clientY: number) => {
     if (!canvasWrapper.value) return { x: 0, y: 0 }
@@ -207,7 +221,7 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
       state.connections.value.push(newConn)
       state.saveMatrixData()
     }
-    activeWireRaw.value = null
+    clearActiveWire()
   }
 
   const handleCanvasMouseUp = (zones: any) => {
@@ -231,7 +245,7 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     zones.drawStart.value = null
     zones.drawCurrent.value = null
     zones.isZoneToolActive.value = false
-    activeWireRaw.value = null
+    clearActiveWire()
   }
 
   const closestNodeId = computed(() => {

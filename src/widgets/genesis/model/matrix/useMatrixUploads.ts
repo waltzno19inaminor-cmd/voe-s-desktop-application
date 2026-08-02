@@ -18,8 +18,12 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
   }
 
   function handleImageUpload(e: Event) {
-    const file = (e.target as HTMLInputElement).files?.[0]
-    if (!file || !uploadingNodeId.value) return
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file || !uploadingNodeId.value) {
+      input.value = ''
+      return
+    }
 
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -33,6 +37,7 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
       uploadingNodeId.value = null
     }
     reader.readAsDataURL(file)
+    input.value = ''
   }
 
   function handleGenericFileUpload(e: Event) {
