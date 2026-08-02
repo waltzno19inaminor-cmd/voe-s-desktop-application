@@ -950,7 +950,13 @@
     </div>
 
     <!-- BOTTOM CENTER: PHANTOM PROTOCOL SELECT -->
-    <div v-if="isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen" class="absolute bottom-14 left-1/2 -translate-x-1/2 z-[10000] flex flex-col items-center pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700">
+    <div
+      v-if="isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen"
+      class="absolute bottom-14 z-[10000] flex flex-col pointer-events-none opacity-10 hover:opacity-100 transition-all duration-700"
+      :class="viewType === 'list' || viewType === 'timeTree'
+        ? 'right-12 left-auto translate-x-0 items-end'
+        : 'left-1/2 -translate-x-1/2 items-center'"
+    >
        
        <!-- The Dropdown Menu -->
 
