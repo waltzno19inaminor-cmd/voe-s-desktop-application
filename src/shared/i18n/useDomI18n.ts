@@ -1,4 +1,5 @@
 import { nextTick, onMounted, onUnmounted, type Ref, watch } from 'vue'
+import { translations } from './translations'
 import { useI18n } from './useI18n'
 
 const textOriginals = new WeakMap<Text, string>()
@@ -231,8 +232,20 @@ const withOriginalSpacing = (source: string, translation: string) => {
 }
 
 export function useDomI18n(rootRef: Ref<HTMLElement | null>, namespace: string, options: { includeBody?: boolean } = {}) {
-  const { locale, tm } = useI18n()
+  const { locale } = useI18n()
   let observer: MutationObserver | null = null
+  let applyScheduled = false
+
+  const getNamespaceDictionary = (selectedLocale: 'en' | 'ru'): Record<string, string> => {
+    const result = namespace.split('.').reduce<any>((value, key) => value?.[key], translations[selectedLocale])
+    return result && typeof result === 'object' ? result : {}
+  }
+
+  // Keep English source keys and Russian translations available when switching in either direction.
+  const sourceDictionary = getNamespaceDictionary('en')
+  const translationDictionary = getNamespaceDictionary('ru')
+  const dictionary = { ...sourceDictionary, ...translationDictionary }
+  const reverseDictionary = buildReverseDictionary(translationDictionary)
 
   const resolveOriginal = (value: string, dictionary: Record<string, string>, reverseDictionary: Map<string, string>) => {
     const key = normalize(value)
@@ -242,7 +255,7 @@ export function useDomI18n(rootRef: Ref<HTMLElement | null>, namespace: string, 
       return value
     }
 
-    const source = locale.value === 'en' ? reverseDictionary.get(key) : ''
+    const source = reverseDictionary.get(key)
     return source ? withOriginalSpacing(value, source) : ''
   }
 
@@ -316,20 +329,34 @@ export function useDomI18n(rootRef: Ref<HTMLElement | null>, namespace: string, 
     const root = rootRef.value
     if (!root) return
 
-    const dictionary = tm(namespace) as Record<string, string>
-    const reverseDictionary = buildReverseDictionary(dictionary || {})
-    walk(root, dictionary || {}, reverseDictionary)
+    walk(root, dictionary, reverseDictionary)
     if (options.includeBody && typeof document !== 'undefined') {
-      walk(document.body, dictionary || {}, reverseDictionary)
+      walk(document.body, dictionary, reverseDictionary)
+    }
+  }
+
+  const scheduleApply = () => {
+    if (applyScheduled) return
+    applyScheduled = true
+
+    const run = () => {
+      applyScheduled = false
+      void applyTranslations()
+    }
+
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(run)
+    } else {
+      queueMicrotask(run)
     }
   }
 
   onMounted(() => {
-    applyTranslations()
+    scheduleApply()
     const observeRoot = options.includeBody && typeof document !== 'undefined' ? document.body : rootRef.value
     if (!observeRoot || typeof MutationObserver === 'undefined') return
 
-    observer = new MutationObserver(() => applyTranslations())
+    observer = new MutationObserver(() => scheduleApply())
     observer.observe(observeRoot, {
       childList: true,
       subtree: true,
@@ -339,7 +366,7 @@ export function useDomI18n(rootRef: Ref<HTMLElement | null>, namespace: string, 
     })
   })
 
-  watch(locale, () => applyTranslations())
+  watch(locale, scheduleApply)
 
   onUnmounted(() => {
     observer?.disconnect()

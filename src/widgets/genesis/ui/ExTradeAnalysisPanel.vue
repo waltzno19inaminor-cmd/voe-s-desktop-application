@@ -92,7 +92,7 @@ const styleLimits: Record<number, { label: string, max?: number, min?: number, d
 const themeStore = useThemeStore();
 const isDark = computed(() => themeStore.settings.isDark);
 const analysisPanelRoot = ref<HTMLElement | null>(null);
-useDomI18n(analysisPanelRoot, 'genesis.dom', { includeBody: true });
+useDomI18n(analysisPanelRoot, 'genesis.dom');
 const { locale } = useI18n();
 
 const tradeStore = useStrategyTradesStore();

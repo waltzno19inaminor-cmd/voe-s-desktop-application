@@ -170,7 +170,7 @@ import { useAuthStore } from '~/entities/user/auth.store'
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
 const genesisContainer = ref<HTMLElement | null>(null)
-useDomI18n(genesisContainer, 'genesis.dom', { includeBody: true })
+useDomI18n(genesisContainer, 'genesis.dom')
 
 const route = useRoute()
 const router = useRouter()

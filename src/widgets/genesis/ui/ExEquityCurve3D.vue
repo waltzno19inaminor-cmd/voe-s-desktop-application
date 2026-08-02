@@ -40,10 +40,10 @@
     <Transition name="protocol-slide">
       <div v-if="showDistribution3D"
            class="absolute top-12 left-1/2 z-30 w-[min(560px,calc(100vw-320px))] -translate-x-1/2 pointer-events-none">
-        <div class="relative border border-black/15 dark:border-white/15 bg-white/95 dark:bg-[#0a0a0a]/95 px-7 py-4 nier-text-primary shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
+        <div class="relative border border-white/20 bg-[#0a0a0a]/80 px-7 py-4 text-white shadow-[0_18px_50px_rgba(0,0,0,0.18)]">
           <div class="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rotate-45 border border-black dark:border-white nier-bg-panel"></div>
           <div class="text-center text-[9px] font-mono uppercase tracking-[0.42em] opacity-55">Next step</div>
-          <div class="mt-3 text-center text-base font-semibold leading-6" :style="{ color: robustnessExplanation.tone }">
+          <div class="mt-3 text-center text-base font-sans font-semibold leading-6 text-white">
             {{ formatSentenceCase(robustnessExplanation.action.replace('Recommended action: ', '')) }}
           </div>
         </div>
@@ -442,7 +442,7 @@
                 @click="handleRobustnessDiagnosticsClick"
                 class="group relative flex items-center justify-center w-10 h-10 transition-all border"
                 :class="[
-                  showDistribution3D ? 'bg-white/10 opacity-100 border-white/20' : 'border-transparent text-white',
+                  showDistribution3D ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white',
                   hasEnoughTradesForDiagnostics ? 'opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5' : 'opacity-25 cursor-not-allowed'
                 ]">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
