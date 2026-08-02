@@ -23,6 +23,16 @@ const getAssetTypeLoc = (type) => {
 
 
 const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, assetTypeFilter, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, normalizeRiskInputs, sanitizeTradeNumberInput, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, isClosed, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit, initialTrade } = inject('tradeState');
+const forexCurrencyCodes = new Set(['AUD', 'CAD', 'CHF', 'EUR', 'GBP', 'JPY', 'NZD', 'USD'])
+const getForexCurrencyPair = (symbol) => {
+  const match = String(symbol || '').toUpperCase().replace(/[^A-Z]/g, '').match(/^([A-Z]{3})([A-Z]{3})$/)
+  if (!match || !forexCurrencyCodes.has(match[1]) || !forexCurrencyCodes.has(match[2])) return null
+
+  return {
+    base: `/assets_icons/currency-${match[1].toLowerCase()}.svg`,
+    quote: `/assets_icons/currency-${match[2].toLowerCase()}.svg`
+  }
+}
 </script>
 
 <template>
@@ -65,15 +75,18 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               <span class="text-[7px] uppercase tracking-[0.4em] font-bold text-white/40">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
               <div class="flex items-center gap-2 cursor-pointer group/asset-btn" @click="showAssetMenu = true">
                 <div v-if="asset && currentAssetData" 
-                     class="w-5 h-5 rounded-full overflow-hidden border border-white/20 flex items-center justify-center shrink-0 transition-colors"
-                     :class="currentAssetData.type === 'Stocks' || currentAssetData.type === 'US Equities' ? 'bg-white' : 'bg-white/5'">
-                  <img v-if="currentAssetData.icon && !failedIcons.has(currentAssetData.symbol)" 
+                     class="w-5 h-5 flex items-center justify-center shrink-0 transition-colors">
+                  <span v-if="currentAssetData.type === 'Forex' && getForexCurrencyPair(currentAssetData.symbol)" class="relative block h-full w-full">
+                    <img :src="getForexCurrencyPair(currentAssetData.symbol).base" alt="" class="absolute left-0 top-0 z-10 h-[68%] w-[68%] rounded-full object-cover" />
+                    <img :src="getForexCurrencyPair(currentAssetData.symbol).quote" alt="" class="absolute bottom-0 right-0 h-[68%] w-[68%] rounded-full object-cover" />
+                  </span>
+                  <img v-else-if="currentAssetData.icon && !failedIcons.has(currentAssetData.symbol)"
                        :src="currentAssetData.icon" 
                        @error="handleIconError(currentAssetData.symbol)"
                        class="w-full h-full object-contain" />
                   <span v-else 
                         class="text-[10px] font-bold uppercase transition-colors"
-                        :class="currentAssetData.type === 'Stocks' || currentAssetData.type === 'US Equities' ? 'text-black' : 'text-white'">
+                        :class="isDark ? 'text-white' : 'text-black'">
                     {{ currentAssetData.symbol[0] }}
                   </span>
                 </div>
@@ -108,13 +121,16 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                           <div v-for="a in filteredAssets" :key="a.symbol"
                                @click="selectAsset(a)"
                                class="group/asset flex items-center justify-start gap-4 px-6 py-4 cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/10 transition-all text-left w-full">
-                            <div class="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover/asset:border-white/40 flex items-center justify-center shrink-0 transition-colors"
-                                 :class="a.type === 'US Equities' || a.type === 'Stocks' ? 'bg-white' : 'bg-white/5'">
-                              <img v-if="a.icon && !failedIcons.has(a.symbol)" 
+                            <div class="w-10 h-10 flex items-center justify-center shrink-0 transition-colors">
+                              <span v-if="a.type === 'Forex' && getForexCurrencyPair(a.symbol)" class="relative block h-full w-full">
+                                <img :src="getForexCurrencyPair(a.symbol).base" alt="" class="absolute left-0 top-0 z-10 h-[68%] w-[68%] rounded-full object-cover" />
+                                <img :src="getForexCurrencyPair(a.symbol).quote" alt="" class="absolute bottom-0 right-0 h-[68%] w-[68%] rounded-full object-cover" />
+                              </span>
+                              <img v-else-if="a.icon && !failedIcons.has(a.symbol)"
                                    :src="a.icon" 
                                    @error="handleIconError(a.symbol)"
                                    class="w-full h-full object-contain" />
-                              <span v-else class="text-[14px] font-black uppercase transition-colors" :class="a.type === 'US Equities' || a.type === 'Stocks' ? 'text-black' : 'text-white'">
+                              <span v-else class="text-[14px] font-black uppercase transition-colors" :class="isDark ? 'text-white' : 'text-black'">
                                 {{ a.symbol[0] }}
                               </span>
                             </div>
