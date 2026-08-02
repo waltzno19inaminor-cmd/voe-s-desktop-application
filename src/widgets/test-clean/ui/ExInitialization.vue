@@ -444,12 +444,82 @@ const doGoogleLogin = async () => {
       const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
       const codeVerifier = rand(128)
       const codeChallenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier)))
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
 
       const code = await new Promise<string>((resolve, reject) => {
-        // @ts-ignore
-        onOpenUrl((urls: string[]) => { for (const u of urls) { const p = new URL(u); const c = p.searchParams.get('code'); if (c) resolve(c) } })
-        setTimeout(() => reject(new Error('Login timed out.')), 180000)
-        open(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256`)
+        let settled = false
+        const cleanupCallbacks: Array<() => void> = []
+        const timeoutId = window.setTimeout(() => {
+          fail(new Error('Login timed out.'))
+        }, 180000)
+
+        const cleanup = () => {
+          window.clearTimeout(timeoutId)
+          cleanupCallbacks.splice(0).forEach((cleanupCallback) => cleanupCallback())
+        }
+
+        const finish = (value: string) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          resolve(value)
+        }
+
+        const fail = (error: unknown) => {
+          if (settled) return
+          settled = true
+          cleanup()
+          reject(error)
+        }
+
+        const parseDeepLinkUrl = (url: string) => {
+          if (!url.startsWith(reversedClientId)) return
+
+          try {
+            const parsedUrl = new URL(url)
+            const error = parsedUrl.searchParams.get('error')
+            const authorizationCode = parsedUrl.searchParams.get('code')
+
+            if (error) {
+              fail(new Error(`Google Error: ${error}`))
+              return
+            }
+
+            if (authorizationCode) finish(authorizationCode)
+          } catch (error) {
+            fail(error)
+          }
+        }
+
+        const collectDeepLinkUrls = (value: unknown): string[] => {
+          if (typeof value === 'string') return [value]
+          if (Array.isArray(value)) return value.flatMap(collectDeepLinkUrls)
+          if (value && typeof value === 'object') {
+            return Object.values(value as Record<string, unknown>).flatMap(collectDeepLinkUrls)
+          }
+          return []
+        }
+
+        onOpenUrl((urls: string[]) => {
+          urls.forEach(parseDeepLinkUrl)
+        })
+          .then((unlisten) => {
+            if (settled) unlisten()
+            else cleanupCallbacks.push(unlisten)
+          })
+          .catch(fail)
+
+        import('@tauri-apps/api/event')
+          .then(({ listen }) => listen('single-instance', (event: { payload: unknown }) => {
+            collectDeepLinkUrls(event.payload).forEach(parseDeepLinkUrl)
+          }))
+          .then((unlisten) => {
+            if (settled) unlisten()
+            else cleanupCallbacks.push(unlisten)
+          })
+          .catch(fail)
+
+        open(authUrl).catch(fail)
       })
 
       const data = await (await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code, client_id: clientId, redirect_uri: redirectUri, grant_type: 'authorization_code', code_verifier: codeVerifier }) })).json()
