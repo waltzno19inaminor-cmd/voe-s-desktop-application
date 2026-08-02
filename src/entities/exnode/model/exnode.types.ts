@@ -1,3 +1,5 @@
+import type { UserProfileStatus } from '~/entities/user/model/user-status.types'
+
 export type ExNodeMode = 'SETUP' | 'RESEARCH' | 'LESSON' | 'QUESTION'
 export type ExSignalDirection = 'up' | 'down'
 
@@ -26,6 +28,7 @@ export interface ExNode {
   mode: ExNodeMode
   title: string
   author?: string
+  authorStatus?: UserProfileStatus | null
   category: string
   confidence?: number
   thesis_brief?: string

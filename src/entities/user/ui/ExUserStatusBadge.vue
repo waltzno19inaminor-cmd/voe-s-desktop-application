@@ -70,7 +70,6 @@ defineProps<{
     background-position: 0% 50%;
     box-shadow: 0 0 11px rgba(233, 219, 255, 0.2);
   }
-
   50% {
     background-position: 100% 50%;
     box-shadow: 0 0 24px rgba(255, 255, 255, 0.55);
@@ -82,7 +81,6 @@ defineProps<{
   100% {
     background-position: 0% 50%;
   }
-
   50% {
     background-position: 100% 50%;
   }

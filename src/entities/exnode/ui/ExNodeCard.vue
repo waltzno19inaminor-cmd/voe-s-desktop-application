@@ -10,11 +10,17 @@
         v-if="node.signal"
         class="flex items-center justify-between font-mono tracking-[0.18em] uppercase"
       >
-        <span v-if="node.author" class="text-[10px] font-semibold text-current/90">{{ node.author }}</span>
+        <span v-if="node.author" class="inline-flex min-w-0 items-center gap-2 text-[10px] font-semibold text-current/90">
+          <span class="truncate">{{ node.author }}</span>
+          <ExUserStatusBadge v-if="node.authorStatus" :status="node.authorStatus" />
+        </span>
         <span class="text-[9px] font-semibold text-current/80">{{ nodeLabels.published }} {{ formatNodeDate(node.lastActivityAt) }}</span>
       </div>
       <div v-else class="flex items-center justify-between font-mono uppercase">
-        <span v-if="node.author" class="text-[10px] font-semibold tracking-[0.2em] text-current/90">{{ node.author }}</span>
+        <span v-if="node.author" class="inline-flex min-w-0 items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-current/90">
+          <span class="truncate">{{ node.author }}</span>
+          <ExUserStatusBadge v-if="node.authorStatus" :status="node.authorStatus" />
+        </span>
         <span class="text-[7px] tracking-[0.4em] opacity-40">{{ nodeLabels.published }} {{ formatNodeDate(node.lastActivityAt) }}</span>
       </div>
 
@@ -96,6 +102,7 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '~/shared/i18n/useI18n'
 import type { ExNode } from '../model/exnode.types'
+import ExUserStatusBadge from '~/entities/user/ui/ExUserStatusBadge.vue'
 
 const props = defineProps<{
   node: ExNode
