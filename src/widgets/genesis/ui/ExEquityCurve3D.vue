@@ -37,6 +37,17 @@
             @wheel="handleWheel">
     </canvas>
 
+    <Transition name="fade">
+      <div
+        v-if="showBenchmarkCurves && isBenchmarkOffline"
+        class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
+      >
+        <span class="nier-text-primary font-mono text-[11px] font-black uppercase tracking-[0.35em] opacity-70">
+          {{ isRu ? 'Вы оффлайн' : 'You are offline' }}
+        </span>
+      </div>
+    </Transition>
+
     <!-- TOP-CENTER WARNING BANNER (teleported to body) -->
     <Teleport to="body">
       <Transition name="robustness-warn">
@@ -300,7 +311,7 @@
             <div class="flex flex-col space-y-3 pt-4">
               <button @click="handleSetBenchmark" 
                       class="w-full py-4 nier-bg-inverted nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase font-black hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
-                CONFIRM_REIFICATION
+                {{ isRu ? 'ПОДТВЕРДИТЬ' : 'CONFIRM' }}
               </button>
               <button @click="showBenchmarkModal = false" 
                       class="w-full py-3 border nier-border-primary nier-text-primary font-mono text-[8px] tracking-[0.4em] uppercase opacity-40 hover:opacity-100 transition-all">
@@ -379,9 +390,9 @@
         <!-- CENTER TACTICAL ADD BUTTON (MOVED TO START) -->
         <button @click="isTradeEntryOpen = true"
                 class="group relative flex items-center justify-center w-12 h-12 bg-white text-black hover:bg-white/80 transition-all  border border-white">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5 transition-transform group-hover:rotate-90 duration-300">
-            <line x1="12" y1="6" x2="12" y2="18"></line>
-            <line x1="6" y1="12" x2="18" y2="12"></line>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5 transition-transform duration-300 group-hover:rotate-90">
+            <line x1="12" y1="6" x2="12" y2="18"/>
+            <line x1="6" y1="12" x2="18" y2="12"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none  border border-white/20">
             [ LOG_NEW_TRADE ]
@@ -389,18 +400,18 @@
         </button>
 
         <!-- TOGGLE METRICS / EQUITY CURVE -->
-        <button v-if="!showDistribution3D && !showWinrateCurve"
-                @click="showMetricsPanel = !showMetricsPanel; showDistribution3D = false" 
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5"
-                :class="showMetricsPanel ? 'bg-white/10 opacity-100 border-white/20' : ''">
-          <svg v-if="!showMetricsPanel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
+        <button v-if="!showDistribution3D"
+                @click="showMetricsPanel = !showMetricsPanel; showDistribution3D = false; showCalendarMode = false; showWinrateCurve = false"
+                class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+                :class="showMetricsPanel ? 'border-white/30 bg-white/10 text-white' : ''">
+          <svg v-if="showMetricsPanel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <path d="M3 12h18M12 3l9 9-9 9"/>
           </svg>
-          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
             {{ showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]' }}
@@ -408,267 +419,174 @@
         </button>
 
         <!-- EDIT MODE ICON BUTTON (ONLY VISIBLE WHEN METRICS PANEL IS ACTIVE) -->
-        <button v-if="showMetricsPanel && !showWinrateCurve"
+        <button v-if="showMetricsPanel"
                 @click="isEditMode = !isEditMode" 
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border"
-                :class="isEditMode ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.3)] opacity-100' : 'border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+                :class="isEditMode ? 'border-white/30 bg-white/10 text-white' : ''">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
             {{ isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]' }}
           </div>
         </button>
 
-        <!-- ROBUSTNESS DIAGNOSTICS -->
-        <button v-if="!showMetricsPanel && !showWinrateCurve"
-                @click="handleRobustnessDiagnosticsClick"
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border"
-                :class="[
-                  showDistribution3D ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white',
-                  hasEnoughTradesForDiagnostics ? 'opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5' : 'opacity-25 cursor-not-allowed'
-                ]">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M3 3v16a2 2 0 0 0 2 2h16" />
-            <path d="M18 17V9" />
-            <path d="M13 17V5" />
-            <path d="M8 17v-6" />
-            <path d="M3 12c3-4 6-8 10-8s7 6 9 10" stroke-dasharray="3,3" />
-          </svg>
-          <!-- Normal hover label -->
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-            {{ hasEnoughTradesForDiagnostics ? '[ ROBUSTNESS_DIAGNOSTICS ]' : '[ MIN. 20 TRADES REQUIRED ]' }}
-          </div>
-        </button>
-
-        <!-- BOOTSTRAP / PNL HISTOGRAM TOGGLE -->
-        <button v-if="showDistribution3D && !showWinrateCurve"
-                @click="toggleRobustnessHistogram"
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
-                :class="showRobustnessHistogram ? 'bg-white/10 opacity-100 border-white/20' : ''">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M4 19V5" />
-            <path d="M4 19h16" />
-            <rect x="7" y="12" width="2.5" height="7" />
-            <rect x="11" y="8" width="2.5" height="11" />
-            <rect x="15" y="10" width="2.5" height="9" />
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-            {{ showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]' }}
-          </div>
-        </button>
-
-        <!-- QQ PLOT TOGGLE (Only when Robustness Diagnostics is active) -->
-        <button v-if="showDistribution3D && !showWinrateCurve"
-                @click="showQQPlot = !showQQPlot; if (showQQPlot) { showRobustnessHistogram = false }"
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
-                :class="showQQPlot ? 'bg-white/10 opacity-100 border-white/20' : ''">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <line x1="4" y1="20" x2="20" y2="4" stroke="currentColor" stroke-dasharray="3,3" />
-            <circle cx="7" cy="17" r="1.5" fill="currentColor" />
-            <circle cx="11" cy="13" r="1.5" fill="currentColor" />
-            <circle cx="14" cy="10" r="1.5" fill="currentColor" />
-            <circle cx="17" cy="7" r="1.5" fill="currentColor" />
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-            {{ showQQPlot ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_QQ_PLOT ]' }}
-          </div>
-        </button>
-
-        <!-- RE-CENTER VIEW -->
-        <button @click="resetView" 
+        <!-- CENTER CURVE -->
+        <button v-if="!showDistribution3D"
+                @click="resetView"
                 class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="16"></line>
-            <line x1="8" y1="12" x2="16" y2="12"></line>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <circle cx="12" cy="12" r="8"/>
+            <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            [ RE-CENTER_VIEW ]
-          </div>
-        </button>
-       
-
-        <!-- SET INITIAL DEPOSIT -->
-        <button v-if="!showMetricsPanel && !showDistribution3D && !showWinrateCurve"
-                @click="showInitialDepositModal = true" 
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            [ SET_INITIAL_DEPOSIT ]
-          </div>
-        </button>
-
-        <!-- EQUITY CURVE SIMULATOR -->
-        <button v-if="!showMetricsPanel && !showDistribution3D && !showWinrateCurve"
-                @click="openSimulator" 
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M3 3v18h18" />
-            <path d="M7 14l3-3 4 4 6-6" />
-            <path d="M7 10l3-4 4 6 6-4" opacity="0.4" />
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            [ EQUITY_CURVE_SIMULATOR ]
+            {{ isRu ? '[ ЦЕНТРИРОВАТЬ_КРИВУЮ ]' : '[ CENTER_CURVE ]' }}
           </div>
         </button>
 
         <!-- WINRATE TARGET MENU BUTTON -->
         <button v-if="!showMetricsPanel && !showDistribution3D && !showCalendarMode"
                 @click="showPaywall = true"
-                class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
-                :class="'border-transparent text-white opacity-60 hover:opacity-100'">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <line x1="8" y1="6" x2="21" y2="6"></line>
-            <line x1="8" y1="12" x2="21" y2="12"></line>
-            <line x1="8" y1="18" x2="21" y2="18"></line>
-            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+                :class="showPaywall ? 'border-white/30 bg-white/10 text-white' : ''">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <path d="M5 21V4"/>
+            <path d="M5 4c4-3 7 3 14 0v9c-7 3-10-3-14 0"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
             {{ isRu ? '[ ВЫБОР_ЦЕЛИ_СИСТЕМЫ ]' : '[ SELECT_SYSTEM_TARGET ]' }}
           </div>
         </button>
 
-        <!-- BROKER / EXCHANGE CONNECTORS -->
-        <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showPaywall = true"
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ isRu ? '[ ПОДКЛЮЧИТЬ_БРОКЕР_API ]' : '[ CONNECT_BROKER_API ]' }}
-          </div>
-        </button>
+        <!-- CURVE / CALENDAR CONTROLS MOVED INTO THE MAIN PANEL -->
+        <template v-if="!showDistribution3D && !showMetricsPanel">
+          <button
+            @click="showCalendarMode = !showCalendarMode; showWinrateCurve = false"
+            class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+            :class="showCalendarMode ? 'border-white/30 bg-white/10 text-white' : ''"
+            :aria-label="showCalendarMode ? (isRu ? 'Вернуться к кривой' : 'Return to curve') : (isRu ? 'Открыть календарь' : 'Open calendar')"
+            :title="showCalendarMode ? (isRu ? 'Вернуться к кривой' : 'Return to curve') : (isRu ? 'Открыть календарь' : 'Open calendar')"
+          >
+            <svg v-if="showCalendarMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4"><path d="M3 12h18M12 3l9 9-9 9"/></svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]' }}</span>
+          </button>
 
-        <!-- SYNC TRADES FROM API -->
-        <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showPaywall = true"
-                :title="isRu ? 'Нужен премиум-доступ' : 'Premium access required'"
-                class="group relative flex items-center justify-center w-10 h-10 text-white opacity-60 hover:opacity-100 border border-transparent hover:border-white/10 transition-all hover:bg-white/5">
-          <svg viewBox="0 0 24 24"
-               fill="none"
-               stroke="currentColor"
-               stroke-width="1.5"
-               stroke-linecap="round"
-               stroke-linejoin="round"
-               class="w-4 h-4">
-            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-            <path d="M3 21v-5h5" />
-            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-            <path d="M16 8h5V3" />
-          </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-             {{ isRu ? '[ СИНХРОНИЗИРОВАТЬ_СДЕЛКИ_API ]' : '[ SYNC_TRADES_FROM_API ]' }}
-           </div>
-         </button>
+        </template>
 
-         <!-- PURGE DIARY RECORDS -->
-        <button v-if="!showMetricsPanel && !showDistribution3D"
-                @click="showClearConfirmation = true" 
-                class="group relative flex items-center justify-center w-10 h-10 text-red-500/60 hover:text-red-500 border border-transparent hover:border-red-500/20 transition-all hover:bg-red-500/5">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        <template v-if="showDistribution3D">
+          <button @click="toggleRobustnessMode('normal')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessNormalDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Нормальное распределение' : 'Normal distribution'" :title="isRu ? 'Нормальное распределение' : 'Normal distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5"><path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showRobustnessNormalDist ? '[ HIDE_NORMAL_DIST ]' : '[ SHOW_NORMAL_DIST ]' }}</span></button>
+          <button @click="toggleRobustnessMode('studentT')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessTDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Распределение Стьюдента' : 'Student t distribution'" :title="isRu ? 'Распределение Стьюдента' : 'Student t distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><path d="M4 16c2-6 4-10 8-10s6 4 8 10"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showRobustnessTDist ? '[ HIDE_STUDENT_T_DIST ]' : '[ SHOW_STUDENT_T_DIST ]' }}</span></button>
+          <!-- BOOTSTRAP / PNL HISTOGRAM TOGGLE -->
+          <button
+            @click="toggleRobustnessHistogram"
+            class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+            :class="showRobustnessHistogram ? 'border-white/30 bg-white/10 text-white' : ''">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+              <path d="M4 19V5M4 19h16"/>
+              <rect x="7" y="12" width="2.5" height="7"/>
+              <rect x="11" y="8" width="2.5" height="11"/>
+              <rect x="15" y="10" width="2.5" height="9"/>
+            </svg>
+            <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
+              {{ showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]' }}
+            </div>
+          </button>
+
+          <!-- QQ PLOT TOGGLE -->
+          <button
+            @click="toggleRobustnessMode('qq')"
+            class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+            :class="showQQPlot ? 'border-white/30 bg-white/10 text-white' : ''">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+              <line x1="4" y1="20" x2="20" y2="4" stroke-dasharray="3,3"/>
+              <circle cx="7" cy="17" r="1.5" fill="currentColor"/>
+              <circle cx="11" cy="13" r="1.5" fill="currentColor"/>
+              <circle cx="14" cy="10" r="1.5" fill="currentColor"/>
+              <circle cx="17" cy="7" r="1.5" fill="currentColor"/>
+            </svg>
+            <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
+              {{ showQQPlot ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_QQ_PLOT ]' }}
+            </div>
+          </button>
+        </template>
+
+        <!-- MENU: ALWAYS LAST -->
+        <button
+          v-if="!showMetricsPanel"
+          type="button"
+          @click="showToolsMenu = true"
+          :aria-label="isRu ? 'Меню' : 'Menu'"
+          :title="isRu ? 'Меню' : 'Menu'"
+          class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+          :class="showToolsMenu ? 'border-white/30 bg-white/10 text-white' : ''"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
+            <path d="M4 7h16M4 12h16M4 17h16"/>
           </svg>
-          <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-red-600 text-white text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(255,0,0,0.3)] border border-white/20">
-            [ PURGE_DIARY_RECORDS ]
-          </div>
+          <span class="tools-menu-tooltip pointer-events-none absolute bottom-full mb-3 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? '[ МЕНЮ ]' : '[ MENU ]' }}</span>
         </button>
       </div>
     </div>
 
-    <!-- RIGHT PANEL -->
-    <div v-if="!showMetricsPanel && !showSimulator && (!showDistribution3D || (!showRobustnessHistogram && !showQQPlot))"
-         class="absolute right-12 top-1/2 -translate-y-1/2 z-[110] flex flex-col items-center justify-center pointer-events-none">
-      <div class="pointer-events-auto flex flex-col items-center space-y-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-white/20 p-2 relative">
-        <!-- Corner Accents -->
-        <div class="absolute -top-1 -left-1 w-2 h-2 border-t border-l border-white/40"></div>
-        <div class="absolute -bottom-1 -right-1 w-2 h-2 border-b border-r border-white/40"></div>
-        
-        <template v-if="!showDistribution3D">
-          <!-- CALENDAR MODE TOGGLE -->
-          <button @click="showCalendarMode = !showCalendarMode" 
-                  class="group relative flex items-center justify-center w-10 h-10 text-white transition-all border hover:border-white/10 hover:bg-white/5"
-                  :class="showCalendarMode ? 'bg-white/10 opacity-100 border-white/20' : 'border-transparent opacity-60 hover:opacity-100'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <div class="absolute right-full mr-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-              {{ showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]' }}
-            </div>
-          </button>
+    <!-- ADVANCED TOOLS MENU -->
+    <Teleport to="body">
+      <Transition name="protocol-slide">
+        <div
+          v-if="showToolsMenu"
+          @click.self="closeToolsMenu"
+          class="tools-menu-overlay fixed inset-0 z-[10005] flex items-center justify-center p-12 backdrop-blur-md"
+        >
+          <div class="relative w-full max-w-xl">
+            <ExPanel class="tools-menu-panel w-full" noPadding variant="light" :show-corners="true">
+              <div class="grid grid-cols-4 gap-0 p-4 [&>button]:!h-14">
+                <button type="button" @click="closeToolsMenu(); handleRobustnessDiagnosticsClick()" :aria-label="isRu ? 'Диагностика устойчивости' : 'Robustness diagnostics'" :title="isRu ? 'Диагностика устойчивости' : 'Robustness diagnostics'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all" :class="showDistribution3D ? 'tools-menu-item-active' : ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M8 17v-6M13 17V5M18 17V9"/><path d="M3 12c3-4 6-8 10-8s7 6 9 10" stroke-dasharray="3,3"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'ДИАГНОСТИКА УСТОЙЧИВОСТИ' : 'ROBUSTNESS DIAGNOSTICS' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showInitialDepositModal = true" :aria-label="isRu ? 'Начальный депозит' : 'Initial deposit'" :title="isRu ? 'Начальный депозит' : 'Initial deposit'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'НАЧАЛЬНЫЙ ДЕПОЗИТ' : 'INITIAL DEPOSIT' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showBenchmarkModal = true" :aria-label="isRu ? 'Настройки benchmark' : 'Benchmark settings'" :title="isRu ? 'Настройки benchmark' : 'Benchmark settings'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="currentColor"/><circle cx="15" cy="12" r="2" fill="currentColor"/><circle cx="8" cy="18" r="2" fill="currentColor"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'НАСТРОЙКИ BENCHMARK' : 'BENCHMARK SETTINGS' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showBenchmarkCurves = !showBenchmarkCurves" :aria-label="isRu ? 'Benchmark-кривые' : 'Benchmark curves'" :title="isRu ? 'Benchmark-кривые' : 'Benchmark curves'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all" :class="showBenchmarkCurves ? 'tools-menu-item-active' : ''"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/><path d="M2 17 6 17 9 8 15 17 18 17 22 17" stroke-dasharray="2,2" opacity="0.5"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'BENCHMARK КРИВЫЕ' : 'BENCHMARK CURVES' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); openSimulator()" :aria-label="isRu ? 'Симулятор' : 'Simulator'" :title="isRu ? 'Симулятор' : 'Simulator'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M3 3v18h18"/><path d="M7 14l3-3 4 4 6-6M7 10l3-4 4 6 6-4" opacity="0.55"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'СИМУЛЯТОР' : 'SIMULATOR' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showPaywall = true" :aria-label="isRu ? 'Подключить брокер API' : 'Connect broker API'" :title="isRu ? 'Подключить брокер API' : 'Connect broker API'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'ПОДКЛЮЧИТЬ БРОКЕР API' : 'CONNECT BROKER API' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showPaywall = true" :aria-label="isRu ? 'Синхронизировать сделки API' : 'Sync trades from API'" :title="isRu ? 'Синхронизировать сделки API' : 'Sync trades from API'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent transition-all"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M16 8h5V3"/></svg><span class="tools-menu-tooltip pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'СИНХРОНИЗАЦИЯ API' : 'SYNC API' }}</span></button>
+                <button type="button" @click="closeToolsMenu(); showClearConfirmation = true" :aria-label="isRu ? 'Удалить записи' : 'Purge records'" :title="isRu ? 'Удалить записи' : 'Purge records'" class="tools-menu-item group relative flex h-20 items-center justify-center border-0 bg-transparent text-red-500/70 transition-all hover:bg-red-500/5 hover:text-red-500"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-red-600 px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? 'УДАЛИТЬ ЗАПИСИ' : 'PURGE RECORDS' }}</span></button>
+              </div>
+            </ExPanel>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
 
-          <!-- WINRATE CURVE TOGGLE -->
-          <button v-if="!showCalendarMode"
-                  @click="showWinrateCurve = !showWinrateCurve"
-                  class="group relative flex items-center justify-center w-10 h-10 text-white transition-all border hover:border-white/10 hover:bg-white/5"
-                  :class="showWinrateCurve ? 'bg-white/10 opacity-100 border-white/20' : 'border-transparent opacity-60 hover:opacity-100'">
-            <span class="text-[11px] font-black font-mono">%</span>
-            <div class="absolute right-full mr-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-              {{ showWinrateCurve ? '[ HIDE_WINRATE_CURVE ]' : '[ SHOW_WINRATE_CURVE ]' }}
-            </div>
-          </button>
+    <!-- CALENDAR SIDE CONTROLS -->
+    <div
+      v-if="showCalendarMode && !showSimulator"
+      class="pointer-events-none absolute right-6 top-1/2 z-[120] flex -translate-y-1/2 flex-col items-center justify-center"
+    >
+      <div class="pointer-events-auto relative flex flex-col items-center gap-1.5 rounded-sm border border-white/20 bg-[#0a0a0a]/90 p-1.5 shadow-2xl backdrop-blur-xl">
+        <div class="absolute -left-1 -top-1 h-2 w-2 border-l border-t border-white/40"></div>
+        <div class="absolute -bottom-1 -right-1 h-2 w-2 border-b border-r border-white/40"></div>
 
-          <!-- VALUE MODE TOGGLE (only in calendar mode) -->
-          <button v-if="showCalendarMode"
-                  @click="calendarValueMode = calendarValueMode === 'currency' ? 'percentage' : 'currency'"
-                  class="group relative flex items-center justify-center w-10 h-10 text-white transition-all border border-transparent opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5">
-            <span class="text-[11px] font-black font-mono">{{ calendarValueMode === 'currency' ? '%' : '$' }}</span>
-            <div class="absolute right-full mr-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-              {{ calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]' }}
-            </div>
-          </button>
+        <button
+          @click="showCalendarMode = false"
+          :aria-label="isRu ? 'Выйти из календаря' : 'Exit calendar'"
+          :title="isRu ? 'Выйти из календаря' : 'Exit calendar'"
+          class="group relative flex h-10 w-10 items-center justify-center border border-white/30 bg-white/10 text-white transition-all hover:border-white/40 hover:bg-white/15"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <path d="M3 12h18M12 3l9 9-9 9"/>
+          </svg>
+          <span class="pointer-events-none absolute right-full mr-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? '[ ВЫЙТИ_ИЗ_КАЛЕНДАРЯ ]' : '[ EXIT_CALENDAR ]' }}</span>
+        </button>
 
-          <!-- BENCHMARK / RISK-FREE RATE TOGGLE -->
-          <button v-if="!showCalendarMode"
-                  @click="showBenchmarkCurves = !showBenchmarkCurves"
-                  class="group relative flex items-center justify-center w-10 h-10 transition-all border hover:border-white/10 hover:bg-white/5"
-                  :class="showBenchmarkCurves ? 'bg-white/10 opacity-100 border-white/20 text-white' : 'border-transparent text-white opacity-60 hover:opacity-100'">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-              <path d="M2 17L6 17 9 8 15 17 18 17 22 17" stroke-dasharray="2,2" opacity="0.5"/>
-            </svg>
-            <div class="absolute right-full mr-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-              {{ showBenchmarkCurves ? '[ HIDE_BENCHMARKS ]' : '[ SHOW_BENCHMARKS ]' }}
-            </div>
-          </button>
-        </template>
-
-        <template v-else-if="showDistribution3D && !showRobustnessHistogram && !showQQPlot">
-          <!-- NORMAL DIST TOGGLE -->
-          <button @click="showRobustnessNormalDist = !showRobustnessNormalDist; if (showRobustnessNormalDist) showRobustnessTDist = false"
-                  class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
-                  :class="showRobustnessNormalDist ? 'bg-white/10 opacity-100 border-white/20' : ''">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="w-4 h-4">
-              <path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3" />
-            </svg>
-            <div class="absolute right-full mr-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-              {{ showRobustnessNormalDist ? '[ HIDE_NORMAL_DIST ]' : '[ SHOW_NORMAL_DIST ]' }}
-            </div>
-          </button>
-
-          <!-- T DIST TOGGLE -->
-          <button @click="showRobustnessTDist = !showRobustnessTDist; if (showRobustnessTDist) showRobustnessNormalDist = false"
-                  class="group relative flex items-center justify-center w-10 h-10 transition-all border border-transparent text-white opacity-60 hover:opacity-100 hover:border-white/10 hover:bg-white/5"
-                  :class="showRobustnessTDist ? 'bg-white/10 opacity-100 border-white/20' : ''">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
-              <path d="M4 16c2-6 4-10 8-10s6 4 8 10" />
-            </svg>
-            <div class="absolute right-full mr-3 px-3 py-1.5 nier-bg-inverted nier-text-primary text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20 dark:border-black/20">
-              {{ showRobustnessTDist ? '[ HIDE_STUDENT_T_DIST ]' : '[ SHOW_STUDENT_T_DIST ]' }}
-            </div>
-          </button>
-        </template>
+        <button
+          @click="calendarValueMode = calendarValueMode === 'currency' ? 'percentage' : 'currency'"
+          :aria-label="isRu ? 'Сменить валюту календаря' : 'Change calendar value mode'"
+          :title="isRu ? 'Сменить валюту календаря' : 'Change calendar value mode'"
+          class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+        >
+          <span class="text-[11px] font-black font-mono">{{ calendarValueMode === 'currency' ? '%' : '$' }}</span>
+          <span class="pointer-events-none absolute right-full mr-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]' }}</span>
+        </button>
       </div>
     </div>
 
@@ -732,6 +650,8 @@ import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/
 import { getTradeCashPnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 
 const authStore = useAuthStore()
+const networkOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
+const isBenchmarkOffline = computed(() => authStore.isOffline || networkOffline.value)
 const sp500BenchmarkRate = ref(SP500_BENCHMARK_RATE)
 const strategyBeta = ref(0.85)
 const riskFreeRate = ref(5.00)
@@ -742,9 +662,12 @@ interface StrategyBenchmarkMetrics {
   riskFreeRate: number
   isFallback: boolean
   updatedAt: string
+  periodStartTs?: number
+  periodEndTs?: number
 }
 
-const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v1'
+const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v2'
+const LEGACY_BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v1'
 const benchmarkMetricsByStrategy = ref<Record<string, StrategyBenchmarkMetrics>>({})
 
 const themeStore = useThemeStore()
@@ -905,12 +828,17 @@ const showMetricsPanel = ref(false)
 const showDistribution3D = ref(false)
 const showBenchmarkCurves = ref(false)
 const showQQPlot = ref(false)
-const showRobustnessNormalDist = ref(false)
-const showRobustnessTDist = ref(true)
+const showRobustnessNormalDist = ref(true)
+const showRobustnessTDist = ref(false)
 const showRobustnessHistogram = ref(false)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
+const showToolsMenu = ref(false)
+
+const closeToolsMenu = () => {
+  showToolsMenu.value = false
+}
 
 const openSimulator = () => {
   showSimulator.value = true
@@ -943,14 +871,31 @@ const handleRobustnessDiagnosticsClick = () => {
   }
   showDistribution3D.value = !showDistribution3D.value
   showMetricsPanel.value = false
+  if (showDistribution3D.value) setRobustnessMode('normal')
+}
+
+type RobustnessMode = 'normal' | 'studentT' | 'histogram' | 'qq'
+
+const setRobustnessMode = (mode: RobustnessMode | null) => {
+  showRobustnessNormalDist.value = mode === 'normal'
+  showRobustnessTDist.value = mode === 'studentT'
+  showRobustnessHistogram.value = mode === 'histogram'
+  showQQPlot.value = mode === 'qq'
+}
+
+const toggleRobustnessMode = (mode: RobustnessMode) => {
+  const isActive = mode === 'normal'
+    ? showRobustnessNormalDist.value
+    : mode === 'studentT'
+      ? showRobustnessTDist.value
+      : mode === 'histogram'
+        ? showRobustnessHistogram.value
+        : showQQPlot.value
+  setRobustnessMode(isActive ? null : mode)
 }
 
 const toggleRobustnessHistogram = () => {
-  const nextValue = !showRobustnessHistogram.value
-  showRobustnessHistogram.value = nextValue
-  if (nextValue) {
-    showQQPlot.value = false
-  }
+  toggleRobustnessMode('histogram')
 }
 
 const metricsPanel = useEquityCurveMetricsPanel()
@@ -983,9 +928,27 @@ const getBenchmarkStrategyIds = () => {
   ].filter(Boolean)))
 }
 
-const getBenchmarkReturnsForStrategy = (strategyId: string) => {
+const getLastCompletedCalendarYearPeriod = (now = new Date()) => {
+  const currentYear = now.getUTCFullYear()
+  const completedYear = currentYear - 1
+
+  return {
+    startTs: Math.floor(Date.UTC(completedYear, 0, 1) / 1000),
+    endTs: Math.floor(Date.UTC(currentYear, 0, 1) / 1000)
+  }
+}
+
+const getBenchmarkReturnsForStrategy = (
+  strategyId: string,
+  period = getLastCompletedCalendarYearPeriod()
+) => {
   const initialDep = tradeStore.getInitialDeposit(strategyId) || 10000
-  const trades = getFilteredTrades(strategyId)
+  const trades = getFilteredTrades(strategyId).filter(trade => {
+    const tradeDate = new Date(trade.dateExit || trade.dateEntry || trade.date).getTime()
+    return Number.isFinite(tradeDate)
+      && tradeDate >= period.startTs * 1000
+      && tradeDate < period.endTs * 1000
+  })
 
   return trades.map(t => {
     const pnl = getTradeCashPnl(t, initialDep)
@@ -995,14 +958,26 @@ const getBenchmarkReturnsForStrategy = (strategyId: string) => {
 
 const applyBenchmarkMetricsForStrategy = (strategyId: string) => {
   const cached = benchmarkMetricsByStrategy.value[strategyId]
-  sp500BenchmarkRate.value = cached?.benchmarkRate ?? SP500_BENCHMARK_RATE
-  strategyBeta.value = cached?.beta ?? 0.85
-  riskFreeRate.value = cached?.riskFreeRate ?? 5.00
+  const period = getLastCompletedCalendarYearPeriod()
+  const latestCached = Object.values(benchmarkMetricsByStrategy.value)
+    .filter(metrics => typeof metrics?.benchmarkRate === 'number')
+    .sort((a, b) => Date.parse(b.updatedAt || '') - Date.parse(a.updatedAt || ''))[0]
+  const currentPeriodCache = cached
+    && (!cached.periodStartTs || cached.periodStartTs === period.startTs)
+    && (!cached.periodEndTs || cached.periodEndTs === period.endTs)
+    ? cached
+    : null
+  const usableCache = isBenchmarkOffline.value ? (cached || latestCached) : currentPeriodCache
+
+  sp500BenchmarkRate.value = usableCache?.benchmarkRate ?? SP500_BENCHMARK_RATE
+  strategyBeta.value = usableCache?.beta ?? 0.85
+  riskFreeRate.value = usableCache?.riskFreeRate ?? 5.00
   benchmarkInput.value = sp500BenchmarkRate.value
 }
 
 const loadBenchmarkMetricsCache = async () => {
   const cached = await loadFromDisk<Record<string, StrategyBenchmarkMetrics>>(BENCHMARK_METRICS_CACHE_KEY)
+    || await loadFromDisk<Record<string, StrategyBenchmarkMetrics>>(LEGACY_BENCHMARK_METRICS_CACHE_KEY)
   if (cached && typeof cached === 'object') {
     benchmarkMetricsByStrategy.value = cached
     applyBenchmarkMetricsForStrategy(selectedStrategyId.value)
@@ -1014,43 +989,33 @@ const saveBenchmarkMetricsCache = async () => {
 }
 
 const fetchRealtimeMetrics = async (strategyIds = getBenchmarkStrategyIds()) => {
+  if (isBenchmarkOffline.value) {
+    applyBenchmarkMetricsForStrategy(selectedStrategyId.value)
+    return
+  }
+
   const ids = Array.from(new Set(strategyIds.filter(Boolean)))
+  const benchmarkPeriod = getLastCompletedCalendarYearPeriod()
   let cacheChanged = false
 
   for (const strategyId of ids) {
     try {
-      const strategyReturns = getBenchmarkReturnsForStrategy(strategyId)
-      const trades = getFilteredTrades(strategyId)
-      
-      let startTs: number | null = null
-      let endTs: number | null = null
-      
-      if (trades && trades.length > 0) {
-        const sortedTrades = [...trades].sort((a: any, b: any) => {
-          const tA = new Date(a.dateEntry || a.date).getTime()
-          const tB = new Date(b.dateEntry || b.date).getTime()
-          return tA - tB
-        })
-        const firstTrade = sortedTrades[0]
-        const lastTrade = sortedTrades[sortedTrades.length - 1]
-        
-        const firstDate = new Date(firstTrade.dateEntry || firstTrade.date)
-        const lastDate = new Date(lastTrade.dateExit || lastTrade.dateEntry || lastTrade.date)
-        
-        if (!isNaN(firstDate.getTime()) && !isNaN(lastDate.getTime())) {
-          startTs = Math.floor(firstDate.getTime() / 1000)
-          endTs = Math.floor(lastDate.getTime() / 1000)
-        }
-      }
-
-      const res: any = await invoke('get_benchmark_and_beta', { strategyReturns, strategyId, startTs, endTs })
+      const strategyReturns = getBenchmarkReturnsForStrategy(strategyId, benchmarkPeriod)
+      const res: any = await invoke('get_benchmark_and_beta', {
+        strategyReturns,
+        strategyId,
+        startTs: benchmarkPeriod.startTs,
+        endTs: benchmarkPeriod.endTs
+      })
       if (res && typeof res.benchmark_rate === 'number') {
         benchmarkMetricsByStrategy.value[strategyId] = {
           benchmarkRate: res.benchmark_rate,
           beta: typeof res.beta === 'number' ? res.beta : 0.85,
           riskFreeRate: typeof res.risk_free_rate === 'number' ? res.risk_free_rate : 5.00,
           isFallback: !!res.is_fallback,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          periodStartTs: benchmarkPeriod.startTs,
+          periodEndTs: benchmarkPeriod.endTs
         }
         cacheChanged = true
 
@@ -2280,9 +2245,13 @@ watch(() => themeStore.settings.isDark, () => {
 }, { immediate: true })
 
 // --- INITIALIZATION --- //
+let equityCurveGeneration = 0
+
 const initData = () => {
+  const generation = ++equityCurveGeneration
+  const strategyId = selectedStrategyId.value || 'MAIN_DIARY'
   const currentTrades = getFilteredTrades()
-  const initialDeposit = props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId.value)
+  const initialDeposit = props.initialBalance || tradeStore.getInitialDeposit(strategyId)
   depositInput.value = initialDeposit
   
   const sortedTrades = [...currentTrades].sort((a, b) => {
@@ -2359,24 +2328,21 @@ const initData = () => {
   })
 
   // Compute Benchmark & Risk-Free Daily Curves
-  benchmarkPoints3D.value = [{ x: -200, y: startY, z: 0, value: initialDeposit, dateLabel: 'DEPOSIT' }]
+  benchmarkPoints3D.value = []
   riskFreePoints3D.value = [{ x: -200, y: startY, z: 0, value: initialDeposit, dateLabel: 'DEPOSIT' }]
 
-  if (sortedTrades.length > 0) {
-    let firstDateTime = 0
+  if (!isBenchmarkOffline.value && sortedTrades.length > 0) {
+    const dayMs = 24 * 60 * 60 * 1000
+    let firstDateTime = Number.POSITIVE_INFINITY
     const dailyTrades = new Map<string, { x: number, date: Date }>()
 
     sortedTrades.forEach((trade, i) => {
       const x = -200 + (i + 1) * step
       const dVal = trade.dateExit || trade.date
       const date = dVal instanceof Date ? dVal : new Date(dVal)
-      const dayStr = date.toLocaleDateString('en-US')
-      
-      if (!firstDateTime) {
-        const fd = new Date(date)
-        fd.setHours(0,0,0,0)
-        firstDateTime = fd.getTime()
-      }
+      const dayStr = date.toISOString().slice(0, 10)
+      const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+      if (dayStart < firstDateTime) firstDateTime = dayStart
       
       // Last trade of the day overwrites, giving the final X coordinate for that day
       dailyTrades.set(dayStr, { x, date })
@@ -2385,21 +2351,23 @@ const initData = () => {
     const lastTrade = sortedTrades[sortedTrades.length - 1]!
     const lastDateVal = lastTrade.dateExit || lastTrade.date
     const lastDate = lastDateVal instanceof Date ? lastDateVal : new Date(lastDateVal)
-    lastDate.setHours(0,0,0,0)
-    const endDateTime = lastDate.getTime()
+    const endDateTime = Date.UTC(lastDate.getUTCFullYear(), lastDate.getUTCMonth(), lastDate.getUTCDate())
     
     const daysTotal = Math.floor((endDateTime - firstDateTime) / (1000 * 60 * 60 * 24))
 
     const loadHistoricalCurves = async () => {
       try {
         const startTs = Math.floor(firstDateTime / 1000)
-        const endTs = Math.floor(endDateTime / 1000)
+        // period2 is exclusive; include the last trade day in the market-data request.
+        const endTs = Math.floor((endDateTime + dayMs) / 1000)
         const curves: { benchmark: { timestamp: number, value: number }[], risk_free: { timestamp: number, value: number }[] } = 
           await invoke('get_historical_curves', {
-            strategyId: selectedStrategyId.value || 'MAIN_DIARY',
+            strategyId,
             startTs,
             endTs
           })
+
+        if (generation !== equityCurveGeneration || strategyId !== selectedStrategyId.value || isBenchmarkOffline.value) return
           
         let prevX = -200
         const newBenchPoints: CurvePoint[] = [{ x: -200, y: startY, z: 0, value: initialDeposit, dateLabel: 'DEPOSIT' }]
@@ -2408,12 +2376,12 @@ const initData = () => {
         let benchVal = initialDeposit
         let rfVal = initialDeposit
         const getMarketValueForDay = (points: { timestamp: number, value: number }[], dayUnix: number) => {
-          let value = 0
+          let value = points[0]?.value || 0
           for (const point of points) {
             if (point.timestamp <= dayUnix + 86400) {
               value = point.value
             } else {
-              return value || point.value
+              break
             }
           }
           return value
@@ -2425,7 +2393,7 @@ const initData = () => {
           const currentMs = firstDateTime + i * 24 * 60 * 60 * 1000
           const currentUnix = Math.floor(currentMs / 1000)
           const d = new Date(currentMs)
-          const dayStr = d.toLocaleDateString('en-US')
+          const dayStr = d.toISOString().slice(0, 10)
           const dateLabel = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           
           let x = prevX
@@ -2473,13 +2441,16 @@ const handleSetDeposit = async () => {
 }
 
 const handleSetBenchmark = async () => {
+  const benchmarkPeriod = getLastCompletedCalendarYearPeriod()
   sp500BenchmarkRate.value = benchmarkInput.value
   benchmarkMetricsByStrategy.value[selectedStrategyId.value] = {
     benchmarkRate: benchmarkInput.value,
     beta: strategyBeta.value,
     riskFreeRate: riskFreeRate.value,
     isFallback: false,
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
+    periodStartTs: benchmarkPeriod.startTs,
+    periodEndTs: benchmarkPeriod.endTs
   }
   await saveBenchmarkMetricsCache()
   showBenchmarkModal.value = false
@@ -2524,6 +2495,11 @@ watch(showDistribution3D, (val) => {
     showQQPlot.value = false
     showRobustnessHistogram.value = false
   }
+})
+watch(isBenchmarkOffline, (offline) => {
+  if (offline) benchmarkPoints3D.value = []
+  applyBenchmarkMetricsForStrategy(selectedStrategyId.value)
+  initData()
 })
 
 // --- 3D ENGINE --- //
@@ -2968,11 +2944,50 @@ const update = () => {
             }
           }
 
-          // Draw Normal theoretical curve (dashed, lower opacity)
+          // Draw a contrasting area under the Normal distribution curve.
+          if (showRobustnessNormalDist.value && transformedNormal.length > 0) {
+            const baseline3D = curves.normalCurve.map(v => ({ x: v.x, y: 80, z: 0 }))
+            const transformedBaseline = baseline3D.map(v => {
+              let p = rotateY(v, currentRotation.value.y)
+              p = rotateX(p, currentRotation.value.x)
+              p.x *= scale; p.y *= scale; p.z *= scale
+              return project(p, w, h)
+            })
+
+            let minY = Infinity
+            transformedNormal.forEach(p => { if (p.y < minY) minY = p.y })
+            let maxY = -Infinity
+            transformedBaseline.forEach(p => { if (p.y > maxY) maxY = p.y })
+
+            if (minY < maxY) {
+              ctx.save()
+              const grad = ctx.createLinearGradient(0, minY, 0, maxY)
+              if (themeStore.settings.isDark) {
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.38)')
+                grad.addColorStop(1, 'rgba(255, 255, 255, 0.02)')
+              } else {
+                grad.addColorStop(0, 'rgba(0, 0, 0, 0.28)')
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0.02)')
+              }
+              ctx.fillStyle = grad
+              ctx.beginPath()
+              ctx.moveTo(transformedNormal[0]!.x, transformedNormal[0]!.y)
+              transformedNormal.forEach((p, idx) => { if (idx > 0) ctx.lineTo(p.x, p.y) })
+              ctx.lineTo(transformedBaseline[transformedBaseline.length - 1]!.x, transformedBaseline[transformedBaseline.length - 1]!.y)
+              for (let i = transformedBaseline.length - 1; i >= 0; i--) {
+                ctx.lineTo(transformedBaseline[i]!.x, transformedBaseline[i]!.y)
+              }
+              ctx.closePath()
+              ctx.fill()
+              ctx.restore()
+            }
+          }
+
+          // Draw Normal theoretical curve.
           if (showRobustnessNormalDist.value) {
-            ctx.lineWidth = 1.5
+            ctx.lineWidth = 2
             ctx.strokeStyle = themeText
-            ctx.globalAlpha = 0.25
+            ctx.globalAlpha = 0.78
             ctx.setLineDash([5, 5])
             ctx.beginPath()
             transformedNormal.forEach((p, idx) => {
@@ -3167,8 +3182,8 @@ const update = () => {
         }
       }
 
-      if (showBenchmarkCurves.value) {
-        drawExtraCurve(benchmarkPoints3D.value, '#0ea5e9', 'S&P 500') // Sky Blue
+      if (showBenchmarkCurves.value && !isBenchmarkOffline.value) {
+        drawExtraCurve(benchmarkPoints3D.value, themeText, 'S&P 500')
         // drawExtraCurve(riskFreePoints3D.value, '#f43f5e', 'RISK-FREE') // Rose Pink (Hidden for now)
       }
 
@@ -3593,7 +3608,13 @@ const handleWheel = (e: WheelEvent) => {
   viewScale.value = Math.max(0.5, Math.min(6, viewScale.value - e.deltaY * 0.001))
 }
 
+const updateNetworkState = () => {
+  networkOffline.value = !window.navigator.onLine
+}
+
 onMounted(() => {
+  window.addEventListener('online', updateNetworkState)
+  window.addEventListener('offline', updateNetworkState)
   const bootInterval = setInterval(() => {
     bootProgress.value += Math.random() * 30
     if (bootProgress.value >= 100) {
@@ -3632,7 +3653,11 @@ onMounted(() => {
 
 // --- END CALENDAR LOGIC ---
 
-onUnmounted(() => { cancelAnimationFrame(rafId) })
+onUnmounted(() => {
+  window.removeEventListener('online', updateNetworkState)
+  window.removeEventListener('offline', updateNetworkState)
+  cancelAnimationFrame(rafId)
+})
 
 </script>
 
@@ -3742,5 +3767,45 @@ input::-webkit-inner-spin-button {
 input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+.tools-menu-overlay {
+  background-color: rgb(0 0 0 / 0.24);
+  color: var(--theme-text);
+}
+
+.tools-menu-panel {
+  border-color: var(--theme-border-strong) !important;
+}
+
+.tools-menu-item {
+  color: var(--theme-muted);
+}
+
+.tools-menu-item:hover {
+  background-color: rgb(var(--theme-text-rgb) / 0.05);
+  color: var(--theme-text);
+}
+
+.tools-menu-item-active {
+  background-color: rgb(var(--theme-text-rgb) / 0.1);
+  color: var(--theme-text);
+}
+
+.tools-menu-item:last-child {
+  color: rgb(239 68 68 / 0.7) !important;
+}
+
+.tools-menu-item:last-child:hover {
+  color: rgb(239 68 68) !important;
+}
+
+.tools-menu-tooltip {
+  background-color: var(--theme-text);
+  color: var(--theme-bg);
+}
+
+:global(html.dark) .tools-menu-overlay {
+  background-color: rgb(0 0 0 / 0.6);
 }
 </style>
