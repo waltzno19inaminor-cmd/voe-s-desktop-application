@@ -10,7 +10,15 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   const canvasWrapper = ref<HTMLElement | null>(null)
   const suppressNextBackgroundClick = ref(false)
 
-  const activeWireRaw = ref<{ fromId: string, fromPort?: 'left'|'right'|'top'|'bottom', current: Point } | null>(null)
+  const activeWireRaw = ref<{
+    fromId: string
+    fromPort?: 'left'|'right'|'top'|'bottom'
+    originalLabel?: string
+    originalBundleId?: string
+    originalBundleStemX?: number
+    originalBundleStemY?: number
+    current: Point
+  } | null>(null)
 
   const clearActiveWire = () => {
     activeWireRaw.value = null
@@ -201,7 +209,15 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     if (connIndex !== -1) {
       const conn = connList[connIndex]
       if (conn) {
-        activeWireRaw.value = { fromId: conn.fromId, fromPort: conn.fromPort || 'right', current: { x: targetNode.x, y: targetNode.y } }
+        activeWireRaw.value = {
+          fromId: conn.fromId,
+          fromPort: conn.fromPort || 'right',
+          originalLabel: conn.label,
+          originalBundleId: conn.bundleId,
+          originalBundleStemX: conn.bundleStemX,
+          originalBundleStemY: conn.bundleStemY,
+          current: { x: targetNode.x, y: targetNode.y }
+        }
         connList.splice(connIndex, 1)
         state.cleanupLogicBundles()
         state.saveMatrixData()
@@ -218,7 +234,19 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
         fromId: activeWireRaw.value.fromId,
         toId: targetNode.id,
         fromPort: activeWireRaw.value.fromPort,
-        toPort: port
+        toPort: port,
+        ...(activeWireRaw.value.originalLabel !== undefined
+          ? { label: activeWireRaw.value.originalLabel }
+          : {}),
+        ...(activeWireRaw.value.originalBundleId !== undefined
+          ? { bundleId: activeWireRaw.value.originalBundleId }
+          : {}),
+        ...(activeWireRaw.value.originalBundleStemX !== undefined
+          ? { bundleStemX: activeWireRaw.value.originalBundleStemX }
+          : {}),
+        ...(activeWireRaw.value.originalBundleStemY !== undefined
+          ? { bundleStemY: activeWireRaw.value.originalBundleStemY }
+          : {})
       }
       state.connections.value.push(newConn)
       state.saveMatrixData()
