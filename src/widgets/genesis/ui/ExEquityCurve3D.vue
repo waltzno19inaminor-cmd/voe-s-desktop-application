@@ -223,7 +223,7 @@
                       @click="toggleRobustnessHistogram"
                       class="mt-4 pointer-events-auto self-start px-4 py-2 border font-mono text-[8px] tracking-[0.35em] uppercase transition-all duration-300"
                       :class="showRobustnessHistogram ? 'nier-bg-inverted text-white dark:!text-black border-black dark:border-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]' : 'nier-text-primary nier-border-primary opacity-50 hover:opacity-100 hover:border-black/30 dark:hover:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'">
-                {{ showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]' }}
+                {{ isRu ? (showRobustnessHistogram ? '[ ПОКАЗАТЬ_ПОДОГНАННЫЙ_PDF ]' : '[ ПОКАЗАТЬ_ГИСТОГРАММУ_PNL ]') : (showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]') }}
               </button>
             </div>
           </div>
@@ -395,7 +395,7 @@
             <line x1="6" y1="12" x2="18" y2="12"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none  border border-white/20">
-            [ LOG_NEW_TRADE ]
+            {{ isRu ? '[ НОВАЯ_СДЕЛКА ]' : '[ LOG_NEW_TRADE ]' }}
           </div>
         </button>
 
@@ -414,7 +414,7 @@
             <rect x="3" y="14" width="7" height="7"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]' }}
+            {{ isRu ? (showMetricsPanel ? '[ КРИВАЯ_ДОХОДНОСТИ ]' : '[ МЕТРИКИ_СТРАТЕГИИ ]') : (showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]') }}
           </div>
         </button>
 
@@ -428,7 +428,7 @@
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.3)] border border-white/20">
-            {{ isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]' }}
+            {{ isRu ? (isEditMode ? '[ ВЫЙТИ_ИЗ_РЕДАКТИРОВАНИЯ ]' : '[ РЕЖИМ_РЕДАКТИРОВАНИЯ ]') : (isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]') }}
           </div>
         </button>
 
@@ -471,14 +471,14 @@
           >
             <svg v-if="showCalendarMode" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4"><path d="M3 12h18M12 3l9 9-9 9"/></svg>
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]' }}</span>
+            <span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? (showCalendarMode ? '[ КРИВАЯ_ДОХОДНОСТИ ]' : '[ РЕЖИМ_КАЛЕНДАРЯ ]') : (showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]') }}</span>
           </button>
 
         </template>
 
         <template v-if="showDistribution3D">
-          <button @click="toggleRobustnessMode('normal')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessNormalDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Нормальное распределение' : 'Normal distribution'" :title="isRu ? 'Нормальное распределение' : 'Normal distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5"><path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showRobustnessNormalDist ? '[ HIDE_NORMAL_DIST ]' : '[ SHOW_NORMAL_DIST ]' }}</span></button>
-          <button @click="toggleRobustnessMode('studentT')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessTDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Распределение Стьюдента' : 'Student t distribution'" :title="isRu ? 'Распределение Стьюдента' : 'Student t distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><path d="M4 16c2-6 4-10 8-10s6 4 8 10"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ showRobustnessTDist ? '[ HIDE_STUDENT_T_DIST ]' : '[ SHOW_STUDENT_T_DIST ]' }}</span></button>
+          <button @click="toggleRobustnessMode('normal')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessNormalDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Нормальное распределение' : 'Normal distribution'" :title="isRu ? 'Нормальное распределение' : 'Normal distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5"><path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? (showRobustnessNormalDist ? '[ СКРЫТЬ_НОРМАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ ]' : '[ ПОКАЗАТЬ_НОРМАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ ]') : (showRobustnessNormalDist ? '[ HIDE_NORMAL_DIST ]' : '[ SHOW_NORMAL_DIST ]') }}</span></button>
+          <button @click="toggleRobustnessMode('studentT')" class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white" :class="showRobustnessTDist ? 'border-white/30 bg-white/10 text-white' : ''" :aria-label="isRu ? 'Распределение Стьюдента' : 'Student t distribution'" :title="isRu ? 'Распределение Стьюдента' : 'Student t distribution'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5"><path d="M4 16c2-6 4-10 8-10s6 4 8 10"/></svg><span class="pointer-events-none absolute bottom-full mb-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? (showRobustnessTDist ? '[ СКРЫТЬ_РАСПРЕДЕЛЕНИЕ_СТЬЮДЕНТА ]' : '[ ПОКАЗАТЬ_РАСПРЕДЕЛЕНИЕ_СТЬЮДЕНТА ]') : (showRobustnessTDist ? '[ HIDE_STUDENT_T_DIST ]' : '[ SHOW_STUDENT_T_DIST ]') }}</span></button>
           <!-- BOOTSTRAP / PNL HISTOGRAM TOGGLE -->
           <button
             @click="toggleRobustnessHistogram"
@@ -491,7 +491,7 @@
               <rect x="15" y="10" width="2.5" height="9"/>
             </svg>
             <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-              {{ showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]' }}
+              {{ isRu ? (showRobustnessHistogram ? '[ ПОКАЗАТЬ_ПОДОГНАННЫЙ_PDF ]' : '[ ПОКАЗАТЬ_ГИСТОГРАММУ_PNL ]') : (showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]') }}
             </div>
           </button>
 
@@ -508,7 +508,7 @@
               <circle cx="17" cy="7" r="1.5" fill="currentColor"/>
             </svg>
             <div class="absolute bottom-full mb-3 px-3 py-1.5 bg-white text-black text-[9px] font-mono tracking-widest uppercase font-bold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none shadow-[0_10px_20px_rgba(0,0,0,0.2)] border border-white/20">
-              {{ showQQPlot ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_QQ_PLOT ]' }}
+              {{ isRu ? (showQQPlot ? '[ СКРЫТЬ_QQ_ГРАФИК ]' : '[ ПОКАЗАТЬ_QQ_ГРАФИК ]') : (showQQPlot ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_QQ_PLOT ]') }}
             </div>
           </button>
         </template>
@@ -585,7 +585,7 @@
           class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
         >
           <span class="text-[11px] font-black font-mono">{{ calendarValueMode === 'currency' ? '%' : '$' }}</span>
-          <span class="pointer-events-none absolute right-full mr-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]' }}</span>
+          <span class="pointer-events-none absolute right-full mr-3 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">{{ isRu ? (calendarValueMode === 'currency' ? '[ ПОКАЗАТЬ_ПРОЦЕНТЫ ]' : '[ ПОКАЗАТЬ_ВАЛЮТУ ]') : (calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]') }}</span>
         </button>
       </div>
     </div>
