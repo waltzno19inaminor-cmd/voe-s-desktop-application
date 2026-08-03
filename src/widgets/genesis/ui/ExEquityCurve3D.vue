@@ -254,7 +254,7 @@
             <div class="flex flex-col space-y-3 pt-4">
               <button @click="handleSetDeposit" 
                       class="w-full py-4 nier-bg-inverted nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase font-black hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
-                CONFIRM_REIFICATION
+                {{ isRu ? 'ПОДТВЕРДИТЬ' : 'CONFIRM' }}
               </button>
               <button @click="showInitialDepositModal = false" 
                       class="w-full py-3 border nier-border-primary nier-text-primary font-mono text-[8px] tracking-[0.4em] uppercase opacity-40 hover:opacity-100 transition-all">
