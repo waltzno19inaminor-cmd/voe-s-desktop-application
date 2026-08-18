@@ -713,7 +713,7 @@
               <rect x="3" y="14" width="7" height="7"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]' }}
+              {{ isRu ? (showMetricsPanel ? '[ ПОКАЗАТЬ_КРИВУЮ_КАПИТАЛА ]' : '[ ОТКРЫТЬ_МЕТРИКИ_СТРАТЕГИИ ]') : (showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]') }}
           </span>
         </button>
 
@@ -731,7 +731,7 @@
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]' }}
+              {{ isRu ? (isEditMode ? '[ ВЫЙТИ_ИЗ_РЕДАКТИРОВАНИЯ ]' : '[ РЕЖИМ_РЕДАКТИРОВАНИЯ ]') : (isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]') }}
             </span>
           </button>
 
@@ -786,7 +786,7 @@
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]' }}
+              {{ isRu ? (showCalendarMode ? '[ ПОКАЗАТЬ_КРИВУЮ_КАПИТАЛА ]' : '[ ПОКАЗАТЬ_КАЛЕНДАРЬ ]') : (showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]') }}
             </span>
           </button>
         </template>
@@ -939,7 +939,7 @@
         >
           <span class="text-[11px] font-black font-mono">{{ calendarValueMode === 'currency' ? '$' : '%' }}</span>
           <span class="pointer-events-none absolute right-full mr-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-            {{ calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]' }}
+            {{ isRu ? (calendarValueMode === 'currency' ? '[ ПОКАЗАТЬ_ПРОЦЕНТЫ ]' : '[ ПОКАЗАТЬ_ВАЛЮТУ ]') : (calendarValueMode === 'currency' ? '[ SHOW_PERCENT ]' : '[ SHOW_CURRENCY ]') }}
           </span>
         </button>
       </div>
