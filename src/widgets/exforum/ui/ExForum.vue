@@ -1293,7 +1293,7 @@
               @click="loadDraft"
             >
               <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-              <span>{{ locale === 'ru' ? 'ПРОДОЛЖИТЬ ЧЕРНОВИК' : 'CONTINUE DRAFT' }}</span>
+              <span>{{ locale === 'ru' ? 'ПРОДОЛЖИТЬ' : 'CONTINUE' }}</span>
             </button>
             <button
               class="flex items-center space-x-2 px-4 py-2 border border-current/20 hover:border-current/40 hover:bg-current/5 transition-all text-[9px] font-mono tracking-widest uppercase rounded-sm text-current/70 hover:text-current/90"
