@@ -35,6 +35,18 @@ const { showTradeSummary, savedTradeSummary } = tradeState;
 const { tradeStudyMetrics, persistGeneratedTradeStudyMetrics } = tradeState;
 const { sanitizeTradeNumberInput, isClosed, tradeTimeZone, tradeTimeZoneOffset, riskInputViolationMessage, actualRiskDollars, currentCapital, violatesTradingStyleDuration, actualTradeDurationLabel, requiredTradingStyleDurationLabel } = tradeState;
 
+const formatTradeResultInput = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number.toFixed(3) : (value ?? '');
+};
+
+const normalizeTradeResultInput = () => {
+  const number = Number(pnl.value);
+  if (resultMode.value === 'manual' && Number.isFinite(number)) {
+    pnl.value = number.toFixed(3);
+  }
+};
+
 const formatRiskValue = (value) => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '--';
 
 const isRiskMessageForField = (message, field) => {
@@ -317,6 +329,20 @@ const formatSummaryPercent = (value) => {
   return `${sign}${Math.abs(number).toFixed(2)}%`;
 };
 
+const formatTradeResultMoney = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '--';
+  const sign = number > 0 ? '+' : number < 0 ? '-' : '';
+  return `${sign}$${Math.abs(number).toFixed(3)}`;
+};
+
+const formatTradeResultPercent = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '--';
+  const sign = number > 0 ? '+' : number < 0 ? '-' : '';
+  return `${sign}${Math.abs(number).toFixed(3)}%`;
+};
+
 const hasPositiveSummaryRiskLevels = (trade) => {
   const entryValue = Number(trade?.entry ?? entry?.value);
   const stopValue = Number(trade?.stopLoss ?? stopLoss?.value);
@@ -349,7 +375,7 @@ const summaryDisplayTrade = computed(() => savedTradeSummary.value || {
 
 const summaryTradeResultLabel = computed(() => {
   const trade = summaryDisplayTrade.value;
-  return `${formatSummaryMoney(trade?.profitInCurrency)} / ${formatSummaryPercent(summaryProfitPercent(trade))}`;
+  return `${formatTradeResultMoney(trade?.profitInCurrency)} / ${formatTradeResultPercent(summaryProfitPercent(trade))}`;
 });
 
 const summaryStrategyLabel = computed(() => {
@@ -851,7 +877,7 @@ const summarySelectedEmotions = computed(() => {
                         </label>
                         <label class="flex flex-col items-start gap-2">
                           <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/45">{{ tr('Результат', 'Trade result') }}</span>
-                          <input :value="pnl" type="text" inputmode="decimal" placeholder="0.00" :disabled="!isClosed" :aria-label="tr('Результат по сделке', 'Trade result')" class="w-full border-b border-white/20 bg-transparent px-0 py-2 font-mono text-sm tracking-[0.18em] text-white outline-none transition-colors placeholder:text-white/30 disabled:opacity-30 focus:border-white/80" :class="resultMode === 'manual' ? 'text-amber-300' : ''" @input="handlePnlInput" />
+                          <input :value="resultMode === 'manual' ? pnl : formatTradeResultInput(pnl)" type="text" inputmode="decimal" placeholder="0.00" :disabled="!isClosed" :aria-label="tr('Результат по сделке', 'Trade result')" class="w-full border-b border-white/20 bg-transparent px-0 py-2 font-mono text-sm tracking-[0.18em] text-white outline-none transition-colors placeholder:text-white/30 disabled:opacity-30 focus:border-white/80" :class="resultMode === 'manual' ? 'text-amber-300' : ''" @input="handlePnlInput" @blur="normalizeTradeResultInput" />
                         </label>
                       </div>
                     </section>

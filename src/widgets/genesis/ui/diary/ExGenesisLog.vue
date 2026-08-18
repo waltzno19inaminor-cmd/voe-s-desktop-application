@@ -2874,7 +2874,9 @@ const initTrades = () => {
     const tradeId = String(trade?.id || '').trim()
     if (tradeId && !uniqueTrades.has(tradeId)) uniqueTrades.set(tradeId, trade)
   })
-  const tradesForCanvas = [...uniqueTrades.values()].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const tradesForCanvas = [...uniqueTrades.values()]
+    .filter((trade) => isClosedDiaryTrade(trade) && Number.isFinite(getTradePnlValue(trade)))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   const nodes: TradeNode[] = []
   graphEdges.value = []
   const isMainDiary = isMainDiaryStrategy.value

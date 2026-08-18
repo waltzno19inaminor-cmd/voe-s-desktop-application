@@ -3850,6 +3850,8 @@ const update = () => {
 
         ctx.lineWidth = 1.5
         ctx.strokeStyle = color
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
         ctx.setLineDash([4, 4])
         ctx.globalAlpha = 0.6
         ctx.beginPath()
@@ -3942,6 +3944,8 @@ const update = () => {
       // --- DRAW MAIN PATH --- //
       ctx.lineWidth = 3
       ctx.strokeStyle = colors.value.accent
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
       ctx.shadowBlur = 15
       ctx.shadowColor = colors.value.accent
       
