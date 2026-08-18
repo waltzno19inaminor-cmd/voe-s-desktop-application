@@ -190,10 +190,19 @@
               type="button"
               class="exforum-board-hud-button"
               :aria-label="locale === 'ru' ? 'Масштаб' : 'Scale'"
+              @mouseenter="openBoardScaleFlyout"
+              @mouseleave="scheduleBoardScaleFlyoutClose"
+              @focusin="openBoardScaleFlyout"
+              @focusout="scheduleBoardScaleFlyoutClose"
             >
               <span class="font-mono text-[9px] tracking-tight">{{ Math.round(boardScale * 100) }}%</span>
             </button>
-            <div class="exforum-board-hud-flyout-content">
+            <div
+              class="exforum-board-hud-flyout-content"
+              :class="{ 'is-open': isBoardScaleFlyoutOpen }"
+              @mouseenter="cancelBoardScaleFlyoutClose"
+              @mouseleave="scheduleBoardScaleFlyoutClose"
+            >
               <div class="exforum-board-hud-panel" :aria-label="locale === 'ru' ? 'Варианты масштаба' : 'Scale options'">
                 <button
                   v-for="zoom in boardScaleOptions"
@@ -2297,6 +2306,8 @@ const boardStrokes = ref<any[]>([])
 const boardPan = ref({ x: 48, y: 36 })
 const boardScale = ref(1)
 const boardScaleOptions = [25, 50, 75, 100, 150, 200]
+const isBoardScaleFlyoutOpen = ref(false)
+let boardScaleFlyoutCloseTimer: ReturnType<typeof setTimeout> | null = null
 const isBoardPreviewReady = ref(false)
 const isBoardFullscreen = ref(false)
 const boardFullscreenViewportStyle = ref<Record<string, string>>({})
@@ -2314,6 +2325,27 @@ const getBoardDevicePixelRatio = () => (
     ? window.devicePixelRatio
     : 1
 )
+
+const cancelBoardScaleFlyoutClose = () => {
+  if (boardScaleFlyoutCloseTimer) {
+    clearTimeout(boardScaleFlyoutCloseTimer)
+    boardScaleFlyoutCloseTimer = null
+  }
+}
+
+const openBoardScaleFlyout = () => {
+  cancelBoardScaleFlyoutClose()
+  isBoardScaleFlyoutOpen.value = true
+}
+
+const scheduleBoardScaleFlyoutClose = () => {
+  cancelBoardScaleFlyoutClose()
+  boardScaleFlyoutCloseTimer = setTimeout(() => {
+    isBoardScaleFlyoutOpen.value = false
+    boardScaleFlyoutCloseTimer = null
+  }, 120)
+}
+
 const snapBoardCssPixel = (value: number) => {
   if (!Number.isFinite(value)) return 0
   const ratio = getBoardDevicePixelRatio()
@@ -4849,6 +4881,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopBoardDrawingMode()
+  if (boardScaleFlyoutCloseTimer) {
+    window.clearTimeout(boardScaleFlyoutCloseTimer)
+    boardScaleFlyoutCloseTimer = null
+  }
   if (boardDrawingRenderFrame !== null) {
     window.cancelAnimationFrame(boardDrawingRenderFrame)
     boardDrawingRenderFrame = null
@@ -5033,6 +5069,8 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 
 .exforum-board-hud-flyout {
   position: relative;
+  width: max-content;
+  height: max-content;
   pointer-events: auto;
 }
 
@@ -5043,6 +5081,7 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   z-index: 20;
   padding-bottom: 10px;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
   transform: translateX(-50%) translateY(4px);
   transition:
@@ -5054,9 +5093,9 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   flex-direction: column;
 }
 
-.exforum-board-hud-flyout:hover .exforum-board-hud-flyout-content,
-.exforum-board-hud-flyout:focus-within .exforum-board-hud-flyout-content {
+.exforum-board-hud-flyout-content.is-open {
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
   transform: translateX(-50%) translateY(0);
 }

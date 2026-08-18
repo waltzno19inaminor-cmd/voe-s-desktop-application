@@ -16,11 +16,6 @@
           <div class="absolute h-full w-4 bg-white/40 blur-sm animate-scan"></div>
        </div>
 
-       <div class="flex flex-col items-center space-y-1 opacity-40 text-theme-text relative z-10">
-          <span class="text-[7px] font-mono tracking-widest uppercase">{{ t('matrix.bootSystemCode') }}: 0x44 REIFY</span>
-          <span class="text-[7px] font-mono tracking-widest uppercase">{{ t('matrix.bootMatrixStability') }}: {{ Math.min(100, Math.round(bootProgress)) }}%</span>
-       </div>
-
        <!-- Scanline effect for boot -->
        <div class="absolute inset-0 pointer-events-none opacity-5 animate-scan bg-gradient-to-b from-transparent via-theme-text to-transparent h-[2px] z-10"></div>
     </div>

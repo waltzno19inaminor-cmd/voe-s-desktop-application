@@ -98,7 +98,7 @@
               v-if="isRiskPanel"
               class="cursor-pointer pointer-events-auto"
               :style="riskPanelShellStyle"
-              @click.stop="$emit('click')">
+              @click.stop="handleRiskPanelClick">
               <div :style="riskPanelScalerStyle">
                 <ExPanel
                   variant="light"
@@ -122,7 +122,7 @@
                     <label class="risk-panel-field">
                       <span>{{ t('matrix.riskTrade') }}</span>
                       <div class="risk-panel-control">
-                        <input v-model.number="riskParams.riskLossTrade" type="number" step="0.1" @change="commitRiskPanel" />
+                        <input v-model.number="riskParams.riskLossTrade" type="number" step="0.1" @mousedown.stop @change="commitRiskPanel" />
                         <button @click="toggleRiskUnit('riskLossTradeUnit')" @mousedown.stop>{{ riskParams.riskLossTradeUnit }}</button>
                       </div>
                     </label>
@@ -130,7 +130,7 @@
                     <label class="risk-panel-field">
                       <span>{{ t('matrix.riskSession') }}</span>
                       <div class="risk-panel-control">
-                        <input v-model.number="riskParams.riskLossDay" type="number" step="0.1" @change="commitRiskPanel" />
+                        <input v-model.number="riskParams.riskLossDay" type="number" step="0.1" @mousedown.stop @change="commitRiskPanel" />
                         <button @click="toggleRiskUnit('riskLossDayUnit')" @mousedown.stop>{{ riskParams.riskLossDayUnit }}</button>
                       </div>
                     </label>
@@ -139,7 +139,7 @@
                       <span>{{ t('matrix.riskReward') }}</span>
                       <div class="risk-panel-control">
                         <span class="risk-panel-prefix">1:</span>
-                        <input v-model.number="riskParams.riskRR" type="number" step="0.1" @change="commitRiskPanel" />
+                        <input v-model.number="riskParams.riskRR" type="number" step="0.1" @mousedown.stop @change="commitRiskPanel" />
                       </div>
                     </label>
 
@@ -1031,7 +1031,14 @@ let audioAnimationId = 0
 
 function commitRiskPanel() {
   changeTree.recordRiskManagementChanged(props.node)
+  state.activeMenuCategory.value = null
   emit('moved')
+}
+
+function handleRiskPanelClick(event: MouseEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('input, button')) return
+  emit('click')
 }
 
 function toggleRiskUnit(key: 'riskLossTradeUnit' | 'riskLossDayUnit') {
