@@ -8,6 +8,8 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "hotfix:package": "node scripts/create-hotfix-patch.mjs",
+    "payload:manifest": "node scripts/create-payload-manifest.mjs",
     "postinstall": "nuxt prepare",
     "tauri": "tauri"
   },
@@ -28,8 +30,11 @@
     "@types/jszip": "^3.4.0",
     "browser-image-compression": "^2.0.2",
     "chart.js": "^4.5.1",
+    "d3-force-3d": "^3.0.6",
     "dompurify": "^3.3.3",
     "firebase": "^12.7.0",
+    "force-graph": "^1.51.4",
+    "gradflow": "^0.2.0",
     "graphology": "^0.26.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
@@ -37,6 +42,8 @@
     "nuxt": "^4.2.2",
     "nuxt-charts": "^2.1.2",
     "pinia": "^3.0.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "sigma": "^3.0.2",
     "uuid": "^13.0.0",
     "vue": "^3.5.25",
@@ -45,6 +52,8 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.0",
+    "@types/react": "^19.1.12",
+    "@types/react-dom": "^19.1.9",
     "@types/uuid": "^10.0.0"
   }
 }

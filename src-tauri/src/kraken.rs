@@ -40,20 +40,40 @@ pub struct KrakenSignedRequestOutput {
 }
 
 #[tauri::command]
-pub async fn kraken_signed_request(input: KrakenSignedRequestInput) -> Result<KrakenSignedRequestOutput, String> {
-    let base_url = input.credentials.base_url.as_deref().unwrap_or(KRAKEN_BASE_URL);
+pub async fn kraken_signed_request(
+    input: KrakenSignedRequestInput,
+) -> Result<KrakenSignedRequestOutput, String> {
+    let base_url = input
+        .credentials
+        .base_url
+        .as_deref()
+        .unwrap_or(KRAKEN_BASE_URL);
     let nonce = current_nonce()?;
     let mut params = input.params.unwrap_or_default();
     params.insert("nonce".to_string(), Value::String(nonce.clone()));
 
     let post_data = to_form_body(&params);
-    let signature = create_signature(&input.path, &nonce, &post_data, &input.credentials.api_secret)?;
+    let signature = create_signature(
+        &input.path,
+        &nonce,
+        &post_data,
+        &input.credentials.api_secret,
+    )?;
     let final_url = format!("{}{}", base_url.trim_end_matches('/'), input.path);
 
     let mut headers = HeaderMap::new();
-    headers.insert("API-Key", HeaderValue::from_str(&input.credentials.api_key).map_err(|err| err.to_string())?);
-    headers.insert("API-Sign", HeaderValue::from_str(&signature).map_err(|err| err.to_string())?);
-    headers.insert("Content-Type", HeaderValue::from_static("application/x-www-form-urlencoded"));
+    headers.insert(
+        "API-Key",
+        HeaderValue::from_str(&input.credentials.api_key).map_err(|err| err.to_string())?,
+    );
+    headers.insert(
+        "API-Sign",
+        HeaderValue::from_str(&signature).map_err(|err| err.to_string())?,
+    );
+    headers.insert(
+        "Content-Type",
+        HeaderValue::from_static("application/x-www-form-urlencoded"),
+    );
 
     let client = reqwest::Client::new();
     let response = client
@@ -83,7 +103,11 @@ pub async fn kraken_signed_request(input: KrakenSignedRequestInput) -> Result<Kr
                 .filter_map(Value::as_str)
                 .collect::<Vec<_>>()
                 .join(", ");
-            return Err(if message.is_empty() { "Kraken API error".to_string() } else { message });
+            return Err(if message.is_empty() {
+                "Kraken API error".to_string()
+            } else {
+                message
+            });
         }
     }
 
@@ -91,15 +115,26 @@ pub async fn kraken_signed_request(input: KrakenSignedRequestInput) -> Result<Kr
 }
 
 #[tauri::command]
-pub async fn kraken_futures_signed_request(input: KrakenFuturesSignedRequestInput) -> Result<KrakenSignedRequestOutput, String> {
-    let base_url = input.credentials.base_url.as_deref().unwrap_or("https://futures.kraken.com");
+pub async fn kraken_futures_signed_request(
+    input: KrakenFuturesSignedRequestInput,
+) -> Result<KrakenSignedRequestOutput, String> {
+    let base_url = input
+        .credentials
+        .base_url
+        .as_deref()
+        .unwrap_or("https://futures.kraken.com");
     let nonce = current_nonce()?;
     let params = input.params.unwrap_or_default();
     let query_string = to_form_body(&params);
     let final_url = if query_string.is_empty() {
         format!("{}{}", base_url.trim_end_matches('/'), input.path)
     } else {
-        format!("{}{}?{}", base_url.trim_end_matches('/'), input.path, query_string)
+        format!(
+            "{}{}?{}",
+            base_url.trim_end_matches('/'),
+            input.path,
+            query_string
+        )
     };
     let client = reqwest::Client::new();
     let mut signature_paths = vec![futures_signature_path(&input.path)];
@@ -110,12 +145,26 @@ pub async fn kraken_futures_signed_request(input: KrakenFuturesSignedRequestInpu
     let mut last_error = "Kraken Futures API error".to_string();
 
     for signature_path in signature_paths {
-        let signature = create_futures_signature(&signature_path, &nonce, &query_string, &input.credentials.api_secret)?;
+        let signature = create_futures_signature(
+            &signature_path,
+            &nonce,
+            &query_string,
+            &input.credentials.api_secret,
+        )?;
 
         let mut headers = HeaderMap::new();
-        headers.insert("APIKey", HeaderValue::from_str(&input.credentials.api_key).map_err(|err| err.to_string())?);
-        headers.insert("Authent", HeaderValue::from_str(&signature).map_err(|err| err.to_string())?);
-        headers.insert("Nonce", HeaderValue::from_str(&nonce).map_err(|err| err.to_string())?);
+        headers.insert(
+            "APIKey",
+            HeaderValue::from_str(&input.credentials.api_key).map_err(|err| err.to_string())?,
+        );
+        headers.insert(
+            "Authent",
+            HeaderValue::from_str(&signature).map_err(|err| err.to_string())?,
+        );
+        headers.insert(
+            "Nonce",
+            HeaderValue::from_str(&nonce).map_err(|err| err.to_string())?,
+        );
 
         let response = client
             .get(&final_url)
@@ -148,7 +197,13 @@ pub async fn kraken_futures_signed_request(input: KrakenFuturesSignedRequestInpu
             let message = payload
                 .get("error")
                 .and_then(Value::as_str)
-                .or_else(|| payload.get("errors").and_then(Value::as_array).and_then(|items| items.first()).and_then(Value::as_str))
+                .or_else(|| {
+                    payload
+                        .get("errors")
+                        .and_then(Value::as_array)
+                        .and_then(|items| items.first())
+                        .and_then(Value::as_str)
+                })
                 .unwrap_or("Kraken Futures API error");
             last_error = message.to_string();
             if is_futures_auth_error(&last_error) {
@@ -171,7 +226,12 @@ fn current_nonce() -> Result<String, String> {
     Ok(duration.as_micros().to_string())
 }
 
-fn create_signature(path: &str, nonce: &str, post_data: &str, api_secret: &str) -> Result<String, String> {
+fn create_signature(
+    path: &str,
+    nonce: &str,
+    post_data: &str,
+    api_secret: &str,
+) -> Result<String, String> {
     let decoded_secret = general_purpose::STANDARD
         .decode(api_secret.trim())
         .map_err(|_| "Kraken API secret must be base64 encoded.".to_string())?;
@@ -189,7 +249,12 @@ fn create_signature(path: &str, nonce: &str, post_data: &str, api_secret: &str) 
     Ok(general_purpose::STANDARD.encode(digest))
 }
 
-fn create_futures_signature(path: &str, nonce: &str, post_data: &str, api_secret: &str) -> Result<String, String> {
+fn create_futures_signature(
+    path: &str,
+    nonce: &str,
+    post_data: &str,
+    api_secret: &str,
+) -> Result<String, String> {
     let decoded_secret = general_purpose::STANDARD
         .decode(api_secret.trim())
         .map_err(|_| "Kraken Futures API secret must be base64 encoded.".to_string())?;
@@ -261,7 +326,11 @@ fn to_form_body(params: &BTreeMap<String, Value>) -> String {
     for (key, value) in params.iter().filter(|(key, _)| key.as_str() != "nonce") {
         if let Some(value) = value_to_form_string(value) {
             if !value.is_empty() {
-                pairs.push(format!("{}={}", percent_encode(key), percent_encode(&value)));
+                pairs.push(format!(
+                    "{}={}",
+                    percent_encode(key),
+                    percent_encode(&value)
+                ));
             }
         }
     }

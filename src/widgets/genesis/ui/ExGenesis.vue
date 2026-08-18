@@ -7,7 +7,7 @@
       <!-- MODE SELECTION SCREEN -->
       <div v-if="!currentMode" key="selection" class="flex flex-col items-center justify-center h-full space-y-16">
         <div class="flex flex-col items-center space-y-4">
-          <div class="text-[10px] font-mono tracking-[0.8em] opacity-30 uppercase animate-pulse">0x00 // SYSTEM_INITIALIZATION</div>
+          <div class="text-[10px] font-mono tracking-[0.8em] opacity-30 uppercase animate-pulse">0x00 // {{ tr('ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ', 'SYSTEM INITIALIZATION') }}</div>
           <h2 class="text-4xl font-serif italic tracking-tight opacity-80 pr-2">Genesis Protocol</h2>
         </div>
 
@@ -17,7 +17,7 @@
                   class="selection-card group relative overflow-hidden border border-current/20 p-12 transition-all duration-700 hover:border-current/60">
             <div class="flex flex-col items-center space-y-6 relative z-10 w-48">
               <div class="w-2 h-2 border border-current rotate-45 mb-4 group-hover:bg-current transition-colors"></div>
-              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x01 // VIRTUAL_LOG</span>
+              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x01 // {{ tr('ВРЕМЕННЫЙ ЖУРНАЛ', 'VIRTUAL LOG') }}</span>
               <p class="text-[9px] font-serif italic opacity-20 text-center leading-relaxed group-hover:opacity-60 transition-opacity">
                 "Simple recording of tactical thoughts and daily reflections."
               </p>
@@ -35,7 +35,7 @@
                  <div class="w-1.5 h-1.5 border border-current rotate-45"></div>
                  <div class="w-1.5 h-1.5 border border-current rotate-45"></div>
               </div>
-              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x02 // GENESIS_DIARY</span>
+              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x02 // {{ tr('ДНЕВНИК ГЕНЕЗИСА', 'GENESIS DIARY') }}</span>
               <p class="text-[9px] font-serif italic opacity-20 text-center leading-relaxed group-hover:opacity-60 transition-opacity">
                 "Chronological narrative of strategy evolution and core journal."
               </p>
@@ -54,7 +54,7 @@
                 <div class="w-2 h-2 border border-current rotate-45"></div>
                 <div class="w-2 h-2 border border-current rotate-45"></div>
               </div>
-              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x03 // GENESIS_MATRIX</span>
+              <span class="text-[11px] font-mono tracking-[0.4em] uppercase opacity-40 group-hover:opacity-100">0x03 // {{ tr('МАТРИЦА ГЕНЕЗИСА', 'GENESIS MATRIX') }}</span>
               <p class="text-[9px] font-serif italic opacity-20 text-center leading-relaxed group-hover:opacity-60 transition-opacity">
                 "Advanced reification of skill-based trading protocols."
               </p>
@@ -65,7 +65,7 @@
 
         <div class="flex flex-col items-center space-y-2 opacity-10">
           <div class="w-px h-16 bg-current"></div>
-          <span class="text-[8px] font-mono tracking-widest uppercase italic">Wait for user input...</span>
+          <span class="text-[8px] font-mono tracking-widest uppercase italic">{{ tr('Ожидание ввода пользователя...', 'Wait for user input...') }}</span>
         </div>
       </div>
 
@@ -75,9 +75,9 @@
           <div class="flex items-center space-x-6">
             <span class="text-[10px] font-mono tracking-widest uppercase opacity-60">
               {{ 
-                currentMode === 'diary' ? 'VIRTUAL_LOG' : 
-                currentMode === 'genesis-diary' ? 'GENESIS_DIARY' : 
-                'GENESIS_MATRIX' 
+                currentMode === 'diary' ? tr('ВРЕМЕННЫЙ ЖУРНАЛ', 'VIRTUAL LOG') :
+                currentMode === 'genesis-diary' ? tr('ДНЕВНИК ГЕНЕЗИСА', 'GENESIS DIARY') :
+                tr('МАТРИЦА ГЕНЕЗИСА', 'GENESIS MATRIX')
               }}
             </span>
           </div>
@@ -148,6 +148,10 @@
            </Transition>
         </div>
 
+        <!-- Bottom Left Label -->
+        <div v-if="currentMode" class="fixed bottom-8 left-8 text-[10px] font-mono tracking-widest uppercase opacity-40 pointer-events-none z-[100]">
+          {{ tr('Нажмите левую стрелку, чтобы вернуться', 'Click the left arrow to go back') }}
+        </div>
       </div>
 
     </Transition>
@@ -159,16 +163,24 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ExGenesisDiary from './ExGenesisDiary.vue'
-import ExGenesisMatrix from './ExGenesisMatrix.vue'
-import ExGenesisVirtualLog from './ExGenesisVirtualLog.vue'
-import ExPaywallOverlay from './ExPaywallOverlay.vue'
+import ExGenesisDiary from './diary/ExGenesisDiary.vue'
+import ExGenesisMatrix from './matrix/ExGenesisMatrix.vue'
+import ExGenesisVirtualLog from './diary/ExGenesisVirtualLog.vue'
+import ExPaywallOverlay from './common/ExPaywallOverlay.vue'
 import { useThemeStore } from '@/features/store/useTheme'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
+import { useI18n } from '~/shared/i18n/useI18n'
 import { useAuthStore } from '~/entities/user/auth.store'
+import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
+
+const genesisTrades = useGenesisTrades()
+const genesisMatrix = useGenesisMatrixData()
+
 
 const themeStore = useThemeStore()
 const authStore = useAuthStore()
+const { locale } = useI18n()
+const tr = (ru: string, en: string) => locale.value === 'ru' ? ru : en
 const genesisContainer = ref<HTMLElement | null>(null)
 useDomI18n(genesisContainer, 'genesis.dom')
 
@@ -264,6 +276,8 @@ const backToOrigin = () => {
 }
 
 onMounted(() => {
+  genesisTrades.init()
+  genesisMatrix.loadMatrix()
   syncModeFromRoute()
   window.addEventListener('keydown', handleKeydown)
 })

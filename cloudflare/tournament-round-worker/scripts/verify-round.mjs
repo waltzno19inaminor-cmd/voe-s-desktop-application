@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 
-const [yahooSymbol, startsAtValue, endsAtValue, timeWindowValue] = process.argv.slice(2)
+const [yahooSymbol, startsAtValue, endsAtValue, timeWindowValue, sessionValue = 'UTC_24H'] = process.argv.slice(2)
 
 if (!yahooSymbol || !startsAtValue || !endsAtValue || !timeWindowValue) {
-  console.error('Usage: node scripts/verify-round.mjs EURUSD=X 2026-07-29T13:30:00Z 2026-07-29T14:30:00Z 120')
+  console.error('Usage: node scripts/verify-round.mjs EURUSD=X 2026-07-29T13:30:00Z 2026-07-29T14:30:00Z 120 UTC_24H')
   process.exit(1)
 }
 
 const startsAtMs = Date.parse(startsAtValue)
 const endsAtMs = Date.parse(endsAtValue)
 const timeWindowMinutes = Number(timeWindowValue)
+const session = sessionValue.toUpperCase()
 const minuteMs = 60_000
 const candleIntervalMs = 30 * minuteMs
 
@@ -18,6 +19,9 @@ if (!Number.isFinite(startsAtMs) || !Number.isFinite(endsAtMs) || endsAtMs <= st
 }
 if (!Number.isInteger(timeWindowMinutes) || timeWindowMinutes <= 0) {
   throw new Error('timeWindow must be a positive integer in minutes.')
+}
+if (session !== 'NYSE' && session !== 'UTC_24H') {
+  throw new Error('session must be NYSE or UTC_24H.')
 }
 
 const cutoffMs = endsAtMs + timeWindowMinutes * minuteMs
@@ -32,7 +36,7 @@ const query = new URLSearchParams({
   period1: String(Math.floor((startsAtMs - candleIntervalMs) / 1000)),
   period2: String(Math.ceil((cutoffMs + candleIntervalMs) / 1000)),
   interval: '30m',
-  includePrePost: 'true',
+  includePrePost: session === 'NYSE' ? 'false' : 'true',
   events: 'div,splits',
   lang: 'en-US',
   region: 'US'
@@ -60,8 +64,11 @@ const candles = chart.timestamp.map((timestamp, index) => ({
 ))
 
 const startCandle = candles.find((candle) => candle.timestampMs === startsAtMs - candleIntervalMs)
+  || candles.find((candle) => candle.timestampMs === startsAtMs)
 const finalCandle = candles.find((candle) => candle.timestampMs === cutoffMs - candleIntervalMs)
-if (!startCandle || !finalCandle) throw new Error('Yahoo has no exact 30-minute candle closing at startsAt or endsAt + timeWindow.')
+if (!startCandle || !finalCandle) {
+  throw new Error('Yahoo has no exact 30-minute candle ending at startsAt/starting at startsAt, or ending at endsAt + timeWindow.')
+}
 
 const initialPrice = startCandle.close
 const finalPrice = finalCandle.close
@@ -69,6 +76,7 @@ if (initialPrice === finalPrice) throw new Error('Initial and final closes are e
 const verdict = finalPrice > initialPrice ? 'LONG' : 'SHORT'
 console.log(JSON.stringify({
   yahooSymbol,
+  session,
   startsAt: new Date(startsAtMs).toISOString(),
   endsAt: new Date(endsAtMs).toISOString(),
   evaluationEndsAt: new Date(cutoffMs).toISOString(),

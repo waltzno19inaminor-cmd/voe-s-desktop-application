@@ -1,8 +1,9 @@
 <template>
-  <div
+  <div 
     v-if="isTauri"
     v-show="!isFullscreen"
     @mousedown="startDrag"
+    :class="{ 'is-gradflow-loading': !isGradflowReady }"
     class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[99999] transition-colors"
   >
     <div class="titlebar-surface" aria-hidden="true"></div>
@@ -11,7 +12,6 @@
         type="button"
         @click="minimize" 
         class="window-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
-        title="Minimize"
       >
         <Icon name="lucide:minus" class="w-4 h-4" />
       </button>
@@ -19,7 +19,6 @@
         type="button"
         @click="toggleFullscreen" 
         class="window-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
-        title="Fullscreen"
       >
         <Icon name="lucide:maximize" class="w-3.5 h-3.5" />
       </button>
@@ -27,7 +26,6 @@
         type="button"
         @click="close" 
         class="window-control close-control inline-flex justify-center items-center w-12 h-full cursor-pointer transition-colors"
-        title="Close"
       >
         <Icon name="lucide:x" class="w-4 h-4" />
       </button>
@@ -39,9 +37,14 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 
 const appWindow = ref(null)
-const isTauri = ref(false)
 const isFullscreen = useState('isFullscreen', () => false)
+const isTauri = ref(false)
+const isGradflowReady = ref(false)
 let unlistenResize = null
+
+const handleGradflowReady = () => {
+  isGradflowReady.value = true
+}
 
 const handleKeydown = async (e) => {
   if (e.key === 'Escape' && isFullscreen.value && appWindow.value) {
@@ -56,6 +59,8 @@ const handleKeydown = async (e) => {
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeydown)
+  window.addEventListener('gradflow:ready', handleGradflowReady)
+  if (window.__gradflowReady) isGradflowReady.value = true
   if (!window.__TAURI_INTERNALS__) return
 
   try {
@@ -70,13 +75,14 @@ onMounted(async () => {
         isFullscreen.value = await appWindow.value.isFullscreen()
       }
     })
-  } catch (error) {
+  } catch {
     isTauri.value = false
   }
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
+  window.removeEventListener('gradflow:ready', handleGradflowReady)
   if (unlistenResize) {
     unlistenResize()
   }
@@ -132,15 +138,13 @@ const close = async () => {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background:
-    linear-gradient(
-      to bottom,
-      rgb(var(--theme-bg-rgb) / 0.28),
-      rgb(var(--theme-bg-rgb) / 0.12) 62%,
-      transparent
-    );
-  backdrop-filter: blur(10px) saturate(130%);
-  -webkit-backdrop-filter: blur(10px) saturate(130%);
+  background: transparent;
+  transition: background-color 500ms ease, backdrop-filter 500ms ease;
+}
+
+.titlebar-panel.is-gradflow-loading .titlebar-surface {
+  background: rgb(255 255 255 / 0.08);
+  backdrop-filter: blur(6px);
 }
 
 .window-control {

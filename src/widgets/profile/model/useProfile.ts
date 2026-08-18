@@ -1,11 +1,11 @@
-import { ref, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { getAuth, updateProfile, signOut } from 'firebase/auth'
 import { doc, getDoc, runTransaction, setDoc } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useRouter } from 'vue-router'
-import type { UserProfileStatus, UserStatusVisualPreset } from '~/entities/user/model/user-status.types'
+import { normalizeUserProfileStatuses, type UserProfileStatus } from '~/entities/user/model/user-status.types'
 
 export type ProfileTab = 'PROFILE' | 'APPEARANCE'
 
@@ -24,55 +24,43 @@ export function useProfile() {
   const isLoadingStatuses = ref(false)
   const isSelectingStatus = ref(false)
   const statusSelectionMessage = ref('')
-
-  const normalizeStatuses = (value: unknown): UserProfileStatus[] => {
-    if (!Array.isArray(value)) return []
-
-    return value.reduce<UserProfileStatus[]>((statuses, rawStatus) => {
-      if (!rawStatus || typeof rawStatus !== 'object' || Array.isArray(rawStatus)) return statuses
-
-      const raw = rawStatus as Record<string, unknown>
-      const name = typeof raw.name === 'string' ? raw.name.trim() : ''
-      if (!name) return statuses
-
-      const preset = Number(raw.visualPreset)
-      const visualPreset: UserStatusVisualPreset = Number.isInteger(preset) && preset >= 0 && preset <= 3
-        ? preset as UserStatusVisualPreset
-        : 3
-
-      statuses.push({
-        name,
-        visualPreset,
-        granted: raw.granted,
-        isSelected: raw.isSelected === true
-      })
-      return statuses
-    }, [])
-  }
+  let profileLoadRequestId = 0
 
   const loadProfile = async () => {
+    const requestId = ++profileLoadRequestId
+    const userId = authStore.user?.uid
+
+    if (!userId) {
+      profileStatuses.value = []
+      isLoadingStatuses.value = false
+      return
+    }
+
     isLoadingStatuses.value = true
     profileStatuses.value = []
     statusSelectionMessage.value = ''
 
     try {
-      if (!authStore.user) return
-
       displayName.value = authStore.user.displayName || ''
       try {
-        const userDoc = await getDoc(doc(db, 'users', authStore.user.uid))
+        const userDoc = await getDoc(doc(db, 'users', userId))
+        if (requestId !== profileLoadRequestId) return
+
         if (userDoc.exists()) {
           const data = userDoc.data()
           if (data.description) {
             description.value = data.description
           }
-          profileStatuses.value = normalizeStatuses(data.status)
+          profileStatuses.value = normalizeUserProfileStatuses(data.status)
         }
       } catch (e) {
+        if (requestId !== profileLoadRequestId) return
         console.error('Failed to load user profile description', e)
       }
     } finally {
-      isLoadingStatuses.value = false
+      if (requestId === profileLoadRequestId) {
+        isLoadingStatuses.value = false
+      }
     }
   }
 
@@ -92,7 +80,7 @@ export function useProfile() {
           throw new Error('User profile does not exist.')
         }
 
-        const currentStatuses = normalizeStatuses(userSnapshot.data().status)
+        const currentStatuses = normalizeUserProfileStatuses(userSnapshot.data().status)
         const targetIndex = currentStatuses.findIndex((status) => status.name === statusName)
         if (targetIndex < 0) {
           throw new Error('This status is no longer available.')
@@ -187,9 +175,16 @@ export function useProfile() {
     }
   }
 
-  onMounted(() => {
-    loadProfile()
-  })
+  watch(() => authStore.user?.uid, (userId) => {
+    if (userId) {
+      void loadProfile()
+      return
+    }
+
+    profileLoadRequestId += 1
+    profileStatuses.value = []
+    isLoadingStatuses.value = false
+  }, { immediate: true })
 
   return {
     activeTab,

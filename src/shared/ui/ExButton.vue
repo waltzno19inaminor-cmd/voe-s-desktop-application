@@ -11,8 +11,8 @@
   >
     <!-- GHOST HOVER SLIDE (Nier-style) -->
     <template v-if="variant === 'ghost'">
-      <div class="absolute inset-0 bg-nier-text-light dark:bg-nier-text-dark -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out z-0"></div>
-      <span class="relative z-10 font-mono uppercase font-black transition-colors duration-300 group-hover:text-nier-white dark:group-hover:text-nier-black">
+      <div class="absolute inset-0 bg-nier-text-light dark:bg-[#F6F0E6] -translate-x-full group-hover:translate-x-0 transition-transform duration-500 ease-out z-0"></div>
+      <span class="relative z-10 font-mono uppercase font-black transition-colors duration-300 group-hover:text-nier-white dark:group-hover:text-[#0A0A0A]">
         <slot></slot>
       </span>
     </template>
@@ -20,7 +20,7 @@
     <!-- TACTICAL ACCENTS -->
     <template v-else-if="variant === 'tactical'">
       <ExGothicCorners variant="light" :opacity="0.6" class="transition-opacity duration-500 group-hover:opacity-100" />
-      <div class="absolute inset-0 border border-nier-text-light/10 dark:border-nier-text-dark/10 m-1"></div>
+      <div class="absolute inset-0 border border-nier-text-light/10 dark:border-[#F6F0E6]/10 m-1"></div>
       
       <!-- Ghost container to reserve space and prevent layout shift -->
       <div class="relative flex items-center justify-center">
@@ -67,9 +67,9 @@ defineProps({
 defineEmits(['click'])
 
 const variantClasses = {
-  solid: 'group bg-nier-text-light dark:bg-nier-text-dark text-nier-white dark:text-nier-black border border-nier-text-light dark:border-nier-text-dark hover:opacity-90 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]',
-  ghost: 'group border border-nier-text-light dark:border-nier-text-dark bg-nier-white dark:bg-nier-black text-nier-text-light dark:text-nier-text-dark',
-  tactical: 'group px-10 py-4 bg-transparent text-nier-text-light dark:text-nier-text-dark border-2 border-nier-border-light dark:border-nier-border-dark hover:border-nier-text-light dark:hover:border-nier-text-dark'
+  solid: 'group bg-nier-text-light dark:bg-[#F6F0E6] text-nier-white dark:text-[#0A0A0A] border border-nier-text-light dark:border-[#F6F0E6] hover:opacity-90 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_30px_rgba(255,255,255,0.2)]',
+  ghost: 'group border border-nier-text-light dark:border-[#F6F0E6] bg-nier-white dark:bg-nier-black text-nier-text-light dark:text-[#F6F0E6]',
+  tactical: 'group px-10 py-4 bg-transparent text-nier-text-light dark:text-[#F6F0E6] border-2 border-nier-border-light dark:border-[#F6F0E6]/20 hover:border-nier-text-light dark:hover:border-[#F6F0E6]'
 }
 
 const sizeClasses = {

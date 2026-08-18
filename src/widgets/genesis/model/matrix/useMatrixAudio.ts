@@ -83,7 +83,7 @@ export function useMatrixAudio(state: ReturnType<typeof useMatrixState>) {
   }
 
   function createAudioNodeFromRecording(params: { audioName: string; audioType: string; audioDataUrl: string }) {
-    state.addNode({
+    const nodeConfig = {
       label: 'AUDIO_NOTE',
       type: 'audio-note',
       color: 'currentColor',
@@ -95,7 +95,16 @@ export function useMatrixAudio(state: ReturnType<typeof useMatrixState>) {
         description: 'Recorded audio note for scenario archive.',
         ...params
       }
-    })
+    }
+    const selectedNode = state.lastSelectedId.value
+      ? state.getNode(state.lastSelectedId.value)
+      : null
+
+    if (selectedNode?.type === 'placeholder') {
+      state.setPendingNode(nodeConfig)
+    } else {
+      state.addNode(nodeConfig)
+    }
   }
 
   async function startMatrixAudioRecording() {

@@ -74,7 +74,7 @@ export const ensureDataDir = async (): Promise<string> => {
 };
 
 /**
- * Saves a JSON object to a file in the JLJData directory.
+ * Saves a JSON object to a file in the JLJData directory or falls back to localStorage.
  * @param fileName Name of the file (without .json extension)
  * @param data Data to save
  */
@@ -86,7 +86,7 @@ export const saveToDisk = async (fileName: string, data: any): Promise<void> => 
             const dataPath = await ensureDataDir();
             const path = await join(dataPath, `${fileName}.json`);
             await writeTextFile(path, content);
-
+            
             if (!isBackupKey(fileName)) {
                 const backupPath = await join(dataPath, `${getBackupKey(fileName)}.json`);
                 await writeTextFile(backupPath, content);
@@ -98,15 +98,14 @@ export const saveToDisk = async (fileName: string, data: any): Promise<void> => 
         console.error(`[DiskStorage] Error saving ${fileName}:`, error);
         try {
             saveLocalStorageJson(fileName, content);
-        } catch (fallbackError) {
-            console.error('[DiskStorage] LocalStorage fallback failed:', fallbackError);
-            await message(`Failed to save ${fileName}: ${error.message || error}`, { title: 'Save Error', kind: 'error' });
+        } catch (e) {
+            console.error('[DiskStorage] LocalStorage fallback failed:', e);
         }
     }
 };
 
 /**
- * Loads a JSON object from a file in the JLJData directory.
+ * Loads a JSON object from a file in the JLJData directory or falls back to localStorage.
  * @param fileName Name of the file (without .json extension)
  */
 export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
@@ -115,12 +114,12 @@ export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
         const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__;
         if (isTauri) {
             const dataPath = await ensureDataDir();
-
+            
             for (const candidate of candidates) {
                 const path = await join(dataPath, `${candidate}.json`);
                 const fileExists = await exists(path);
                 if (!fileExists) continue;
-
+                
                 try {
                     const content = await readTextFile(path);
                     return JSON.parse(content) as T;
@@ -128,7 +127,7 @@ export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
                     console.error(`[DiskStorage] Failed to read ${candidate}.json:`, error);
                 }
             }
-
+            
             for (const candidate of candidates) {
                 try {
                     const localData = readLocalStorageJson<T>(candidate);
@@ -137,10 +136,10 @@ export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
                     console.error(`[DiskStorage] Failed to read localStorage ${candidate}:`, error);
                 }
             }
-
+            
             return null;
         }
-
+        
         for (const candidate of candidates) {
             try {
                 const localData = readLocalStorageJson<T>(candidate);
@@ -149,7 +148,7 @@ export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
                 console.error(`[DiskStorage] Failed to read localStorage ${candidate}:`, error);
             }
         }
-
+        
         return null;
     } catch (error: any) {
         console.error(`Error loading ${fileName} from disk:`, error);
@@ -175,7 +174,7 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
             removeLocalStorageJson(fileName);
             return;
         }
-
+        
         const dataPath = await ensureDataDir();
         for (const candidate of getStorageCandidates(fileName)) {
             const path = await join(dataPath, `${candidate}.json`);

@@ -5,7 +5,6 @@
       <div v-if="node.author" class="flex items-center space-x-4 text-[10px] font-mono tracking-[0.2em] font-semibold text-current/80 uppercase">
         <div class="flex items-center space-x-2">
            <span>{{ node.author }}</span>
-           <ExUserStatusBadge v-if="node.authorStatus" :status="node.authorStatus" />
         </div>
       </div>
 
@@ -46,7 +45,6 @@
 import { computed } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import type { ExNode } from '../../../entities/exnode/model/exnode.types'
-import ExUserStatusBadge from '~/entities/user/ui/ExUserStatusBadge.vue'
 
 defineProps<{
   node: ExNode

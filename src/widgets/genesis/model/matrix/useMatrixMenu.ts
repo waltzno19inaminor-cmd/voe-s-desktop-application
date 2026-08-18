@@ -8,17 +8,141 @@ import {
   type MatrixIndicatorCategory
 } from '@/shared/api/fundamentalIndicators.service'
 import { useI18n } from '~/shared/i18n/useI18n'
-import { preloadImageUrls } from './useMatrixImagePreload'
+import { useMatrixChangeTree } from './useMatrixChangeTree'
 
 export type TextFormatPreset = 'h' | 'p' | 'quote'
 
 export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   const { locale, t } = useI18n()
+  const changeTree = state.changeTree
+  const cloneMatrixValue = <T>(value: T): T => {
+    return JSON.parse(JSON.stringify(value))
+  }
+
+  function stripFundamentalIndicatorSource(indicator: any) {
+    if (!indicator?.params?.fundamental) return indicator
+    const params = { ...(indicator.params || {}) }
+    delete params.source
+    return {
+      ...indicator,
+      params
+    }
+  }
+
+  function sanitizeIndicatorCategory(category: MatrixIndicatorCategory): MatrixIndicatorCategory {
+    if (String(category.id || '').toUpperCase() !== 'FUNDAMENTAL') return category
+    return {
+      ...category,
+      indicators: (category.indicators || []).map(stripFundamentalIndicatorSource)
+    }
+  }
+
+  function createDirectNodeAddAction(node: Node) {
+    const container = state.createActiveContainerAccess()
+    return {
+      undo: () => {
+        container.setNodes(container.getNodes().filter(item => item.id !== node.id))
+        container.setConnections(container.getConnections().filter(conn => conn.fromId !== node.id && conn.toId !== node.id))
+        state.forceUpdate()
+        state.saveMatrixData()
+      },
+      redo: () => {
+        if (!container.getNodes().some(item => item.id === node.id)) {
+          container.setNodes([...container.getNodes(), cloneMatrixValue(node)])
+        }
+        state.forceUpdate()
+        state.saveMatrixData()
+      }
+    }
+  }
+
+  function createDirectConnectionAddAction(connection: Connection) {
+    const connectionSnapshot = cloneMatrixValue(connection)
+    const container = state.createActiveContainerAccess()
+    return {
+      undo: () => {
+        container.setConnections(container.getConnections().filter(conn => !(conn.fromId === connectionSnapshot.fromId && conn.toId === connectionSnapshot.toId)))
+        state.cleanupLogicBundles(container)
+        state.forceUpdate()
+        state.saveMatrixData()
+      },
+      redo: () => {
+        const exists = container.getConnections().some(conn => conn.fromId === connectionSnapshot.fromId && conn.toId === connectionSnapshot.toId)
+        if (!exists) container.setConnections([...container.getConnections(), cloneMatrixValue(connectionSnapshot)])
+        state.forceUpdate()
+        state.saveMatrixData()
+      }
+    }
+  }
+
+  function connectionKey(connection: Connection) {
+    return [
+      connection.fromId,
+      connection.toId,
+      connection.fromPort || '',
+      connection.toPort || ''
+    ].join('->')
+  }
+
+  function createScopedMatrixPatchAction(beforeNodes: Node[], beforeConnections: Connection[], afterNodes: Node[], afterConnections: Connection[]) {
+    const container = state.createActiveContainerAccess()
+    const beforeNodeMap = new Map<string, Node>(beforeNodes.map(node => [node.id, cloneMatrixValue(node)] as [string, Node]))
+    const afterNodeMap = new Map<string, Node>(afterNodes.map(node => [node.id, cloneMatrixValue(node)] as [string, Node]))
+    const touchedNodeIds = new Set<string>()
+
+    beforeNodeMap.forEach((beforeNode, id) => {
+      const afterNode = afterNodeMap.get(id)
+      if (!afterNode || JSON.stringify(beforeNode) !== JSON.stringify(afterNode)) touchedNodeIds.add(id)
+    })
+    afterNodeMap.forEach((afterNode, id) => {
+      const beforeNode = beforeNodeMap.get(id)
+      if (!beforeNode || JSON.stringify(beforeNode) !== JSON.stringify(afterNode)) touchedNodeIds.add(id)
+    })
+
+    const beforeConnectionMap = new Map<string, Connection>(beforeConnections.map(connection => [connectionKey(connection), cloneMatrixValue(connection)] as [string, Connection]))
+    const afterConnectionMap = new Map<string, Connection>(afterConnections.map(connection => [connectionKey(connection), cloneMatrixValue(connection)] as [string, Connection]))
+    const touchedConnectionKeys = new Set<string>()
+
+    beforeConnectionMap.forEach((beforeConnection, key) => {
+      const afterConnection = afterConnectionMap.get(key)
+      if (!afterConnection || JSON.stringify(beforeConnection) !== JSON.stringify(afterConnection)) touchedConnectionKeys.add(key)
+    })
+    afterConnectionMap.forEach((afterConnection, key) => {
+      const beforeConnection = beforeConnectionMap.get(key)
+      if (!beforeConnection || JSON.stringify(beforeConnection) !== JSON.stringify(afterConnection)) touchedConnectionKeys.add(key)
+    })
+
+    const applyPatch = (nodeMap: Map<string, Node>, connectionMap: Map<string, Connection>) => {
+      container.setNodes([
+        ...container.getNodes().filter(node => !touchedNodeIds.has(node.id)),
+        ...Array.from(touchedNodeIds)
+          .map(id => nodeMap.get(id))
+          .filter((node): node is Node => !!node)
+          .map(node => cloneMatrixValue(node))
+      ])
+
+      container.setConnections([
+        ...container.getConnections().filter(connection => !touchedConnectionKeys.has(connectionKey(connection))),
+        ...Array.from(touchedConnectionKeys)
+          .map(key => connectionMap.get(key))
+          .filter((connection): connection is Connection => !!connection)
+          .map(connection => cloneMatrixValue(connection))
+      ])
+
+      state.cleanupLogicBundles(container)
+      state.forceUpdate()
+      state.saveMatrixData()
+    }
+
+    return {
+      undo: () => applyPatch(beforeNodeMap, beforeConnectionMap),
+      redo: () => applyPatch(afterNodeMap, afterConnectionMap)
+    }
+  }
 
   const assetSearchQuery = ref('')
   const assetResults = ref<AssetInfo[]>([])
   const isSearchingAssets = ref(false)
-  const failedIcons = ref<Set<string>>(new Set())
   let searchTimeout: any = null
 
   const scalingLots = ref(1)
@@ -32,9 +156,13 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   const riskLossDay = ref(5)
   const riskRR = ref(3)
 
-  const indicatorCategories = ref<MatrixIndicatorCategory[]>(indicatorData.categories as MatrixIndicatorCategory[])
+  const indicatorCategories = ref<MatrixIndicatorCategory[]>(
+    (indicatorData.categories as MatrixIndicatorCategory[]).map(sanitizeIndicatorCategory)
+  )
   const activeIndicatorCategory = ref(indicatorCategories.value[0]?.id || 'TREND')
   const indicatorSearchQuery = ref('')
+  const isSyncingFundamentalIndicators = ref(false)
+  const fundamentalIndicatorSyncStatus = ref<'idle' | 'synced' | 'fallback' | 'error'>('idle')
   const hoveredDescription = ref('')
   const mousePos = ref({ x: 0, y: 0 })
   let mousePosFrame: number | null = null
@@ -42,7 +170,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
 
   const activeTextColor = ref('#2c2c2a')
   const savedTextSelection = ref<Range | null>(null)
-
+  
   const currentStepPage = ref(0)
   const stepPagesCount = 3
 
@@ -53,6 +181,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   const nodeContextMenu = ref<{ x: number, y: number, nodeId: string } | null>(null)
   const connectionContextMenu = ref<{ x: number, y: number, connection: Connection } | null>(null)
   const personalCondContextMenu = ref<{ x: number, y: number, indicator: any } | null>(null)
+  const pageContextMenu = ref<{ x: number, y: number, pageId: string } | null>(null)
 
   // Watch lastSelectedId to sync values
   watch(state.lastSelectedId, (newId) => {
@@ -105,16 +234,15 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     }
     isSearchingAssets.value = true
     if (searchTimeout) clearTimeout(searchTimeout)
-    const query = assetSearchQuery.value
     searchTimeout = setTimeout(async () => {
+      const query = assetSearchQuery.value
       try {
         const results = await searchAssets(query)
-        if (assetSearchQuery.value !== query) return
-        await preloadImageUrls(results.map(asset => asset.icon), { timeoutMs: 2500, concurrency: 8 })
-        if (assetSearchQuery.value !== query) return
+        if (query !== assetSearchQuery.value) return
+        if (query !== assetSearchQuery.value) return
         assetResults.value = results
       } finally {
-        if (assetSearchQuery.value === query) {
+        if (query === assetSearchQuery.value) {
           isSearchingAssets.value = false
         }
       }
@@ -135,8 +263,6 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
         info: asset.description
       }
     })
-    assetSearchQuery.value = ''
-    assetResults.value = []
   }
 
   function toggleMenuCategory(category: MenuCategory) {
@@ -171,13 +297,18 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
         step: scalingStep.value,
         unit: scalingUnit.value,
         lotsMode: scalingMode.value,
-        parentType: parentNode.type
+        parentType: parentNode.type,
+        parentLabel: parentNode.label,
+        parentId
       }
     }
 
     if (!parentId) return
     state.nodes.value.push(newNode)
-    state.connections.value.push({ fromId: parentId, toId: id })
+    const newConnection = { fromId: parentId, toId: id }
+    state.connections.value.push(newConnection)
+    changeTree.recordNodeAdded(newNode, createDirectNodeAddAction(newNode), state.activeContextNode.value || undefined)
+    changeTree.recordConnectionCreated(newConnection, parentNode, newNode, createDirectConnectionAddAction(newConnection))
     state.selectNode(parentId)
     state.saveMatrixData()
   }
@@ -185,10 +316,18 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   function updateScalingEntry() {
     const node = state.effectiveSelectedNode.value
     if (!node || node.type !== 'scaling-entry') return
+    if (!node.params.parentId) {
+      const parentConnection = state.connections.value.find(connection => (
+        connection.toId === node.id &&
+        ['pyramiding', 'averaging'].includes(state.getNode(connection.fromId)?.type || '')
+      ))
+      if (parentConnection) node.params.parentId = parentConnection.fromId
+    }
     node.params.lots = scalingLots.value
     node.params.step = scalingStep.value
     node.params.unit = scalingUnit.value
     node.params.lotsMode = scalingMode.value
+    changeTree.recordScalingEntryChanged(node)
     state.saveMatrixData()
     state.forceUpdate()
   }
@@ -212,7 +351,10 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     }
 
     state.nodes.value.push(newNode)
-    state.connections.value.push({ fromId: lastSelected.id, toId: id })
+    const newConnection = { fromId: lastSelected.id, toId: id }
+    state.connections.value.push(newConnection)
+    changeTree.recordNodeAdded(newNode, createDirectNodeAddAction(newNode), state.activeContextNode.value || undefined)
+    changeTree.recordConnectionCreated(newConnection, lastSelected, newNode, createDirectConnectionAddAction(newConnection))
     isConfigSetterOpen.value = false
     state.saveMatrixData()
     state.selectNode(id)
@@ -226,11 +368,11 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
 
   function upsertIndicatorCategory(category: MatrixIndicatorCategory) {
     const normalizedId = category.id.toUpperCase()
-    const nextCategory = {
+    const nextCategory = sanitizeIndicatorCategory({
       ...category,
       id: normalizedId,
       indicators: category.indicators || []
-    }
+    })
     const index = indicatorCategories.value.findIndex(item => item.id === normalizedId)
     if (index >= 0) {
       indicatorCategories.value = indicatorCategories.value.map((item, itemIndex) => (
@@ -243,10 +385,31 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
 
   async function hydrateFundamentalIndicators() {
     try {
-      upsertIndicatorCategory(await loadFundamentalIndicatorCategory())
-      upsertIndicatorCategory(await syncFundamentalIndicatorCategory())
+      const category = await loadFundamentalIndicatorCategory()
+      upsertIndicatorCategory(category)
+      fundamentalIndicatorSyncStatus.value = category.source === 'fallback'
+        ? 'fallback'
+        : 'synced'
+    } catch (error) {
+      console.warn('[MatrixIndicators] Failed to hydrate fundamental indicators:', error)
+      fundamentalIndicatorSyncStatus.value = 'error'
+    }
+  }
+
+  async function syncFundamentalIndicators() {
+    isSyncingFundamentalIndicators.value = true
+    try {
+      const category = await syncFundamentalIndicatorCategory()
+      upsertIndicatorCategory(category)
+      activeIndicatorCategory.value = category.id
+      fundamentalIndicatorSyncStatus.value = category.source === 'fallback'
+        ? 'fallback'
+        : 'synced'
     } catch (error) {
       console.warn('[MatrixIndicators] Fundamental indicator sync failed:', error)
+      fundamentalIndicatorSyncStatus.value = 'error'
+    } finally {
+      isSyncingFundamentalIndicators.value = false
     }
   }
 
@@ -355,7 +518,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     if (query) {
       const system = indicatorCategories.value.flatMap(c => c.indicators)
       const personal = state.personalIndicators.value
-      return [...system, ...personal].filter((i: any) =>
+      return [...system, ...personal].filter((i: any) => 
         i.label.includes(query) || (i.description || '').toUpperCase().includes(query)
       )
     }
@@ -367,10 +530,16 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
 
   // Context Menu Actions
   function handleNodeContextMenu(payload: { x: number, y: number, nodeId: string }) {
+    connectionContextMenu.value = null
+    personalCondContextMenu.value = null
+    pageContextMenu.value = null
     nodeContextMenu.value = payload
   }
 
   function handleConnectionClick(e: MouseEvent, connection: Connection) {
+    nodeContextMenu.value = null
+    personalCondContextMenu.value = null
+    pageContextMenu.value = null
     connectionContextMenu.value = {
       x: e.clientX,
       y: e.clientY,
@@ -379,10 +548,24 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   }
 
   function handlePersonalCondContextMenu(e: MouseEvent, indicator: any) {
+    nodeContextMenu.value = null
+    connectionContextMenu.value = null
+    pageContextMenu.value = null
     personalCondContextMenu.value = {
       x: e.clientX,
       y: e.clientY,
       indicator
+    }
+  }
+
+  function handlePageContextMenu(e: MouseEvent, pageId: string) {
+    nodeContextMenu.value = null
+    connectionContextMenu.value = null
+    personalCondContextMenu.value = null
+    pageContextMenu.value = {
+      x: e.clientX,
+      y: e.clientY,
+      pageId
     }
   }
 
@@ -398,7 +581,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     const node = state.getNode(nodeId)
     if (node) {
       if (!node.params.comments) node.params.comments = []
-      node.params.comments.push({
+      const comment = {
         id: 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
         text: '[ LOG_INITIALIZED ]',
         x: 300,
@@ -406,6 +589,29 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
         width: 450,
         height: 280,
         isEditing: false
+      }
+      node.params.comments.push(comment)
+      const commentSnapshot = cloneMatrixValue(comment)
+      changeTree.recordNodeCommentAdded(node, comment, {
+        undo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            globalNode.params.comments = (globalNode.params.comments || []).filter((item: any) => item.id !== commentSnapshot.id)
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        },
+        redo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            if (!(globalNode.params.comments || []).some((item: any) => item.id === commentSnapshot.id)) {
+              if (!globalNode.params.comments) globalNode.params.comments = []
+              globalNode.params.comments.push(cloneMatrixValue(commentSnapshot))
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        }
       })
       state.selectNode(nodeId)
       state.forceUpdate()
@@ -438,13 +644,50 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     const node = state.getNode(nodeId)
     if (node) {
       if (!node.params) node.params = {}
-      if (!node.params.direction || node.params.direction === 'NONE') {
-        node.params.direction = 'LONG'
-      } else if (node.params.direction === 'LONG') {
-        node.params.direction = 'SHORT'
+      const oldDirection = node.params.direction || 'NONE'
+      let newDirection = 'NONE'
+      if (oldDirection === 'NONE') {
+        newDirection = 'LONG'
+      } else if (oldDirection === 'LONG') {
+        newDirection = 'SHORT'
       } else {
-        node.params.direction = 'NONE'
+        newDirection = 'NONE'
       }
+      
+      if (newDirection === 'NONE') {
+        delete node.params.direction
+      } else {
+        node.params.direction = newDirection
+      }
+      
+      changeTree.recordNodeDirectionChanged(node, newDirection, {
+        undo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            const val = newDirection === 'NONE' ? oldDirection : 'NONE'
+            if (val === 'NONE') {
+              delete globalNode.params.direction
+            } else {
+              globalNode.params.direction = val
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        },
+        redo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            if (newDirection === 'NONE') {
+              delete globalNode.params.direction
+            } else {
+              globalNode.params.direction = newDirection
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        }
+      })
+      
       state.forceUpdate()
       state.saveMatrixData()
     }
@@ -455,7 +698,42 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     const node = state.getNode(nodeId)
     if (node) {
       if (!node.params) node.params = {}
-      node.params.phase = phase
+      const oldPhase = node.params.phase || 'NONE'
+      
+      if (phase === 'NONE') {
+        delete node.params.phase
+      } else {
+        node.params.phase = phase
+      }
+      
+      changeTree.recordNodePhaseChanged(node, phase, {
+        undo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            const val = phase === 'NONE' ? oldPhase : 'NONE'
+            if (val === 'NONE') {
+              delete globalNode.params.phase
+            } else {
+              globalNode.params.phase = val
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        },
+        redo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            if (phase === 'NONE') {
+              delete globalNode.params.phase
+            } else {
+              globalNode.params.phase = phase
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        }
+      })
+      
       state.saveMatrixData()
       state.forceUpdate()
     }
@@ -468,8 +746,42 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
       if (!node.params) node.params = {}
       const phases = ['NONE', 'ENTRY', 'EXIT']
       const currentPhase = node.params.phase || 'NONE'
-      const nextPhase = phases[(phases.indexOf(currentPhase) + 1) % phases.length]
-      node.params.phase = nextPhase
+      const nextPhase = phases[(phases.indexOf(currentPhase) + 1) % phases.length] || 'NONE'
+      
+      if (nextPhase === 'NONE') {
+        delete node.params.phase
+      } else {
+        node.params.phase = nextPhase
+      }
+      
+      changeTree.recordNodePhaseChanged(node, nextPhase, {
+        undo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            const val = nextPhase === 'NONE' ? currentPhase : 'NONE'
+            if (val === 'NONE') {
+              delete globalNode.params.phase
+            } else {
+              globalNode.params.phase = val
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        },
+        redo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            if (nextPhase === 'NONE') {
+              delete globalNode.params.phase
+            } else {
+              globalNode.params.phase = nextPhase
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        }
+      })
+      
       state.saveMatrixData()
       state.forceUpdate()
     }
@@ -482,8 +794,42 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
       if (!node.params) node.params = {}
       const priorities = ['NONE', 'REQUIRED', 'ADDITIONAL']
       const currentPriority = node.params.priority || 'NONE'
-      const nextPriority = priorities[(priorities.indexOf(currentPriority) + 1) % priorities.length]
-      node.params.priority = nextPriority
+      const nextPriority = priorities[(priorities.indexOf(currentPriority) + 1) % priorities.length] || 'NONE'
+      
+      if (nextPriority === 'NONE') {
+        delete node.params.priority
+      } else {
+        node.params.priority = nextPriority
+      }
+      
+      changeTree.recordNodePriorityChanged(node, nextPriority, {
+        undo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            const val = nextPriority === 'NONE' ? currentPriority : 'NONE'
+            if (val === 'NONE') {
+              delete globalNode.params.priority
+            } else {
+              globalNode.params.priority = val
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        },
+        redo: () => {
+          const globalNode = state.getNode(nodeId)
+          if (globalNode && globalNode.params) {
+            if (nextPriority === 'NONE') {
+              delete globalNode.params.priority
+            } else {
+              globalNode.params.priority = nextPriority
+            }
+            state.forceUpdate()
+            state.saveMatrixData()
+          }
+        }
+      })
+      
       state.saveMatrixData()
       state.forceUpdate()
     }
@@ -493,9 +839,57 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
   function setConnectionLabel(label: string | null) {
     if (connectionContextMenu.value) {
       const conn = connectionContextMenu.value.connection
+      const beforeNodes = cloneMatrixValue(state.nodes.value)
+      const beforeConnections = cloneMatrixValue(state.connections.value)
+      let changeConnection = conn
       if (label === null) {
-        delete conn.label
-        delete conn.bundleId
+        const oldLabel = conn.label?.toLowerCase()
+        const oldBundleId = conn.bundleId
+        if (oldBundleId && (oldLabel === 'and' || oldLabel === 'or')) {
+          const bundleConnections = state.connections.value.filter(connection => (
+            connection.fromId === conn.fromId && connection.bundleId === oldBundleId
+          ))
+          const generatedNodeIds = new Set(
+            bundleConnections
+              .map(connection => state.getNode(connection.toId))
+              .filter((node): node is Node => !!node && (
+                node.type === 'placeholder' ||
+                (
+                  node.params?.generatedByLogicLabel === true &&
+                  node.params?.logicBundleId === oldBundleId &&
+                  node.params?.logicSourceId === conn.fromId
+                )
+              ))
+              .map(node => node.id)
+          )
+          const survivingConnection = bundleConnections.find(connection => !generatedNodeIds.has(connection.toId))
+            || bundleConnections[0]
+          bundleConnections.forEach(connection => {
+            if (connection !== survivingConnection) generatedNodeIds.add(connection.toId)
+          })
+          changeConnection = cloneMatrixValue(survivingConnection || conn)
+
+          state.nodes.value = state.nodes.value.filter(node => !generatedNodeIds.has(node.id))
+          state.connections.value = state.connections.value
+            .filter(connection => (
+              !generatedNodeIds.has(connection.fromId) &&
+              !generatedNodeIds.has(connection.toId)
+            ))
+            .map(connection => {
+              if (connection.fromId !== conn.fromId || connection.bundleId !== oldBundleId) return connection
+              const nextConnection = { ...connection }
+              delete nextConnection.label
+              delete nextConnection.bundleId
+              delete nextConnection.bundleStemX
+              delete nextConnection.bundleStemY
+              return nextConnection
+            })
+        } else {
+          delete conn.label
+          delete conn.bundleId
+          delete conn.bundleStemX
+          delete conn.bundleStemY
+        }
       } else {
         const lowerLabel = label.toLowerCase()
         const isLogic = lowerLabel === 'and' || lowerLabel === 'or'
@@ -506,12 +900,12 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
           if (oldLabel === lowerLabel) {
             const bundleId = conn.bundleId || ('b' + Date.now().toString(36))
             conn.bundleId = bundleId
-
-            const id = 'n' + Date.now().toString(36)
+            
+            const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
             const fromNode = state.getNode(conn.fromId)
             const toNode = state.getNode(conn.toId)
             const offset = 120
-
+            
             const newNode: Node = {
               id,
               label: 'EMPTY',
@@ -519,9 +913,13 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
               x: toNode ? toNode.x : (fromNode ? fromNode.x + 200 : 200),
               y: toNode ? toNode.y + offset : (fromNode ? fromNode.y + offset : 200),
               color: 'currentColor',
-              params: {}
+              params: {
+                generatedByLogicLabel: true,
+                logicBundleId: bundleId,
+                logicSourceId: conn.fromId
+              }
             }
-
+            
             state.nodes.value.push(newNode)
             state.connections.value.push({
               fromId: conn.fromId,
@@ -545,12 +943,12 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
             conn.bundleId = bundleId
             conn.bundleStemX = 0
             conn.bundleStemY = 0
-
-            const id = 'n' + Date.now().toString(36)
+            
+            const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
             const fromNode = state.getNode(conn.fromId)
             const toNode = state.getNode(conn.toId)
             const offset = 120
-
+            
             const newNode: Node = {
               id,
               label: 'EMPTY',
@@ -558,9 +956,13 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
               x: toNode ? toNode.x : (fromNode ? fromNode.x + 200 : 200),
               y: toNode ? toNode.y + offset : (fromNode ? fromNode.y + offset : 200),
               color: 'currentColor',
-              params: {}
+              params: {
+                generatedByLogicLabel: true,
+                logicBundleId: bundleId,
+                logicSourceId: conn.fromId
+              }
             }
-
+            
             state.nodes.value.push(newNode)
             state.connections.value.push({
               fromId: conn.fromId,
@@ -579,6 +981,18 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
           delete conn.bundleId
         }
       }
+      const afterNodes = cloneMatrixValue(state.nodes.value)
+      const afterConnections = cloneMatrixValue(state.connections.value)
+      const labelMemberNode = label && ['and', 'or'].includes(label.toLowerCase())
+        ? state.getNode(conn.toId)
+        : null
+      changeTree.recordConnectionLabelChanged(
+        changeConnection,
+        label,
+        createScopedMatrixPatchAction(beforeNodes, beforeConnections, afterNodes, afterConnections),
+        labelMemberNode,
+        labelMemberNode ? createDirectConnectionAddAction(conn) : undefined
+      )
       state.saveMatrixData()
     }
     connectionContextMenu.value = null
@@ -589,7 +1003,6 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     assetSearchQuery,
     assetResults,
     isSearchingAssets,
-    failedIcons,
     scalingLots,
     scalingStep,
     scalingUnit,
@@ -602,6 +1015,8 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     indicatorCategories,
     activeIndicatorCategory,
     indicatorSearchQuery,
+    isSyncingFundamentalIndicators,
+    fundamentalIndicatorSyncStatus,
     hoveredDescription,
     mousePos,
     activeTextColor,
@@ -615,6 +1030,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     nodeContextMenu,
     connectionContextMenu,
     personalCondContextMenu,
+    pageContextMenu,
     updateMousePos,
     tooltipStyles,
     handleAssetSearch,
@@ -624,6 +1040,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     updateScalingEntry,
     handleCreateConfig,
     handleCreateCustomIndicator,
+    syncFundamentalIndicators,
     saveTextSelection,
     restoreTextSelection,
     syncActiveTextHtml,
@@ -635,6 +1052,7 @@ export function useMatrixMenu(state: ReturnType<typeof useMatrixState>) {
     handleNodeContextMenu,
     handleConnectionClick,
     handlePersonalCondContextMenu,
+    handlePageContextMenu,
     removePersonalCondition,
     addCommentToNode,
     setNodeCustomName,

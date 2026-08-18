@@ -80,31 +80,73 @@ interface AssetResolution {
   finalPrice: number
 }
 
+interface AssetVoteSummary {
+  assetId: string
+  longVotes: number
+  shortVotes: number
+  winnerShare: number
+  difficultyMultiplier: number
+  pointsForCorrect: number
+}
+
 interface LeaderboardAssetStat {
   assetId: string
   asset: string
   totalPredictions: number
   correctPredictions: number
+  missedPredictions: number
+  pointsEarned: number
 }
 
 interface UserScoreDelta {
   points: number
   totalPredictions: number
   correctPredictions: number
+  missedPredictions: number
   assetStats: Map<string, LeaderboardAssetStat>
 }
 
 interface TournamentRunResult {
   tournamentId: string
-  status: 'settled' | 'cancelled' | 'skipped' | 'failed'
+  status: 'settled' | 'cancelled' | 'recalculated' | 'skipped' | 'failed'
   reason?: string
   seasonId?: string
   closedRoundId?: string
   cancelledRoundId?: string
+  recalculatedRoundId?: string
   openedRoundId?: string
   predictionsProcessed?: number
   usersUpdated?: number
+  roundsRebuilt?: number
+  seasonPrizesAwarded?: number
+  specialPrizesAwarded?: number
   assetResults?: Record<string, PredictionDirection>
+}
+
+interface LeaderboardRow {
+  userId: string
+  points: number
+}
+
+interface SeasonWinRecord {
+  seasonIds: string[]
+  seasonOrdinals: number[]
+}
+
+interface SpecialPrizeAwardPlan {
+  writes: FirestoreWrite[]
+  userIds: string[]
+}
+
+interface SeasonPrizeAwardPlan {
+  writes: FirestoreWrite[]
+  prizeByUserId: Map<string, AwardedSeasonPrize>
+}
+
+interface AwardedSeasonPrize {
+  rank: number
+  prizeName: string
+  prize: Record<string, unknown>
 }
 
 interface RunReport {
@@ -112,6 +154,15 @@ interface RunReport {
   startedAt: string
   finishedAt: string
   tournaments: TournamentRunResult[]
+}
+
+interface RebuiltLeaderboardEntry {
+  userId: string
+  points: number
+  totalPredictions: number
+  correctPredictions: number
+  missedPredictions: number
+  assetStats: Map<string, LeaderboardAssetStat>
 }
 
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
@@ -125,6 +176,11 @@ const CANDLE_INTERVAL_MINUTES = 30
 const CANDLE_INTERVAL_MS = CANDLE_INTERVAL_MINUTES * MINUTE_MS
 const MAX_ATOMIC_WRITES = 450
 const YAHOO_MAX_ATTEMPTS = 4
+const APEX_PROTOCOL_TOURNAMENT_ID = 'apex_protocol_2026'
+const SPECIAL_PRIZE_TYPE_LICENSE_KEY = 'license-key'
+const SPECIAL_PRIZE_REQUIRED_SEASON_WINS = 2
+const MISSED_PREDICTION_PENALTY = -5
+const MAX_DIFFICULTY_MULTIPLIER = 2
 
 let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 
@@ -148,7 +204,10 @@ export default {
       return jsonResponse({ ok: true, service: 'tournament-round-worker' })
     }
 
-    if (url.pathname !== '/run' || request.method !== 'POST') {
+    if (
+      (url.pathname !== '/run' && url.pathname !== '/recalculate-last-round')
+      || request.method !== 'POST'
+    ) {
       return jsonResponse({ error: 'Not found' }, 404)
     }
 
@@ -159,10 +218,13 @@ export default {
 
     try {
       const dryRun = url.searchParams.get('dryRun') === 'true'
-      const report = await runDailySettlement(env, dryRun)
+      const tournamentId = url.searchParams.get('tournamentId') || undefined
+      const report = url.pathname === '/recalculate-last-round'
+        ? await runLastRoundRecalculation(env, dryRun, Date.now(), tournamentId)
+        : await runDailySettlement(env, dryRun)
       return jsonResponse(report)
     } catch (error) {
-      console.error('[Tournament Worker] Manual run failed:', serializeError(error))
+      console.error(`[Tournament Worker] Manual ${url.pathname} failed:`, serializeError(error))
       return jsonResponse({ error: serializeError(error) }, 500)
     }
   }
@@ -187,6 +249,62 @@ async function runDailySettlement(env: Env, dryRun: boolean, nowMs = Date.now())
       }))
     } catch (error) {
       console.error(`[Tournament Worker] ${tournament.id} failed:`, serializeError(error))
+      tournamentResults.push({
+        tournamentId: tournament.id,
+        status: 'failed',
+        reason: serializeError(error)
+      })
+    }
+  }
+
+  return {
+    dryRun,
+    startedAt: startedAt.toISOString(),
+    finishedAt: new Date().toISOString(),
+    tournaments: tournamentResults
+  }
+}
+
+async function runLastRoundRecalculation(
+  env: Env,
+  dryRun: boolean,
+  nowMs = Date.now(),
+  onlyTournamentId?: string
+): Promise<RunReport> {
+  validateEnv(env)
+
+  const startedAt = new Date(nowMs)
+  const firestore = new FirestoreRestClient(env)
+  const tournamentDocuments = await firestore.listDocuments('', 'tournaments')
+  const selectedTournaments = onlyTournamentId
+    ? tournamentDocuments.filter((tournament) => tournament.id === onlyTournamentId)
+    : tournamentDocuments
+  const tournamentResults: TournamentRunResult[] = []
+
+  if (onlyTournamentId && !selectedTournaments.length) {
+    return {
+      dryRun,
+      startedAt: startedAt.toISOString(),
+      finishedAt: new Date().toISOString(),
+      tournaments: [{
+        tournamentId: onlyTournamentId,
+        status: 'skipped',
+        reason: 'Tournament not found.'
+      }]
+    }
+  }
+
+  for (const tournament of selectedTournaments) {
+    try {
+      tournamentResults.push(await recalculateTournamentLatestPassedRound({
+        env,
+        firestore,
+        tournament,
+        dryRun,
+        nowMs
+      }))
+    } catch (error) {
+      console.error(`[Tournament Worker] ${tournament.id} recalculation failed:`, serializeError(error))
       tournamentResults.push({
         tournamentId: tournament.id,
         status: 'failed',
@@ -261,16 +379,11 @@ async function settleTournament(input: {
     throw new Error('season.timeWindow produces an invalid resolution end time.')
   }
 
-  const nextRoundDay = getNextUtcCalendarDay(nowMs)
   const tradingHolidays = readTradingHolidays(season.data.tradingHolidays)
-  if (!isTradingDay(nextRoundDay, tradingHolidays)) {
-    return {
-      tournamentId,
-      seasonId: season.id,
-      status: 'skipped',
-      reason: `Next calendar day ${formatUtcDate(nextRoundDay)} is not a trading day; keeping the current round opened.`
-    }
-  }
+  const nextRoundDay = findNextTradingDay(
+    getNextUtcCalendarDay(endsAt.getTime()),
+    tradingHolidays
+  )
 
   const nextStartsAt = moveToUtcCalendarDay(startsAt, nextRoundDay)
   const nextEndsAt = moveToUtcCalendarDay(endsAt, nextRoundDay)
@@ -361,22 +474,38 @@ async function settleTournament(input: {
     `tournaments/${tournamentId}/seasons/${season.id}/rounds/${round.id}`,
     'predictions'
   )
-  const userDeltas = calculateUserDeltas({
+  const leaderboardDocuments = await firestore.listDocuments(
+    `tournaments/${tournamentId}/seasons/${season.id}`,
+    'leaderboard'
+  )
+  const scoring = calculateUserDeltas({
     predictions,
+    allowedAssets,
     resolutionsByAssetId,
+    leaderboardUserIds: leaderboardDocuments.map((entry) => entry.id),
     startsAtMs: startsAt.getTime(),
     endsAtMs: endsAt.getTime(),
     pointsPerCorrect: parsePositiveInteger(env.POINTS_PER_CORRECT, 25),
     pointsPerIncorrect: parseNegativeInteger(env.POINTS_PER_INCORRECT, -25)
   })
+  const userDeltas = scoring.userDeltas
 
-  const leaderboardDocuments = await firestore.listDocuments(
-    `tournaments/${tournamentId}/seasons/${season.id}`,
-    'leaderboard'
-  )
   const leaderboardByUserId = new Map(leaderboardDocuments.map((entry) => [entry.id, entry]))
   const eventNameEn = requireString(tournament.data.title, 'tournament.title')
   const eventNameRu = readOptionalString(tournament.data.titleRu) || eventNameEn
+
+  const seasonPrizePlan = await buildSeasonPrizeAwardPlan({
+    firestore,
+    tournament,
+    season,
+    leaderboardDocuments,
+    userDeltas,
+    nowMs,
+    eventNameRu,
+    eventNameEn,
+    seasonOrdinal,
+    roundOrdinal
+  })
 
   const writes: FirestoreWrite[] = []
   for (const [userId, delta] of userDeltas) {
@@ -387,14 +516,23 @@ async function settleTournament(input: {
       0
     )
     const currentCorrect = readFiniteNumber(existing?.data.correctPredictions, 0)
+    const currentMissed = readFiniteNumber(existing?.data.missedPredictions, 0)
     const assetStats = mergeLeaderboardAssetStats(existing?.data.assetStats, delta.assetStats)
     const fields = {
       userId,
       points: Math.max(0, currentPoints + delta.points),
       totalPredictions: currentTotal + delta.totalPredictions,
       correctPredictions: currentCorrect + delta.correctPredictions,
+      missedPredictions: currentMissed + delta.missedPredictions,
       assetStats,
       lastScoredRoundId: round.id
+    }
+    const seasonPrize = seasonPrizePlan.prizeByUserId.get(userId)
+    if (seasonPrize) {
+      Object.assign(fields, {
+        prize: seasonPrize.prizeName,
+        prizeRank: seasonPrize.rank
+      })
     }
 
     writes.push(makeUpdateWrite({
@@ -431,12 +569,30 @@ async function settleTournament(input: {
     }
   }
 
+  writes.push(...seasonPrizePlan.writes)
+
+  const specialPrizePlan = await buildSpecialPrizeAwardPlan({
+    firestore,
+    tournament,
+    seasons,
+    currentSeasonId: season.id,
+    currentSeasonLeaderboard: leaderboardDocuments,
+    currentSeasonDeltas: userDeltas,
+    nowMs,
+    eventNameRu,
+    eventNameEn,
+    seasonOrdinal,
+    roundOrdinal
+  })
+  writes.push(...specialPrizePlan.writes)
+
   const assetResults = resolutions.map((resolution) => {
     return {
       asset: resolution.asset,
       initialPrice: resolution.initialPrice,
       finalPrice: resolution.finalPrice,
-      verdict: resolution.direction
+      verdict: resolution.direction,
+      ...scoring.voteSummariesByAssetId.get(resolution.assetId)
     }
   })
 
@@ -481,21 +637,653 @@ async function settleTournament(input: {
     openedRoundId: nextRoundId,
     predictionsProcessed: predictions.length,
     usersUpdated: userDeltas.size,
+    seasonPrizesAwarded: seasonPrizePlan.prizeByUserId.size,
+    specialPrizesAwarded: specialPrizePlan.userIds.length,
     assetResults: Object.fromEntries(
       resolutions.map((resolution) => [resolution.assetId, resolution.direction])
     )
   }
 }
 
+async function recalculateTournamentLatestPassedRound(input: {
+  env: Env
+  firestore: FirestoreRestClient
+  tournament: FirestoreDocument
+  dryRun: boolean
+  nowMs: number
+}): Promise<TournamentRunResult> {
+  const { env, firestore, tournament, dryRun, nowMs } = input
+  const tournamentId = tournament.id
+  const seasons = await firestore.listDocuments(`tournaments/${tournamentId}`, 'seasons')
+  const openedSeasons = seasons.filter((season) => normalizeStatus(season.data.status) === 'opened')
+
+  if (!openedSeasons.length) {
+    return { tournamentId, status: 'skipped', reason: 'No opened season.' }
+  }
+  if (openedSeasons.length > 1) {
+    throw new Error(`Expected one opened season, found ${openedSeasons.length}.`)
+  }
+
+  const season = openedSeasons[0]
+  const timeWindowMinutes = requirePositiveInteger(season.data.timeWindow, 'season.timeWindow')
+  const dataDelayMs = parseNonNegativeInteger(env.MARKET_DATA_DELAY_MINUTES, 0) * MINUTE_MS
+  const allowedAssets = requireArray(tournament.data.allowedAssets, 'tournament.allowedAssets')
+    .map(resolveAllowedAsset)
+  ensureUniqueAssetIds(allowedAssets)
+
+  const rounds = await firestore.listDocuments(
+    `tournaments/${tournamentId}/seasons/${season.id}`,
+    'rounds'
+  )
+  const passedRounds = rounds
+    .map((round) => {
+      const startsAt = requireDate(round.data.startsAt, `${round.id}.startsAt`)
+      const endsAt = requireDate(round.data.endsAt, `${round.id}.endsAt`)
+      const resolutionEndsAtMs = endsAt.getTime() + timeWindowMinutes * MINUTE_MS
+      return { round, startsAt, endsAt, resolutionEndsAtMs }
+    })
+    .filter((entry) => {
+      const status = normalizeStatus(entry.round.data.status)
+      return status !== 'cancelled'
+        && status !== 'canceled'
+        && entry.endsAt.getTime() > entry.startsAt.getTime()
+        && input.nowMs >= entry.resolutionEndsAtMs + dataDelayMs
+    })
+    .sort((left, right) => {
+      const byEnd = left.endsAt.getTime() - right.endsAt.getTime()
+      return byEnd || left.startsAt.getTime() - right.startsAt.getTime()
+    })
+
+  if (!passedRounds.length) {
+    return {
+      tournamentId,
+      seasonId: season.id,
+      status: 'skipped',
+      reason: 'No passed round is ready for recalculation.'
+    }
+  }
+
+  const targetRound = passedRounds[passedRounds.length - 1]!
+  const leaderboardDocuments = await firestore.listDocuments(
+    `tournaments/${tournamentId}/seasons/${season.id}`,
+    'leaderboard'
+  )
+  const participantDocuments = await firestore.listDocuments(
+    `tournaments/${tournamentId}`,
+    'participants'
+  )
+  const enrolledAtByUserId = buildTournamentEnrollmentMap(leaderboardDocuments, participantDocuments)
+  const rebuiltLeaderboard = new Map<string, RebuiltLeaderboardEntry>()
+  for (const userId of enrolledAtByUserId.keys()) {
+    rebuiltLeaderboard.set(userId, createEmptyRebuiltLeaderboardEntry(userId))
+  }
+
+  let predictionsProcessed = 0
+  const assetResultsByAssetId = new Map<string, PredictionDirection>()
+
+  for (const passedRound of passedRounds) {
+    const resolutions = await resolveRoundResolutions({
+      allowedAssets,
+      round: passedRound.round,
+      startsAtMs: passedRound.startsAt.getTime(),
+      endsAtMs: passedRound.endsAt.getTime(),
+      resolutionEndsAtMs: passedRound.resolutionEndsAtMs
+    })
+    const resolutionsByAssetId = new Map(resolutions.map((resolution) => [resolution.assetId, resolution]))
+    const predictions = await firestore.listDocuments(
+      `tournaments/${tournamentId}/seasons/${season.id}/rounds/${passedRound.round.id}`,
+      'predictions'
+    )
+    predictionsProcessed += predictions.length
+
+    const eligibleUserIds = getEligibleLeaderboardUserIdsForRound(
+      enrolledAtByUserId,
+      rebuiltLeaderboard,
+      passedRound.endsAt.getTime()
+    )
+    const scoring = calculateUserDeltas({
+      predictions,
+      allowedAssets,
+      resolutionsByAssetId,
+      leaderboardUserIds: eligibleUserIds,
+      startsAtMs: passedRound.startsAt.getTime(),
+      endsAtMs: passedRound.endsAt.getTime(),
+      pointsPerCorrect: parsePositiveInteger(env.POINTS_PER_CORRECT, 25),
+      pointsPerIncorrect: parseNegativeInteger(env.POINTS_PER_INCORRECT, -25)
+    })
+
+    applyRecalculatedRoundDeltas(rebuiltLeaderboard, scoring.userDeltas)
+    if (passedRound.round.id === targetRound.round.id) {
+      for (const resolution of resolutions) {
+        assetResultsByAssetId.set(resolution.assetId, resolution.direction)
+      }
+    }
+  }
+
+  const leaderboardByUserId = new Map(leaderboardDocuments.map((entry) => [entry.id, entry]))
+  const writes: FirestoreWrite[] = []
+  for (const entry of rebuiltLeaderboard.values()) {
+    const existing = leaderboardByUserId.get(entry.userId)
+    writes.push(makeUpdateWrite({
+      name: existing?.name || firestore.documentName(
+        `tournaments/${tournamentId}/seasons/${season.id}/leaderboard/${entry.userId}`
+      ),
+      fields: {
+        userId: entry.userId,
+        points: entry.points,
+        totalPredictions: entry.totalPredictions,
+        correctPredictions: entry.correctPredictions,
+        missedPredictions: entry.missedPredictions,
+        assetStats: Array.from(entry.assetStats.values())
+          .sort((left, right) => left.asset.localeCompare(right.asset)),
+        lastScoredRoundId: targetRound.round.id,
+        lastRecalculatedRoundId: targetRound.round.id
+      },
+      serverTimestampFields: existing ? ['updatedAt', 'recalculatedAt'] : ['createdAt', 'updatedAt', 'recalculatedAt'],
+      precondition: existing?.updateTime
+        ? { updateTime: existing.updateTime }
+        : { exists: false }
+    }))
+  }
+
+  if (writes.length > MAX_ATOMIC_WRITES) {
+    throw new Error(
+      `Leaderboard recalculation requires ${writes.length} writes; safety limit is ${MAX_ATOMIC_WRITES}.`
+    )
+  }
+
+  if (!dryRun && writes.length) {
+    await firestore.commit(writes)
+  }
+
+  return {
+    tournamentId,
+    seasonId: season.id,
+    status: 'recalculated',
+    recalculatedRoundId: targetRound.round.id,
+    predictionsProcessed,
+    usersUpdated: rebuiltLeaderboard.size,
+    roundsRebuilt: passedRounds.length,
+    assetResults: Object.fromEntries(assetResultsByAssetId)
+  }
+}
+
+async function buildSeasonPrizeAwardPlan(input: {
+  firestore: FirestoreRestClient
+  tournament: FirestoreDocument
+  season: FirestoreDocument
+  leaderboardDocuments: FirestoreDocument[]
+  userDeltas: Map<string, UserScoreDelta>
+  nowMs: number
+  eventNameRu: string
+  eventNameEn: string
+  seasonOrdinal: number
+  roundOrdinal: number
+}): Promise<SeasonPrizeAwardPlan> {
+  if (!isSeasonCompleteForPrizeAward(input.season, input.nowMs)) {
+    return { writes: [], prizeByUserId: new Map() }
+  }
+  if (input.season.data.prizesAwarded === true || input.season.data.prizesAwardedAt instanceof Date) {
+    return { writes: [], prizeByUserId: new Map() }
+  }
+
+  const prizes = readSeasonPrizeMap(input.season.data.prizes)
+  if (!prizes.size) return { writes: [], prizeByUserId: new Map() }
+
+  const recipients = selectSeasonPrizeRecipients(
+    buildEffectiveLeaderboardRows(input.leaderboardDocuments, input.userDeltas)
+  )
+  if (!recipients.length) return { writes: [], prizeByUserId: new Map() }
+
+  const prizeByUserId = new Map<string, AwardedSeasonPrize>()
+  for (const recipient of recipients) {
+    const { row, prizeRank } = recipient
+    const prize = getSeasonPrizeForRank(prizes, prizeRank)
+    if (!prize) continue
+
+    const prizeName = getPrizeDisplayName(prize)
+    if (!prizeName) continue
+
+    prizeByUserId.set(row.userId, {
+      rank: prizeRank,
+      prizeName,
+      prize
+    })
+  }
+
+  if (!prizeByUserId.size) return { writes: [], prizeByUserId }
+
+  const grantedAt = new Date(input.nowMs)
+  const userDocuments = new Map<string, FirestoreDocument | null>()
+  for (const userId of prizeByUserId.keys()) {
+    userDocuments.set(userId, await input.firestore.getDocument(`users/${userId}`))
+  }
+
+  const winners = Array.from(prizeByUserId.entries()).map(([userId, awarded]) => ({
+    userId,
+    rank: awarded.rank,
+    prize: awarded.prizeName
+  }))
+  const writes: FirestoreWrite[] = [
+    makeUpdateWrite({
+      name: input.season.name,
+      fields: {
+        prizesAwarded: true,
+        prizeWinners: winners
+      },
+      serverTimestampFields: ['prizesAwardedAt'],
+      precondition: requireUpdateTime(input.season, 'season')
+    })
+  ]
+
+  for (const [userId, awarded] of prizeByUserId) {
+    const userDocument = userDocuments.get(userId) || null
+    const existingStatuses = readUserStatuses(userDocument?.data.status)
+    const grantedStatus = createGrantedStatus(awarded.prize, grantedAt)
+
+    writes.push(makeUpdateWrite({
+      name: userDocument?.name || input.firestore.documentName(`users/${userId}`),
+      fields: {
+        status: mergeUserStatuses(existingStatuses, grantedStatus)
+      },
+      precondition: userDocument?.updateTime
+        ? { updateTime: userDocument.updateTime }
+        : { exists: false }
+    }))
+
+    writes.push(makeUpdateWrite({
+      name: input.firestore.documentName(
+        `users/${userId}/notifications/event_prize_${input.tournament.id}_${input.season.id}`
+      ),
+      fields: {
+        type: 'event',
+        subtype: 'prize',
+        contentRu: `Вы получили сезонную награду: ${awarded.prizeName}.`,
+        contentEn: `You have received a seasonal reward: ${awarded.prizeName}.`,
+        eventNameRu: input.eventNameRu,
+        eventNameEn: input.eventNameEn,
+        season: input.seasonOrdinal,
+        round: input.roundOrdinal,
+        prize: awarded.prizeName,
+        isRead: false
+      },
+      serverTimestampFields: ['createdAt'],
+      precondition: { exists: false }
+    }))
+  }
+
+  return { writes, prizeByUserId }
+}
+
+async function buildSpecialPrizeAwardPlan(input: {
+  firestore: FirestoreRestClient
+  tournament: FirestoreDocument
+  seasons: FirestoreDocument[]
+  currentSeasonId: string
+  currentSeasonLeaderboard: FirestoreDocument[]
+  currentSeasonDeltas: Map<string, UserScoreDelta>
+  nowMs: number
+  eventNameRu: string
+  eventNameEn: string
+  seasonOrdinal: number
+  roundOrdinal: number
+}): Promise<SpecialPrizeAwardPlan> {
+  if (input.tournament.id !== APEX_PROTOCOL_TOURNAMENT_ID) {
+    return { writes: [], userIds: [] }
+  }
+
+  const specialPrizes = readSpecialPrizeArray(input.tournament.data.specialPrize)
+  const prizeIndex = specialPrizes.findIndex((prize) => (
+    normalizeSpecialPrizeValue(prize.type) === SPECIAL_PRIZE_TYPE_LICENSE_KEY
+    && normalizeStatus(prize.status) === 'active'
+  ))
+  if (prizeIndex < 0) return { writes: [], userIds: [] }
+
+  const prize = specialPrizes[prizeIndex]!
+  const alreadyAwardedUserIds = readSpecialPrizeWinnerIds(prize.winners)
+  const seasonWins = await calculateSeasonWins({
+    firestore: input.firestore,
+    tournamentId: input.tournament.id,
+    seasons: input.seasons,
+    currentSeasonId: input.currentSeasonId,
+    currentSeasonLeaderboard: input.currentSeasonLeaderboard,
+    currentSeasonDeltas: input.currentSeasonDeltas,
+    nowMs: input.nowMs
+  })
+  const eligibleUserIds = Array.from(seasonWins.entries())
+    .filter(([, record]) => record.seasonIds.length >= SPECIAL_PRIZE_REQUIRED_SEASON_WINS)
+    .map(([userId]) => userId)
+    .filter((userId) => !alreadyAwardedUserIds.has(userId))
+    .sort()
+
+  if (!eligibleUserIds.length) return { writes: [], userIds: [] }
+
+  const updatedSpecialPrizes = specialPrizes.map((entry, index) => {
+    if (index !== prizeIndex) return entry
+    return {
+      ...entry,
+      winners: Array.from(new Set([
+        ...Array.from(alreadyAwardedUserIds),
+        ...eligibleUserIds
+      ])).sort()
+    }
+  })
+  const writes: FirestoreWrite[] = [
+    makeUpdateWrite({
+      name: input.tournament.name,
+      fields: {
+        specialPrize: updatedSpecialPrizes
+      },
+      serverTimestampFields: ['specialPrizeUpdatedAt'],
+      precondition: requireUpdateTime(input.tournament, 'tournament')
+    })
+  ]
+
+  for (const userId of eligibleUserIds) {
+    writes.push(makeUpdateWrite({
+      name: input.firestore.documentName(
+        `users/${userId}/notifications/event_prize_${input.tournament.id}_special_license_key`
+      ),
+      fields: {
+        type: 'event',
+        subtype: 'prize',
+        contentRu: 'Вы получили специальную награду. Лицензионный ключ приложения будет направлен на почту, через которую вы зарегистрировались.',
+        contentEn: 'You have received a special prize. The application license key will be sent to the email address used for registration.',
+        eventNameRu: input.eventNameRu,
+        eventNameEn: input.eventNameEn,
+        season: input.seasonOrdinal,
+        round: input.roundOrdinal,
+        prize: 'Application license key',
+        isRead: false
+      },
+      serverTimestampFields: ['createdAt']
+    }))
+  }
+
+  return { writes, userIds: eligibleUserIds }
+}
+
+async function calculateSeasonWins(input: {
+  firestore: FirestoreRestClient
+  tournamentId: string
+  seasons: FirestoreDocument[]
+  currentSeasonId: string
+  currentSeasonLeaderboard: FirestoreDocument[]
+  currentSeasonDeltas: Map<string, UserScoreDelta>
+  nowMs: number
+}): Promise<Map<string, SeasonWinRecord>> {
+  const result = new Map<string, SeasonWinRecord>()
+
+  for (let index = 0; index < input.seasons.length; index += 1) {
+    const season = input.seasons[index]!
+    if (!isSeasonCompleteForSpecialPrize(season, input.nowMs)) continue
+
+    const leaderboardDocuments = season.id === input.currentSeasonId
+      ? input.currentSeasonLeaderboard
+      : await input.firestore.listDocuments(
+          `tournaments/${input.tournamentId}/seasons/${season.id}`,
+          'leaderboard'
+        )
+    const leaderboard = season.id === input.currentSeasonId
+      ? buildEffectiveLeaderboardRows(leaderboardDocuments, input.currentSeasonDeltas)
+      : buildEffectiveLeaderboardRows(leaderboardDocuments)
+    const winners = getSeasonFirstPlaceUserIds(leaderboard)
+
+    for (const userId of winners) {
+      const existing = result.get(userId) || { seasonIds: [], seasonOrdinals: [] }
+      existing.seasonIds.push(season.id)
+      existing.seasonOrdinals.push(index + 1)
+      result.set(userId, existing)
+    }
+  }
+
+  return result
+}
+
+function buildEffectiveLeaderboardRows(
+  documents: FirestoreDocument[],
+  deltas?: Map<string, UserScoreDelta>
+): LeaderboardRow[] {
+  const rows = new Map<string, LeaderboardRow>()
+
+  for (const document of documents) {
+    const userId = document.id
+    rows.set(userId, {
+      userId,
+      points: Math.max(0, readFiniteNumber(document.data.points, 0))
+    })
+  }
+
+  if (deltas) {
+    for (const [userId, delta] of deltas) {
+      const current = rows.get(userId)
+      rows.set(userId, {
+        userId,
+        points: Math.max(0, (current?.points || 0) + delta.points)
+      })
+    }
+  }
+
+  return Array.from(rows.values())
+}
+
+function selectSeasonPrizeRecipients(rows: LeaderboardRow[]): Array<{
+  row: LeaderboardRow
+  prizeRank: number
+}> {
+  const rankedRows = rows
+    .filter((row) => row.points > 0)
+    .sort((left, right) => (
+      right.points - left.points
+      || left.userId.localeCompare(right.userId)
+    ))
+
+  if (!rankedRows.length) return []
+
+  const allRowsShareTopScore = rankedRows.length > 1
+    && rankedRows.every((row) => row.points === rankedRows[0]!.points)
+  const recipients: Array<{ row: LeaderboardRow; prizeRank: number }> = []
+  let index = 0
+
+  while (index < rankedRows.length) {
+    const groupStartIndex = index
+    const points = rankedRows[index]!.points
+    const group: LeaderboardRow[] = []
+
+    while (index < rankedRows.length && rankedRows[index]!.points === points) {
+      group.push(rankedRows[index]!)
+      index += 1
+    }
+
+    const competitionRank = groupStartIndex + 1
+    if (competitionRank > 3) continue
+
+    const prizeRank = allRowsShareTopScore
+      || group.length > 2
+      || (competitionRank > 1 && group.length > 1)
+      ? 3
+      : competitionRank
+
+    for (const row of group) {
+      recipients.push({ row, prizeRank: Math.min(3, Math.max(1, prizeRank)) })
+    }
+  }
+
+  return recipients
+}
+
+function getSeasonFirstPlaceUserIds(rows: LeaderboardRow[]): string[] {
+  const maxPoints = rows.reduce((max, row) => Math.max(max, row.points), 0)
+  if (maxPoints <= 0) return []
+
+  const winners = rows
+    .filter((row) => row.points === maxPoints)
+    .map((row) => row.userId)
+    .sort()
+
+  return winners.length <= 2 ? winners : []
+}
+
+function isSeasonCompleteForSpecialPrize(season: FirestoreDocument, nowMs: number): boolean {
+  if (normalizeStatus(season.data.status) === 'closed') return true
+  const endsAt = season.data.endsAt
+  return endsAt instanceof Date && Number.isFinite(endsAt.getTime()) && endsAt.getTime() <= nowMs
+}
+
+function isSeasonCompleteForPrizeAward(season: FirestoreDocument, nowMs: number): boolean {
+  return isSeasonCompleteForSpecialPrize(season, nowMs)
+}
+
+function readSeasonPrizeMap(value: unknown): Map<number, Record<string, unknown>> {
+  const result = new Map<number, Record<string, unknown>>()
+  if (value === undefined || value === null) return result
+
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => {
+      const normalized = normalizeSeasonPrizeEntry(entry, index + 1)
+      if (normalized) result.set(normalized.rank, normalized.prize)
+    })
+    return result
+  }
+
+  const record = requireObject(value, 'season.prizes')
+  for (const [key, entry] of Object.entries(record)) {
+    const fallbackRank = parsePrizeRank(key)
+    const normalized = normalizeSeasonPrizeEntry(entry, fallbackRank)
+    if (normalized) result.set(normalized.rank, normalized.prize)
+  }
+  return result
+}
+
+function normalizeSeasonPrizeEntry(
+  entry: unknown,
+  fallbackRank: number
+): { rank: number; prize: Record<string, unknown> } | null {
+  const object = requireObject(entry, `season.prizes[${fallbackRank}]`)
+  const wrapperKeys = Object.keys(object).filter((key) => /^prize-\d+$/i.test(key))
+  if (wrapperKeys.length === 1 && Object.keys(object).length === 1) {
+    const wrapperKey = wrapperKeys[0]!
+    return normalizeSeasonPrizeEntry(object[wrapperKey], parsePrizeRank(wrapperKey))
+  }
+
+  const rank = parsePrizeRank(
+    object.id
+      ?? object.key
+      ?? object.rank
+      ?? object.place
+      ?? object.position
+      ?? object.name
+      ?? fallbackRank
+  )
+  if (!Number.isInteger(rank) || rank < 1 || rank > 3) return null
+  return { rank, prize: object }
+}
+
+function parsePrizeRank(value: unknown): number {
+  if (typeof value === 'number' && Number.isInteger(value)) return value
+  const match = String(value || '').match(/(?:prize[-_ ]?)?([1-3])$/i)
+  return match ? Number(match[1]) : 0
+}
+
+function getSeasonPrizeForRank(
+  prizes: Map<number, Record<string, unknown>>,
+  rank: number
+): Record<string, unknown> | null {
+  const exact = prizes.get(rank)
+  if (exact) return exact
+  if (rank === 3) return prizes.get(2) || null
+  return null
+}
+
+function getPrizeDisplayName(prize: Record<string, unknown>): string {
+  return String(prize.prize || prize.name || prize.title || '').trim()
+}
+
+function readUserStatuses(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is Record<string, unknown> => (
+      Boolean(entry)
+      && typeof entry === 'object'
+      && !Array.isArray(entry)
+    ))
+    .map((entry) => ({ ...entry }))
+}
+
+function createGrantedStatus(prize: Record<string, unknown>, grantedAt: Date): Record<string, unknown> {
+  const status: Record<string, unknown> = {
+    ...prize,
+    granted: grantedAt
+  }
+  if (status.isSelected === undefined) {
+    status.isSelected = false
+  }
+  if (status.name === undefined) {
+    const prizeName = getPrizeDisplayName(prize)
+    if (prizeName) status.name = prizeName
+  }
+  return status
+}
+
+function mergeUserStatuses(
+  existingStatuses: Record<string, unknown>[],
+  grantedStatus: Record<string, unknown>
+): Record<string, unknown>[] {
+  const grantedKey = getStatusIdentityKey(grantedStatus)
+  if (grantedKey && existingStatuses.some((status) => getStatusIdentityKey(status) === grantedKey)) {
+    return existingStatuses
+  }
+  return [...existingStatuses, grantedStatus]
+}
+
+function getStatusIdentityKey(status: Record<string, unknown>): string {
+  return String(status.name || status.prize || '').trim().toLowerCase()
+}
+
+function readSpecialPrizeArray(value: unknown): Record<string, unknown>[] {
+  if (value === undefined || value === null) return []
+  return requireArray(value, 'tournament.specialPrize').map((entry, index) => (
+    requireObject(entry, `tournament.specialPrize[${index}]`)
+  ))
+}
+
+function readSpecialPrizeWinnerIds(value: unknown): Set<string> {
+  if (value === undefined || value === null) return new Set()
+  return new Set(requireArray(value, 'specialPrize.winners')
+    .map((entry) => {
+      if (typeof entry === 'string') return entry.trim()
+      if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
+        return String((entry as Record<string, unknown>).userId || '').trim()
+      }
+      return ''
+    })
+    .filter(Boolean))
+}
+
+function normalizeSpecialPrizeValue(value: unknown): string {
+  return String(value || '').trim().toLowerCase()
+}
+
 function calculateUserDeltas(input: {
   predictions: FirestoreDocument[]
+  allowedAssets: ResolvedAsset[]
   resolutionsByAssetId: Map<string, AssetResolution>
+  leaderboardUserIds: string[]
   startsAtMs: number
   endsAtMs: number
   pointsPerCorrect: number
   pointsPerIncorrect: number
-}): Map<string, UserScoreDelta> {
-  const result = new Map<string, UserScoreDelta>()
+}): {
+  userDeltas: Map<string, UserScoreDelta>
+  voteSummariesByAssetId: Map<string, AssetVoteSummary>
+} {
+  const predictionByUserAndAsset = new Map<string, {
+    userId: string
+    assetId: string
+    prediction: PredictionDirection
+  }>()
+  const voteCountsByAssetId = new Map<string, Record<PredictionDirection, number>>()
+  const participantIds = new Set(input.leaderboardUserIds)
   const seenPredictions = new Set<string>()
 
   for (const predictionDocument of input.predictions) {
@@ -513,44 +1301,116 @@ function calculateUserDeltas(input: {
       throw new Error(`Prediction ${predictionDocument.id} is outside the round voting interval.`)
     }
 
-    const uniqueKey = `${userId}:${assetId}`
-    if (seenPredictions.has(uniqueKey)) {
-      throw new Error(`Duplicate prediction for ${uniqueKey}.`)
-    }
-    seenPredictions.add(uniqueKey)
-
     const resolution = input.resolutionsByAssetId.get(assetId)
     if (!resolution) {
       throw new Error(`Prediction ${predictionDocument.id} references disallowed asset ${assetId}.`)
     }
 
-    const isCorrect = prediction === resolution.direction
+    const uniqueKey = `${userId}:${assetId}`
+    if (seenPredictions.has(uniqueKey)) {
+      throw new Error(`Duplicate prediction for ${uniqueKey}.`)
+    }
+    seenPredictions.add(uniqueKey)
+    predictionByUserAndAsset.set(uniqueKey, { userId, assetId, prediction })
+    participantIds.add(userId)
+
+    const voteCounts = voteCountsByAssetId.get(assetId) || { LONG: 0, SHORT: 0 }
+    voteCounts[prediction] += 1
+    voteCountsByAssetId.set(assetId, voteCounts)
+  }
+
+  const voteSummariesByAssetId = new Map<string, AssetVoteSummary>()
+  for (const asset of input.allowedAssets) {
+    const resolution = input.resolutionsByAssetId.get(asset.assetId)
+    if (!resolution) continue
+    const voteCounts = voteCountsByAssetId.get(asset.assetId) || { LONG: 0, SHORT: 0 }
+    voteSummariesByAssetId.set(asset.assetId, createAssetVoteSummary({
+      assetId: asset.assetId,
+      direction: resolution.direction,
+      longVotes: voteCounts.LONG,
+      shortVotes: voteCounts.SHORT,
+      pointsPerCorrect: input.pointsPerCorrect
+    }))
+  }
+
+  const result = new Map<string, UserScoreDelta>()
+  const allowedAssetIds = input.allowedAssets.map((asset) => asset.assetId)
+  for (const userId of participantIds) {
     const current = result.get(userId) || {
       points: 0,
       totalPredictions: 0,
       correctPredictions: 0,
+      missedPredictions: 0,
       assetStats: new Map<string, LeaderboardAssetStat>()
     }
-    const assetStat = current.assetStats.get(assetId) || {
-      assetId,
-      asset: resolution.asset,
-      totalPredictions: 0,
-      correctPredictions: 0
+    for (const assetId of allowedAssetIds) {
+      const resolution = input.resolutionsByAssetId.get(assetId)
+      if (!resolution) continue
+
+      const uniqueKey = `${userId}:${assetId}`
+      const predictionRecord = predictionByUserAndAsset.get(uniqueKey)
+      const assetStat = current.assetStats.get(assetId) || {
+        assetId,
+        asset: resolution.asset,
+        totalPredictions: 0,
+        correctPredictions: 0,
+        missedPredictions: 0,
+        pointsEarned: 0
+      }
+
+      if (!predictionRecord) {
+        current.points += MISSED_PREDICTION_PENALTY
+        current.missedPredictions += 1
+        assetStat.missedPredictions += 1
+        assetStat.pointsEarned += MISSED_PREDICTION_PENALTY
+        current.assetStats.set(assetId, assetStat)
+        continue
+      }
+
+      const voteSummary = voteSummariesByAssetId.get(assetId)
+      const isCorrect = predictionRecord.prediction === resolution.direction
+      const pointsEarned = isCorrect
+        ? voteSummary?.pointsForCorrect || input.pointsPerCorrect
+        : input.pointsPerIncorrect
+
+      current.points += pointsEarned
+      current.totalPredictions += 1
+      assetStat.totalPredictions += 1
+      assetStat.pointsEarned += pointsEarned
+      if (isCorrect) {
+        current.correctPredictions += 1
+        assetStat.correctPredictions += 1
+      }
+      current.assetStats.set(assetId, assetStat)
     }
-    current.totalPredictions += 1
-    assetStat.totalPredictions += 1
-    if (isCorrect) {
-      current.correctPredictions += 1
-      assetStat.correctPredictions += 1
-      current.points += input.pointsPerCorrect
-    } else {
-      current.points += input.pointsPerIncorrect
-    }
-    current.assetStats.set(assetId, assetStat)
     result.set(userId, current)
   }
 
-  return result
+  return { userDeltas: result, voteSummariesByAssetId }
+}
+
+function createAssetVoteSummary(input: {
+  assetId: string
+  direction: PredictionDirection
+  longVotes: number
+  shortVotes: number
+  pointsPerCorrect: number
+}): AssetVoteSummary {
+  const totalVotes = input.longVotes + input.shortVotes
+  const winningVotes = input.direction === 'LONG' ? input.longVotes : input.shortVotes
+  const winnerShare = totalVotes > 0 ? winningVotes / totalVotes : 0
+  const difficultyMultiplier = winnerShare >= 0.5 || totalVotes === 0
+    ? 1
+    : Math.min(MAX_DIFFICULTY_MULTIPLIER, 1 + (0.5 - winnerShare) * 2)
+
+  return {
+    assetId: input.assetId,
+    longVotes: input.longVotes,
+    shortVotes: input.shortVotes,
+    winnerShare,
+    difficultyMultiplier,
+    pointsForCorrect: Math.round(input.pointsPerCorrect * difficultyMultiplier)
+  }
 }
 
 function mergeLeaderboardAssetStats(
@@ -575,11 +1435,15 @@ function mergeLeaderboardAssetStats(
         totalPredictions,
         Math.max(0, readFiniteNumber(source.correctPredictions, 0))
       )
+      const missedPredictions = Math.max(0, readFiniteNumber(source.missedPredictions, 0))
+      const pointsEarned = readFiniteNumber(source.pointsEarned, 0)
       merged.set(assetId, {
         assetId,
         asset: typeof source.asset === 'string' && source.asset.trim() ? source.asset.trim() : assetId,
         totalPredictions,
-        correctPredictions
+        correctPredictions,
+        missedPredictions,
+        pointsEarned
       })
     }
   }
@@ -590,11 +1454,179 @@ function mergeLeaderboardAssetStats(
       assetId,
       asset: delta.asset || existing?.asset || assetId,
       totalPredictions: (existing?.totalPredictions || 0) + delta.totalPredictions,
-      correctPredictions: (existing?.correctPredictions || 0) + delta.correctPredictions
+      correctPredictions: (existing?.correctPredictions || 0) + delta.correctPredictions,
+      missedPredictions: (existing?.missedPredictions || 0) + delta.missedPredictions,
+      pointsEarned: (existing?.pointsEarned || 0) + delta.pointsEarned
     })
   }
 
   return Array.from(merged.values()).sort((left, right) => left.asset.localeCompare(right.asset))
+}
+
+function createEmptyRebuiltLeaderboardEntry(userId: string): RebuiltLeaderboardEntry {
+  return {
+    userId,
+    points: 0,
+    totalPredictions: 0,
+    correctPredictions: 0,
+    missedPredictions: 0,
+    assetStats: new Map<string, LeaderboardAssetStat>()
+  }
+}
+
+function buildTournamentEnrollmentMap(
+  leaderboardDocuments: FirestoreDocument[],
+  participantDocuments: FirestoreDocument[]
+): Map<string, number> {
+  const result = new Map<string, number>()
+  const setEarliest = (userId: string, enrolledAtMs: number) => {
+    if (!userId) return
+    const existing = result.get(userId)
+    if (existing === undefined || enrolledAtMs < existing) {
+      result.set(userId, enrolledAtMs)
+    }
+  }
+
+  for (const participant of participantDocuments) {
+    const userId = typeof participant.data.userId === 'string' && participant.data.userId.trim()
+      ? participant.data.userId.trim()
+      : participant.id
+    setEarliest(userId, readEnrollmentTimeMs(participant))
+  }
+
+  for (const entry of leaderboardDocuments) {
+    const userId = typeof entry.data.userId === 'string' && entry.data.userId.trim()
+      ? entry.data.userId.trim()
+      : entry.id
+    setEarliest(userId, readEnrollmentTimeMs(entry))
+  }
+
+  return result
+}
+
+function readEnrollmentTimeMs(document: FirestoreDocument): number {
+  const registeredAt = document.data.registeredAt
+  if (registeredAt instanceof Date && Number.isFinite(registeredAt.getTime())) {
+    return registeredAt.getTime()
+  }
+
+  const createdAt = document.data.createdAt
+  if (createdAt instanceof Date && Number.isFinite(createdAt.getTime())) {
+    return createdAt.getTime()
+  }
+
+  if (document.createTime) {
+    const parsed = Date.parse(document.createTime)
+    if (Number.isFinite(parsed)) return parsed
+  }
+
+  return Number.NEGATIVE_INFINITY
+}
+
+function getEligibleLeaderboardUserIdsForRound(
+  enrolledAtByUserId: Map<string, number>,
+  rebuiltLeaderboard: Map<string, RebuiltLeaderboardEntry>,
+  roundEndsAtMs: number
+): string[] {
+  const result = new Set<string>()
+
+  for (const [userId, enrolledAtMs] of enrolledAtByUserId) {
+    if (!Number.isFinite(enrolledAtMs) || enrolledAtMs <= roundEndsAtMs) {
+      result.add(userId)
+    }
+  }
+
+  for (const userId of rebuiltLeaderboard.keys()) {
+    if (!enrolledAtByUserId.has(userId)) result.add(userId)
+  }
+
+  return Array.from(result)
+}
+
+function applyRecalculatedRoundDeltas(
+  rebuiltLeaderboard: Map<string, RebuiltLeaderboardEntry>,
+  userDeltas: Map<string, UserScoreDelta>
+): void {
+  for (const [userId, delta] of userDeltas) {
+    const current = rebuiltLeaderboard.get(userId) || createEmptyRebuiltLeaderboardEntry(userId)
+    current.points = Math.max(0, current.points + delta.points)
+    current.totalPredictions += delta.totalPredictions
+    current.correctPredictions += delta.correctPredictions
+    current.missedPredictions += delta.missedPredictions
+
+    for (const [assetId, assetDelta] of delta.assetStats) {
+      const existing = current.assetStats.get(assetId)
+      current.assetStats.set(assetId, {
+        assetId,
+        asset: assetDelta.asset || existing?.asset || assetId,
+        totalPredictions: (existing?.totalPredictions || 0) + assetDelta.totalPredictions,
+        correctPredictions: (existing?.correctPredictions || 0) + assetDelta.correctPredictions,
+        missedPredictions: (existing?.missedPredictions || 0) + assetDelta.missedPredictions,
+        pointsEarned: (existing?.pointsEarned || 0) + assetDelta.pointsEarned
+      })
+    }
+
+    rebuiltLeaderboard.set(userId, current)
+  }
+}
+
+async function resolveRoundResolutions(input: {
+  allowedAssets: ResolvedAsset[]
+  round: FirestoreDocument
+  startsAtMs: number
+  endsAtMs: number
+  resolutionEndsAtMs: number
+}): Promise<AssetResolution[]> {
+  const storedResolutions = readStoredRoundAssetResults(input.round.data.assetResults)
+  const hasAllStoredResolutions = input.allowedAssets.every((asset) => storedResolutions.has(asset.assetId))
+
+  if (hasAllStoredResolutions) {
+    return input.allowedAssets.map((asset) => storedResolutions.get(asset.assetId)!)
+  }
+
+  return mapWithConcurrency(
+    input.allowedAssets,
+    1,
+    async (asset) => resolveAssetDirection(
+      asset,
+      input.startsAtMs,
+      input.endsAtMs,
+      input.resolutionEndsAtMs
+    )
+  )
+}
+
+function readStoredRoundAssetResults(value: unknown): Map<string, AssetResolution> {
+  const result = new Map<string, AssetResolution>()
+  if (!Array.isArray(value)) return result
+
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const source = entry as Record<string, unknown>
+    const assetSource = typeof source.assetId === 'string' && source.assetId.trim()
+      ? source.assetId
+      : typeof source.asset === 'string'
+        ? source.asset
+        : ''
+    const assetId = normalizeAssetId(assetSource)
+    if (!assetId) continue
+
+    const directionSource = source.verdict ?? source.direction
+    const direction = normalizePredictionDirection(directionSource)
+    const asset = typeof source.asset === 'string' && source.asset.trim()
+      ? source.asset.trim()
+      : assetId
+
+    result.set(assetId, {
+      assetId,
+      asset,
+      direction,
+      initialPrice: readFiniteNumber(source.initialPrice, 0),
+      finalPrice: readFiniteNumber(source.finalPrice, 0)
+    })
+  }
+
+  return result
 }
 
 async function resolveAssetDirection(
@@ -613,11 +1645,13 @@ async function resolveAssetDirection(
   }
 
   const { candles } = await fetchYahooCandles(asset, startsAtMs, cutoffMs)
-  const startCandle = findCandleEndingAt(candles, startsAtMs)
+  const startCandle = findInitialCandle(candles, startsAtMs)
   const finalCandle = findCandleEndingAt(candles, cutoffMs)
 
   if (!startCandle) {
-    throw new Error(`${asset.symbol}: Yahoo has no exact 30-minute candle closing at startsAt.`)
+    throw new Error(
+      `${asset.symbol}: Yahoo has no exact 30-minute candle ending at startsAt or starting at startsAt.`
+    )
   }
   if (!finalCandle) {
     throw new Error(`${asset.symbol}: Yahoo has no exact 30-minute candle closing at endsAt + timeWindow.`)
@@ -995,6 +2029,24 @@ class FirestoreRestClient {
     return `projects/${this.projectId}/databases/(default)/documents/${path}`
   }
 
+  async getDocument(path: string): Promise<FirestoreDocument | null> {
+    const accessToken = await getGoogleAccessToken(this.env)
+    const url = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(this.projectId)}/databases/(default)/documents/${encodeFirestorePath(path)}`
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json'
+      }
+    })
+    if (response.status === 404) return null
+
+    const payload = await readJsonResponse(response)
+    if (!response.ok) {
+      throw new Error(`Firestore get ${path} failed: ${response.status} ${JSON.stringify(payload)}`)
+    }
+    return decodeDocument(payload as FirestoreDocumentResponse)
+  }
+
   async listDocuments(parentPath: string, collectionId: string): Promise<FirestoreDocument[]> {
     const accessToken = await getGoogleAccessToken(this.env)
     const collectionPath = [parentPath, collectionId].filter(Boolean).join('/')
@@ -1237,6 +2289,11 @@ function findCandleEndingAt(candles: YahooCandle[], endMs: number): YahooCandle 
   return candles.find((candle) => candle.timestampMs === startsAtMs)
 }
 
+function findInitialCandle(candles: YahooCandle[], startsAtMs: number): YahooCandle | undefined {
+  return findCandleEndingAt(candles, startsAtMs)
+    || candles.find((candle) => candle.timestampMs === startsAtMs)
+}
+
 function isThirtyMinuteBoundary(millis: number): boolean {
   const date = new Date(millis)
   return date.getUTCMinutes() % CANDLE_INTERVAL_MINUTES === 0
@@ -1284,6 +2341,17 @@ function readTradingHolidays(value: unknown): Set<string> {
 function isTradingDay(date: Date, tradingHolidays: Set<string>): boolean {
   const dayOfWeek = date.getUTCDay()
   return dayOfWeek !== 0 && dayOfWeek !== 6 && !tradingHolidays.has(formatUtcDate(date))
+}
+
+function findNextTradingDay(firstCandidate: Date, tradingHolidays: Set<string>): Date {
+  let candidate = firstCandidate
+
+  for (let attempt = 0; attempt < 370; attempt += 1) {
+    if (isTradingDay(candidate, tradingHolidays)) return candidate
+    candidate = getNextUtcCalendarDay(candidate.getTime())
+  }
+
+  throw new Error('Could not find a trading day within the next 370 calendar days.')
 }
 
 function formatUtcDate(date: Date): string {

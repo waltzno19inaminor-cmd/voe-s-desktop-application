@@ -64,14 +64,16 @@ service cloud.firestore {
         && !request.resource.data.keys().hasAny([
           "type",
           "expiresAt",
-          "updatedAt"
+          "updatedAt",
+          "access"
         ]);
 
       allow update: if isOwner(userId)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           "type",
           "expiresAt",
-          "updatedAt"
+          "updatedAt",
+          "access"
         ]);
 
       allow delete: if false;
@@ -81,8 +83,58 @@ service cloud.firestore {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)
         && subcollection != "likedThreads"
-        && subcollection != "notifications";
+        && subcollection != "notifications"
+        && subcollection != "accessKeyAttempts"
+        && subcollection != "access"
+        && subcollection != "redeemedKeys";
       allow delete: if false;
+    }
+
+    // Client-side activation throttle state. This prevents the app from sending
+    // repeated bad-key requests to the access Worker while the trusted Worker
+    // remains the real activation authority.
+    match /users/{userId}/accessKeyAttempts/{attemptId} {
+      allow read: if isOwner(userId);
+
+      allow create, update: if isOwner(userId)
+        && attemptId == "state"
+        && request.resource.data.keys().hasOnly([
+          "failedCount",
+          "lockedUntil",
+          "lastFailedAt",
+          "updatedAt"
+        ])
+        && request.resource.data.failedCount is int
+        && request.resource.data.failedCount >= 0
+        && request.resource.data.failedCount <= 5
+        && (
+          request.resource.data.lockedUntil == null
+          || request.resource.data.lockedUntil is timestamp
+        )
+        && (
+          !request.resource.data.keys().hasAny(["lastFailedAt"])
+          || request.resource.data.lastFailedAt is timestamp
+        )
+        && (
+          !request.resource.data.keys().hasAny(["updatedAt"])
+          || request.resource.data.updatedAt is timestamp
+        );
+
+      allow delete: if false;
+    }
+
+    // Access is granted only by the trusted access Worker. A user may inspect
+    // their own activation state but can never create or alter it directly.
+    match /users/{userId}/access/{accessId} {
+      allow read: if isOwner(userId);
+      allow create, update, delete: if false;
+    }
+
+    // This is an immutable, user-visible audit trail of keys redeemed by the
+    // trusted Worker. It must not be writable from the client.
+    match /users/{userId}/redeemedKeys/{keyId} {
+      allow read: if isOwner(userId);
+      allow create, update, delete: if false;
     }
 
     match /users/{userId}/likedThreads/{threadId} {
@@ -303,6 +355,21 @@ service cloud.firestore {
           }
         }
       }
+    }
+
+    // Access keys, their redemption ledger and encrypted rotation batches are
+    // private backend data. The access Worker uses service-account IAM and is
+    // therefore not subject to Firestore Rules.
+    match /accessKeys/{keyId} {
+      allow read, write: if false;
+
+      match /redemptions/{userId} {
+        allow read, write: if false;
+      }
+    }
+
+    match /accessKeyBatches/{batchId} {
+      allow read, write: if false;
     }
 
     match /threads/{threadId} {

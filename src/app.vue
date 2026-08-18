@@ -1,8 +1,14 @@
 <template>
   <div
-    class="relative h-full min-h-full bg-center bg-cover transition-colors duration-500"
+    class="app-shell relative h-full min-h-full bg-center bg-cover transition-colors duration-500"
     :style="{ backgroundColor: 'var(--theme-bg)' }"
   >
+    <EtherealBackground
+      :is-dark="isDark"
+      :is-assembled="true"
+      :show-bloom="false"
+    />
+
     <!-- Ambient Background Layer -->
     <div 
       v-if="themeStore.settings.isImageBg && themeStore.settings.bgImage"
@@ -16,9 +22,11 @@
       }"
     ></div>
 
-    <div class="relative z-10 h-full min-h-full flex flex-col transition-all duration-300" :class="isFullscreen ? '' : 'pt-10'">
-      <CustomTitleBar />
-      <NuxtPage />
+    <div class="relative z-10 h-full min-h-0 box-border flex flex-col transition-all duration-300" :class="isFullscreen || route.meta.hideChrome ? '' : 'pt-10'">
+      <CustomTitleBar v-if="!route.meta.hideChrome" />
+      <main class="flex-1 min-h-0 overflow-hidden">
+        <NuxtPage />
+      </main>
     </div>
     
  
@@ -30,7 +38,7 @@
 </template>
 
 <script setup>
-import { ref, watchEffect, onMounted, onUnmounted } from 'vue'
+import { computed, ref, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useAuthInit } from '~/features/auth/useAuthInit'
 import { useRoute } from 'vue-router'
@@ -39,11 +47,13 @@ import SettingsModal from '~/widgets/settings/ui/SettingsModal.vue'
 import { isSettingsOpen } from '~/widgets/settings/model/useSettings'
 import CustomTitleBar from '~/widgets/titlebar/ui/CustomTitleBar.vue'
 import { useBoardStore } from '~/features/store/useBoard'
+import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
 const themeStore = useThemeStore()
 const boardStore = useBoardStore()
+const isDark = computed(() => themeStore.settings.isDark)
 const isFullscreen = useState('isFullscreen', () => false)
 
 // Initialize theme
@@ -207,14 +217,19 @@ html, body, #__nuxt {
   padding: 0;
   width: 100%;
   height: 100%;
-  background-color: var(--content-bg);
+  background-color: var(--theme-bg);
   color: var(--text-description);
-  transition: all 0.5s ease;
+  transition: color 0.5s ease;
   overflow: hidden; /* Prevent accidental document-level scrolling */
 }
 
 html.dark body {
-  background-color: var(--content-bg);
+  background-color: var(--theme-bg);
+}
+
+.app-shell {
+  isolation: isolate;
+  background-color: var(--theme-bg);
 }
 
 *::-webkit-scrollbar {

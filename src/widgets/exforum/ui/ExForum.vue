@@ -13,66 +13,11 @@
       <section
         v-if="isBoardFullscreen"
         ref="boardViewportRef"
-        class="fixed z-[9000] cursor-grab select-none overflow-hidden bg-white bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:28px_28px] bg-center text-[#2c2c2a] active:cursor-grabbing"
+        class="exforum-board-scale-renderer fixed z-[9000] cursor-grab select-none overflow-hidden bg-white bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:28px_28px] bg-center text-[#2c2c2a] active:cursor-grabbing"
         :style="boardFullscreenViewportStyle"
         :aria-label="articleLabels.fullscreenBoard"
         @pointerdown="startBoardPan"
       >
-        <button
-          class="absolute left-1/2 top-5 z-20 w-max max-w-[calc(100%-2rem)] -translate-x-1/2 border border-black/20 bg-white/90 px-4 py-3 text-center font-mono text-[10px] uppercase leading-relaxed tracking-[0.2em] text-black/65 shadow-[0_8px_22px_rgba(0,0,0,0.08)] transition-colors hover:border-black/40 hover:text-black sm:px-5"
-          type="button"
-          @click.stop="closeBoardFullscreen"
-        >
-          {{ fullscreenExitLabel }}
-        </button>
-
-        <div
-          class="absolute left-2 top-32 z-30 flex items-start gap-3 text-black pointer-events-none"
-          data-board-chrome
-          @pointerdown.stop
-          @click.stop
-        >
-          <div class="relative ml-3 flex flex-col items-center gap-2">
-            <div class="article-board-tool">
-              <button
-                type="button"
-                class="pointer-events-auto flex h-8 w-8 items-center justify-center border border-black/20 bg-white text-[10px] font-mono italic opacity-70 transition-colors hover:bg-black/5 hover:opacity-100"
-                :aria-label="locale === 'ru' ? 'Сбросить вид' : 'Reset view'"
-                @click.stop="resetArticleBoardFullscreenView"
-              >
-                [R]
-              </button>
-              <span class="article-board-tool-tooltip">{{ locale === 'ru' ? 'Сбросить вид' : 'Reset view' }}</span>
-            </div>
-          </div>
-
-          <div class="flex flex-col gap-6 border-l border-black/20 py-1 pl-4">
-            <div class="flex flex-col">
-              <span class="text-[8px] font-mono uppercase tracking-widest opacity-40">
-                Viewport_Telemetry
-              </span>
-              <span class="text-[12px] font-mono uppercase tracking-widest opacity-80">
-                {{ (boardScale * 100).toFixed(0) }}% // FOCUS
-              </span>
-            </div>
-
-            <div class="flex flex-col space-y-1">
-              <button
-                v-for="zoom in boardScaleOptions"
-                :key="zoom"
-                type="button"
-                class="pointer-events-auto relative flex h-5 w-12 items-center justify-center overflow-hidden border border-black/20 bg-white text-[9px] font-mono tracking-tighter transition-all"
-                :class="Math.round(boardScale * 100) === zoom ? '!border-black !bg-black !text-white opacity-100' : 'text-black/55 opacity-70 hover:bg-black/5 hover:text-black hover:opacity-100'"
-                @click.stop="setArticleBoardScale(zoom / 100)"
-              >
-                <div v-if="Math.round(boardScale * 100) === zoom" class="absolute inset-0 bg-white/10 animate-pulse"></div>
-                <span class="relative z-10" :class="Math.round(boardScale * 100) === zoom ? '!text-white' : ''">{{ zoom }}%</span>
-                <div class="absolute right-0 top-0 h-1 w-1 bg-current opacity-20"></div>
-              </button>
-            </div>
-          </div>
-        </div>
-
         <div
           class="absolute left-0 top-0 origin-top-left"
           :style="[boardWorldStyle, boardTransformStyle]"
@@ -93,7 +38,7 @@
             v-for="node in boardNodes"
             :key="node.id"
             data-board-node
-            class="absolute box-border overflow-hidden border border-black/20 bg-white/90 shadow-[0_16px_40px_rgba(0,0,0,0.08)] backdrop-blur-sm"
+            class="absolute box-border overflow-hidden border border-black/20 bg-white/90 shadow-[0_16px_40px_rgba(0,0,0,0.08)]"
             :style="getBoardNodeStyle(node)"
           >
               <div v-if="node.type === 'text'" class="flex h-full flex-col" :style="getBoardTextShellStyle()">
@@ -130,7 +75,7 @@
             </div>
 
             <div v-else-if="node.type === 'price'" class="flex h-full w-full flex-col items-center justify-center bg-white/80 font-mono" :style="getBoardPriceShellStyle()">
-              <span class="font-black uppercase tracking-[0.2em] text-black/40" :style="getBoardPriceLabelStyle()">
+              <span class="exforum-board-functional-label font-black uppercase tracking-[0.2em] text-black/40" :style="getBoardPriceLabelStyle()">
                 {{ node.priceKind === 'current' ? (locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE') : (locale === 'ru' ? 'ПРЕДПОЛАГАЕМАЯ ЦЕНА' : 'PROJECTED PRICE') }}
               </span>
               <span
@@ -144,10 +89,10 @@
 
             <div v-else-if="node.type === 'asset'" class="flex h-full w-full items-center justify-center bg-white/80 font-mono" :style="getBoardAssetShellStyle()">
               <div class="flex min-w-0 flex-col items-center justify-center text-center" :style="getBoardAssetInnerStyle()">
-                <span class="max-w-full truncate font-black uppercase tracking-widest text-black/75" :style="getBoardAssetLabelStyle()">
+                <span class="exforum-board-functional-label max-w-full truncate font-black uppercase tracking-widest text-black/75" :style="getBoardAssetLabelStyle()">
                   {{ getAssetNodeLabel(node) }}
                 </span>
-                <span v-if="getAssetNodeTypeLabel(node)" class="max-w-full truncate font-black uppercase tracking-[0.3em] text-black/35" :style="getBoardAssetTypeStyle()">
+                <span v-if="getAssetNodeTypeLabel(node)" class="exforum-board-functional-label max-w-full truncate font-black uppercase tracking-[0.3em] text-black/35" :style="getBoardAssetTypeStyle()">
                   {{ getAssetNodeTypeLabel(node) }}
                 </span>
               </div>
@@ -157,23 +102,23 @@
               <span class="truncate font-black uppercase tracking-widest text-black/80" :style="getBoardDataTitleStyle(16)">{{ getStrategyNodeLabel(node) }}</span>
               <div v-if="getStrategyNodeMetrics(node)" class="grid grid-cols-5 text-center uppercase" :style="getBoardDataGridStyle(6)">
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.profitFactorShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.profitFactorShort }}</small>
                   <strong class="truncate font-black text-black/85" :style="getBoardDataValueStyle(14)">{{ formatProfitFactor(getStrategyNodeMetrics(node)!.profitFactor) }}</strong>
                 </span>
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.winRateShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.winRateShort }}</small>
                   <strong class="truncate font-black text-black/85" :style="getBoardDataValueStyle(14)">{{ formatCompactNumber(getStrategyNodeMetrics(node)!.winRate, 1) }}%</strong>
                 </span>
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.resultShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.resultShort }}</small>
                   <strong class="truncate font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.resultCurrency)" :style="getBoardDataValueStyle(14)">{{ formatSignedCurrency(getStrategyNodeMetrics(node)!.resultCurrency) }}</strong>
                 </span>
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.startShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.startShort }}</small>
                   <strong class="truncate font-black text-black/85" :style="getBoardDataValueStyle(14)">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.initialCapital) }}</strong>
                 </span>
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.endShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.18em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.endShort }}</small>
                   <strong class="truncate font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.finalCapital - getStrategyNodeMetrics(node)!.initialCapital)" :style="getBoardDataValueStyle(14)">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.finalCapital) }}</strong>
                 </span>
               </div>
@@ -183,7 +128,7 @@
               <div class="flex items-start justify-between" :style="getBoardDataGridStyle(12)">
                 <div class="flex min-w-0 flex-col text-left">
                   <span class="truncate font-black uppercase tracking-widest text-black/80" :style="getBoardDataTitleStyle(16)">{{ getTradeNodeAssetLabel(node) }}</span>
-                  <span class="truncate font-black uppercase tracking-[0.24em]" :class="getTradeNodeVectorClass(node)" :style="getBoardDataLabelStyle(9)">{{ getTradeNodeVector(node) }}</span>
+                  <span class="exforum-board-functional-label truncate font-black uppercase tracking-[0.24em]" :class="getTradeNodeVectorClass(node)" :style="getBoardDataLabelStyle(9)">{{ getTradeNodeVector(node) }}</span>
                 </div>
                 <span class="max-w-[45%] truncate text-right font-black uppercase tracking-[0.16em]" :class="getTradeNodeResultClass(node)" :style="getBoardDataValueStyle(12)">
                   {{ getTradeNodeResult(node) || boardUiLabels.select }}
@@ -191,11 +136,11 @@
               </div>
               <div class="grid grid-cols-2 text-center uppercase" :style="getBoardDataGridStyle(6)">
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.16em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.entryShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.16em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.entryShort }}</small>
                   <strong class="truncate font-black text-black/80" :style="getBoardDataValueStyle(11)">{{ getTradeNodeEntryDate(node) }}</strong>
                 </span>
                 <span class="flex min-w-0 flex-col border border-black/10" :style="getBoardDataCellStyle(6, 4)">
-                  <small class="font-black tracking-[0.16em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.exitShort }}</small>
+                  <small class="exforum-board-functional-label font-black tracking-[0.16em] text-black/40" :style="getBoardDataLabelStyle(8)">{{ boardUiLabels.exitShort }}</small>
                   <strong class="truncate font-black text-black/80" :style="getBoardDataValueStyle(11)">{{ getTradeNodeExitDate(node) }}</strong>
                 </span>
               </div>
@@ -206,6 +151,67 @@
         <div class="pointer-events-none absolute inset-0 bg-black/[0.025]"></div>
       </section>
     </Transition>
+
+    <Teleport to="body">
+      <div
+        v-if="isBoardFullscreen"
+        class="exforum-board-fullscreen-hud pointer-events-none fixed z-[2147483647] flex items-center justify-center px-4"
+        :style="boardFullscreenHudStyle"
+        data-board-chrome
+        @pointerdown.stop
+        @click.stop
+      >
+        <div class="exforum-board-hud-panel" :aria-label="articleLabels.fullscreenBoard">
+          <button
+            type="button"
+            class="exforum-board-hud-button exforum-board-hud-exit group"
+            :aria-label="fullscreenExitLabel"
+            @click.stop="closeBoardFullscreen"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="square" stroke-linejoin="miter" class="h-5 w-5" aria-hidden="true">
+              <path d="M15 6 9 12l6 6" />
+              <path d="M9 12h12" />
+            </svg>
+            <span class="exforum-board-hud-tooltip">[ {{ fullscreenExitLabel }} ]</span>
+          </button>
+
+          <button
+            type="button"
+            class="exforum-board-hud-button group"
+            :aria-label="locale === 'ru' ? 'Сбросить вид' : 'Reset view'"
+            @click.stop="resetArticleBoardFullscreenView"
+          >
+            <span class="italic text-[10px] font-mono">[R]</span>
+            <span class="exforum-board-hud-tooltip">[ {{ locale === 'ru' ? 'Сбросить вид' : 'Reset view' }} ]</span>
+          </button>
+
+          <div class="exforum-board-hud-flyout">
+            <button
+              type="button"
+              class="exforum-board-hud-button"
+              :aria-label="locale === 'ru' ? 'Масштаб' : 'Scale'"
+            >
+              <span class="font-mono text-[9px] tracking-tight">{{ Math.round(boardScale * 100) }}%</span>
+            </button>
+            <div class="exforum-board-hud-flyout-content">
+              <div class="exforum-board-hud-panel" :aria-label="locale === 'ru' ? 'Варианты масштаба' : 'Scale options'">
+                <button
+                  v-for="zoom in boardScaleOptions"
+                  :key="zoom"
+                  type="button"
+                  class="exforum-board-hud-button"
+                  :class="{ 'is-active': Math.round(boardScale * 100) === zoom }"
+                  :aria-label="`${zoom}%`"
+                  @click.stop="setArticleBoardScale(zoom / 100)"
+                >
+                  <span class="font-mono text-[9px] tracking-tight">{{ zoom }}%</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <Transition name="fade-slide" mode="out-in">
     <!-- READER VIEW: Detailed Content -->
@@ -247,7 +253,8 @@
               </span>
               <div class="h-[1px] flex-1 bg-current/10"></div>
             </div>
-            <p class="text-current/90 leading-relaxed">{{ selectedArticle.description }}</p>
+            <span v-if="selectedArticle.description" class="text-[10px] font-mono tracking-widest uppercase text-current/40 mb-1 block">{{ locale === 'ru' ? 'Описание' : 'Description' }}</span>
+            <p v-if="selectedArticle.description" class="text-current/90 leading-relaxed !mt-1.5">{{ selectedArticle.description }}</p>
           </div>
 
           <div class="article-reader-metrics" :aria-label="articleLabels.metrics">
@@ -261,26 +268,17 @@
 
       <main class="relative z-10 box-border flex w-full max-w-full flex-col flex-none overflow-hidden py-6 gap-6">
         
-        <!-- MODE SWITCHER -->
-        <div class="flex justify-center w-full shrink-0">
-          <div class="flex items-center bg-current/5 border border-current/10 p-1 font-mono text-[10px] uppercase tracking-widest text-current/60">
-            <button class="px-6 py-2 transition-colors" :class="articleViewMode === 'board' ? 'bg-current/10 font-bold text-current' : 'hover:bg-current/5'" @click="articleViewMode = 'board'">
-              {{ locale === 'ru' ? 'ДОСКА' : 'BOARD' }}
-            </button>
-            <button class="px-6 py-2 transition-colors" :class="articleViewMode === 'text' ? 'bg-current/10 font-bold text-current' : 'hover:bg-current/5'" @click="articleViewMode = 'text'">
-              {{ locale === 'ru' ? 'ТЕКСТ' : 'TEXT' }}
-            </button>
-          </div>
-        </div>
+
 
         <section
           v-if="articleViewMode === 'board'"
-          class="article-reader-board group relative box-border h-[68vh] min-h-[460px] w-full max-w-full flex-1 cursor-pointer select-none overflow-hidden border-y border-x-0 border-current/10 bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:22px_22px] bg-center shadow-inner sm:min-h-[min(72vh,780px)] sm:bg-[length:28px_28px]"
+          ref="articleBoardPreviewRef"
+          class="article-reader-board group relative box-border h-[68vh] min-h-[460px] w-full max-w-full flex-1 select-none overflow-hidden border-y border-x-0 border-current/10 bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:22px_22px] bg-center shadow-inner sm:min-h-[min(72vh,780px)] sm:bg-[length:28px_28px]"
           :aria-label="articleLabels.board"
-          @click="openBoardFullscreen"
         >
           <div
             class="pointer-events-none absolute left-0 top-0 origin-top-left"
+            :class="isBoardPreviewReady ? 'opacity-100' : 'opacity-0'"
             :style="[boardWorldStyle, boardPreviewTransformStyle]"
           >
             <svg class="pointer-events-none absolute left-0 top-0 h-full w-full overflow-visible text-current/35">
@@ -299,7 +297,7 @@
               v-for="node in boardNodes"
               :key="node.id"
               data-board-node
-              class="absolute box-border overflow-hidden border border-current/20 bg-white/85 shadow-[0_16px_40px_rgba(0,0,0,0.08)] backdrop-blur-sm"
+              class="absolute box-border overflow-hidden border border-current/20 bg-white/85 shadow-[0_16px_40px_rgba(0,0,0,0.08)]"
               :style="getBoardNodeStyle(node)"
             >
               <div v-if="node.type === 'text'" class="flex h-full flex-col gap-3 p-4">
@@ -395,146 +393,113 @@
           </div>
 
           <div class="pointer-events-none absolute inset-0 bg-black/[0.025]"></div>
-          <div class="pointer-events-none absolute right-4 top-4 border border-current/10 bg-white/85 px-3 py-2 font-mono text-[8px] uppercase tracking-[0.28em] text-current/35">
+          <button
+            type="button"
+            class="absolute right-4 top-4 border border-current/15 bg-white/90 px-4 py-2.5 font-mono text-[8px] font-bold uppercase tracking-[0.28em] text-current/50 transition-colors hover:border-current/40 hover:bg-black hover:text-white"
+            @click.stop="openBoardFullscreen"
+          >
             {{ articleLabels.openBoard }}
-          </div>
+          </button>
         </section>
 
         <!-- TEXT SECTION -->
-        <section v-else class="flex-1 w-full overflow-y-auto scroll-minimal px-6 pb-12">
-          <div class="max-w-[800px] mx-auto flex flex-col items-center gap-12 text-black">
-            <template v-for="(node, index) in selectedArticleTextBlocks" :key="node.id || index">
-              
-              <div class="w-full flex flex-col items-center">
-                <!-- LEGACY BLOCKS -->
-                <div v-if="node.type === 'heading'" class="w-full flex flex-col gap-4 font-serif italic break-words">
-                  <h2 class="font-bold text-current" :class="node.level === 2 ? 'text-5xl leading-none text-center' : 'text-3xl'">
-                    {{ node.text }}
-                  </h2>
-                </div>
-                <div v-else-if="node.type === 'paragraph'" class="w-full flex flex-col gap-4 font-serif italic break-words">
-                  <div class="text-current/90 whitespace-pre-wrap text-base leading-relaxed" v-html="node.text"></div>
-                </div>
-                <div v-else-if="node.type === 'image'" class="w-full flex flex-col items-center">
-                  <img :src="(node as any).src" class="max-w-full h-auto rounded-sm border border-current/10 shadow-sm object-contain max-h-[600px]" />
-                  <p v-if="(node as any).caption" class="text-[10px] font-mono tracking-widest uppercase text-current/40 text-center mt-2">{{ (node as any).caption }}</p>
-                </div>
+        <section v-else class="flex-1 w-full overflow-y-auto scroll-minimal px-[clamp(20px,4vw,64px)] pb-12 flex flex-col items-start justify-start gap-8">
+          <!-- Top Divider -->
+          <div class="w-full border-t border-black/15"></div>
 
-                <div v-else-if="node.type === 'text'" class="w-full flex flex-col gap-4 font-serif italic break-words">
-                  <h2 v-if="(node as any).title" class="font-bold text-current"
-                      :class="(node as any).isQuestion ? 'text-5xl leading-none text-center' : 'text-3xl'">
-                    {{ (node as any).title }}
-                  </h2>
-                  <div v-if="(node as any).text" class="text-current/90 whitespace-pre-wrap"
-                       :class="(node as any).isQuestion ? 'text-3xl text-center' : 'text-base leading-relaxed'"
-                       v-html="(node as any).text">
-                  </div>
-                </div>
-
-                <!-- SIGNAL HEADER -->
-                <div v-else-if="(node as any).type === 'signal-header'" class="w-full flex justify-center py-6">
-                  <div class="flex flex-row items-center justify-between w-full max-w-[800px] border border-current/10 bg-white shadow-sm overflow-hidden text-black">
-                    <!-- Current Price -->
-                    <div class="flex flex-col items-center justify-center flex-1 py-8 px-4" :class="getSignalHeaderCurrentPrice(node) ? 'bg-blue-50/50' : ''">
-                      <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">{{ locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE' }}</span>
-                      <div class="flex items-center gap-2" v-if="getSignalHeaderCurrentPrice(node)">
-                        <span v-if="getPriceNodeArrow(getSignalHeaderCurrentPrice(node))" class="text-xl font-black" :class="getPriceNodeValueClass(getSignalHeaderCurrentPrice(node))">{{ getPriceNodeArrow(getSignalHeaderCurrentPrice(node)) }}</span>
-                        <span class="text-3xl font-mono font-black tracking-widest text-black/90" :class="getPriceNodeValueClass(getSignalHeaderCurrentPrice(node))">{{ getSignalHeaderCurrentPrice(node)?.value || '0.00' }}</span>
-                      </div>
-                      <span v-else class="text-3xl font-mono font-black tracking-widest text-black/20">---</span>
-                    </div>
-                    <!-- Asset -->
-                    <div class="flex flex-col items-center justify-center flex-1 py-8 px-4 border-l border-r border-black/10 bg-white z-10 shadow-[0_0_20px_rgba(0,0,0,0.05)]">
-                       <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
-                       <span class="max-w-full truncate text-4xl font-black uppercase tracking-widest text-black/90" v-if="getSignalHeaderAsset(node)">{{ getSignalHeaderAsset(node)?.asset || '---' }}</span>
-                       <span v-else class="text-4xl font-mono font-black tracking-widest text-black/20">---</span>
-                    </div>
-                    <!-- Target Price -->
-                    <div class="flex flex-col items-center justify-center flex-1 py-8 px-4" :class="getSignalHeaderTargetPrice(node) ? 'bg-green-50/50' : ''">
-                      <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">{{ locale === 'ru' ? 'ЦЕЛЬ' : 'TARGET' }}</span>
-                      <div class="flex items-center gap-2" v-if="getSignalHeaderTargetPrice(node)">
-                        <span v-if="getPriceNodeArrow(getSignalHeaderTargetPrice(node))" class="text-xl font-black" :class="getPriceNodeValueClass(getSignalHeaderTargetPrice(node))">{{ getPriceNodeArrow(getSignalHeaderTargetPrice(node)) }}</span>
-                        <span class="text-3xl font-mono font-black tracking-widest text-black/90" :class="getPriceNodeValueClass(getSignalHeaderTargetPrice(node))">{{ getSignalHeaderTargetPrice(node)?.value || '0.00' }}</span>
-                      </div>
-                      <span v-else class="text-3xl font-mono font-black tracking-widest text-black/20">---</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-else-if="node.type === 'asset'" class="w-full p-8 border border-current/10 bg-current/5 flex flex-col items-center">
-                  <span class="text-[9px] uppercase tracking-[0.3em] font-black text-current/40 mb-2">{{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}</span>
-                  <span class="text-4xl font-mono font-black uppercase tracking-widest text-current/90">{{ (node as any).asset || '---' }}</span>
-                </div>
-
-                <div v-else-if="node.type === 'price'" class="w-full p-8 border border-current/10 flex flex-col items-center text-black" :class="(node as any).priceKind === 'current' ? 'bg-blue-50/50' : 'bg-green-50/50'">
-                  <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">{{ (node as any).priceKind === 'current' ? (locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE') : (locale === 'ru' ? 'ПРЕДПОЛАГАЕМАЯ ЦЕНА' : 'TARGET PRICE') }}</span>
-                  <div class="flex items-center gap-2">
-                    <span v-if="getPriceNodeArrow(node)" class="text-xl font-black" :class="getPriceNodeValueClass(node)">{{ getPriceNodeArrow(node) }}</span>
-                    <span class="text-4xl font-mono font-black tracking-widest text-black/90" :class="getPriceNodeValueClass(node)">{{ (node as any).value || '0.00' }}</span>
-                  </div>
-                </div>
-
-                <div v-else-if="node.type === 'strategy'" class="w-full flex justify-center py-6">
-                  <div class="flex min-w-[300px] max-w-[450px] w-full flex-col items-center justify-center gap-4 text-center border border-current/10 bg-white p-6 shadow-sm text-black">
-                    <span class="text-[9px] font-black uppercase tracking-[0.3em] text-black/40">{{ locale === 'ru' ? 'СТРАТЕГИЯ' : 'STRATEGY' }}</span>
-                    <span class="max-w-full truncate text-2xl font-black uppercase tracking-widest text-black/80">{{ getStrategyNodeLabel(node) || '---' }}</span>
-                    <span v-if="getStrategyNodeMetrics(node)" class="grid w-full grid-cols-5 gap-2 text-center uppercase pt-4 border-t border-black/5 mt-2">
-                      <span class="flex min-w-0 flex-col px-1.5">
-                        <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.profitFactorShort }}</small>
-                        <strong class="truncate text-[14px] font-black text-black/85">{{ formatProfitFactor(getStrategyNodeMetrics(node)!.profitFactor) }}</strong>
-                      </span>
-                      <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                        <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.winRateShort }}</small>
-                        <strong class="truncate text-[14px] font-black text-black/85">{{ formatCompactNumber(getStrategyNodeMetrics(node)!.winRate, 1) }}%</strong>
-                      </span>
-                      <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                        <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.resultShort }}</small>
-                        <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.resultCurrency)">{{ formatSignedCurrency(getStrategyNodeMetrics(node)!.resultCurrency) }}</strong>
-                      </span>
-                      <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                        <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.startShort }}</small>
-                        <strong class="truncate text-[14px] font-black text-black/85">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.initialCapital) }}</strong>
-                      </span>
-                      <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                        <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.endShort }}</small>
-                        <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.finalCapital - getStrategyNodeMetrics(node)!.initialCapital)">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.finalCapital) }}</strong>
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                <div v-else-if="node.type === 'trade'" class="w-full flex justify-center py-6">
-                  <div class="flex min-w-[300px] max-w-[450px] w-full flex-col justify-center gap-4 text-left border border-current/10 bg-white p-6 shadow-sm text-black">
-                    <span class="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 text-center">{{ locale === 'ru' ? 'СДЕЛКА' : 'TRADE' }}</span>
-                    <span class="flex w-full items-start justify-between gap-3 border-t border-black/5 pt-4">
-                      <span class="flex min-w-0 flex-col">
-                        <span class="max-w-full truncate text-2xl font-black uppercase tracking-widest text-black/80">{{ getTradeNodeAssetLabel(node) }}</span>
-                        <span class="max-w-full truncate text-[10px] font-black uppercase tracking-[0.24em]" :class="getTradeNodeVectorClass(node)">{{ getTradeNodeVector(node) }}</span>
-                      </span>
-                      <span class="max-w-[45%] truncate text-right text-xl font-black uppercase tracking-[0.16em]" :class="getTradeNodeResultClass(node)">{{ getTradeNodeResult(node) || '---' }}</span>
-                    </span>
-                    <span class="grid w-full grid-cols-2 gap-2 text-center uppercase pt-2">
-                      <span class="flex min-w-0 flex-col border-t border-black/5 px-1.5 py-2">
-                        <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.entryShort }}</small>
-                        <strong class="truncate text-[14px] font-black text-black/80">{{ getTradeNodeEntryDate(node) }}</strong>
-                      </span>
-                      <span class="flex min-w-0 flex-col border-t border-l border-black/5 px-1.5 py-2">
-                        <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.exitShort }}</small>
-                        <strong class="truncate text-[14px] font-black text-black/80">{{ getTradeNodeExitDate(node) }}</strong>
-                      </span>
-                    </span>
-                  </div>
-                </div>
-
-                <div v-else-if="node.type === 'drawing'" class="w-full flex justify-center bg-white p-4 border border-current/10 shadow-sm relative" :style="{ minHeight: '100px' }">
-                  <img v-if="(node as any).params?.preview" :src="(node as any).params.preview" alt="Drawing" class="w-full h-auto max-h-[400px] object-contain pointer-events-none" />
-                  <svg v-else class="w-full h-auto max-h-[400px] pointer-events-none text-black" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-                    <polyline v-for="(stroke, i) in (node as any).params?.strokes || []" :key="i" :points="drawing.formatDrawingStroke(stroke)" fill="none" :stroke="stroke.color || 'currentColor'" :stroke-width="stroke.size || 2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" class="opacity-90" />
-                  </svg>
-                </div>
-
+          <div class="max-w-[800px] w-full flex flex-col gap-8 text-black text-left">
+            <span class="text-[10px] font-mono tracking-widest uppercase text-black/40 block -mb-4 font-bold select-none">
+              {{ locale === 'ru' ? 'СОДЕРЖАНИЕ' : 'CONTENT' }}
+            </span>
+            <div
+              v-for="(block, index) in selectedArticleTextBlocks"
+              :key="block.id || index"
+              class="w-full"
+            >
+              <div
+                v-if="block.type === 'text' || block.text"
+                class="w-full font-serif text-lg md:text-xl leading-relaxed text-black/85 break-words editor-rich-content"
+                v-html="block.text"
+              ></div>
+              <div
+                v-else-if="block.type === 'image'"
+                class="w-full flex flex-col items-center py-4"
+              >
+                <img :src="block.src" class="max-w-full h-auto rounded border border-black/15 shadow-sm max-h-[600px] object-contain" />
+                <p v-if="block.caption" class="text-[10px] font-mono tracking-widest uppercase text-black/40 text-center mt-2">{{ block.caption }}</p>
               </div>
-            </template>
+            </div>
+
+            <!-- Fallback if no textBlocks but description exists -->
+            <div
+              v-if="selectedArticleTextBlocks.length === 0 && selectedArticle?.description"
+              class="w-full font-serif text-lg md:text-xl leading-relaxed text-black/85 break-words editor-rich-content"
+              v-html="selectedArticle.description"
+            ></div>
+
+            <!-- ATTACHED IMAGES IN READER -->
+            <div v-if="(selectedArticle as any)?.attachedImages?.length" class="w-full flex flex-col gap-3 pt-6 border-t border-black/10">
+              <span class="text-[10px] font-mono tracking-[0.2em] uppercase text-black/50 font-bold select-none flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                {{ locale === 'ru' ? 'Прикрепленные изображения' : 'Attached Images' }}
+              </span>
+              <div class="flex items-center gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin w-full">
+                <img
+                  v-for="(imgSrc, idx) in (selectedArticle as any).attachedImages"
+                  :key="idx"
+                  :src="imgSrc"
+                  alt="Attached image"
+                  class="h-36 sm:h-44 w-auto object-cover rounded border border-black/15 shadow-sm shrink-0"
+                />
+              </div>
+            </div>
+
+            <!-- ATTACHED TRADES IN READER -->
+            <div v-if="(selectedArticle as any)?.attachedTrades?.length" class="w-full flex flex-col gap-3 pt-6 border-t border-black/10">
+              <span class="text-[10px] font-mono tracking-[0.2em] uppercase text-black/50 font-bold select-none flex items-center gap-2">
+                <svg class="w-3.5 h-3.5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M3 3v18h18" />
+                  <path d="M18 9l-5 5-4-4-5 5" />
+                </svg>
+                {{ locale === 'ru' ? 'Прикрепленные сделки' : 'Attached Trades' }}
+              </span>
+              <div class="flex items-center gap-4 overflow-x-auto pb-3 pt-1 scrollbar-thin w-full">
+                <div
+                  v-for="(trd, idx) in (selectedArticle as any).attachedTrades"
+                  :key="trd.id || idx"
+                  class="shrink-0 w-44 h-28 sm:w-52 sm:h-32 bg-white border border-black/15 rounded p-3.5 shadow-sm flex flex-col justify-between select-none"
+                >
+                  <div class="flex items-center justify-between">
+                    <span
+                      class="px-1.5 py-0.5 text-[9px] font-mono font-black rounded uppercase tracking-wider"
+                      :class="getTradeSideLabel(trd.side) === 'LONG' || getTradeSideLabel(trd.side) === 'ЛОНГ' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'"
+                    >
+                      {{ getTradeSideLabel(trd.side) }}
+                    </span>
+                  </div>
+                  <div class="my-auto">
+                    <span class="block font-mono text-lg sm:text-xl font-black uppercase tracking-widest text-black/90 truncate">
+                      {{ trd.asset || 'N/A' }}
+                    </span>
+                  </div>
+                  <div class="flex items-center justify-between border-t border-black/5 pt-2">
+                    <span class="text-[9px] font-mono font-bold uppercase text-black/40 tracking-wider">
+                      {{ locale === 'ru' ? 'РЕЗУЛЬТАТ' : 'RESULT' }}
+                    </span>
+                    <span
+                      class="font-mono text-sm sm:text-base font-black tracking-wider"
+                      :class="getResultToneClass(getTradePercentProfit(trd, trd.strategyId))"
+                    >
+                      {{ formatSignedPercent(getTradePercentProfit(trd, trd.strategyId)) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
@@ -558,6 +523,54 @@
       </div>
 
       <footer class="article-comments-footer relative z-10">
+        <section v-if="isContributionLinksLoading || selectedArticleContributions.length" class="article-contributions">
+          <div class="article-contributions-head">
+            <span>{{ locale === 'ru' ? 'Контрибуции' : 'Contributions' }}</span>
+            <strong v-if="!isContributionLinksLoading">{{ selectedArticleContributions.length }}</strong>
+            <span v-else class="article-contributions-spinner" aria-hidden="true"></span>
+          </div>
+          <div v-if="isContributionLinksLoading" class="article-contributions-loading">
+            <span class="article-contributions-spinner" aria-hidden="true"></span>
+          </div>
+          <div v-else class="article-contributions-carousel">
+            <button
+              type="button"
+              class="article-contributions-arrow article-contributions-arrow--left"
+              :aria-label="locale === 'ru' ? 'Листать назад' : 'Scroll back'"
+              @click="scrollContributionCarousel(-1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                <path d="M15 5l-7 7 7 7"></path>
+              </svg>
+            </button>
+
+            <div ref="contributionCarouselRef" class="article-contributions-track">
+              <button
+                v-for="thread in selectedArticleContributions"
+                :key="thread.id"
+                type="button"
+                class="article-contribution-card"
+                @click="navigateToNode(thread.id)"
+              >
+                <span>{{ thread.categoryLabel || thread.subcategory || getThreadMode(thread) }}</span>
+                <strong>{{ thread.title || boardUiLabels.untitled }}</strong>
+                <small>{{ getThreadAuthorName(thread) }} // {{ formatArticleListDate(thread.publishedAt || thread.createdAt) }}</small>
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="article-contributions-arrow article-contributions-arrow--right"
+              :aria-label="locale === 'ru' ? 'Листать вперед' : 'Scroll forward'"
+              @click="scrollContributionCarousel(1)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                <path d="M9 5l7 7-7 7"></path>
+              </svg>
+            </button>
+          </div>
+        </section>
+
         <div class="article-comments-heading">
           <div>
             <span>{{ articleLabels.comments }}</span>
@@ -620,20 +633,20 @@
                   <svg class="article-comment-like__heart" :class="isReplyLiked(comment.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                   {{ isReplyLiked(comment.id) ? articleLabels.liked : articleLabels.like }}
                 </button>
-                <button @click="toggleReplyForm(comment.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
+                <button @click="toggleReplyForm(comment.id)" class="article-reply-action">
                   {{ replyingToId === comment.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                 </button>
-                <button v-if="comment.authorId === authStore.user?.uid" @click="deleteComment(comment)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 hover:text-red-500 transition-opacity ml-4">
+                <button v-if="comment.authorId === authStore.user?.uid" @click="deleteComment(comment)" class="article-reply-action ml-4">
                   {{ locale === 'ru' ? 'Удалить' : 'Delete' }}
                 </button>
               </div>
 
               <!-- Level 1 Reply Form -->
               <form v-if="replyingToId === comment.id" class="mt-3 ml-4 border-l-2 border-current/20 pl-4 flex flex-col gap-2" @submit.prevent="submitComment(comment.id)">
-                <textarea v-model="commentDraft" class="bg-black/5 p-3 text-xs w-full outline-none resize-none" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'"></textarea>
+                <textarea :value="getReplyDraft(comment.id)" class="article-reply-input" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'" @input="setReplyDraftFromEvent(comment.id, $event)"></textarea>
                 <div class="flex justify-end gap-3 items-center">
-                  <span class="text-[9px] font-mono opacity-40">{{ commentDraft.length }}/1000</span>
-                  <button type="submit" :disabled="!commentDraft.trim()" class="text-[9px] font-mono uppercase bg-black text-white px-3 py-1.5 disabled:opacity-50">
+                  <span class="article-reply-counter">{{ getReplyDraft(comment.id).length }}/1000</span>
+                  <button type="submit" :disabled="!getReplyDraft(comment.id).trim()" class="article-reply-submit">
                     {{ locale === 'ru' ? 'Отправить' : 'Send' }}
                   </button>
                 </div>
@@ -660,20 +673,20 @@
                       <svg class="article-comment-like__heart" :class="isReplyLiked(reply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                       {{ isReplyLiked(reply.id) ? articleLabels.liked : articleLabels.like }}
                     </button>
-                    <button @click="toggleReplyForm(reply.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
+                    <button @click="toggleReplyForm(reply.id)" class="article-reply-action">
                       {{ replyingToId === reply.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                     </button>
-                    <button v-if="reply.authorId === authStore.user?.uid" @click="deleteComment(reply)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 hover:text-red-500 transition-opacity ml-4">
+                    <button v-if="reply.authorId === authStore.user?.uid" @click="deleteComment(reply)" class="article-reply-action ml-4">
                       {{ locale === 'ru' ? 'Удалить' : 'Delete' }}
                     </button>
                   </div>
 
                   <!-- Level 2 Reply Form -->
                   <form v-if="replyingToId === reply.id" class="mt-3 ml-4 border-l-2 border-current/20 pl-4 flex flex-col gap-2" @submit.prevent="submitComment(reply.id)">
-                    <textarea v-model="commentDraft" class="bg-black/5 p-3 text-xs w-full outline-none resize-none" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'"></textarea>
+                    <textarea :value="getReplyDraft(reply.id)" class="article-reply-input" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'" @input="setReplyDraftFromEvent(reply.id, $event)"></textarea>
                     <div class="flex justify-end gap-3 items-center">
-                      <span class="text-[9px] font-mono opacity-40">{{ commentDraft.length }}/1000</span>
-                      <button type="submit" :disabled="!commentDraft.trim()" class="text-[9px] font-mono uppercase bg-black text-white px-3 py-1.5 disabled:opacity-50">
+                      <span class="article-reply-counter">{{ getReplyDraft(reply.id).length }}/1000</span>
+                      <button type="submit" :disabled="!getReplyDraft(reply.id).trim()" class="article-reply-submit">
                         {{ locale === 'ru' ? 'Отправить' : 'Send' }}
                       </button>
                     </div>
@@ -700,20 +713,20 @@
                           <svg class="article-comment-like__heart" :class="isReplyLiked(subreply.id) ? 'fill-rose-500 text-rose-500' : 'fill-transparent'" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
                           {{ isReplyLiked(subreply.id) ? articleLabels.liked : articleLabels.like }}
                         </button>
-                        <button @click="toggleReplyForm(subreply.id)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 transition-opacity">
+                        <button @click="toggleReplyForm(subreply.id)" class="article-reply-action">
                           {{ replyingToId === subreply.id ? (locale === 'ru' ? 'Отмена' : 'Cancel') : (locale === 'ru' ? 'Ответить' : 'Reply') }}
                         </button>
-                        <button v-if="subreply.authorId === authStore.user?.uid" @click="deleteComment(subreply)" class="text-[9px] font-mono tracking-widest uppercase opacity-40 hover:opacity-100 hover:text-red-500 transition-opacity ml-4">
+                        <button v-if="subreply.authorId === authStore.user?.uid" @click="deleteComment(subreply)" class="article-reply-action ml-4">
                           {{ locale === 'ru' ? 'Удалить' : 'Delete' }}
                         </button>
                       </div>
 
                       <!-- Level 3 Reply Form -->
                       <form v-if="replyingToId === subreply.id" class="mt-3 ml-4 border-l-2 border-current/20 pl-4 flex flex-col gap-2" @submit.prevent="submitComment(subreply.id)">
-                        <textarea v-model="commentDraft" class="bg-black/5 p-3 text-xs w-full outline-none resize-none" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'"></textarea>
+                        <textarea :value="getReplyDraft(subreply.id)" class="article-reply-input" rows="2" :placeholder="locale === 'ru' ? 'Написать ответ...' : 'Write a reply...'" @input="setReplyDraftFromEvent(subreply.id, $event)"></textarea>
                         <div class="flex justify-end gap-3 items-center">
-                          <span class="text-[9px] font-mono opacity-40">{{ commentDraft.length }}/1000</span>
-                          <button type="submit" :disabled="!commentDraft.trim()" class="text-[9px] font-mono uppercase bg-black text-white px-3 py-1.5 disabled:opacity-50">
+                          <span class="article-reply-counter">{{ getReplyDraft(subreply.id).length }}/1000</span>
+                          <button type="submit" :disabled="!getReplyDraft(subreply.id).trim()" class="article-reply-submit">
                             {{ locale === 'ru' ? 'Отправить' : 'Send' }}
                           </button>
                         </div>
@@ -744,7 +757,7 @@
     </article>
 
     <!-- ARTICLE CREATION VIEW -->
-    <div v-else-if="isCreatingArticle" class="absolute inset-0 z-50 bg-theme-bg overflow-hidden flex flex-col w-full" key="creator">
+    <div v-else-if="isCreatingArticle" class="absolute inset-0 z-50 overflow-hidden flex flex-col w-full" key="creator">
       <Transition name="fade-slide" mode="out-in">
         
         <!-- METADATA STEP -->
@@ -822,6 +835,7 @@
                 </span>
               </div>
             </div>
+
           </div>
 
           <!-- LAUNCH FOOTER -->
@@ -838,938 +852,277 @@
 
             <button
               class="group relative flex h-12 w-64 items-center justify-center gap-3 overflow-hidden border-2 px-5 transition-all duration-500"
-              :class="isNewArticleFormValid && !isSubmittingArticle ? 'border-black hover:bg-black cursor-pointer' : 'border-current/20 cursor-not-allowed'"
+              :class="isNewArticleFormValid || isSubmittingArticle ? 'border-black bg-black text-white cursor-pointer hover:bg-black/85' : 'border-current/20 cursor-not-allowed'"
               :disabled="!isNewArticleFormValid || isSubmittingArticle"
               @click="submitNewArticle"
             >
               <span class="text-[11px] font-mono tracking-[0.4em] uppercase relative z-10 font-bold transition-all duration-500" 
                     :class="[
-                      isSubmittingArticle ? 'opacity-0' : '',
-                      isNewArticleFormValid ? 'text-black opacity-100 group-hover:text-white' : 'text-current opacity-30'
+                      isSubmittingArticle ? '!opacity-0' : '',
+                      isNewArticleFormValid ? 'text-white opacity-100' : 'text-current opacity-30'
                     ]">
                 {{ locale === 'ru' ? 'ПРОДОЛЖИТЬ' : 'CONTINUE' }}
               </span>
               <span class="relative z-10 shrink-0 text-xl font-light leading-none transition-all duration-500"
                     :class="[
-                      isSubmittingArticle ? 'opacity-0' : 'opacity-100',
-                      isNewArticleFormValid ? 'text-black group-hover:text-white group-hover:translate-x-1' : 'text-current opacity-30'
+                      isSubmittingArticle ? '!opacity-0' : 'opacity-100',
+                      isNewArticleFormValid ? 'text-white group-hover:translate-x-1' : 'text-current opacity-30'
                     ]">
                 →
               </span>
-              <svg class="w-5 h-5 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 animate-spin text-white transition-opacity duration-300" 
-                   :class="isSubmittingArticle ? 'opacity-100' : 'opacity-0'"
-                   viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
-              </svg>
+              <span
+                class="absolute left-1/2 top-1/2 z-10 h-5 w-5 -translate-x-1/2 -translate-y-1/2 text-white transition-opacity duration-300"
+                :class="isSubmittingArticle ? 'opacity-100' : 'opacity-0'"
+              >
+                <svg class="h-full w-full animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" />
+                </svg>
+              </span>
             </button>
           </div>
+        </div>
+
+        <!-- CONTRIBUTION STEP -->
+        <div v-else-if="creationStep === 'contribution'" class="flex flex-col h-full px-8 md:px-16 xl:px-32 py-10 relative overflow-hidden w-full max-w-7xl mx-auto" key="contribution">
+          <div class="relative z-20 flex flex-col md:flex-row justify-between md:items-end border-b-2 border-current/20 pb-4 mb-6 mt-6 space-y-4 md:space-y-0 shrink-0">
+            <div class="flex flex-col space-y-2">
+              <span class="text-[10px] font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
+                {{ locale === 'ru' ? 'Редактор' : 'Editor' }} // {{ formatJournalDate() }}
+              </span>
+              <span class="font-serif italic text-2xl text-current/80">{{ currentUserName }}</span>
+            </div>
+            <div class="flex flex-col md:items-end space-y-2">
+              <span class="text-xs md:text-sm font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
+                CONTRIBUTION
+              </span>
+              <span class="font-mono text-[10px] uppercase tracking-[0.24em] opacity-40">
+                {{ newArticleForm.contributionIds.length }} / 3
+              </span>
+            </div>
+          </div>
+
+          <div class="relative z-10 flex-grow flex flex-col w-full max-w-5xl mx-auto space-y-8 min-h-0 pt-2 pb-6" :class="isContributionPickerOpen ? 'justify-start' : 'justify-center'">
+            <div v-if="!isContributionPickerOpen" class="flex flex-col items-center text-center">
+              <span class="mb-4 text-xs md:text-sm font-sans tracking-[0.2em] font-light uppercase opacity-60">
+                {{ locale === 'ru' ? 'Связь с существующими статьями' : 'Link to existing articles' }}
+              </span>
+              <h2 class="w-full text-4xl md:text-6xl lg:text-7xl font-serif italic tracking-tighter leading-none text-current/90">
+                {{ locale === 'ru' ? 'Хотите сделать contribution?' : 'Do you want to make a contribution?' }}
+              </h2>
+            </div>
+
+            <div v-if="!isContributionPickerOpen" class="w-16 h-px bg-current/30 mx-auto shrink-0"></div>
+
+            <div v-if="!isContributionPickerOpen" class="mx-auto flex w-full max-w-3xl flex-col items-center gap-4">
+              <div class="flex flex-wrap justify-center gap-3">
+                <button
+                  type="button"
+                  class="flex h-12 min-w-64 items-center justify-center gap-3 border-2 px-5 font-mono text-[11px] font-bold uppercase tracking-[0.3em] transition-colors"
+                  :class="'border-current/20 bg-white/60 text-current/70 hover:border-current/50 hover:text-current'"
+                  @click="openContributionPicker"
+                >
+                  <span>{{ locale === 'ru' ? 'Открыть меню статей' : 'Open Article Menu' }}</span>
+                  <span class="text-[9px] opacity-70">{{ newArticleForm.contributionIds.length }}/3</span>
+                </button>
+                <button
+                  v-if="newArticleForm.contributionIds.length"
+                  type="button"
+                  class="flex h-12 items-center justify-center border-2 border-current/10 px-5 font-mono text-[11px] font-bold uppercase tracking-[0.3em] text-current/45 transition-colors hover:border-current/30 hover:text-current"
+                  @click="newArticleForm.contributionIds = []"
+                >
+                  {{ locale === 'ru' ? 'Очистить' : 'Clear' }}
+                </button>
+              </div>
+
+            </div>
+
+            <div v-else class="flex min-h-0 flex-1 flex-col">
+              <div class="flex shrink-0 flex-col gap-3 border-b border-current/10 py-4">
+                <label class="relative block w-full">
+                  <input
+                    v-model="contributionSearchQuery"
+                    type="text"
+                    class="min-w-0 w-full border border-current/10 bg-transparent px-4 pr-12 font-mono text-[11px] font-black uppercase tracking-[0.18em] outline-none placeholder:text-current/25 focus:border-current/40"
+                    style="height: 56px; min-height: 56px; line-height: 56px;"
+                    :placeholder="locale === 'ru' ? 'Поиск по названию или автору...' : 'Search by title or author...'"
+                  />
+                  <svg class="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-current/35" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true">
+                    <circle cx="10.5" cy="10.5" r="6.5"></circle>
+                    <path d="M16 16l5 5"></path>
+                  </svg>
+                </label>
+              </div>
+
+              <div class="min-h-0 flex-1 overflow-y-auto scroll-minimal">
+                <button
+                  v-for="thread in filteredContributionArticleOptions"
+                  :key="thread.id"
+                  type="button"
+                  class="grid w-full grid-cols-[1fr_auto] items-center gap-4 border-b px-5 py-4 text-left font-mono transition-colors last:border-0 disabled:cursor-not-allowed disabled:opacity-30"
+                  :class="isContributionSelected(thread.id)
+                    ? 'border-black/70 bg-black/75 text-white'
+                    : 'border-current/5 bg-transparent text-current hover:bg-black/[0.035]'"
+                  :disabled="!isContributionSelected(thread.id) && newArticleForm.contributionIds.length >= 3"
+                  @click="toggleContributionArticle(thread.id)"
+                >
+                  <span class="min-w-0">
+                    <span class="block truncate text-[13px] font-black uppercase tracking-[0.16em]" :class="isContributionSelected(thread.id) ? 'text-white' : 'text-current/85'">{{ thread.title }}</span>
+                    <span class="mt-1 block truncate text-[9px] uppercase tracking-[0.22em]" :class="isContributionSelected(thread.id) ? 'text-white/55' : 'text-current/35'">
+                      {{ thread.categoryLabel || thread.subcategory || getThreadMode(thread) }} // {{ getThreadAuthorName(thread) }}
+                    </span>
+                  </span>
+                  <span class="text-right text-[9px] uppercase tracking-[0.18em]" :class="isContributionSelected(thread.id) ? 'text-white/55' : 'text-current/30'">
+                    {{ formatArticleListDate(thread.publishedAt || thread.createdAt) }}
+                  </span>
+                </button>
+                <div v-if="filteredContributionArticleOptions.length === 0" class="px-4 py-16 text-center font-mono text-[9px] uppercase tracking-[0.28em] text-current/30">
+                  {{ contributionArticleOptions.length === 0
+                    ? (locale === 'ru' ? 'Статей пока нет' : 'No articles yet')
+                    : (locale === 'ru' ? 'Ничего не найдено' : 'No matching articles') }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative z-20 border-t-2 border-current/20 pt-4 mt-auto flex justify-between items-center shrink-0">
+            <button type="button" class="text-[11px] font-mono tracking-widest uppercase opacity-60 hover:opacity-100 transition-opacity flex items-center gap-2 group/back"
+                    @click="creationStep = lastActiveEditorStep">
+              <svg class="w-4 h-4 transition-transform group-hover/back:-translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M5 12l7-7M5 12l7 7"></path>
+              </svg>
+              <span>{{ locale === 'ru' ? 'НАЗАД В РЕДАКТОР' : 'BACK TO EDITOR' }}</span>
+            </button>
+
+            <button
+              type="button"
+              class="px-8 py-3 border border-black/20 bg-black text-white shadow-sm text-[10px] font-mono uppercase tracking-[0.2em] hover:bg-black/80 transition-colors cursor-pointer"
+              :disabled="isPublishingArticle"
+              :class="isPublishingArticle ? 'cursor-wait opacity-60' : ''"
+              @click="showPublishConfirmation = true"
+            >
+              {{ isPublishingArticle ? boardUiLabels.publishing : (isEditingArticle ? (locale === 'ru' ? 'ОБНОВИТЬ' : 'UPDATE') : (locale === 'ru' ? 'ОПУБЛИКОВАТЬ' : 'PUBLISH')) }}
+            </button>
+          </div>
+        </div>
+
+        <!-- MODE SELECTION STEP (After Contribution) -->
+        <div v-else-if="creationStep === 'mode'" class="flex flex-col h-full px-8 md:px-16 xl:px-32 py-10 relative overflow-hidden w-full max-w-7xl mx-auto" key="mode">
+          <!-- HEADER -->
+          <div class="relative z-20 flex flex-col md:flex-row justify-between md:items-end border-b-2 border-current/20 pb-4 mb-6 mt-6 space-y-4 md:space-y-0 shrink-0">
+            <div class="flex flex-col space-y-2">
+              <span class="text-[10px] font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
+                {{ locale === 'ru' ? 'ФОРМАТ РЕДАКТИРОВАНИЯ' : 'EDITING FORMAT' }} // {{ formatJournalDate() }}
+              </span>
+              <span class="font-serif italic text-2xl text-current/80">{{ currentUserName }}</span>
+            </div>
+            
+            <div class="flex flex-col md:items-end space-y-1">
+              <span class="text-xs md:text-sm font-mono tracking-[0.4em] uppercase opacity-70 font-bold">
+                {{ locale === 'ru' ? 'Выберите формат публикации' : 'Choose Publication Format' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- CARDS SELECTOR CONTAINER -->
+          <div class="relative z-10 flex-grow flex flex-col justify-center items-center w-full max-w-5xl mx-auto min-h-0 py-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+              <!-- CARD 1: TEXT EDITOR MODE -->
+              <button
+                type="button"
+                class="group relative flex flex-col justify-between border-2 border-current/20 hover:border-black bg-white/50 p-8 text-left transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer"
+                @click="lastActiveEditorStep = 'text'; creationStep = 'text'"
+              >
+                <div class="flex flex-col space-y-4">
+                  <div class="w-12 h-12 rounded bg-black text-white flex items-center justify-center font-mono text-xl font-bold group-hover:scale-110 transition-transform">
+                    TXT
+                  </div>
+                  <h3 class="font-serif italic text-3xl font-bold text-black/90">
+                    {{ locale === 'ru' ? 'Текстовый режим' : 'Text Mode' }}
+                  </h3>
+                  <p class="font-serif text-sm text-black/60 leading-relaxed">
+                    {{ locale === 'ru' ? 'Классическое написание статьи в сфокусированном редакторе текста. Выделяйте фрагменты и вызывайте панель форматирования по правому клику.' : 'Classic article writing in a focused text editor. Highlight snippets and call formatting toolbar on right click.' }}
+                  </p>
+                </div>
+                
+                <div class="mt-8 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.3em] text-black group-hover:translate-x-2 transition-transform">
+                  <span>{{ locale === 'ru' ? 'ОТКРЫТЬ ТЕКСТОВЫЙ РЕДАКТОР' : 'OPEN TEXT EDITOR' }}</span>
+                  <span>→</span>
+                </div>
+              </button>
+
+              <!-- CARD 2: BOARD MODE -->
+              <button
+                type="button"
+                class="group relative flex flex-col justify-between border-2 border-current/20 hover:border-black bg-white/50 p-8 text-left transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 cursor-pointer"
+                @click="lastActiveEditorStep = 'board'; creationStep = 'board'"
+              >
+                <div class="flex flex-col space-y-4">
+                  <div class="w-12 h-12 rounded bg-black text-white flex items-center justify-center font-mono text-xl font-bold group-hover:scale-110 transition-transform">
+                    BRD
+                  </div>
+                  <h3 class="font-serif italic text-3xl font-bold text-black/90">
+                    {{ locale === 'ru' ? 'Режим доски' : 'Board Mode' }}
+                  </h3>
+                  <p class="font-serif text-sm text-black/60 leading-relaxed">
+                    {{ locale === 'ru' ? 'Интерактивный матричный холст. Размещайте узлы текста, изображений, цен, стратегий, сделок и рисуйте связи между ними.' : 'Interactive matrix canvas. Place text, image, price, strategy, and trade nodes and draw connections between them.' }}
+                  </p>
+                </div>
+
+                <div class="mt-8 flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.3em] text-black group-hover:translate-x-2 transition-transform">
+                  <span>{{ locale === 'ru' ? 'ОТКРЫТЬ РЕЖИМ ДОСКИ' : 'OPEN BOARD MODE' }}</span>
+                  <span>→</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- FOOTER -->
+          <div class="relative z-20 border-t-2 border-current/20 pt-4 mt-auto flex justify-between items-center shrink-0">
+            <button type="button" class="text-[11px] font-mono tracking-widest uppercase opacity-60 hover:opacity-100 transition-opacity flex items-center gap-2 group/back"
+                    @click="creationStep = 'metadata'">
+              <svg class="w-4 h-4 transition-transform group-hover/back:-translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 12H5M5 12l7-7M5 12l7 7"></path>
+              </svg>
+              <span>{{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TEXT EDITOR STEP -->
+        <div v-else-if="creationStep === 'text'" class="flex flex-col h-full relative overflow-hidden w-full bg-white" key="text">
+          <ExForumTextEditor
+            v-model="textEditorContent"
+            v-model:title="newArticleForm.title"
+            v-model:images="attachedArticleImages"
+            v-model:trades="attachedArticleTrades"
+            :is-editing-article="isEditingArticle"
+            :locale="locale"
+            class="w-full h-full"
+            @back="creationStep = 'mode'"
+            @save-draft="saveDraftAndExit"
+            @cancel-edit="cancelArticleEditing"
+            @continue="publishArticle"
+          />
         </div>
 
         <!-- BOARD STEP -->
-        <div v-else-if="creationStep === 'board'"
-             ref="boardStageRef"
-             class="absolute inset-0 z-[100] overflow-hidden bg-white bg-[radial-gradient(circle,rgba(0,0,0,0.1)_1px,transparent_1.6px)] bg-[length:28px_28px] text-[#2c2c2a]"
-             :class="isSpacePressed ? 'cursor-grab active:cursor-grabbing' : (activeBoardTool === 'pencil' ? 'cursor-none' : (activeBoardTool ? 'cursor-crosshair' : 'cursor-grab active:cursor-grabbing'))"
-             @pointermove="handleBoardHover"
-             @pointerdown="startBoardPan"
-             key="board"
-        >
-          <!-- Darkening overlay -->
-          <div class="absolute inset-0 bg-black/10 pointer-events-none"></div>
-
-          <!-- Freehand Board Drawing Layer -->
-          <canvas
-            ref="boardDrawingCanvasRef"
-            class="absolute inset-0 z-20 h-full w-full pointer-events-none"
-          ></canvas>
-
-          <!-- Board World (Pan Only) -->
-          <div class="absolute left-0 top-0 origin-top-left z-10" :style="[boardWorldStyle, boardTransformStyle]" ref="boardWorldRef"
-               @pointerleave="boardDrawing.isBoardDrawingCursorVisible.value = false">
-            <svg class="pointer-events-none absolute left-0 top-0 h-full w-full overflow-visible text-black/40">
-              <path
-                v-for="connection in boardConnections"
-                :key="connection.id"
-                :d="getBoardConnectionPath(connection)"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.2"
-                vector-effect="non-scaling-stroke"
-                class="opacity-75"
-              />
-              <path
-                v-if="activeBoardWire"
-                :d="getActiveBoardWirePath()"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-dasharray="4 8"
-                vector-effect="non-scaling-stroke"
-                class="opacity-70"
-              />
-            </svg>
-            <article
-              v-for="node in boardNodes"
-              :key="node.id"
-              data-board-node
-              :data-node-id="node.id"
-              class="absolute box-border overflow-visible bg-white/90 shadow-[0_16px_40px_rgba(0,0,0,0.08)] backdrop-blur-sm group/node transition-all border"
-              :class="[
-                selectedBoardNodeId === node.id ? 'border-black/60 ring-2 ring-black/10' : 'border-black/20',
-                activeBoardTool === 'pencil' ? 'pointer-events-none select-none' : ''
-              ]"
-              :style="getBoardNodeStyle(node)"
-              @contextmenu.prevent.stop="handleNodeContextMenu($event, node.id)"
-            >
-              <!-- Drag Handle -->
-              <div 
-                data-board-node-handle 
-                :data-node-id="node.id"
-                class="absolute top-0 left-0 w-full h-4 bg-black/5 hover:bg-black/10 cursor-move opacity-0 group-hover/node:opacity-100 transition-opacity z-10"
-              ></div>
-
-              <div v-if="node.type === 'text'" class="flex h-full w-full flex-col relative bg-transparent p-4 pt-6 gap-2">
-                 <template v-if="!node.isQuestion">
-                   <div :ref="(el) => setTitleEditorRef(el, node.id)"
-                        :data-title-node-id="node.id"
-                        contenteditable="true"
-                        @mousedown.stop
-                        @click.stop
-                        @focus="selectedBoardNodeId = node.id; activeEditorField = 'title'"
-                        @input="updateNodeTitle($event, node)"
-                        @keydown.enter.prevent
-                        class="relative z-10 font-serif text-xl italic leading-none text-black/80 break-words outline-none bg-transparent cursor-text"
-                        :data-placeholder="boardUiLabels.untitled">
-                   </div>
-                   <span
-                     v-if="isTextNodeTitleEmpty(node)"
-                     class="pointer-events-none absolute left-4 right-4 top-6 z-0 font-serif text-xl italic leading-none text-black/40"
-                   >
-                     {{ boardUiLabels.untitled }}
-                   </span>
-                 </template>
-                 <div :ref="(el) => setTextEditorRef(el, node.id)"
-                      :data-text-node-id="node.id"
-                      contenteditable="true"
-                      @mousedown.stop
-                      @click.stop
-                      @focus="selectedBoardNodeId = node.id; activeEditorField = 'text'"
-                      @input="updateNodeText($event, node)"
-                      class="relative z-10 w-full flex-1 font-serif italic bg-transparent outline-none overflow-y-auto cursor-text break-words whitespace-pre-wrap min-h-0 matrix-text-rich"
-                      :class="node.isQuestion ? 'text-5xl leading-none text-black/80' : 'text-sm leading-relaxed text-black/55'"
-                      :data-placeholder="node.isQuestion ? boardQuestionPlaceholder : boardTextPlaceholder">
-                 </div>
-                 <span
-                   v-if="isTextNodeBodyEmpty(node)"
-                   class="pointer-events-none absolute left-4 right-4 z-0 font-serif italic"
-                   :class="node.isQuestion ? 'top-6 text-5xl leading-none text-black/40' : 'top-[58px] text-sm leading-relaxed text-black/25'"
-                 >
-                   {{ node.isQuestion ? boardQuestionPlaceholder : boardTextPlaceholder }}
-                 </span>
-              </div>
-              <div v-else-if="node.type === 'image'" class="flex h-full flex-col pt-4">
-                <img v-if="node.src" :src="node.src" :alt="node.alt" class="min-h-0 flex-1 object-contain cursor-pointer hover:opacity-90 transition-opacity" draggable="false" @click.stop="triggerImageUpload(node.id)" />
-                <div v-else class="flex-1 flex flex-col items-center justify-center cursor-pointer border border-dashed border-black/20 m-4 hover:border-black/40 hover:bg-black/5 transition-all" @click.stop="triggerImageUpload(node.id)">
-                   <svg class="w-8 h-8 opacity-40 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="square" stroke-linejoin="miter" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                   <span class="text-[10px] font-mono tracking-[0.2em] uppercase opacity-40 text-center px-4">{{ boardUiLabels.uploadImage }}</span>
-                </div>
-                <p v-if="node.caption" class="border-t border-black/10 px-3 py-2 font-mono text-[8px] uppercase tracking-[0.28em] text-black/35">
-                  {{ node.caption }}
-                </p>
-              </div>
-              <div v-else-if="node.type === 'drawing'" class="flex h-full w-full flex-col relative bg-transparent overflow-hidden" @dblclick.stop="drawing.openDrawingFullscreen(node)">
-                <img v-if="node.params?.preview"
-                     :src="node.params.preview"
-                     alt=""
-                     class="absolute inset-0 h-full w-full object-fill pointer-events-none"
-                     draggable="false" />
-                <svg v-else
-                     class="absolute inset-0 w-full h-full pointer-events-none text-black"
-                     viewBox="0 0 100 100"
-                     preserveAspectRatio="none">
-                  <polyline v-for="stroke in node.params?.strokes || []"
-                            :key="stroke.id"
-                            :points="drawing.formatDrawingStroke(stroke)"
-                            fill="none"
-                            :stroke="stroke.color || 'currentColor'"
-                            :stroke-width="stroke.size || 2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            vector-effect="non-scaling-stroke"
-                            class="opacity-90" />
-                </svg>
-                <div v-if="!node.params?.strokes?.length" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-40 text-[10px] font-mono tracking-widest uppercase text-center px-4">
-                   {{ boardUiLabels.dblClickToDraw }}
-                </div>
-              </div>
-
-              <div v-else-if="node.type === 'price'" class="flex h-full w-full flex-col items-center justify-center bg-white/80 px-3 font-mono">
-                <span class="mb-1 text-[8px] font-black uppercase tracking-[0.2em] text-black/40 pointer-events-none select-none">
-                  {{ node.priceKind === 'current' ? (locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE') : (locale === 'ru' ? 'ПРЕДПОЛАГАЕМАЯ ЦЕНА' : 'PROJECTED PRICE') }}
-                </span>
-                <div class="flex min-w-0 items-center justify-center gap-2">
-                  <span
-                    v-if="getPriceNodeArrow(node)"
-                    class="text-xl font-black leading-none"
-                    :class="getPriceNodeValueClass(node)"
-                  >
-                    {{ getPriceNodeArrow(node) }}
-                  </span>
-                  <input
-                    :value="node.value"
-                    inputmode="decimal"
-                    type="text"
-                    class="min-w-0 w-full bg-transparent text-center text-2xl font-black leading-none outline-none"
-                    :class="getPriceNodeValueClass(node)"
-                    :placeholder="priceNodePlaceholder(node)"
-                    @pointerdown.stop
-                    @click.stop
-                    @input="updatePriceNodeValue($event, node)"
-                  />
-                </div>
-              </div>
-
-              <div v-else-if="node.type === 'asset'" class="flex h-full w-full items-center justify-center bg-white/80 px-3 font-mono">
-                <button
-                  class="flex min-w-0 flex-col items-center justify-center gap-1 text-center outline-none transition-colors"
-                  :class="node.asset ? 'text-black/80 hover:text-black' : 'text-black/35 hover:text-black/70'"
-                  @pointerdown.stop
-                  @click.stop="openAssetPicker(node)"
-                >
-                  <span class="max-w-full truncate text-xl font-black uppercase tracking-widest">
-                    {{ getAssetNodeLabel(node) }}
-                  </span>
-                  <span v-if="getAssetNodeTypeLabel(node)" class="max-w-full truncate text-[8px] font-black uppercase tracking-[0.3em] text-black/35">
-                    {{ getAssetNodeTypeLabel(node) }}
-                  </span>
-                </button>
-              </div>
-
-              <div v-else-if="node.type === 'strategy'" class="flex h-full w-full items-center justify-center bg-white/80 px-3 font-mono">
-                <button
-                  class="flex min-w-0 w-full flex-col items-center justify-center gap-3 text-center outline-none transition-colors"
-                  :class="node.strategyId ? 'text-black/80 hover:text-black' : 'text-black/35 hover:text-black/70'"
-                  @pointerdown.stop
-                  @click.stop="openStrategyPicker(node)"
-                >
-                  <span class="max-w-full truncate text-xl font-black uppercase tracking-widest">
-                    {{ getStrategyNodeLabel(node) }}
-                  </span>
-                  <span v-if="getStrategyNodeMetrics(node)" class="grid w-full grid-cols-5 gap-1.5 text-center uppercase">
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.profitFactorShort }}</small>
-                      <strong class="truncate text-[14px] font-black text-black/85">{{ formatProfitFactor(getStrategyNodeMetrics(node)!.profitFactor) }}</strong>
-                    </span>
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.winRateShort }}</small>
-                      <strong class="truncate text-[14px] font-black text-black/85">{{ formatCompactNumber(getStrategyNodeMetrics(node)!.winRate, 1) }}%</strong>
-                    </span>
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.resultShort }}</small>
-                      <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.resultCurrency)">{{ formatSignedCurrency(getStrategyNodeMetrics(node)!.resultCurrency) }}</strong>
-                    </span>
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.startShort }}</small>
-                      <strong class="truncate text-[14px] font-black text-black/85">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.initialCapital) }}</strong>
-                    </span>
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.endShort }}</small>
-                      <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.finalCapital - getStrategyNodeMetrics(node)!.initialCapital)">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.finalCapital) }}</strong>
-                    </span>
-                  </span>
-                </button>
-              </div>
-
-              <div v-else-if="node.type === 'trade'" class="flex h-full w-full items-center justify-center bg-white/80 px-3 font-mono">
-                <button
-                  class="flex min-w-0 w-full flex-col justify-center gap-3 text-left outline-none transition-colors"
-                  :class="node.tradeId ? 'text-black/80 hover:text-black' : 'text-black/35 hover:text-black/70'"
-                  @pointerdown.stop
-                  @click.stop="openTradePicker(node)"
-                >
-                  <span class="flex w-full items-start justify-between gap-3">
-                    <span class="flex min-w-0 flex-col">
-                      <span class="max-w-full truncate text-xl font-black uppercase tracking-widest">
-                        {{ getTradeNodeAssetLabel(node) }}
-                      </span>
-                      <span class="max-w-full truncate text-[9px] font-black uppercase tracking-[0.24em]" :class="getTradeNodeVectorClass(node)">
-                        {{ getTradeNodeVector(node) }}
-                      </span>
-                    </span>
-                    <span class="max-w-[45%] truncate text-right text-[12px] font-black uppercase tracking-[0.16em]" :class="getTradeNodeResultClass(node)">
-                      {{ getTradeNodeResult(node) || boardUiLabels.select }}
-                    </span>
-                  </span>
-                  <span class="grid w-full grid-cols-2 gap-1.5 text-center uppercase">
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.entryShort }}</small>
-                      <strong class="truncate text-[11px] font-black text-black/80">{{ getTradeNodeEntryDate(node) }}</strong>
-                    </span>
-                    <span class="flex min-w-0 flex-col border border-black/10 px-1.5 py-1">
-                      <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.exitShort }}</small>
-                      <strong class="truncate text-[11px] font-black text-black/80">{{ getTradeNodeExitDate(node) }}</strong>
-                    </span>
-                  </span>
-                </button>
-              </div>
-
-              <!-- Matrix-style ports -->
-              <div
-                class="absolute top-1/2 -left-[6px] z-30 h-[12px] w-[12px] -translate-y-1/2 rotate-45 border-[2px] border-black bg-white shadow-[0_0_20px_rgba(44,44,42,0.3)] transition-all"
-                :class="isHighlightedPassiveBoardPort(node) ? 'opacity-100 scale-125' : 'opacity-0 group-hover/node:opacity-100'"
-                @pointerdown.stop.prevent="pickupBoardInput(node, 'left')"
-                @pointerup.stop.prevent="dropBoardWire(node, 'left')"
-                @dblclick.stop.prevent="clearBoardInput(node)"
-              ></div>
-              <div
-                class="absolute top-1/2 -right-[6px] z-30 h-[12px] w-[12px] -translate-y-1/2 rotate-45 border-[2px] border-black bg-white opacity-0 shadow-[0_0_20px_rgba(44,44,42,0.3)] transition-all hover:bg-black group-hover/node:opacity-100"
-                @pointerdown.stop.prevent="startBoardWire(node, 'right', $event)"
-                @dblclick.stop.prevent="clearBoardOutput(node)"
-              ></div>
-              <div
-                class="absolute -top-[6px] left-1/2 z-30 h-[12px] w-[12px] -translate-x-1/2 rotate-45 border-[2px] border-black bg-white shadow-[0_0_20px_rgba(44,44,42,0.3)] transition-all"
-                :class="isHighlightedPassiveBoardPort(node) ? 'opacity-100 scale-125' : 'opacity-0 group-hover/node:opacity-100'"
-                @pointerdown.stop.prevent="pickupBoardInput(node, 'top')"
-                @pointerup.stop.prevent="dropBoardWire(node, 'top')"
-                @dblclick.stop.prevent="clearBoardInput(node)"
-              ></div>
-              <div
-                class="absolute -bottom-[6px] left-1/2 z-30 h-[12px] w-[12px] -translate-x-1/2 rotate-45 border-[2px] border-black bg-white opacity-0 shadow-[0_0_20px_rgba(44,44,42,0.3)] transition-all hover:bg-black group-hover/node:opacity-100"
-                @pointerdown.stop.prevent="startBoardWire(node, 'bottom', $event)"
-                @dblclick.stop.prevent="clearBoardOutput(node)"
-              ></div>
-
-              <!-- Resize Handle -->
-              <div 
-                data-board-resize 
-                :data-node-id="node.id"
-                class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize opacity-0 group-hover/node:opacity-100 transition-opacity z-10 flex items-end justify-end p-1"
-              >
-                <div class="w-2 h-2 border-r-2 border-b-2 border-black/40"></div>
-              </div>
-            </article>
-          </div>
-
-          <!-- OFFSCREEN ORIGIN INDICATOR -->
-          <div v-if="outOfBoundsIndicator"
-               class="absolute pointer-events-auto flex flex-col items-center transition-all duration-300 z-[150]"
-               :style="{ left: outOfBoundsIndicator.x + 'px', top: outOfBoundsIndicator.y + 'px', transform: 'translate(-50%, -50%)' }">
-            <div class="w-10 h-10 flex items-center justify-center transition-transform duration-100 cursor-pointer group"
-                 :style="{ transform: `rotate(${outOfBoundsIndicator.angle}deg)` }"
-                 @click="focusBoardNode(outOfBoundsIndicator.id)">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" class="drop-shadow-sm transition-transform group-hover:scale-125 text-black">
-                <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="flex flex-col items-center mt-1">
-              <span class="text-[8px] font-mono font-bold tracking-widest uppercase truncate max-w-[100px] text-black">{{ outOfBoundsIndicator.name }}</span>
-              <span class="text-[7px] font-mono opacity-60 font-bold text-black">{{ outOfBoundsIndicator.dist }}px</span>
-            </div>
-          </div>
-
-          <!-- Custom Cursor for Board Drawing -->
-          <div v-if="activeBoardTool === 'pencil' && boardDrawing.isBoardDrawingCursorVisible.value && !isSpacePressed"
-               class="absolute rounded-full pointer-events-none z-40 shadow-[0_0_0_1px_rgba(255,255,255,0.8)]"
-               :class="boardDrawing.boardDrawingTool.value === 'eraser' ? 'border-2 border-red-500 bg-red-500/10' : 'border-2 border-black bg-black/5'"
-               :style="boardDrawing.boardDrawingCursorStyle.value">
-          </div>
-
-          <!-- Tooltip at the top center -->
-          <div 
-            v-if="activeBoardTool && activeBoardTool !== 'pencil'"
-            class="pointer-events-none absolute top-8 left-1/2 transform -translate-x-1/2 z-[9999] px-4 py-2 bg-black text-white text-[10px] font-mono tracking-widest uppercase shadow-lg"
-          >
-            {{ locale === 'ru' ? 'Кликните чтобы добавить' : 'Click to add node' }}
-          </div>
-
-          <!-- Left Vertical Toolbar -->
-          <div data-board-chrome class="absolute left-6 top-1/2 z-50 w-fit -translate-y-1/2 cursor-auto"
-               @pointerdown.stop
-               @pointermove.stop
-               @pointerenter="boardDrawing.isBoardDrawingCursorVisible.value = false">
-          <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="flex flex-col items-center py-2 px-1 border-black/20 !w-fit">
-            <button class="p-2 transition-colors group relative" 
-                    :class="activeBoardTool === 'text' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    @click.stop="activeBoardTool = activeBoardTool === 'text' ? null : 'text'">
-              <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'text' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M4 7V4h16v3M9 20h6M12 4v16" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative" 
-                    :class="activeBoardTool === 'image' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    @click.stop="activeBoardTool = activeBoardTool === 'image' ? null : 'image'">
-              <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'image' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="8.5" cy="8.5" r="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <polyline points="21 15 16 10 5 21" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-            <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative" 
-                    :class="activeBoardTool === 'drawing' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    @click.stop="activeBoardTool = activeBoardTool === 'drawing' ? null : 'drawing'">
-              <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'drawing' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 19l7-7 3 3-7 7-3-3z"/>
-                <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
-                <path d="M2 2l7.586 7.586"/>
-                <circle cx="11" cy="11" r="2"/>
-              </svg>
-            </button>
-            <div class="w-6 h-px bg-black/10 my-1"></div>
-            <button class="p-2 transition-colors group relative" 
-                    :class="activeBoardTool === 'pencil' ? 'bg-black/10' : 'hover:bg-black/5'"
-                    @click.stop="activeBoardTool = activeBoardTool === 'pencil' ? null : 'pencil'">
-              <svg class="w-5 h-5 transition-colors" :class="activeBoardTool === 'pencil' ? 'text-black' : 'text-black/60 group-hover:text-black'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
-              </svg>
-            </button>
-            <template v-if="!isSignalArticle">
-              <div class="w-6 h-px bg-black/10 my-1"></div>
-              <button
-                class="flex h-9 w-9 items-center justify-center font-mono text-[9px] font-black uppercase tracking-widest transition-colors"
-                :class="activeBoardTool === 'strategy-node' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5 hover:text-black'"
-                @click.stop="activeBoardTool = activeBoardTool === 'strategy-node' ? null : 'strategy-node'"
-              >
-                {{ boardUiLabels.strategyTool }}
-              </button>
-              <div class="w-6 h-px bg-black/10 my-1"></div>
-              <button
-                class="flex h-9 w-9 items-center justify-center font-mono text-[9px] font-black uppercase tracking-widest transition-colors"
-                :class="activeBoardTool === 'trade-node' ? 'bg-black text-white' : 'text-black/60 hover:bg-black/5 hover:text-black'"
-                @click.stop="activeBoardTool = activeBoardTool === 'trade-node' ? null : 'trade-node'"
-              >
-                {{ boardUiLabels.tradeTool }}
-              </button>
-            </template>
-          </ExPanel>
-          </div>
-          
-          <!-- Right Vertical Toolbar (Pencil Settings) -->
-          <div v-if="activeBoardTool === 'pencil'" data-board-chrome class="absolute right-6 top-1/2 -translate-y-1/2 z-50 w-12 cursor-auto"
-               @pointerdown.stop
-               @pointermove.stop
-               @pointerenter="boardDrawing.isBoardDrawingCursorVisible.value = false">
-            <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="flex flex-col items-center py-2 px-1 border-black/20 w-full">
-               <!-- Brush Tool -->
-               <button class="p-2 transition-colors group relative"
-                       :class="boardDrawing.boardDrawingTool.value === 'pencil' ? 'bg-black/10' : 'hover:bg-black/5'"
-                       @click="boardDrawing.boardDrawingTool.value = 'pencil'">
-                  <div class="w-5 h-5 flex items-center justify-center">
-                    <div class="w-2 h-2 rounded-full bg-black"></div>
-                  </div>
-               </button>
-
-               <div class="w-6 h-px bg-black/10 my-1"></div>
-
-               <!-- Eraser Tool -->
-               <button class="p-2 transition-colors group relative"
-                       :class="boardDrawing.boardDrawingTool.value === 'eraser' ? 'bg-black/10' : 'hover:bg-black/5'"
-                       @click="boardDrawing.boardDrawingTool.value = 'eraser'">
-                  <div class="w-5 h-5 flex items-center justify-center">
-                    <div class="w-2 h-2 rounded-full border-2" :class="boardDrawing.boardDrawingTool.value === 'eraser' ? 'border-black' : 'border-black/60 group-hover:border-black'"></div>
-                  </div>
-               </button>
-
-               <div class="w-6 h-px bg-black/10 my-1"></div>
-
-               <!-- Size Slider (Vertical) -->
-               <div class="flex flex-col items-center py-2 w-full gap-2">
-                  <div class="w-5 h-5 flex items-center justify-center pointer-events-none">
-                    <div class="rounded-full border border-black/40"
-                         :style="{ width: `${Math.min(18, Math.max(5, boardDrawing.boardDrawingSize.value))}px`, height: `${Math.min(18, Math.max(5, boardDrawing.boardDrawingSize.value))}px`, backgroundColor: boardDrawing.boardDrawingColor.value }"></div>
-                  </div>
-                  <div class="relative h-32 w-10 touch-none select-none cursor-ns-resize group/slider" @pointerdown.stop.prevent="boardDrawing.startBoardDrawingSizeDrag">
-                     <div class="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-black/10 rounded-full group-hover/slider:bg-black/20 transition-colors"></div>
-                     <div class="absolute left-1/2 w-2 h-2 bg-white border border-black/30 rounded-full shadow-sm pointer-events-none transition-transform group-active/slider:scale-110"
-                          :style="{ bottom: `${boardDrawing.boardDrawingSizePercent.value}%`, transform: 'translate(-50%, 50%)' }">
-                     </div>
-                  </div>
-               </div>
-
-               <div class="w-6 h-px bg-black/10 my-1"></div>
-
-               <!-- Color Picker -->
-               <div class="flex flex-col items-center py-2 w-full">
-                  <label class="w-5 h-5 rounded-full cursor-pointer border border-black/20 overflow-hidden hover:scale-110 transition-transform relative">
-                     <input type="color" v-model="boardDrawing.boardDrawingColor.value" class="w-full h-full opacity-0 cursor-pointer absolute inset-0" />
-                     <div class="w-full h-full" :style="{ backgroundColor: boardDrawing.boardDrawingColor.value }"></div>
-                  </label>
-               </div>
-            </ExPanel>
-          </div>
-
-          <!-- Bottom Right Actions -->
-          <div data-board-chrome class="absolute bottom-6 right-6 z-50 flex items-center gap-4 cursor-auto"
-               @pointerdown.stop
-               @pointermove.stop
-               @pointerenter="boardDrawing.isBoardDrawingCursorVisible.value = false">
-            <template v-if="isEditingArticle">
-              <button class="px-6 py-3 border border-black/20 bg-white/90 shadow-sm text-[10px] font-mono uppercase tracking-widest hover:border-black/50 hover:bg-white transition-colors"
-                      @click="cancelArticleEditing">
-                {{ locale === 'ru' ? 'ОТМЕНИТЬ РЕДАКТИРОВАНИЕ' : 'CANCEL EDITING' }}
-              </button>
-            </template>
-            <template v-else>
-              <button class="px-6 py-3 border border-black/20 bg-white/90 shadow-sm text-[10px] font-mono uppercase tracking-widest hover:border-black/50 hover:bg-white transition-colors"
-                      @click="creationStep = 'metadata'">
-                {{ locale === 'ru' ? 'НАЗАД' : 'BACK' }}
-              </button>
-              <button class="px-6 py-3 border border-black/20 bg-white/90 shadow-sm text-[10px] font-mono uppercase tracking-widest hover:border-black/50 hover:bg-white transition-colors"
-                      @click="saveDraftAndExit">
-                {{ locale === 'ru' ? 'СОХРАНИТЬ ЧЕРНОВИК' : 'SAVE DRAFT' }}
-              </button>
-            </template>
-            <button class="px-8 py-3 border border-black/20 bg-black text-white shadow-sm text-[10px] font-mono uppercase tracking-[0.2em] hover:bg-black/80 transition-colors"
-                    :class="!isSignalBoardValid ? 'cursor-not-allowed opacity-35 hover:bg-black' : ''"
-                    :disabled="!isSignalBoardValid"
-                    @click="publishArticle">
-              {{ locale === 'ru' ? 'ПРОДОЛЖИТЬ' : 'CONTINUE' }}
-            </button>
-          </div>
-          <ExForumDrawingPanel :drawing="drawing" />
-          <Teleport to="body">
-            <Transition name="fade">
-              <div
-                v-if="activeAssetNodeId"
-                class="fixed inset-0 z-[100000] flex items-center justify-center bg-black/20"
-                @click.self="closeAssetPicker"
-              >
-                <div class="w-[800px] max-w-[95vw] max-h-[80vh] flex flex-col relative" @click.stop>
-                  <ExPanel variant="light" :no-padding="true" :no-shadow="true" class="h-[500px] max-h-[80vh] flex flex-col bg-black/85 text-white border-white/10">
-                    <div class="p-6 border-b border-white/10 flex items-center gap-4 shrink-0 bg-black/20">
-                      <input
-                        v-model="assetSearch"
-                        :placeholder="boardUiLabels.searchAssets"
-                        class="w-full uppercase text-xl font-black tracking-widest bg-transparent border-0 outline-none text-white placeholder-white/20 font-mono"
-                        autofocus
-                      />
-                    </div>
-                    <div class="flex items-center gap-6 px-6 py-4 border-b border-white/10 overflow-x-auto scroll-minimal shrink-0 bg-black/20">
-                      <button
-                        v-for="assetType in assetTypeOptions"
-                        :key="assetType"
-                        class="text-[9px] uppercase tracking-[0.3em] font-bold transition-all whitespace-nowrap"
-                        :class="assetTypeFilter === assetType ? 'text-white border-b border-white pb-0.5' : 'text-white/40 hover:text-white/70'"
-                        @click="assetTypeFilter = assetType"
-                      >
-                        {{ getAssetTypeLoc(assetType) }}
-                      </button>
-                    </div>
-                    <div class="flex-1 overflow-y-auto scroll-minimal py-2">
-                      <div
-                        v-for="asset in filteredAssets"
-                        :key="asset.symbol"
-                        class="group/asset flex items-center justify-start gap-4 px-6 py-4 cursor-pointer border-b border-white/5 last:border-0 hover:bg-white/10 transition-all text-left w-full"
-                        @click="selectBoardAsset(asset)"
-                      >
-                        <div
-                          class="w-10 h-10 rounded-full overflow-hidden border border-white/10 group-hover/asset:border-white/40 flex items-center justify-center shrink-0 transition-colors"
-                          :class="asset.type === 'US Equities' || asset.type === 'Stocks' ? 'bg-white' : 'bg-white/5'"
-                        >
-                          <img
-                            v-if="asset.icon && !failedAssetIcons.has(asset.symbol)"
-                            :src="asset.icon"
-                            class="w-full h-full object-contain"
-                            @error="handleAssetIconError(asset.symbol)"
-                          />
-                          <span v-else class="text-[14px] font-black uppercase transition-colors" :class="asset.type === 'US Equities' || asset.type === 'Stocks' ? 'text-black' : 'text-white'">
-                            {{ asset.symbol[0] }}
-                          </span>
-                        </div>
-                        <div class="flex flex-col min-w-0 flex-1 gap-0.5">
-                          <span class="text-[14px] font-bold tracking-widest text-white">{{ asset.symbol }}</span>
-                          <span class="text-[10px] text-white/40 truncate uppercase tracking-tighter">{{ asset.name }}</span>
-                        </div>
-                        <div class="shrink-0 text-[8px] uppercase tracking-[0.2em] text-white/20 group-hover/asset:text-white/60 border border-white/10 px-2 py-1 transition-colors">
-                          {{ getAssetTypeLoc(asset.type) }}
-                        </div>
-                      </div>
-                      <div v-if="filteredAssets.length === 0" class="flex flex-col items-center justify-center h-full text-white/30 uppercase tracking-[0.3em] font-mono text-[10px] mt-10">
-                        {{ boardUiLabels.noAssetsFound }}
-                      </div>
-                    </div>
-                  </ExPanel>
-                </div>
-              </div>
-            </Transition>
-          </Teleport>
-          <Transition name="fade">
-              <div
-                v-if="activeStrategyNodeId"
-                data-board-chrome
-                class="absolute inset-0 z-[90] flex items-center justify-center bg-black/20 px-6 py-8"
-                @click.self="closeStrategyPicker"
-                @pointerdown.stop
-                @pointermove.stop
-              >
-                <div class="relative flex h-full max-h-[520px] w-[760px] max-w-full flex-col" @click.stop>
-                  <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="flex h-full flex-col border-black/20 bg-white text-black">
-                    <div class="flex items-center border-b border-black/10 px-6 py-5">
-                      <div class="flex flex-col gap-1">
-                        <span class="font-mono text-[9px] font-black uppercase tracking-[0.35em] text-black/35">
-                          {{ locale === 'ru' ? 'ЛОКАЛЬНЫЕ СТРАТЕГИИ' : 'LOCAL STRATEGIES' }}
-                        </span>
-                        <strong class="font-mono text-xl font-black uppercase tracking-widest">
-                          {{ locale === 'ru' ? 'Выберите стратегию' : 'Select strategy' }}
-                        </strong>
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-[1fr_0.45fr_0.45fr_0.75fr] gap-3 border-b border-black/10 px-6 py-3 font-mono text-[8px] font-black uppercase tracking-[0.25em] text-black/35">
-                      <span>{{ locale === 'ru' ? 'Стратегия' : 'Strategy' }}</span>
-                      <span>{{ boardUiLabels.profitFactorShort }}</span>
-                      <span>{{ boardUiLabels.winRateShort }}</span>
-                      <span class="text-right">{{ locale === 'ru' ? 'Результат' : 'Result' }}</span>
-                    </div>
-                    <div class="flex-1 overflow-y-auto scroll-minimal py-2">
-                      <button
-                        v-for="strategy in localStrategies"
-                        :key="strategy.id"
-                        class="grid w-full grid-cols-[1fr_0.45fr_0.45fr_0.75fr] items-center gap-3 border-b border-black/5 px-6 py-4 text-left font-mono transition-colors hover:bg-black/5"
-                        @click="selectBoardStrategy(strategy)"
-                      >
-                        <span class="min-w-0">
-                          <span class="block truncate text-[13px] font-black uppercase tracking-widest text-black/80">{{ strategy.name }}</span>
-                          <span class="mt-1 block text-[8px] uppercase tracking-[0.2em] text-black/30">
-                            {{ getStrategyMetrics(strategy).tradesCount }} {{ locale === 'ru' ? 'сделок' : 'trades' }}
-                          </span>
-                        </span>
-                        <span class="text-[12px] font-black text-black/60">{{ formatProfitFactor(getStrategyMetrics(strategy).profitFactor) }}</span>
-                        <span class="text-[12px] font-black text-black/60">{{ formatCompactNumber(getStrategyMetrics(strategy).winRate, 1) }}%</span>
-                        <span class="text-right text-[12px] font-black" :class="getResultToneClass(getStrategyMetrics(strategy).resultCurrency)">
-                          {{ formatSignedCurrency(getStrategyMetrics(strategy).resultCurrency) }} ({{ formatSignedPercent(getStrategyMetrics(strategy).resultPercent) }})
-                        </span>
-                      </button>
-                      <div v-if="localStrategies.length === 0" class="flex h-64 items-center justify-center font-mono text-[10px] uppercase tracking-[0.3em] text-black/30">
-                        {{ boardUiLabels.noStrategiesFound }}
-                      </div>
-                    </div>
-                  </ExPanel>
-                </div>
-              </div>
-          </Transition>
-          <Transition name="fade">
-              <div
-                v-if="activeTradeNodeId"
-                data-board-chrome
-                class="absolute inset-0 z-[90] flex items-center justify-center bg-black/20 px-6 py-8"
-                @click.self="closeTradePicker"
-                @pointerdown.stop
-                @pointermove.stop
-              >
-                <div class="relative flex h-full max-h-[620px] w-[980px] max-w-full flex-col" @click.stop>
-                  <ExPanel variant="light" :no-padding="true" :show-corners="true" :no-shadow="true" class="flex h-full flex-col border-black/20 bg-white text-black">
-                    <div class="flex items-center border-b border-black/10 px-6 py-5">
-                      <div class="flex flex-col gap-1">
-                        <span class="font-mono text-[9px] font-black uppercase tracking-[0.35em] text-black/35">
-                          {{ locale === 'ru' ? 'EXGENESISLOG // СПИСОК' : 'EXGENESISLOG // LIST' }}
-                        </span>
-                        <strong class="font-mono text-xl font-black uppercase tracking-widest">
-                          {{ locale === 'ru' ? 'Выберите сделку' : 'Select trade' }}
-                        </strong>
-                      </div>
-                    </div>
-                    <div class="flex-1 overflow-y-auto scroll-minimal py-2">
-                      <div
-                        v-for="strategy in tradePickerStrategies"
-                        :key="strategy.id"
-                        class="border-b border-black/5 last:border-0"
-                      >
-                        <button
-                          class="grid w-full grid-cols-[1fr_0.4fr_0.4fr_0.7fr_auto] items-center gap-3 px-6 py-4 text-left font-mono transition-colors hover:bg-black/5"
-                          @click="toggleTradeStrategy(strategy.id)"
-                        >
-                          <span class="min-w-0">
-                            <span class="block truncate text-[13px] font-black uppercase tracking-widest text-black/80">{{ strategy.name }}</span>
-                            <span class="mt-1 block text-[8px] uppercase tracking-[0.2em] text-black/30">
-                              {{ getTradePickerStrategyTrades(strategy.id).length }} {{ locale === 'ru' ? 'сделок' : 'trades' }}
-                            </span>
-                          </span>
-                          <span class="text-[11px] font-black text-black/55">{{ boardUiLabels.profitFactorShort }} {{ formatProfitFactor(getStrategyMetrics(strategy).profitFactor) }}</span>
-                          <span class="text-[11px] font-black text-black/55">{{ boardUiLabels.winRateShort }} {{ formatCompactNumber(getStrategyMetrics(strategy).winRate, 1) }}%</span>
-                          <span class="text-right text-[11px] font-black" :class="getResultToneClass(getStrategyMetrics(strategy).resultCurrency)">
-                            {{ formatSignedCurrency(getStrategyMetrics(strategy).resultCurrency) }} ({{ formatSignedPercent(getStrategyMetrics(strategy).resultPercent) }})
-                          </span>
-                          <span class="flex h-6 w-6 items-center justify-center border border-black/10 text-[12px] font-black text-black/35 transition-colors" :class="expandedTradeStrategyId === strategy.id ? 'bg-black text-white' : ''">
-                            {{ expandedTradeStrategyId === strategy.id ? '−' : '+' }}
-                          </span>
-                        </button>
-
-                        <div v-if="expandedTradeStrategyId === strategy.id" class="border-t border-black/10 bg-black/[0.025]">
-                          <div class="grid grid-cols-[1fr_0.8fr_1.35fr_1fr_1fr] gap-2 border-b border-black/10 px-6 py-3 pl-10 font-mono text-[8px] font-black uppercase tracking-[0.25em] text-black/35">
-                            <span>{{ boardUiLabels.direction }}</span>
-                            <span>{{ boardUiLabels.asset }}</span>
-                            <span>{{ boardUiLabels.dates }}</span>
-                            <span class="text-right">{{ boardUiLabels.duration }}</span>
-                            <span class="text-right">{{ boardUiLabels.result }}</span>
-                          </div>
-                          <button
-                            v-for="trade in getTradePickerStrategyTrades(strategy.id)"
-                            :key="trade.id"
-                            class="grid w-full grid-cols-[1fr_0.8fr_1.35fr_1fr_1fr] items-center gap-2 border-b border-black/5 px-6 py-3 pl-10 text-left font-mono transition-colors last:border-0 hover:bg-black/5"
-                            @click="selectBoardTrade(trade)"
-                          >
-                            <span class="flex min-w-0 items-center gap-3">
-                              <span class="h-1.5 w-1.5 rounded-full" :class="getResultDotClass(getTradeCurrencyProfit(trade))"></span>
-                              <span class="truncate text-[12px] font-black uppercase tracking-widest">{{ getTradeSideLabel(trade.side) }}</span>
-                            </span>
-                            <span class="truncate text-[11px] uppercase tracking-wider text-black/60">{{ trade.asset || boardUiLabels.assetFallback }}</span>
-                            <span class="flex min-w-0 flex-col">
-                              <span class="truncate text-[9px] uppercase tracking-wider text-black/35">{{ locale === 'ru' ? 'Вход' : 'Entry' }}: {{ formatTradeDate(trade.date) }}</span>
-                              <span class="truncate text-[9px] uppercase tracking-wider text-black/35">{{ locale === 'ru' ? 'Выход' : 'Exit' }}: {{ formatTradeDate(trade.dateExit) }}</span>
-                            </span>
-                            <span class="truncate text-right text-[11px] uppercase tracking-wider text-black/40">{{ formatTradeDuration(trade) }}</span>
-                            <span class="truncate text-right text-[12px] font-black tracking-wider" :class="getResultToneClass(getTradeCurrencyProfit(trade))">
-                              {{ formatSignedCurrency(getTradeCurrencyProfit(trade)) }} ({{ formatSignedPercent(getTradePercentProfit(trade, trade.strategyId || strategy.id)) }})
-                            </span>
-                          </button>
-                          <div v-if="getTradePickerStrategyTrades(strategy.id).length === 0" class="px-10 py-8 text-center font-mono text-[9px] uppercase tracking-[0.25em] text-black/25">
-                            {{ boardUiLabels.noTradesInStrategy }}
-                          </div>
-                        </div>
-                      </div>
-                      <div v-if="tradePickerStrategies.length === 0" class="flex h-64 items-center justify-center font-mono text-[10px] uppercase tracking-[0.3em] text-black/30">
-                        {{ boardUiLabels.noTradesFound }}
-                      </div>
-                    </div>
-                  </ExPanel>
-                </div>
-              </div>
-          </Transition>
-        </div>
+        <ExForumBoardEditor
+          v-else-if="creationStep === 'board'"
+          key="board"
+          v-model:board-nodes="boardNodes"
+          v-model:board-connections="boardConnections"
+          v-model:board-strokes="boardStrokes"
+          :article-type="newArticleForm.type"
+          :locale="locale"
+          :is-editing-article="isEditingArticle"
+          @back="creationStep = 'mode'"
+          @save-draft="saveDraftAndExit"
+          @continue="publishArticle"
+          @cancel-edit="cancelArticleEditing"
+        />
         
 
-        <!-- PREVIEW STEP -->
-        <!-- Note: This logic is bypassed, user sees the ExPanel instead -->
-        <div v-else-if="creationStep === 'preview'" class="flex-1 flex flex-col bg-[#F4F4F4] overflow-hidden relative font-mono">
-          <!-- Header -->
-          <header class="flex-shrink-0 flex items-center justify-between px-12 py-6 border-b border-black/10 z-10 bg-[#F4F4F4]">
-            <button class="px-6 py-3 border border-black/20 bg-white shadow-sm text-[10px] font-mono uppercase tracking-widest hover:border-black/50 transition-colors"
-                    @click="creationStep = 'board'">
-              {{ locale === 'ru' ? 'НАЗАД В РЕДАКТОР' : 'BACK TO EDITOR' }}
-            </button>
-            <div class="text-[10px] uppercase tracking-[0.3em] font-black opacity-40">
-              {{ locale === 'ru' ? 'ФИНАЛЬНЫЙ РЕЗУЛЬТАТ' : 'FINAL RESULT' }}
-            </div>
-            <button class="px-8 py-3 border border-black/20 bg-black text-white shadow-sm text-[10px] font-mono uppercase tracking-[0.2em] hover:bg-black/80 transition-colors"
-                    :disabled="isPublishingArticle"
-                    :class="isPublishingArticle ? 'cursor-wait opacity-60' : ''"
-                    @click="showPublishConfirmation = true">
-              {{ isPublishingArticle ? boardUiLabels.publishing : (isEditingArticle ? (locale === 'ru' ? 'ОБНОВИТЬ' : 'UPDATE') : (locale === 'ru' ? 'ОПУБЛИКОВАТЬ' : 'PUBLISH')) }}
-            </button>
-          </header>
 
-          <!-- Scrollable Content -->
-          <div class="flex-1 overflow-y-auto scroll-minimal px-12 py-16">
-            <div class="max-w-[800px] mx-auto flex flex-col items-center">
-              <!-- Title & Description -->
-              <h1 class="text-5xl font-serif italic text-black/90 text-center mb-8 break-words leading-tight w-full">
-                {{ newArticleForm.title }}
-              </h1>
-              <p class="text-sm font-mono text-black/60 text-center leading-loose mb-16 max-w-[600px] whitespace-pre-wrap">
-                {{ newArticleForm.description }}
-              </p>
-
-              <!-- Nodes -->
-              <div class="flex flex-col w-full gap-12">
-                <template v-for="(node, index) in previewNodes" :key="node.id">
-                  
-                  <!-- NODE WRAPPER WITH CONTROLS -->
-                  <div class="group relative w-full flex flex-col items-center">
-                    
-                    <!-- NODE CONTENT -->
-                    <div class="w-full">
-                      <!-- TEXT -->
-                      <div v-if="node.type === 'text'" class="w-full flex flex-col gap-4 font-serif italic break-words">
-                        <h2 v-if="(node as any).title" class="font-bold text-black/90"
-                            :class="(node as any).isQuestion ? 'text-5xl leading-none text-center' : 'text-3xl'">
-                          {{ (node as any).title }}
-                        </h2>
-                        <div v-if="(node as any).text" class="text-black/80 whitespace-pre-wrap"
-                             :class="(node as any).isQuestion ? 'text-3xl text-center' : 'text-base leading-relaxed'"
-                             v-html="(node as any).text">
-                        </div>
-                      </div>
-
-                      <!-- SIGNAL HEADER -->
-                      <div v-else-if="(node as any).type === 'signal-header'" class="w-full flex justify-center py-6">
-                        <div class="flex flex-row items-center justify-between w-full max-w-[800px] border border-black/10 bg-white shadow-sm overflow-hidden">
-                          
-                          <!-- Current Price -->
-                          <div class="flex flex-col items-center justify-center flex-1 py-8 px-4" :class="(node as any).cp ? 'bg-blue-50/50' : ''">
-                            <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
-                              {{ locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE' }}
-                            </span>
-                            <div class="flex items-center gap-2" v-if="(node as any).cp">
-                              <span v-if="getPriceNodeArrow((node as any).cp)" class="text-xl font-black" :class="getPriceNodeValueClass((node as any).cp)">{{ getPriceNodeArrow((node as any).cp) }}</span>
-                              <span class="text-3xl font-mono font-black tracking-widest text-black/90" :class="getPriceNodeValueClass((node as any).cp)">
-                                {{ (node as any).cp.value || '0.00' }}
-                              </span>
-                            </div>
-                            <span v-else class="text-3xl font-mono font-black tracking-widest text-black/20">---</span>
-                          </div>
-
-                          <!-- Asset -->
-                          <div class="flex flex-col items-center justify-center flex-1 py-8 px-4 border-l border-r border-black/10 bg-white z-10 shadow-[0_0_20px_rgba(0,0,0,0.05)]">
-                             <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
-                               {{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}
-                             </span>
-                             <span class="max-w-full truncate text-4xl font-black uppercase tracking-widest text-black/90" v-if="(node as any).asset">
-                               {{ (node as any).asset.asset || '---' }}
-                             </span>
-                             <span v-else class="text-4xl font-mono font-black tracking-widest text-black/20">---</span>
-                          </div>
-
-                          <!-- Target Price -->
-                          <div class="flex flex-col items-center justify-center flex-1 py-8 px-4" :class="(node as any).tp ? 'bg-green-50/50' : ''">
-                            <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
-                              {{ locale === 'ru' ? 'ЦЕЛЬ' : 'TARGET' }}
-                            </span>
-                            <div class="flex items-center gap-2" v-if="(node as any).tp">
-                              <span v-if="getPriceNodeArrow((node as any).tp)" class="text-xl font-black" :class="getPriceNodeValueClass((node as any).tp)">{{ getPriceNodeArrow((node as any).tp) }}</span>
-                              <span class="text-3xl font-mono font-black tracking-widest text-black/90" :class="getPriceNodeValueClass((node as any).tp)">
-                                {{ (node as any).tp.value || '0.00' }}
-                              </span>
-                            </div>
-                            <span v-else class="text-3xl font-mono font-black tracking-widest text-black/20">---</span>
-                          </div>
-
-                        </div>
-                      </div>
-
-                      <!-- ASSET (Standalone, if any left) -->
-                      <div v-else-if="node.type === 'asset'" class="w-full p-8 border border-black/10 bg-black/5 flex flex-col items-center">
-                        <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
-                          {{ locale === 'ru' ? 'АКТИВ' : 'ASSET' }}
-                        </span>
-                        <span class="text-4xl font-mono font-black uppercase tracking-widest text-black/90">
-                          {{ (node as any).asset || '---' }}
-                        </span>
-                      </div>
-
-                      <!-- PRICE (Standalone, if any left) -->
-                      <div v-else-if="node.type === 'price'" class="w-full p-8 border border-black/10 flex flex-col items-center"
-                           :class="(node as any).priceKind === 'current' ? 'bg-blue-50/50' : 'bg-green-50/50'">
-                        <span class="text-[9px] uppercase tracking-[0.3em] font-black text-black/40 mb-2">
-                          {{ (node as any).priceKind === 'current' ? (locale === 'ru' ? 'ТЕКУЩАЯ ЦЕНА' : 'CURRENT PRICE') : (locale === 'ru' ? 'ПРЕДПОЛАГАЕМАЯ ЦЕНА' : 'TARGET PRICE') }}
-                        </span>
-                        <span class="text-4xl font-mono font-black tracking-widest text-black/90">
-                          {{ (node as any).value || '0.00' }}
-                        </span>
-                      </div>
-
-                      <!-- STRATEGY / TRADE -->
-                      <div v-else-if="node.type === 'strategy'" class="w-full flex justify-center py-6">
-                        <div class="flex min-w-[300px] max-w-[450px] w-full flex-col items-center justify-center gap-4 text-center border border-black/10 bg-white p-6 shadow-sm">
-                          <span class="text-[9px] font-black uppercase tracking-[0.3em] text-black/40">
-                            {{ locale === 'ru' ? 'СТРАТЕГИЯ' : 'STRATEGY' }}
-                          </span>
-                          <span class="max-w-full truncate text-2xl font-black uppercase tracking-widest text-black/80">
-                            {{ getStrategyNodeLabel(node) || '---' }}
-                          </span>
-                          <span v-if="getStrategyNodeMetrics(node)" class="grid w-full grid-cols-5 gap-2 text-center uppercase pt-4 border-t border-black/5 mt-2">
-                            <span class="flex min-w-0 flex-col px-1.5">
-                              <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.profitFactorShort }}</small>
-                              <strong class="truncate text-[14px] font-black text-black/85">{{ formatProfitFactor(getStrategyNodeMetrics(node)!.profitFactor) }}</strong>
-                            </span>
-                            <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                              <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.winRateShort }}</small>
-                              <strong class="truncate text-[14px] font-black text-black/85">{{ formatCompactNumber(getStrategyNodeMetrics(node)!.winRate, 1) }}%</strong>
-                            </span>
-                            <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                              <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.resultShort }}</small>
-                              <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.resultCurrency)">{{ formatSignedCurrency(getStrategyNodeMetrics(node)!.resultCurrency) }}</strong>
-                            </span>
-                            <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                              <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.startShort }}</small>
-                              <strong class="truncate text-[14px] font-black text-black/85">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.initialCapital) }}</strong>
-                            </span>
-                            <span class="flex min-w-0 flex-col px-1.5 border-l border-black/5">
-                              <small class="text-[8px] font-black tracking-[0.18em] text-black/40">{{ boardUiLabels.endShort }}</small>
-                              <strong class="truncate text-[14px] font-black" :class="getResultToneClass(getStrategyNodeMetrics(node)!.finalCapital - getStrategyNodeMetrics(node)!.initialCapital)">{{ formatCurrencyValue(getStrategyNodeMetrics(node)!.finalCapital) }}</strong>
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <div v-else-if="node.type === 'trade'" class="w-full flex justify-center py-6">
-                        <div class="flex min-w-[300px] max-w-[450px] w-full flex-col justify-center gap-4 text-left border border-black/10 bg-white p-6 shadow-sm">
-                          <span class="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 text-center">
-                            {{ locale === 'ru' ? 'СДЕЛКА' : 'TRADE' }}
-                          </span>
-                          
-                          <span class="flex w-full items-start justify-between gap-3 border-t border-black/5 pt-4">
-                            <span class="flex min-w-0 flex-col">
-                              <span class="max-w-full truncate text-2xl font-black uppercase tracking-widest text-black/80">
-                                {{ getTradeNodeAssetLabel(node) }}
-                              </span>
-                              <span class="max-w-full truncate text-[10px] font-black uppercase tracking-[0.24em]" :class="getTradeNodeVectorClass(node)">
-                                {{ getTradeNodeVector(node) }}
-                              </span>
-                            </span>
-                            <span class="max-w-[45%] truncate text-right text-xl font-black uppercase tracking-[0.16em]" :class="getTradeNodeResultClass(node)">
-                              {{ getTradeNodeResult(node) || '---' }}
-                            </span>
-                          </span>
-
-                          <span class="grid w-full grid-cols-2 gap-2 text-center uppercase pt-2">
-                            <span class="flex min-w-0 flex-col border-t border-black/5 px-1.5 py-2">
-                              <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.entryShort }}</small>
-                              <strong class="truncate text-[14px] font-black text-black/80">{{ getTradeNodeEntryDate(node) }}</strong>
-                            </span>
-                            <span class="flex min-w-0 flex-col border-t border-l border-black/5 px-1.5 py-2">
-                              <small class="text-[8px] font-black tracking-[0.16em] text-black/40">{{ boardUiLabels.exitShort }}</small>
-                              <strong class="truncate text-[14px] font-black text-black/80">{{ getTradeNodeExitDate(node) }}</strong>
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <!-- DRAWING -->
-                      <div v-else-if="node.type === 'drawing'" class="w-full flex justify-center bg-white p-4 border border-black/10 shadow-sm relative" :style="{ minHeight: '100px' }">
-                        <img v-if="(node as any).params?.preview"
-                             :src="(node as any).params.preview"
-                             alt="Drawing"
-                             class="w-full h-auto max-h-[400px] object-contain pointer-events-none" />
-                        <svg v-else
-                             class="w-full h-auto max-h-[400px] pointer-events-none text-black"
-                             viewBox="0 0 100 100"
-                             preserveAspectRatio="xMidYMid meet">
-                          <polyline v-for="(stroke, i) in (node as any).params?.strokes || []" :key="i"
-                                    :points="stroke.points.map((p: any) => `${p.x},${p.y}`).join(' ')"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1" />
-                        </svg>
-                      </div>
-
-                      <!-- IMAGE -->
-                      <div v-else-if="node.type === 'image'" class="w-full flex flex-col items-center gap-4">
-                        <img :src="(node as any).src" class="max-w-full h-auto rounded-sm border border-black/10 shadow-sm object-contain max-h-[600px]" />
-                        <p v-if="(node as any).caption" class="text-[10px] font-mono tracking-widest uppercase text-black/40 text-center">{{ (node as any).caption }}</p>
-                      </div>
-                    </div>
-
-                    <!-- REORDER CONTROLS -->
-                    <div class="absolute -right-16 top-1/2 -translate-y-1/2 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button class="w-8 h-8 flex items-center justify-center border border-black/20 bg-white shadow-sm hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              :disabled="index === 0"
-                              @click="movePreviewNodeUp(index)">
-                        <svg class="w-4 h-4 text-black/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M18 15l-6-6-6 6"/></svg>
-                      </button>
-                      <button class="w-8 h-8 flex items-center justify-center border border-black/20 bg-white shadow-sm hover:bg-black/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                              :disabled="index === previewNodes.length - 1"
-                              @click="movePreviewNodeDown(index)">
-                        <svg class="w-4 h-4 text-black/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M6 9l6 6 6-6"/></svg>
-                      </button>
-                    </div>
-
-                  </div>
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
 
       </Transition>
 
@@ -1844,8 +1197,8 @@
     </div>
 
     <!-- JOURNAL VIEW: Front Page & Archive -->
-    <div v-else class="relative isolate flex flex-col min-h-full overflow-visible px-4 md:px-6 xl:px-8" :key="`page-${currentPage}`">
-      <div v-if="currentPage === 1" class="pointer-events-none absolute inset-x-0 -top-96 bottom-0 z-0 overflow-hidden">
+    <div v-else class="relative isolate flex flex-col flex-1 h-full min-h-full overflow-visible px-4 md:px-6 xl:px-8" :key="`page-${currentPage}`">
+      <div class="pointer-events-none absolute inset-x-0 -top-96 bottom-0 z-0 overflow-hidden">
         <img
           src="/assets/ui/eves.svg"
           alt=""
@@ -1856,22 +1209,19 @@
       
       <!-- Masthead -->
       <header
-        class="border-b-4 border-double border-current/20 flex flex-col items-center px-8 relative z-10"
-        :class="currentPage === 1 ? 'pt-8 pb-4 space-y-4' : 'pt-3 pb-4'"
+        class="border-b-4 border-double border-current/20 flex flex-col items-center px-8 relative z-10 pt-8 pb-4 space-y-4"
       >
-        <template v-if="currentPage === 1">
-          <div class="flex items-center justify-between w-full text-[8px] font-mono tracking-[0.6em] opacity-40 uppercase">
-            <span>{{ journalLabels.volume }}</span>
-            <span class="text-[10px] tracking-[1em] italic font-serif">{{ journalLabels.edition }}</span>
-            <span>{{ journalLabels.datePrefix }} {{ formatJournalDate() }}</span>
-          </div>
+        <div class="flex items-center justify-between w-full text-[8px] font-mono tracking-[0.6em] opacity-40 uppercase">
+          <span class="justify-self-start text-left">{{ journalLabels.edition }}</span>
+          <span></span>
+          <span>{{ journalLabels.datePrefix }} {{ formatJournalDate() }}</span>
+        </div>
 
-          <div class="relative flex w-full items-center justify-center overflow-visible px-14 py-6 md:px-20">
-            <h1 class="cursor-pointer px-4 text-6xl font-serif italic tracking-tighter text-current opacity-90 text-center drop-shadow-sm" @click="navigateToPage(1)">
-              The Eve's Apple
-            </h1>
-          </div>
-        </template>
+        <div class="relative flex w-full items-center justify-center overflow-visible px-14 py-6 md:px-20">
+          <h1 class="cursor-pointer px-4 text-6xl font-serif italic tracking-tighter text-current opacity-90 text-center drop-shadow-sm" @click="navigateToPage(1)">
+            The Eve's Apple
+          </h1>
+        </div>
 
         <div class="journal-masthead-tools flex flex-wrap lg:flex-nowrap items-center justify-between w-full border-t border-current/10 pt-4 px-4 gap-4">
           <!-- Filters (Left) -->
@@ -1962,7 +1312,7 @@
       </header>
 
       <!-- Main Journal Body -->
-      <div class="flex-grow relative z-10 pb-0">
+      <div class="flex-1 h-full relative z-10 pb-0 flex flex-col">
         
         <!-- Loading State -->
         <div v-if="forumStore.loading" class="flex flex-col items-center justify-center py-32 opacity-50 space-y-4">
@@ -1991,16 +1341,40 @@
                   {{ getThreadDescription(thread) }}
                 </span>
               </button>
-              <button
-                class="flex h-11 w-11 items-center justify-center border border-current/15 text-current/45 transition-all opacity-0 group-hover:opacity-100 hover:border-current/40 hover:bg-current/5 hover:text-current"
-                type="button"
-                @click="startEditArticle(thread)"
-              >
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-                </svg>
-              </button>
+              <div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                <button
+                  class="flex h-11 w-11 items-center justify-center border border-current/15 text-current/45 transition-all hover:border-current/40 hover:bg-current/5 hover:text-current"
+                  type="button"
+                  :aria-label="locale === 'ru' ? 'Редактировать статью' : 'Edit article'"
+                  @click="startEditArticle(thread)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+                  </svg>
+                </button>
+                <button
+                  class="flex h-11 items-center justify-center border transition-all"
+                  :class="pendingDeleteArticleId === thread.id
+                    ? 'w-36 border-black bg-black px-4 text-white'
+                    : 'w-11 border-red-500/15 text-red-600/45 hover:border-red-600/40 hover:bg-red-500/5 hover:text-red-700'"
+                  type="button"
+                  :aria-label="pendingDeleteArticleId === thread.id
+                    ? (locale === 'ru' ? 'Подтвердить удаление статьи' : 'Confirm article deletion')
+                    : (locale === 'ru' ? 'Удалить статью' : 'Delete article')"
+                  @click="deleteMyArticle(thread)"
+                >
+                  <span v-if="pendingDeleteArticleId === thread.id" class="font-mono text-[9px] font-bold uppercase tracking-[0.24em]">
+                    {{ locale === 'ru' ? 'Подтвердить' : 'Confirm' }}
+                  </span>
+                  <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M6 6l1 15h10l1-15" />
+                    <path d="M10 11v6M14 11v6" />
+                  </svg>
+                </button>
+              </div>
             </article>
 
             <div v-if="myArticleThreads.length === 0" class="flex flex-col items-center justify-center gap-4 py-24 text-center">
@@ -2019,82 +1393,107 @@
         </section>
 
         <!-- DYNAMIC MAGAZINE LAYOUT -->
-        <div v-else-if="pagedNodes.length > 0" class="flex flex-col">
-          <!-- SECTION 1: Top Row (Lead Analysis + Signal Sidebar) -->
-          <div class="grid grid-cols-12 border-b-[2px] border-solid border-current/20">
+        <div v-else-if="pagedNodes.length > 0 || pagedSignals.length > 0" class="flex flex-col flex-1 h-full">
+          <!-- MAIN ROW (Publications Left + Signal Sidebar Right) -->
+          <div class="grid grid-cols-12 auto-rows-fr flex-1 h-full border-solid border-current/20" :class="{ 'border-b-[2px]': hasPagination }">
+            <!-- LEFT BLOCK: EVERYTHING THAT IS NOT A SIGNAL -->
             <section
-              v-if="pagedAnalysis.length > 0"
-              class="journal-sector px-12 pb-12 pt-6"
-              :class="[pagedSignals.length > 0 ? 'col-span-12 lg:col-span-8 lg:border-r-[2px] border-solid border-current/20' : 'col-span-12']"
+              class="journal-sector px-6 sm:px-12 pb-12 pt-6 col-span-12 lg:col-span-8 lg:border-r-[2px] border-solid border-current/20 h-full"
             >
-              <div class="flex flex-col space-y-12">
-                <div class="flex items-center justify-between pb-4">
-                  <div class="flex items-center space-x-3">
-                    <div class="w-1.5 h-1.5 bg-current opacity-30 transform rotate-45"></div>
-                    <h2 class="text-sm font-mono tracking-[0.4em] uppercase opacity-60">{{ journalLabels.analysis }}</h2>
-                  </div>
-                  <span v-if="currentPage > 1" class="text-[9px] font-mono opacity-20 uppercase tracking-widest">{{ journalLabels.editionPrefix }}{{ currentPage }}</span>
+              <div class="flex flex-col" v-if="leadJournalSection">
+                <!-- Stacked Vertical Publications List -->
+                <div class="divide-y divide-current/15 flex flex-col">
+                  <article
+                    v-for="node in leadJournalSection.nodes"
+                    :key="node.id"
+                    class="group relative py-6 first:pt-0 last:pb-0 cursor-pointer transition-colors hover:bg-current/[0.015] rounded-xs px-2 -mx-2"
+                    @click="navigateToNode(node.id)"
+                  >
+                    <div class="flex flex-col space-y-3">
+                      <!-- Meta Bar: Author & Date -->
+                      <div class="flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.2em] text-current/50">
+                        <span v-if="node.author" class="inline-flex items-center gap-2 font-bold text-current/80">
+                          <span class="truncate">{{ node.author }}</span>
+                          <ExUserStatusBadge v-if="node.authorStatus" :status="node.authorStatus" />
+                        </span>
+                        <span>{{ formatArticleListDate(node.lastActivityAt) }}</span>
+                      </div>
+
+                      <!-- Title -->
+                      <h3 class="font-serif text-xl sm:text-2xl italic leading-snug text-current/90 transition-transform duration-300 origin-left group-hover:scale-[1.01]">
+                        {{ node.title }}
+                      </h3>
+
+                      <!-- Description / Brief (Only if NOT text mode or if no text preview) -->
+                      <p v-if="node.thesis_brief && (node.editorMode !== 'text' || !node.textPreviewHtml)" class="font-serif text-sm italic leading-relaxed text-current/60 line-clamp-2">
+                        "{{ node.thesis_brief }}"
+                      </p>
+
+                      <!-- Partial Text Content Preview (Only if text mode!) -->
+                      <p
+                        v-if="node.editorMode === 'text' && node.textPreviewHtml"
+                        class="font-serif text-sm italic leading-relaxed text-current/75 line-clamp-3 overflow-hidden opacity-90 pt-1"
+                      >
+                        "{{ node.textPreviewHtml }}..."
+                      </p>
+
+                      <!-- Read More Button (Immediately below text content, matching text-sm font-size) -->
+                      <div class="pt-0.5">
+                        <button
+                          type="button"
+                          class="inline-flex items-center gap-1.5 font-serif text-sm italic text-[#8b5cf6] hover:text-[#7c3aed] transition-colors group/readmore"
+                          @click.stop="navigateToNode(node.id)"
+                        >
+                          <span>{{ locale === 'ru' ? 'Читать дальше' : 'Read more' }}</span>
+                          <svg class="w-3.5 h-3.5 transition-transform group-hover/readmore:translate-x-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14"></path>
+                            <path d="M12 5l7 7-7 7"></path>
+                          </svg>
+                        </button>
+                      </div>
+
+                      <!-- Footer Telemetry: Likes at start (left) -->
+                      <div class="flex items-center justify-start pt-2">
+                        <span class="font-mono text-xs font-bold text-current/70 tracking-widest uppercase">
+                          {{ node.likesCount || 0 }} {{ locale === 'ru' ? 'лайков' : 'likes' }}
+                        </span>
+                      </div>
+                    </div>
+                  </article>
                 </div>
-                <ExJournalSpotlight v-if="pagedAnalysis[0]" :node="pagedAnalysis[0]" @click="navigateToNode(pagedAnalysis[0].id)" />
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
-                  <ExNodeCard v-for="node in pagedAnalysis.slice(1, 3)" :key="node.id" :node="node" />
-                </div>
+              </div>
+              <div v-else class="flex flex-col h-full items-center justify-center py-16 opacity-30 text-center">
+                <span class="font-mono text-[10px] uppercase tracking-[0.3em]">{{ locale === 'ru' ? 'Публикации на этой странице отсутствуют' : 'No publications on this page' }}</span>
               </div>
             </section>
             
+            <!-- RIGHT BLOCK: SIGNALS -->
             <section
-              v-if="pagedSignals.length > 0"
-              class="journal-sector px-8 pb-8 pt-6"
-              :class="[pagedAnalysis.length > 0 ? 'col-span-12 lg:col-span-4' : 'col-span-12']"
+              class="journal-sector px-8 pb-8 pt-2 col-span-12 lg:col-span-4"
             >
-              <div class="space-y-4">
-                 <div class="flex items-center space-x-3 pb-2">
-                   <div class="w-1 h-1 bg-current opacity-20"></div>
-                   <h2 class="text-xs font-mono tracking-[0.3em] uppercase opacity-50">{{ journalLabels.signals }}</h2>
+              <div class="flex flex-col gap-2">
+                 <div class="flex items-center">
+                   <input
+                     v-model="signalSearchQuery"
+                     type="text"
+                     placeholder=""
+                     class="bg-transparent border-none text-[9px] font-mono tracking-[0.2em] uppercase focus:outline-none w-full opacity-50 focus:opacity-100 transition-opacity"
+                   />
                 </div>
                 <div class="space-y-1">
                   <ExNodeCard
-                    v-for="node in pagedSignals.slice(0, 4)"
+                    v-for="node in pagedSignals"
                     :key="node.id"
                     :node="node"
                     class="journal-signal-card"
                   />
+                  <div v-if="pagedSignals.length === 0" class="flex flex-col h-full items-center justify-center py-12 opacity-30 text-center">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.3em]">{{ locale === 'ru' ? 'Сигналы на этой странице отсутствуют' : 'No signals on this page' }}</span>
+                  </div>
                 </div>
               </div>
             </section>
           </div>
-
-          <!-- SECTION 2: Middle Horizontal (Research) -->
-          <section v-if="pagedResearch.length > 0" class="journal-sector p-12 border-b-[2px] border-solid border-current/20">
-            <div class="flex flex-col space-y-12">
-              <div class="flex items-center justify-between pb-4">
-                <div class="flex items-center space-x-3">
-                  <div class="w-1.5 h-1.5 bg-current opacity-30 transform rotate-45"></div>
-                  <h2 class="text-sm font-mono tracking-[0.4em] uppercase opacity-60">{{ journalLabels.research }}</h2>
-                </div>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                <ExNodeCard v-for="node in pagedResearch.slice(0, 3)" :key="node.id" :node="node" />
-              </div>
-            </div>
-          </section>
-
-          <!-- SECTION 3: Bottom Strip (Strategy) -->
-          <section v-if="pagedStrategies.length > 0" class="journal-sector p-12">
-            <div class="flex flex-col space-y-12">
-              <div class="flex items-center justify-between pb-4">
-                  <div class="flex items-center space-x-3">
-                    <div class="w-1.5 h-1.5 bg-current opacity-30 transform rotate-45"></div>
-                    <h2 class="text-sm font-mono tracking-[0.4em] uppercase opacity-60">{{ journalLabels.strategy }}</h2>
-                  </div>
-              </div>
-              <div class="flex overflow-x-auto space-x-12 scroll-minimal pb-4">
-                <div v-for="node in pagedStrategies.slice(0, 3)" :key="node.id" class="min-w-[400px]">
-                  <ExNodeCard :node="node" class="!border-none" />
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
 
         <!-- NO CONTENT WARNING: The Reification Void -->
@@ -2111,30 +1510,9 @@
             </button>
         </div>
 
-        <!-- Pagination Controls -->
-        <div v-if="hasJournalPagination" class="p-12 flex flex-col items-center space-y-8 border-t border-current/10 mt-12">
-           <div class="flex items-center space-x-12">
-              <button v-if="currentPage > 1" @click="navigateToPage(currentPage - 1)" 
-                      class="px-8 py-3 border border-current/10 text-[9px] font-mono tracking-[0.4em] uppercase opacity-40 hover:opacity-100 hover:bg-current/[0.02] transition-all">
-                {{ journalLabels.previousPage }}
-              </button>
-              <button v-if="hasNextJournalPage" @click="navigateToPage(currentPage + 1)"
-                      class="px-8 py-3 bg-zinc-800 text-white text-[9px] font-mono tracking-[0.4em] uppercase hover:shadow-[0_0_30px_rgba(var(--text-primary-rgb),0.1)] transition-all">
-                {{ journalLabels.nextPage }} // {{ journalLabels.archivePrefix }}0{{ currentPage + 1 }} ]
-              </button>
-           </div>
-           
-           <div class="text-[7px] font-mono opacity-20 uppercase tracking-[0.8em]">{{ journalLabels.endOfArchive }}</div>
-        </div>
 
-        <!-- Journal Footer -->
-        <footer class="py-4 text-center opacity-10 hover:opacity-100 transition-opacity duration-700">
-          <div class="flex flex-col items-center space-y-4">
-            <div class="text-[10px] font-serif italic tracking-widest text-current">{{ journalLabels.footerQuote }}</div>
-            <div class="w-24 h-px bg-current/20 mx-auto text-current"></div>
-            <div class="text-[7px] font-mono tracking-[0.8em] uppercase text-current">{{ journalLabels.footerBrand }}</div>
-          </div>
-        </footer>
+
+
 
       </div>
     </div>
@@ -2228,7 +1606,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useForumDrawing } from '../model/useForumDrawing'
 import { useBoardDrawing } from '../model/useBoardDrawing'
-import ExForumDrawingPanel from './ExForumDrawingPanel.vue'
+import ExDrawingPanel from '~/shared/ui/ExDrawingPanel.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useForumStore } from '~/features/store/useForum'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
@@ -2243,11 +1621,16 @@ import type { ExNode, ExNodeMode, ExNodeSignal } from '~/entities/exnode/model/e
 import type { StrategyProfile } from '~/features/store/useStrategyTrades'
 import type { Thread } from '~/entities/thread/model/thread.types'
 import { normalizeUserProfileStatuses, type UserProfileStatus } from '~/entities/user/model/user-status.types'
-import type { JournalArticle, JournalArticleBoard, JournalArticleBoardConnection, JournalArticleBoardNode, JournalArticleBoardPort } from '~/entities/journal-article/types/journal-article.types'
+import type { JournalArticle, JournalArticleBoard, JournalArticleBoardConnection, JournalArticleBoardNode, JournalArticleBoardPort, JournalArticleBoardTextNode } from '~/entities/journal-article/types/journal-article.types'
 import ExUserStatusBadge from '~/entities/user/ui/ExUserStatusBadge.vue'
 import ExNodeCard from '~/entities/exnode/ui/ExNodeCard.vue'
 import ExJournalSpotlight from '~/widgets/exforum/ui/ExJournalSpotlight.vue'
+import ExForumBoardEditor from '~/widgets/exforum/ui/ExForumBoardEditor.vue'
+import ExForumTextEditor from '~/widgets/exforum/ui/ExForumTextEditor.vue'
+import ExAssetPickerMenu from '~/shared/ui/ExAssetPickerMenu.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import ExGenesisHudPanel from '~/widgets/genesis/ui/common/ExGenesisHudPanel.vue'
+import ExGenesisHudButton from '~/widgets/genesis/ui/common/ExGenesisHudButton.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 
 const route = useRoute()
@@ -2260,10 +1643,11 @@ const strategyTradesStore = useStrategyTradesStore()
 
 // Archival State
 const searchQuery = ref('')
+const signalSearchQuery = ref('')
 const journalLabels = computed(() => locale.value === 'ru'
   ? {
       volume: 'Том XXIV // № 12',
-      edition: 'Издание Реализации',
+      edition: 'Издание I',
       datePrefix: 'Опубликовано',
       search: 'Поиск',
       searchPlaceholder: 'ПОИСК В АРХИВЕ',
@@ -2275,8 +1659,8 @@ const journalLabels = computed(() => locale.value === 'ru'
       emptyTitle: 'Пустота архива',
       emptyDescription: 'Внимание: вы достигли края индексированного архива. Для этой позиции нет тактических данных или публикаций.',
       returnToOrigin: '[ Вернуться_к_началу ]',
-      previousPage: '[ ПРЕДЫДУЩАЯ_СТРАНИЦА ]',
-      nextPage: '[ СЛЕДУЮЩАЯ_СТРАНИЦА',
+      previousPage: 'ПРЕДЫДУЩАЯ СТРАНИЦА',
+      nextPage: 'СЛЕДУЮЩАЯ СТРАНИЦА',
       archivePrefix: 'АРХ_',
       endOfArchive: 'Конец индексированного архива',
       footerQuote: '"Знание реализовано. Ценность извлечена."',
@@ -2284,7 +1668,7 @@ const journalLabels = computed(() => locale.value === 'ru'
     }
   : {
       volume: 'Vol. XXIV // No. 12',
-      edition: 'Reification Edition',
+      edition: 'Edition I',
       datePrefix: 'Reified on',
       search: 'Search',
       searchPlaceholder: 'INDEX REIFICATION',
@@ -2296,8 +1680,8 @@ const journalLabels = computed(() => locale.value === 'ru'
       emptyTitle: 'The Reification Void',
       emptyDescription: 'Caution: You have reached the edge of the indexed registry. No tactical intelligence or archival nodes have been reified at this temporal coordinate.',
       returnToOrigin: '[ Return_to_Origin ]',
-      previousPage: '[ PREV_PAGE ]',
-      nextPage: '[ NEXT_PAGE',
+      previousPage: 'PREV PAGE',
+      nextPage: 'NEXT PAGE',
       archivePrefix: 'ARV_',
       endOfArchive: 'End of Indexed Reification',
       footerQuote: '"Knowledge Reified. Value Extracted."',
@@ -2305,18 +1689,14 @@ const journalLabels = computed(() => locale.value === 'ru'
     })
 const journalFilters = computed(() => locale.value === 'ru'
   ? [
-      { label: 'СИГНАЛЫ', mode: 'SETUP' },
-      { label: 'ИССЛЕДОВАНИЯ', mode: 'RESEARCH' },
-      { label: 'СТРАТЕГИИ', mode: 'LESSON' },
-      { label: 'ВОПРОСЫ', mode: 'QUESTION' }
+      { label: 'ПОПУЛЯРНЫЕ', mode: 'POPULAR' },
+      { label: 'НОВЫЕ', mode: 'NEW' }
     ]
   : [
-      { label: 'SIGNALS', mode: 'SETUP' },
-      { label: 'RESEARCH', mode: 'RESEARCH' },
-      { label: 'STRATEGY', mode: 'LESSON' },
-      { label: 'QUESTIONS', mode: 'QUESTION' }
+      { label: 'POPULAR', mode: 'POPULAR' },
+      { label: 'NEW', mode: 'NEW' }
     ])
-const activeJournalFilter = ref<string | null>(null)
+const activeJournalFilter = ref<string | null>('NEW')
 const journalViewMode = ref<'journal' | 'mine'>('journal')
 const isForumLightTheme = computed(() => !themeStore.settings.isDark)
 const showForumEdgeShadows = computed(() => themeStore.settings.isDark)
@@ -2380,7 +1760,7 @@ const getMetricLabel = (label: string) => {
   }[label] || label
 }
 
-const journalModeValues = new Set<ExNodeMode>(['SETUP', 'RESEARCH', 'LESSON', 'QUESTION'])
+const journalModeValues = new Set<ExNodeMode>(['SETUP', 'RESEARCH', 'LESSON', 'QUESTION', 'PUBLICATION'])
 
 const normalizeFirestoreDate = (value: any) => {
   if (!value) return new Date().toISOString()
@@ -2508,10 +1888,17 @@ const getThreadSignal = (thread: Thread & Record<string, any>): ExNodeSignal | u
 const threadToJournalNode = (thread: Thread & Record<string, any>): ExNode => {
   const mode = getThreadMode(thread)
   const description = getThreadDescription(thread)
+  const editorMode = (thread.editorMode || thread.mode || thread.content?.editorMode || thread.content?.mode) === 'text' ? 'text' : 'board'
+  const textBlocks = getThreadTextBlocks(thread)
+  const firstTextBlock = textBlocks.find((b: any) => b.type === 'text' || b.text)
+  const rawPreview = firstTextBlock?.text || description || ''
+  const textPreviewHtml = rawPreview.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim()
 
   return {
     id: thread.id,
     mode,
+    editorMode,
+    textPreviewHtml,
     title: thread.title || boardUiLabels.value.untitled,
     author: getThreadAuthorName(thread),
     authorStatus: getSelectedAuthorStatus(thread.authorId),
@@ -2528,11 +1915,14 @@ const threadToJournalNode = (thread: Thread & Record<string, any>): ExNode => {
   }
 }
 
-const threadToJournalArticle = (thread: Thread & Record<string, any>): JournalArticle => {
+const threadToJournalArticle = (thread: Thread & Record<string, any>): JournalArticle & Record<string, any> => {
   const createdAt = getThreadPublishedAt(thread)
   const commentsCount = Number(thread.repliesCount || 0)
   const likesCount = Number(thread.likesCount || 0)
   const textBlocks = getThreadTextBlocks(thread)
+  const editorMode = thread.editorMode || thread.mode || thread.content?.editorMode || thread.content?.mode || 'board'
+  const attachedImages = thread.attachedImages || thread.content?.attachedImages || []
+  const attachedTrades = thread.attachedTrades || thread.content?.attachedTrades || []
 
   return {
     id: thread.id,
@@ -2543,6 +1933,10 @@ const threadToJournalArticle = (thread: Thread & Record<string, any>): JournalAr
     category: thread.categoryLabel || thread.category || getThreadMode(thread),
     author: getThreadAuthorName(thread),
     publishedAt: createdAt,
+    editorMode,
+    mode: editorMode,
+    attachedImages,
+    attachedTrades,
     metrics: [
       { id: 'likes', label: 'Likes', value: likesCount },
       { id: 'comments', label: 'Comments', value: commentsCount }
@@ -2562,7 +1956,8 @@ const currentPage = computed(() => Number(route.query.page) || 1)
 const nodesPerPage = 12
 
 const journalThreads = computed(() => {
-  return Array.from(forumStore.threads.values()) as Array<Thread & Record<string, any>>
+  return (Array.from(forumStore.threads.values()) as Array<Thread & Record<string, any>>)
+    .filter(thread => (thread.status as any) !== 'hidden')
 })
 const myArticleThreads = computed(() => {
   const userId = authStore.user?.uid
@@ -2571,44 +1966,103 @@ const myArticleThreads = computed(() => {
     .filter(thread => thread.authorId === userId)
     .sort((a, b) => new Date(getThreadPublishedAt(b)).getTime() - new Date(getThreadPublishedAt(a)).getTime())
 })
+const pagedMyArticleThreads = computed(() => {
+  const start = (currentPage.value - 1) * nodesPerPage
+  return myArticleThreads.value.slice(start, start + nodesPerPage)
+})
 const journalNodes = computed(() => journalThreads.value
   .map(threadToJournalNode)
   .sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime()))
 
+const allPublications = computed(() => journalNodes.value.filter((n: any) => n.mode !== 'SETUP' && n.type !== 'SETUP'))
+const allSignals = computed(() => journalNodes.value.filter((n: any) => n.mode === 'SETUP' || n.type === 'SETUP'))
+
 const filteredNodes = computed(() => {
   const q = searchQuery.value.toLowerCase()
-  return journalNodes.value.filter((n: ExNode) => {
+  const list = allPublications.value.filter((n: ExNode) => {
     let matchesFilter = true
     if (activeJournalFilter.value === 'LIKED') {
       matchesFilter = forumStore.userLikedThreadIds.has(n.id)
     } else if (activeJournalFilter.value === 'BOOKMARKED') {
       matchesFilter = forumStore.userSavedThreadIds.has(n.id)
-    } else if (activeJournalFilter.value) {
-      matchesFilter = n.mode === activeJournalFilter.value
     }
     const matchesSearch = !q
       || n.title.toLowerCase().includes(q)
       || n.thesis_brief?.toLowerCase().includes(q)
       || n.category.toLowerCase().includes(q)
-      || n.signal?.asset.toLowerCase().includes(q)
-      || n.signal?.description.toLowerCase().includes(q)
     return matchesFilter && matchesSearch
   })
+
+  if (activeJournalFilter.value === 'POPULAR') {
+    const sixtyDaysMs = 60 * 24 * 60 * 60 * 1000
+    const now = Date.now()
+    const recentNodes = list.filter((n) => {
+      const time = new Date(n.lastActivityAt).getTime()
+      return !isNaN(time) && (now - time <= sixtyDaysMs)
+    })
+    const targetList = recentNodes.length > 0 ? recentNodes : list
+    return [...targetList].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0))
+  } else {
+    return [...list].sort((a, b) => new Date(b.lastActivityAt).getTime() - new Date(a.lastActivityAt).getTime())
+  }
 })
 
 const pagedNodes = computed(() => {
   const start = (currentPage.value - 1) * nodesPerPage
   return filteredNodes.value.slice(start, start + nodesPerPage)
 })
-const totalJournalPages = computed(() => Math.ceil(filteredNodes.value.length / nodesPerPage))
-const hasNextJournalPage = computed(() => currentPage.value < totalJournalPages.value)
-const hasJournalPagination = computed(() => currentPage.value > 1 || hasNextJournalPage.value)
+const totalPages = computed(() => {
+  if (journalViewMode.value === 'mine') {
+    return Math.ceil(myArticleThreads.value.length / nodesPerPage)
+  }
+  const pubPages = Math.ceil(filteredNodes.value.length / nodesPerPage)
+  const sigPages = Math.ceil(filteredSignals.value.length / nodesPerPage)
+  return Math.max(pubPages, sigPages)
+})
+const hasNextPage = computed(() => currentPage.value < totalPages.value)
+const hasPagination = computed(() => true)
 
-const pagedSignals = computed(() => pagedNodes.value.filter((n: any) => n.mode === 'SETUP'))
-const pagedResearch = computed(() => pagedNodes.value.filter((n: any) => n.mode === 'RESEARCH'))
-const pagedStrategies = computed(() => pagedNodes.value.filter((n: any) => n.mode === 'LESSON'))
-const pagedAnalysis = computed(() => pagedNodes.value.filter((n: any) => n.mode === 'QUESTION'))
+const filteredSignals = computed(() => {
+  const globalQ = searchQuery.value.toLowerCase()
+  const sigQ = signalSearchQuery.value.toLowerCase()
+  return allSignals.value.filter((n: ExNode) => {
+    const matchesGlobal = !globalQ
+      || n.title.toLowerCase().includes(globalQ)
+      || n.signal?.asset?.toLowerCase().includes(globalQ)
+      || n.signal?.description?.toLowerCase().includes(globalQ)
+    const matchesSignal = !sigQ || n.signal?.asset?.toLowerCase().includes(sigQ)
+    return matchesGlobal && matchesSignal
+  })
+})
 
+const pagedSignals = computed(() => {
+  const start = (currentPage.value - 1) * nodesPerPage
+  return filteredSignals.value.slice(start, start + nodesPerPage).map((node: any) => {
+    let authorName = node.author || ''
+    if (authorName.length > 15) {
+      authorName = authorName.substring(0, 12) + '...'
+    }
+    return {
+      ...node,
+      author: authorName
+    }
+  })
+})
+const pagedPublications = computed(() => pagedNodes.value)
+const pagedResearch = computed(() => pagedPublications.value)
+const pagedStrategies = computed(() => pagedPublications.value)
+const pagedAnalysis = computed(() => pagedPublications.value)
+const leadJournalSection = computed(() => {
+  if (pagedPublications.value.length) {
+    return {
+      key: 'publication',
+      label: locale.value === 'ru' ? 'ПУБЛИКАЦИИ' : 'PUBLICATIONS',
+      nodes: pagedPublications.value
+    }
+  }
+  return null
+})
+const hasPagedNonSignalArticles = computed(() => Boolean(leadJournalSection.value))
 const navigateToPage = (page: number) => {
   const query = { ...route.query, page: page === 1 ? undefined : page.toString() }
   router.replace({ query })
@@ -2616,7 +2070,7 @@ const navigateToPage = (page: number) => {
 
 const setJournalFilter = (mode: string) => {
   journalViewMode.value = 'journal'
-  activeJournalFilter.value = activeJournalFilter.value === mode ? null : mode
+  activeJournalFilter.value = activeJournalFilter.value === mode ? 'NEW' : mode
   navigateToPage(1)
 }
 
@@ -2624,8 +2078,8 @@ const toggleMyArticles = () => {
   journalViewMode.value = journalViewMode.value === 'mine' ? 'journal' : 'mine'
   if (journalViewMode.value === 'mine') {
     activeJournalFilter.value = null
-    navigateToPage(1)
   }
+  navigateToPage(1)
 }
 
 // Reader Logic
@@ -2647,6 +2101,19 @@ const comments = computed(() => {
   if (!selectedArticle.value) return []
   return forumStore.replies.get(selectedArticle.value.id) || []
 })
+const contributionCarouselRef = ref<HTMLElement | null>(null)
+const selectedArticleContributionIds = computed(() => {
+  const thread = selectedThread.value as (Thread & Record<string, any>) | undefined
+  if (!thread) return []
+
+  return Array.from(new Set((forumStore.threadLinks.get(thread.id) || [])
+    .filter(link => link.toThreadId === thread.id && link.type === 'extends')
+    .map(link => link.fromThreadId)))
+    .filter(id => typeof id === 'string' && id && id !== thread.id)
+})
+const selectedArticleContributions = computed(() => selectedArticleContributionIds.value
+  .map(id => journalThreads.value.find(thread => thread.id === id))
+  .filter((thread): thread is Thread & Record<string, any> => Boolean(thread)))
 function getSelectedAuthorStatus(authorId?: string): UserProfileStatus | null {
   if (!authorId) return null
   const user = forumStore.users.get(authorId)
@@ -2788,7 +2255,19 @@ const nestedComments = computed(() => {
 })
 
 const replyingToId = ref<string | null>(null)
+const replyDrafts = ref<Record<string, string>>({})
 const expandedComments = ref<Set<string>>(new Set())
+
+const getReplyDraft = (replyId: string) => replyDrafts.value[replyId] || ''
+const setReplyDraft = (replyId: string, value: string) => {
+  replyDrafts.value = {
+    ...replyDrafts.value,
+    [replyId]: value.slice(0, 1000)
+  }
+}
+const setReplyDraftFromEvent = (replyId: string, event: Event) => {
+  setReplyDraft(replyId, (event.target as HTMLTextAreaElement | null)?.value || '')
+}
 
 const toggleCommentExpand = (id: string) => {
   const newSet = new Set(expandedComments.value)
@@ -2802,12 +2281,12 @@ const toggleReplyForm = (id: string) => {
     replyingToId.value = null
   } else {
     replyingToId.value = id
-    commentDraft.value = ''
-    nextTick(resizeCommentInput)
+    if (!replyDrafts.value[id]) setReplyDraft(id, '')
   }
 }
 
 const journalWrapperRef = ref<HTMLElement | null>(null)
+const articleBoardPreviewRef = ref<HTMLElement | null>(null)
 const boardViewportRef = ref<HTMLElement | null>(null)
 const boardStageRef = ref<HTMLElement | null>(null)
 const boardWorldRef = ref<HTMLElement | null>(null)
@@ -2818,8 +2297,10 @@ const boardStrokes = ref<any[]>([])
 const boardPan = ref({ x: 48, y: 36 })
 const boardScale = ref(1)
 const boardScaleOptions = [25, 50, 75, 100, 150, 200]
+const isBoardPreviewReady = ref(false)
 const isBoardFullscreen = ref(false)
 const boardFullscreenViewportStyle = ref<Record<string, string>>({})
+const boardFullscreenHudStyle = ref<Record<string, string>>({})
 const activeBoardWire = ref<{
   fromId: string
   fromPort: JournalArticleBoardPort
@@ -2827,14 +2308,26 @@ const activeBoardWire = ref<{
   originalToPort?: JournalArticleBoardPort
   current: { x: number; y: number }
 } | null>(null)
+
+const getBoardDevicePixelRatio = () => (
+  typeof window !== 'undefined' && Number.isFinite(window.devicePixelRatio)
+    ? window.devicePixelRatio
+    : 1
+)
+const snapBoardCssPixel = (value: number) => {
+  if (!Number.isFinite(value)) return 0
+  const ratio = getBoardDevicePixelRatio()
+  return Math.round(value * ratio) / ratio
+}
+const snapBoardPoint = (point: { x: number; y: number }) => ({
+  x: snapBoardCssPixel(point.x),
+  y: snapBoardCssPixel(point.y)
+})
 const passivePortRevealDistance = 96
 const activeAssetNodeId = ref<string | null>(null)
 const activeStrategyNodeId = ref<string | null>(null)
 const activeTradeNodeId = ref<string | null>(null)
 const expandedTradeStrategyId = ref<string | null>(null)
-const assetSearch = ref('')
-const assetTypeFilter = ref('ALL')
-const failedAssetIcons = ref(new Set<string>())
 const assetTypeLocales: Record<string, { en: string; ru: string }> = {
   ALL: { en: 'ALL', ru: 'ВСЕ' },
   'US Equities': { en: 'US Equities', ru: 'АКЦИИ' },
@@ -2844,32 +2337,13 @@ const assetTypeLocales: Record<string, { en: string; ru: string }> = {
   Indices: { en: 'Indices', ru: 'ИНДЕКСЫ' },
   Stocks: { en: 'Stocks', ru: 'АКЦИИ' }
 }
-const assetTypeOptions = ['ALL', 'US Equities', 'Crypto', 'Forex', 'Commodities', 'Indices']
-const filteredAssets = computed(() => {
-  const query = assetSearch.value.trim().toLowerCase()
-  let assets = allAssets as any[]
-  if (assetTypeFilter.value !== 'ALL') {
-    assets = assets.filter(asset => String(asset.type || '').toUpperCase() === assetTypeFilter.value.toUpperCase())
-  }
-  if (!query) return assets.slice(0, 50)
-  return assets
-    .filter(asset => String(asset.symbol || '').toLowerCase().includes(query) || String(asset.name || '').toLowerCase().includes(query))
-    .sort((a, b) => {
-      const aSymbol = String(a.symbol || '').toUpperCase()
-      const bSymbol = String(b.symbol || '').toUpperCase()
-      const exact = assetSearch.value.trim().toUpperCase()
-      if (aSymbol === exact) return -1
-      if (bSymbol === exact) return 1
-      if (aSymbol.startsWith(exact) && !bSymbol.startsWith(exact)) return -1
-      if (!aSymbol.startsWith(exact) && bSymbol.startsWith(exact)) return 1
-      return aSymbol.localeCompare(bSymbol)
-    })
-    .slice(0, 20)
-})
 
 // Article Creation State
 const isCreatingArticle = ref(false)
-const creationStep = ref<'metadata' | 'board' | 'preview'>('metadata')
+const creationStep = ref<'metadata' | 'contribution' | 'mode' | 'board' | 'text' | 'preview'>('metadata')
+const lastActiveEditorStep = ref<'text' | 'board'>('text')
+const attachedArticleImages = ref<string[]>([])
+const attachedArticleTrades = ref<any[]>([])
 const showPublishConfirmation = ref(false)
 const editingArticleId = ref<string | null>(null)
 const drawing = useForumDrawing()
@@ -2884,7 +2358,17 @@ if (typeof localStorage !== 'undefined') {
 const newArticleForm = ref({
   title: '',
   description: '',
-  type: ''
+  type: '',
+  contributionIds: [] as string[]
+})
+
+const normalizeArticleForm = (form: any = {}) => ({
+  title: String(form.title || ''),
+  description: String(form.description || ''),
+  type: String(form.type || ''),
+  contributionIds: Array.isArray(form.contributionIds)
+    ? form.contributionIds.filter((id: any): id is string => typeof id === 'string').slice(0, 3)
+    : []
 })
 
 const isEditingArticle = computed(() => !!editingArticleId.value)
@@ -2892,18 +2376,93 @@ const editingArticleThread = computed(() => {
   if (!editingArticleId.value) return null
   return journalThreads.value.find(thread => thread.id === editingArticleId.value) || null
 })
+const isContributionPickerOpen = ref(false)
+const contributionSearchQuery = ref('')
+
+const contributionArticleOptions = computed(() => journalThreads.value
+  .filter(thread => thread.id !== editingArticleId.value)
+  .sort((a, b) => new Date(getThreadPublishedAt(b)).getTime() - new Date(getThreadPublishedAt(a)).getTime()))
 
 const resetArticleEditorState = () => {
-  stopBoardDrawingMode()
-  showPublishConfirmation.value = false
   editingArticleId.value = null
-  newArticleForm.value = { title: '', description: '', type: '' }
+  newArticleForm.value = normalizeArticleForm()
   boardNodes.value = []
   boardConnections.value = []
   boardStrokes.value = []
   previewNodeOrder.value = []
+  attachedArticleImages.value = []
+  attachedArticleTrades.value = []
+  selectedContributionArticles.value = []
   creationStep.value = 'metadata'
+  lastActiveEditorStep.value = 'text'
 }
+
+const restoreDraft = () => {
+  const saved = localStorage.getItem(DRAFT_STORAGE_KEY)
+  if (!saved) return
+  try {
+    const draft = JSON.parse(saved)
+    newArticleForm.value = normalizeArticleForm(draft.form)
+    boardNodes.value = draft.boardNodes || []
+    boardConnections.value = draft.boardConnections || []
+    boardStrokes.value = draft.boardStrokes || []
+    creationStep.value = draft.step || 'metadata'
+    lastActiveEditorStep.value = draft.editorMode || 'text'
+    attachedArticleImages.value = draft.attachedImages || []
+    attachedArticleTrades.value = draft.attachedTrades || []
+    selectedContributionArticles.value = draft.selectedContributions || []
+    isCreatingArticle.value = true
+  } catch (e) {
+    console.error('Failed to restore draft:', e)
+  }
+}
+
+const filteredContributionArticleOptions = computed(() => {
+  const query = contributionSearchQuery.value.trim().toLowerCase()
+  if (!query) return contributionArticleOptions.value
+  return contributionArticleOptions.value.filter(thread => {
+    const title = String(thread.title || '').toLowerCase()
+    const author = getThreadAuthorName(thread).toLowerCase()
+    return title.includes(query) || author.includes(query)
+  })
+})
+
+const selectedContributionArticles = ref<(Thread & Record<string, any>)[]>([])
+
+const isContributionSelected = (threadId: string) => newArticleForm.value.contributionIds.includes(threadId)
+
+const toggleContributionArticle = (threadId: string) => {
+  const current = [...newArticleForm.value.contributionIds]
+  const existingIndex = current.indexOf(threadId)
+  if (existingIndex !== -1) {
+    current.splice(existingIndex, 1)
+    newArticleForm.value.contributionIds = current
+    selectedContributionArticles.value = selectedContributionArticles.value.filter(t => t.id !== threadId)
+    return
+  }
+  if (current.length >= 3) return
+  newArticleForm.value.contributionIds = [...current, threadId]
+  const thread = journalThreads.value.find(t => t.id === threadId)
+  if (thread) selectedContributionArticles.value = [...selectedContributionArticles.value, thread]
+}
+
+const removeContributionArticle = (threadId: string) => {
+  newArticleForm.value.contributionIds = newArticleForm.value.contributionIds.filter(id => id !== threadId)
+  selectedContributionArticles.value = selectedContributionArticles.value.filter(t => t.id !== threadId)
+}
+
+const openContributionPicker = () => {
+  isContributionPickerOpen.value = true
+  contributionSearchQuery.value = ''
+}
+
+const createContributionTargetSnapshot = (thread: Thread & Record<string, any>) => ({
+  id: thread.id,
+  title: thread.title || boardUiLabels.value.untitled,
+  category: thread.categoryLabel || thread.subcategory || getThreadMode(thread),
+  author: getThreadAuthorName(thread),
+  publishedAt: getThreadPublishedAt(thread)
+})
 
 const loadDraft = () => {
   const draftStr = localStorage.getItem(DRAFT_STORAGE_KEY)
@@ -2911,7 +2470,7 @@ const loadDraft = () => {
     try {
       editingArticleId.value = null
       const draft = JSON.parse(draftStr)
-      newArticleForm.value = draft.form
+      newArticleForm.value = normalizeArticleForm(draft.form)
       boardNodes.value = draft.nodes
       boardConnections.value = draft.connections || []
       boardStrokes.value = draft.strokes || []
@@ -3048,6 +2607,7 @@ watch([newArticleForm, boardNodes, boardConnections, boardStrokes, creationStep]
 const isDropdownOpen = ref(false)
 const isSubmittingArticle = ref(false)
 const isPublishingArticle = ref(false)
+const pendingDeleteArticleId = ref<string | null>(null)
 
 const articleTypes = computed(() => journalFilters.value.map(filter => ({
   value: filter.mode,
@@ -3088,14 +2648,21 @@ const getArticleTextBlockOrder = (thread: Thread & Record<string, any>) => {
 const startEditArticle = (thread: Thread & Record<string, any>) => {
   if (!authStore.user || thread.authorId !== authStore.user.uid) return
 
+  pendingDeleteArticleId.value = null
   closeReader()
   resetArticleEditorState()
   editingArticleId.value = thread.id
-  newArticleForm.value = {
+  newArticleForm.value = normalizeArticleForm({
     title: thread.title || '',
     description: thread.description || thread.summary || '',
-    type: getThreadMode(thread)
-  }
+    type: getThreadMode(thread),
+    contributionIds: thread.contributionIds || thread.contributesToThreadIds || []
+  })
+
+  attachedArticleImages.value = Array.isArray(thread.attachedImages) ? [...thread.attachedImages] : []
+  attachedArticleTrades.value = Array.isArray(thread.attachedTrades) ? [...thread.attachedTrades] : []
+  const savedMode = (thread.editorMode || thread.mode) === 'text' ? 'text' : 'board'
+  lastActiveEditorStep.value = savedMode
 
   const board = getThreadBoard(thread)
   boardNodes.value = cloneBoardNodes(board.nodes)
@@ -3103,7 +2670,7 @@ const startEditArticle = (thread: Thread & Record<string, any>) => {
   boardStrokes.value = board.strokes ? JSON.parse(JSON.stringify(board.strokes)) : []
   previewNodeOrder.value = getArticleTextBlockOrder(thread)
   isCreatingArticle.value = true
-  creationStep.value = 'board'
+  creationStep.value = savedMode
 
   nextTick(() => {
     centerBoardOnMainNode()
@@ -3120,6 +2687,24 @@ const cancelArticleEditing = () => {
   isCreatingArticle.value = false
 }
 
+const deleteMyArticle = async (thread: Thread & Record<string, any>) => {
+  if (thread.authorId !== authStore.user?.uid) return
+
+  if (pendingDeleteArticleId.value !== thread.id) {
+    pendingDeleteArticleId.value = thread.id
+    return
+  }
+
+  try {
+    await forumStore.deleteThreadPermanently(thread.id)
+    pendingDeleteArticleId.value = null
+    if (selectedArticle.value?.id === thread.id) closeReader()
+  } catch (error) {
+    console.error('[Forum] Failed to delete article:', error)
+    alert(locale.value === 'ru' ? 'Не удалось удалить статью.' : 'Failed to delete article.')
+  }
+}
+
 const submitNewArticle = () => {
   if (!isNewArticleFormValid.value) return
   isSubmittingArticle.value = true
@@ -3127,9 +2712,38 @@ const submitNewArticle = () => {
   // Animation duration matches the 700ms in CSS, user asked to not add actual saving logic yet
   setTimeout(() => {
     isSubmittingArticle.value = false
-    creationStep.value = 'board'
+    creationStep.value = 'mode'
   }, 1000)
 }
+
+const continueFromContribution = () => {
+  isContributionPickerOpen.value = false
+  contributionSearchQuery.value = ''
+  creationStep.value = 'mode'
+}
+
+const textEditorContent = computed({
+  get() {
+    const textNode = boardNodes.value.find((n): n is JournalArticleBoardTextNode => n.type === 'text')
+    return textNode ? (textNode.text || '') : ''
+  },
+  set(val: string) {
+    const textNode = boardNodes.value.find((n): n is JournalArticleBoardTextNode => n.type === 'text')
+    if (!textNode) {
+      const newNode: JournalArticleBoardTextNode = {
+        id: 'node-' + Date.now().toString(36),
+        type: 'text',
+        position: { x: 4, y: 4 },
+        size: { width: 14, height: 8 },
+        title: '',
+        text: val
+      }
+      boardNodes.value.push(newNode)
+    } else {
+      textNode.text = val
+    }
+  }
+})
 
 const publishArticle = () => {
   if (isSignalArticle.value && !isSignalBoardValid.value) {
@@ -3138,7 +2752,7 @@ const publishArticle = () => {
   }
   stopBoardDrawingMode()
   initializePreviewOrder()
-  creationStep.value = 'preview'
+  creationStep.value = 'contribution'
 }
 
 const toSerializable = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
@@ -3277,6 +2891,8 @@ const createThreadPayloadFromArticle = () => {
   const authorName = currentUserName.value
   const categoryMode = newArticleForm.value.type
   const categoryLabel = selectedTypeLabel.value
+  const contributionIds = newArticleForm.value.contributionIds.slice(0, 3)
+  const contributionTargets = selectedContributionArticles.value.map(createContributionTargetSnapshot)
   const signal = getThreadSignal({
     id: 'pending',
     title: newArticleForm.value.title,
@@ -3295,6 +2911,8 @@ const createThreadPayloadFromArticle = () => {
     board
   } as Thread & Record<string, any>)
 
+  const selectedMode = lastActiveEditorStep.value || (creationStep.value === 'text' ? 'text' : 'board')
+
   return {
     title: newArticleForm.value.title.trim(),
     description: newArticleForm.value.description.trim(),
@@ -3303,6 +2921,10 @@ const createThreadPayloadFromArticle = () => {
     categoryLabel,
     journalMode: categoryMode,
     articleType: categoryMode,
+    editorMode: selectedMode,
+    mode: selectedMode,
+    attachedImages: attachedArticleImages.value || [],
+    attachedTrades: attachedArticleTrades.value || [],
     author: authorName,
     authorId: user.uid,
     authorData: sourceThread?.authorData || {
@@ -3329,12 +2951,20 @@ const createThreadPayloadFromArticle = () => {
     boardStrokes: board.strokes,
     textBlocks,
     textBlockOrder,
+    contributionIds,
+    contributionTargets,
+    contributesToThreadIds: contributionIds,
     content: {
-      type: 'exforum-article-board',
+      type: 'exforum-article',
+      editorMode: selectedMode,
+      mode: selectedMode,
+      attachedImages: attachedArticleImages.value || [],
+      attachedTrades: attachedArticleTrades.value || [],
       board,
       thesis,
       textBlocks,
-      textBlockOrder
+      textBlockOrder,
+      contributionIds
     },
     signal: signal || null,
     tags: []
@@ -3361,6 +2991,8 @@ const confirmPublishArticle = async () => {
     const savedThread = isEditingArticle.value && editingArticleId.value
       ? await forumStore.updateThread(editingArticleId.value, payload as Partial<Thread> & Record<string, any>)
       : await forumStore.createThread(payload as Omit<Thread, 'id'> & Record<string, any>)
+
+    await forumStore.syncContributionThreadLinks(savedThread.id, newArticleForm.value.contributionIds)
 
     showPublishConfirmation.value = false
     if (!isEditingArticle.value) {
@@ -3832,15 +3464,14 @@ const boardBaseWorldSize = computed(() => ({
   height: boardUnitSize.value.height * boardRenderGridSize.value
 }))
 const boardWorldStyle = computed(() => ({
-  width: `${boardBaseWorldSize.value.width}px`,
-  height: `${boardBaseWorldSize.value.height}px`
+  width: `${snapBoardCssPixel(boardBaseWorldSize.value.width)}px`,
+  height: `${snapBoardCssPixel(boardBaseWorldSize.value.height)}px`
 }))
 const boardTransformStyle = computed(() => ({
-  transform: `translate3d(${boardPan.value.x}px, ${boardPan.value.y}px, 0)`,
-  willChange: 'transform'
+  transform: `translate(${snapBoardCssPixel(boardPan.value.x)}px, ${snapBoardCssPixel(boardPan.value.y)}px)`
 }))
 const boardPreviewTransformStyle = computed(() => ({
-  transform: `translate(${boardPan.value.x}px, ${boardPan.value.y}px) scale(0.82)`
+  transform: `translate(${snapBoardCssPixel(boardPan.value.x)}px, ${snapBoardCssPixel(boardPan.value.y)}px) scale(0.82)`
 }))
 
 const cloneBoardNodes = (nodes: JournalArticleBoardNode[]) => JSON.parse(JSON.stringify(nodes || [])) as JournalArticleBoardNode[]
@@ -3868,15 +3499,19 @@ const centerBoardOnMainNode = (isFullScreen = false) => {
   const nodeCenterX = (mainNode.position.x + (mainNode.size.width / 2)) * grid
   const nodeCenterY = (mainNode.position.y + (mainNode.size.height / 2)) * grid
   
-  const viewportRect = isFullScreen ? getArticleBoardViewportRect() : null
+  const viewportRect = isFullScreen ? getArticleBoardViewportRect() : getArticleBoardPreviewRect()
   const vWidth = viewportRect?.width ?? (typeof window !== 'undefined' ? window.innerWidth : 1200)
   const vHeight = viewportRect?.height ?? (typeof window !== 'undefined' ? (isFullScreen ? window.innerHeight : window.innerHeight * 0.68) : 800)
   const scale = isFullScreen ? boardScale.value : 0.82
   
-  boardPan.value = {
+  boardPan.value = snapBoardPoint({
     x: (vWidth / 2) - (nodeCenterX * scale),
     y: (vHeight / 2.5) - (nodeCenterY * scale)
-  }
+  })
+}
+
+const getArticleBoardPreviewRect = () => {
+  return articleBoardPreviewRef.value?.getBoundingClientRect() || null
 }
 
 const getArticleBoardViewportRect = () => {
@@ -3904,10 +3539,10 @@ const setArticleBoardScale = (nextScale: number) => {
   }
 
   boardScale.value = scale
-  boardPan.value = {
+  boardPan.value = snapBoardPoint({
     x: screenCenter.x - worldCenter.x * scale,
     y: screenCenter.y - worldCenter.y * scale
-  }
+  })
 }
 
 const resetArticleBoardFullscreenView = () => {
@@ -3917,6 +3552,7 @@ const resetArticleBoardFullscreenView = () => {
 const isLiked = ref(false)
 const isBookmarked = ref(false)
 const isArticleLikePending = ref(false)
+const isContributionLinksLoading = ref(false)
 let articleInteractionLoadRequestId = 0
 
 const toggleLike = async () => {
@@ -3958,15 +3594,33 @@ watch([
   const requestId = ++articleInteractionLoadRequestId
   isArticleLikePending.value = false
   const article = selectedArticle.value
+  isBoardPreviewReady.value = false
+  isContributionLinksLoading.value = Boolean(article)
   boardNodes.value = article ? cloneBoardNodes(article.board.nodes) : []
   boardConnections.value = article?.board.connections ? JSON.parse(JSON.stringify(article.board.connections)) : []
   boardStrokes.value = article?.board.strokes ? JSON.parse(JSON.stringify(article.board.strokes)) : []
   commentDraft.value = ''
+  replyDrafts.value = {}
+  replyingToId.value = null
   isLiked.value = false
   isBookmarked.value = false
+  centerBoardOnMainNode()
 
   if (article) {
+    const modeKey = (article as any).editorMode || (article as any).mode || (article as any).content?.editorMode || (article as any).content?.mode
+    articleViewMode.value = modeKey === 'text' ? 'text' : 'board'
     forumStore.fetchReplies(article.id) // Fetch replies from Firestore
+    void forumStore.fetchThreadLinks(article.id)
+      .catch((error) => {
+        console.warn('[Forum] Failed to load contribution links:', error)
+      })
+      .finally(() => {
+        if (requestId === articleInteractionLoadRequestId && selectedArticle.value?.id === article.id) {
+          isContributionLinksLoading.value = false
+        }
+      })
+  } else {
+    isContributionLinksLoading.value = false
   }
 
   if (article && userId) {
@@ -3982,14 +3636,26 @@ watch([
 
   nextTick(() => {
     resizeCommentInput()
-    centerBoardOnMainNode()
+    if (requestId === articleInteractionLoadRequestId) {
+      centerBoardOnMainNode()
+      isBoardPreviewReady.value = Boolean(selectedArticle.value)
+    }
   })
 }, { immediate: true })
+
+watch(articleViewMode, (mode) => {
+  if (mode !== 'board' || !selectedArticle.value) return
+  isBoardPreviewReady.value = false
+  nextTick(() => {
+    centerBoardOnMainNode()
+    isBoardPreviewReady.value = true
+  })
+})
 
 const submitComment = async (parentId?: string) => {
   const article = selectedArticle.value
   const user = authStore.user
-  const text = commentDraft.value.trim()
+  const text = (parentId ? getReplyDraft(parentId) : commentDraft.value).trim()
 
   if (!article || !user || !text) return
 
@@ -4012,10 +3678,12 @@ const submitComment = async (parentId?: string) => {
 
   try {
     await forumStore.createReply(article.id, replyData)
-    commentDraft.value = ''
     if (parentId) {
+      setReplyDraft(parentId, '')
       replyingToId.value = null
       expandedComments.value.add(parentId)
+    } else {
+      commentDraft.value = ''
     }
     nextTick(resizeCommentInput)
   } catch (error) {
@@ -4026,6 +3694,15 @@ const submitComment = async (parentId?: string) => {
 const deleteComment = async (reply: any) => {
   if (reply.authorId !== authStore.user?.uid) return
   await forumStore.softDeleteReply(reply)
+}
+
+const scrollContributionCarousel = (direction: -1 | 1) => {
+  const track = contributionCarouselRef.value
+  if (!track) return
+  track.scrollBy({
+    left: direction * Math.max(240, track.clientWidth * 0.72),
+    behavior: 'smooth'
+  })
 }
 
 const closeReader = () => {
@@ -4045,6 +3722,11 @@ const syncBoardFullscreenViewport = () => {
     left: `${rect.left}px`,
     width: `${rect.width}px`,
     height: `${rect.height}px`
+  }
+  boardFullscreenHudStyle.value = {
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    bottom: `${Math.max(12, window.innerHeight - rect.bottom + 32)}px`
   }
 }
 
@@ -4071,8 +3753,13 @@ const navigateToNode = (id: string) => {
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
-const scaledBoardNumber = (value: number, min = 1) => Math.max(min, value * boardRenderScale.value)
+const scaledBoardNumber = (value: number, min = 1) => snapBoardCssPixel(Math.max(min, value * boardRenderScale.value))
 const scaledBoardPx = (value: number, min = 1) => `${scaledBoardNumber(value, min)}px`
+const scaledBoardFontPx = (value: number) => `${snapBoardCssPixel(Math.max(1, value * boardRenderScale.value))}px`
+const getBoardFunctionalTextScaleStyle = (fontSize: number, lineHeight: number) => ({
+  fontSize: scaledBoardFontPx(fontSize),
+  lineHeight: scaledBoardFontPx(lineHeight)
+})
 
 const getBoardTextShellStyle = () => ({
   gap: scaledBoardPx(12),
@@ -4080,19 +3767,19 @@ const getBoardTextShellStyle = () => ({
 })
 
 const getBoardTextTitleStyle = () => ({
-  fontSize: scaledBoardPx(20),
-  lineHeight: scaledBoardPx(20)
+  fontSize: scaledBoardFontPx(20),
+  lineHeight: scaledBoardFontPx(20)
 })
 
 const getBoardTextBodyStyle = (node: JournalArticleBoardNode) => ({
-  fontSize: scaledBoardPx((node as any).isQuestion ? 30 : 14),
-  lineHeight: scaledBoardPx((node as any).isQuestion ? 36 : 22)
+  fontSize: scaledBoardFontPx((node as any).isQuestion ? 30 : 14),
+  lineHeight: scaledBoardFontPx((node as any).isQuestion ? 36 : 22)
 })
 
 const getBoardCaptionStyle = () => ({
   padding: `${scaledBoardPx(8)} ${scaledBoardPx(12)}`,
-  fontSize: scaledBoardPx(8),
-  lineHeight: scaledBoardPx(12)
+  fontSize: scaledBoardFontPx(8),
+  lineHeight: scaledBoardFontPx(12)
 })
 
 const getBoardPriceShellStyle = () => ({
@@ -4102,13 +3789,12 @@ const getBoardPriceShellStyle = () => ({
 
 const getBoardPriceLabelStyle = () => ({
   marginBottom: scaledBoardPx(4),
-  fontSize: scaledBoardPx(8),
-  lineHeight: scaledBoardPx(10)
+  ...getBoardFunctionalTextScaleStyle(8, 10)
 })
 
 const getBoardPriceValueStyle = () => ({
-  fontSize: scaledBoardPx(20),
-  lineHeight: scaledBoardPx(20)
+  fontSize: scaledBoardFontPx(20),
+  lineHeight: scaledBoardFontPx(20)
 })
 
 const getBoardAssetShellStyle = () => ({
@@ -4121,13 +3807,11 @@ const getBoardAssetInnerStyle = () => ({
 })
 
 const getBoardAssetLabelStyle = () => ({
-  fontSize: scaledBoardPx(18),
-  lineHeight: scaledBoardPx(22)
+  ...getBoardFunctionalTextScaleStyle(18, 22)
 })
 
 const getBoardAssetTypeStyle = () => ({
-  fontSize: scaledBoardPx(8),
-  lineHeight: scaledBoardPx(10)
+  ...getBoardFunctionalTextScaleStyle(8, 10)
 })
 
 const getBoardDataShellStyle = (gap: number, paddingX: number) => ({
@@ -4145,25 +3829,24 @@ const getBoardDataCellStyle = (paddingX: number, paddingY: number) => ({
 })
 
 const getBoardDataTitleStyle = (fontSize: number) => ({
-  fontSize: scaledBoardPx(fontSize),
-  lineHeight: scaledBoardPx(fontSize + 4)
+  fontSize: scaledBoardFontPx(fontSize),
+  lineHeight: scaledBoardFontPx(fontSize + 4)
 })
 
 const getBoardDataLabelStyle = (fontSize: number) => ({
-  fontSize: scaledBoardPx(fontSize),
-  lineHeight: scaledBoardPx(fontSize + 3)
+  ...getBoardFunctionalTextScaleStyle(fontSize, fontSize + 3)
 })
 
 const getBoardDataValueStyle = (fontSize: number) => ({
-  fontSize: scaledBoardPx(fontSize),
-  lineHeight: scaledBoardPx(fontSize + 3)
+  fontSize: scaledBoardFontPx(fontSize),
+  lineHeight: scaledBoardFontPx(fontSize + 3)
 })
 
 const getBoardNodeStyle = (node: JournalArticleBoardNode) => ({
-  left: `${node.position.x * boardRenderGridSize.value}px`,
-  top: `${node.position.y * boardRenderGridSize.value}px`,
-  width: `${node.size.width * boardRenderGridSize.value}px`,
-  height: `${node.size.height * boardRenderGridSize.value}px`
+  left: `${snapBoardCssPixel(node.position.x * boardRenderGridSize.value)}px`,
+  top: `${snapBoardCssPixel(node.position.y * boardRenderGridSize.value)}px`,
+  width: `${snapBoardCssPixel(node.size.width * boardRenderGridSize.value)}px`,
+  height: `${snapBoardCssPixel(node.size.height * boardRenderGridSize.value)}px`
 })
 
 const getBoardNodeRect = (node: JournalArticleBoardNode) => ({
@@ -4285,8 +3968,6 @@ const getAssetNodeTypeLabel = (node: any) => {
 const openAssetPicker = (node: any) => {
   if (node?.type !== 'asset') return
   activeAssetNodeId.value = node.id
-  assetSearch.value = ''
-  assetTypeFilter.value = 'ALL'
 }
 
 const closeAssetPicker = () => {
@@ -4299,12 +3980,6 @@ const selectBoardAsset = (asset: any) => {
     node.asset = asset.symbol
   }
   closeAssetPicker()
-}
-
-const handleAssetIconError = (symbol: string) => {
-  const next = new Set(failedAssetIcons.value)
-  next.add(symbol)
-  failedAssetIcons.value = next
 }
 
 const isSignalBoardValid = computed(() => {
@@ -4851,10 +4526,10 @@ const focusBoardNode = (id: string) => {
   const node = boardNodes.value.find((n: any) => n.id === id)
   if (node && boardStageRef.value) {
     const rect = boardStageRef.value.getBoundingClientRect()
-    boardPan.value = {
+    boardPan.value = snapBoardPoint({
       x: (rect.width / 2) - (node.position.x * boardGridSize.value) - ((node.size.width * boardGridSize.value) / 2),
       y: (rect.height / 2) - (node.position.y * boardGridSize.value) - ((node.size.height * boardGridSize.value) / 2)
-    }
+    })
   }
 }
 
@@ -4965,7 +4640,7 @@ const startBoardPan = (event: PointerEvent) => {
           strategyId: '',
           strategyName: '',
           position: { x: gridX, y: gridY },
-          size: { width: 18, height: 7 }
+          size: { width: 18, height: 4 }
         }
         boardNodes.value.push(newNode as any)
       } else if (isTradeTool) {
@@ -4975,7 +4650,7 @@ const startBoardPan = (event: PointerEvent) => {
           tradeId: '',
           tradeSnapshot: null,
           position: { x: gridX, y: gridY },
-          size: { width: 16, height: 6 }
+          size: { width: 16, height: 4 }
         }
         boardNodes.value.push(newNode as any)
       }
@@ -5073,17 +4748,17 @@ const handleBoardPointerMove = (event: PointerEvent) => {
   if (!interaction) return
 
   if (interaction.type === 'pan') {
-    boardPan.value = {
+    boardPan.value = snapBoardPoint({
       x: interaction.startPanX + event.clientX - interaction.startClientX,
       y: interaction.startPanY + event.clientY - interaction.startClientY
-    }
+    })
   } else if (interaction.type === 'moveNode') {
     const deltaWorldX = event.clientX - interaction.startClientX
     const deltaWorldY = event.clientY - interaction.startClientY
     
     // Smooth fractional position
-    const freeX = interaction.startNodeX + deltaWorldX / boardGridSize.value
-    const freeY = interaction.startNodeY + deltaWorldY / boardGridSize.value
+    const freeX = interaction.startNodeX + deltaWorldX / boardRenderGridSize.value
+    const freeY = interaction.startNodeY + deltaWorldY / boardRenderGridSize.value
     
     interaction.node.position.x = freeX
     interaction.node.position.y = freeY
@@ -5092,7 +4767,7 @@ const handleBoardPointerMove = (event: PointerEvent) => {
     const deltaWorldY = event.clientY - interaction.startClientY
     
     // Smooth fractional size
-    const freeW = interaction.startNodeW + deltaWorldX / boardGridSize.value
+    const freeW = interaction.startNodeW + deltaWorldX / boardRenderGridSize.value
     const newWidth = Math.max(4, freeW)
     
     let newHeight = interaction.node.size.height
@@ -5100,7 +4775,7 @@ const handleBoardPointerMove = (event: PointerEvent) => {
       const aspect = interaction.startNodeW / interaction.startNodeH
       newHeight = Math.max(4, newWidth / aspect)
     } else {
-      const freeH = interaction.startNodeH + deltaWorldY / boardGridSize.value
+      const freeH = interaction.startNodeH + deltaWorldY / boardRenderGridSize.value
       newHeight = Math.max(4, freeH)
     }
 
@@ -5113,14 +4788,9 @@ const stopBoardInteraction = () => {
   const interaction = activeBoardInteraction.value
   if (interaction) {
     if (interaction.type === 'moveNode') {
-      // Snap to grid on drop
-      const snappedX = Math.round(interaction.node.position.x)
-      const snappedY = Math.round(interaction.node.position.y)
-      
       // Check overlap
-      if (!checkNodeOverlap(snappedX, snappedY, Math.round(interaction.node.size.width), Math.round(interaction.node.size.height), interaction.node.id)) {
-        interaction.node.position.x = snappedX
-        interaction.node.position.y = snappedY
+      if (!checkNodeOverlap(interaction.node.position.x, interaction.node.position.y, interaction.node.size.width, interaction.node.size.height, interaction.node.id)) {
+        // Position is valid, leave it as is
       } else {
         // Revert if invalid
         interaction.node.position.x = interaction.startNodeX
@@ -5255,6 +4925,131 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   background-color: rgba(255, 255, 255, 0.94);
 }
 
+.exforum-board-scale-renderer {
+  text-rendering: optimizeLegibility;
+}
+
+.exforum-board-functional-label {
+  text-size-adjust: none;
+  -webkit-text-size-adjust: none;
+}
+
+.exforum-board-hud-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-color: rgb(0 0 0 / 0.16);
+  border-style: solid;
+  border-width: 1px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.94);
+  padding: 6px;
+  color: #111;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  pointer-events: auto;
+}
+
+.exforum-board-hud-button {
+  position: relative;
+  display: flex;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  color: rgb(0 0 0 / 0.68);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.exforum-board-hud-button:hover {
+  border-color: rgb(0 0 0 / 0.18);
+  background: rgb(0 0 0 / 0.05);
+  color: #000;
+}
+
+.exforum-board-hud-button.is-active {
+  border-color: #000;
+  background: #000;
+  color: #fff;
+}
+
+.exforum-board-hud-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 20;
+  white-space: nowrap;
+  border-color: rgb(0 0 0 / 0.14);
+  border-style: solid;
+  border-width: 1px;
+  background: rgb(255 255 255 / 0.98);
+  padding: 6px 12px;
+  color: #000;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0;
+  pointer-events: none;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+  transition: opacity 160ms ease;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.exforum-board-hud-button:hover .exforum-board-hud-tooltip,
+.exforum-board-hud-button:focus-visible .exforum-board-hud-tooltip {
+  opacity: 1;
+}
+
+.exforum-board-hud-exit {
+  border-color: #000;
+  background: #000;
+  color: #fff;
+}
+
+.exforum-board-hud-exit:hover {
+  border-color: #000;
+  background: rgb(0 0 0 / 0.86);
+  color: #fff;
+}
+
+.exforum-board-hud-flyout {
+  position: relative;
+  pointer-events: auto;
+}
+
+.exforum-board-hud-flyout-content {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 20;
+  padding-bottom: 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.exforum-board-hud-flyout-content .exforum-board-hud-panel {
+  flex-direction: column;
+}
+
+.exforum-board-hud-flyout:hover .exforum-board-hud-flyout-content,
+.exforum-board-hud-flyout:focus-within .exforum-board-hud-flyout-content {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
 .exforum-page-reify-enter-active,
 .exforum-page-reify-leave-active {
   transition:
@@ -5293,38 +5088,19 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   }
 }
 
-.article-board-tool {
-  position: relative;
-  pointer-events: auto;
+.article-board-secondary-action {
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
-.article-board-tool-tooltip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 10px);
-  z-index: 9001;
-  border: 1px solid rgba(44, 44, 42, 0.18);
-  padding: 4px 7px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.08);
-  color: #2c2c2a;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  opacity: 0;
-  pointer-events: none;
-  text-transform: uppercase;
-  transform: translateY(-50%) translateX(-4px);
-  transition: opacity 140ms ease, transform 140ms ease;
-  white-space: nowrap;
-}
-
-.article-board-tool:hover .article-board-tool-tooltip,
-.article-board-tool:focus-within .article-board-tool-tooltip {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
+.article-board-secondary-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 0, 0, 0.48);
+  background-color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
 
 .journal-wrapper.exforum-edge-shadows {
@@ -5554,7 +5330,7 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 
 .article-reader-title-row p {
   max-width: 720px;
-  margin-top: 22px;
+  margin-top: 6px;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(1rem, 1.25vw, 1.25rem);
   font-style: italic;
@@ -5625,10 +5401,147 @@ watch(() => [route.query.nodeId, route.query.page], () => {
 
 .article-comments-heading span,
 .article-comments-heading strong {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  opacity: 0.72;
+}
+
+.article-contributions {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.article-contributions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.article-contributions-head span,
+.article-contributions-head strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.24em;
+  text-transform: uppercase;
   opacity: 0.72;
+}
+
+.article-contributions-loading {
+  display: grid;
+  min-height: 80px;
+  place-items: center;
+  border: 1px solid rgba(44, 44, 42, 0.1);
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.article-contributions-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(44, 44, 42, 0.18);
+  border-top-color: rgba(44, 44, 42, 0.78);
+  border-radius: 999px;
+  animation: article-contributions-spin 0.72s linear infinite;
+}
+
+@keyframes article-contributions-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.article-contributions-carousel {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.article-contributions-track {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-width: 0;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.article-contributions-track::-webkit-scrollbar {
+  display: none;
+}
+
+.article-contribution-card {
+  display: grid;
+  flex: 0 0 min(360px, 82vw);
+  gap: 10px;
+  min-height: 126px;
+  scroll-snap-align: start;
+  border: 1px solid rgba(44, 44, 42, 0.16);
+  border-left: 3px solid rgba(44, 44, 42, 0.56);
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.article-contribution-card:hover {
+  border-color: rgba(44, 44, 42, 0.38);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.article-contribution-card span,
+.article-contribution-card small {
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: rgba(44, 44, 42, 0.42);
+}
+
+.article-contribution-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.18rem;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.1;
+  color: rgba(44, 44, 42, 0.86);
+}
+
+.article-contributions-arrow {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  place-items: center;
+  border: 1px solid rgba(44, 44, 42, 0.18);
+  background: rgba(248, 248, 246, 0.86);
+  color: rgba(44, 44, 42, 0.58);
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.article-contributions-arrow:hover {
+  border-color: rgba(44, 44, 42, 0.42);
+  background: rgba(44, 44, 42, 0.9);
+  color: #fff;
+}
+
+.article-contributions-arrow svg {
+  width: 18px;
+  height: 18px;
 }
 
 .article-comment-composer {
@@ -5767,6 +5680,76 @@ watch(() => [route.query.nodeId, route.query.page], () => {
   background: rgba(44, 44, 42, 0.42);
   border-color: rgba(44, 44, 42, 0.42);
   opacity: 1;
+}
+
+.article-reply-action {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(44, 44, 42, 0.68);
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.article-reply-action:hover {
+  color: rgba(44, 44, 42, 1);
+}
+
+.article-reply-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  border: 1px solid rgba(44, 44, 42, 0.18);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.56);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1rem;
+  line-height: 1.45;
+  color: rgba(44, 44, 42, 0.92);
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.article-reply-input::placeholder {
+  color: rgba(44, 44, 42, 0.62);
+  opacity: 1;
+}
+
+.article-reply-input:focus {
+  border-color: rgba(44, 44, 42, 0.54);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.article-reply-counter {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: rgba(44, 44, 42, 0.54);
+}
+
+.article-reply-submit {
+  border: 1px solid rgba(44, 44, 42, 0.88);
+  padding: 9px 13px;
+  background: rgba(44, 44, 42, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: #fff;
+  transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+.article-reply-submit:hover:not(:disabled) {
+  background: rgba(44, 44, 42, 1);
+}
+
+.article-reply-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
 }
 
 .article-comments-list {
@@ -5932,5 +5915,63 @@ watch(() => [route.query.nodeId, route.query.page], () => {
     text-align: left;
     white-space: normal;
   }
+
+  .article-contributions-carousel {
+    gap: 6px;
+  }
+
+  .article-contributions-arrow {
+    flex-basis: 34px;
+    width: 34px;
+  }
+
+  .article-contribution-card {
+    flex-basis: min(300px, 78vw);
+    min-height: 116px;
+    padding: 16px;
+  }
+}
+
+:deep(.editor-rich-content h1) {
+  font-size: 2.25rem;
+  font-weight: 400;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.2;
+}
+
+:deep(.editor-rich-content h2) {
+  font-size: 1.65rem;
+  font-weight: 400;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  line-height: 1.25;
+}
+
+:deep(.editor-rich-content blockquote) {
+  border-left: 3px solid #000;
+  padding-left: 1.25rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+:deep(.editor-rich-content pre) {
+  background: #f4f4f5;
+  border-radius: 4px;
+  padding: 0.85rem 1.15rem;
+  font-family: monospace;
+  font-size: 0.95rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  overflow-x: auto;
+}
+
+:deep(.editor-rich-content ul) {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 </style>

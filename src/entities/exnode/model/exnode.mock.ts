@@ -2,9 +2,85 @@ import type { ExNode } from './exnode.types'
 
 export const mockExNodes: ExNode[] = [
   {
-    id: 'node_001',
+    id: 'node_023',
     mode: 'SETUP',
-    title: 'XAUUSD: Tactical Reversal at Liquidity Ceiling',
+    title: 'BTCUSD Momentum', author: 'Hash Vector',
+    category: 'Crypto',
+    confidence: 4,
+    signal: {
+      asset: 'BTCUSD',
+      entryPrice: 64280,
+      targetPrice: 66850,
+      direction: 'up',
+      description: 'Buyer absorption is holding above the weekly balance. The nearest liquidity pocket sits above the local high.'
+    },
+    thesis_brief: 'Buyer absorption is holding above the weekly balance. The nearest liquidity pocket sits above the local high.',
+    tags: ['btc', 'price', 'momentum'],
+    likesCount: 76,
+    repliesCount: 11,
+    lastActivityAt: new Date(Date.now() - 900000).toISOString()
+  },
+  {
+    id: 'node_024',
+    mode: 'SETUP',
+    title: 'XAUUSD Pullback', author: 'Mira',
+    category: 'Metals',
+    confidence: 3,
+    signal: {
+      asset: 'XAUUSD',
+      entryPrice: 2388.40,
+      targetPrice: 2369.20,
+      direction: 'down',
+      description: 'Gold rejected the upper auction and is likely to revisit the nearest demand shelf before continuation.'
+    },
+    thesis_brief: 'Gold rejected the upper auction and is likely to revisit the nearest demand shelf before continuation.',
+    tags: ['gold', 'price', 'pullback'],
+    likesCount: 54,
+    repliesCount: 8,
+    lastActivityAt: new Date(Date.now() - 1800000).toISOString()
+  },
+  {
+    id: 'node_025',
+    mode: 'SETUP',
+    title: 'EURUSD Mean Reversion', author: 'Aurum Log',
+    category: 'Forex',
+    confidence: 4,
+    signal: {
+      asset: 'EURUSD',
+      entryPrice: 1.0912,
+      targetPrice: 1.0968,
+      direction: 'up',
+      description: 'Euro reclaimed the session midpoint after a stop sweep. Target is the closest untested supply wick.'
+    },
+    thesis_brief: 'Euro reclaimed the session midpoint after a stop sweep. Target is the closest untested supply wick.',
+    tags: ['eurusd', 'price', 'forex'],
+    likesCount: 41,
+    repliesCount: 5,
+    lastActivityAt: new Date(Date.now() - 2700000).toISOString()
+  },
+  {
+    id: 'node_026',
+    mode: 'SETUP',
+    title: 'NQ Compression', author: 'Risk Apprentice',
+    category: 'Indices',
+    confidence: 5,
+    signal: {
+      asset: 'NQ',
+      entryPrice: 18720,
+      targetPrice: 18480,
+      direction: 'down',
+      description: 'Nasdaq is compressing below the distribution shelf. The nearest clean draw remains the lower imbalance.'
+    },
+    thesis_brief: 'Nasdaq is compressing below the distribution shelf. The nearest clean draw remains the lower imbalance.',
+    tags: ['nq', 'price', 'indices'],
+    likesCount: 93,
+    repliesCount: 17,
+    lastActivityAt: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 'node_001',
+    mode: 'QUESTION',
+    title: 'XAUUSD: Tactical Reversal at Liquidity Ceiling', author: 'Archive Seer',
     category: 'Price Action',
     confidence: 4,
     setupLevels: { tp: '2354.20', sl: '2312.80' },
@@ -23,7 +99,7 @@ export const mockExNodes: ExNode[] = [
   {
     id: 'node_002',
     mode: 'RESEARCH',
-    title: 'Model: Inverse Correlation of DXY vs BTC in Q2',
+    title: 'Model: Inverse Correlation of DXY vs BTC in Q2', author: 'Macro Circuit',
     category: 'Macroeconomics',
     confidence: 5,
     metrics: [
@@ -46,7 +122,7 @@ export const mockExNodes: ExNode[] = [
   {
     id: 'node_003',
     mode: 'LESSON',
-    title: 'Mastering the Silver Bullet: A 5-Step Protocol',
+    title: 'Mastering the Silver Bullet: A 5-Step Protocol', author: 'Equity Ghost',
     category: 'Technical Analysis',
     confidence: 3,
     steps: ['Identify Session High', 'Wait for SWEEP', 'Check M1 Displacement', 'Enter at FVG', 'Target Equilibrium'],
@@ -72,7 +148,7 @@ export const mockExNodes: ExNode[] = [
   {
     id: 'node_004',
     mode: 'QUESTION',
-    title: 'Seeking Advice: Position Sizing in Volatility Regimes',
+    title: 'Seeking Advice: Position Sizing in Volatility Regimes', author: 'Data Monk',
     category: 'Risk Management',
     confidence: 2,
     thesis_brief: 'Is there a formula to scale position size based on ATR that actually works during Fed announcements?',
@@ -90,7 +166,7 @@ export const mockExNodes: ExNode[] = [
   {
     id: 'node_005',
     mode: 'RESEARCH',
-    title: 'Sentiment Flux: Cognitive Biases in Retail Flow',
+    title: 'Sentiment Flux: Cognitive Biases in Retail Flow', author: 'Oracle',
     category: 'Psychology',
     confidence: 3,
     metrics: [
@@ -110,11 +186,15 @@ export const mockExNodes: ExNode[] = [
   },
   {
     id: 'node_006',
-    mode: 'SETUP',
-    title: 'EURUSD: Institutional Order Flow Imbalance',
+    mode: 'RESEARCH',
+    title: 'EURUSD: Institutional Order Flow Imbalance', author: 'Ghost in the Machine',
     category: 'Forex',
     confidence: 4,
     setupLevels: { tp: '1.0850', sl: '1.1020' },
+    metrics: [
+      { label: 'Iceberg_Flow', value: 71 },
+      { label: 'Range_Pressure', value: 38 }
+    ],
     thesis_brief: 'Detecting massive iceberg orders at the psychological parity level. Institutional reification is pushing for a deeper correction.',
     tags: ['forex', 'orderflow', 'eurusd'],
     likesCount: 98,
@@ -124,7 +204,7 @@ export const mockExNodes: ExNode[] = [
   {
     id: 'node_007',
     mode: 'QUESTION',
-    title: 'Methodology: Validating the Genesis Forge Output',
+    title: 'Methodology: Validating the Genesis Forge Output', author: 'Archiviste',
     category: 'Protocol',
     confidence: 5,
     thesis_brief: 'Does anyone have a backtested filter for the artifacts generated by the Genesis Forge? The reification seems high but the variance is concerning.',
@@ -133,19 +213,19 @@ export const mockExNodes: ExNode[] = [
     repliesCount: 543,
     lastActivityAt: new Date(Date.now() - 345600000).toISOString()
   },
-  { id: 'node_008', mode: 'SETUP', title: 'GBPUSD: Cable Displacement below 1.25', category: 'Forex', confidence: 3, setupLevels: { tp: '1.2420', sl: '1.2580' }, thesis_brief: 'Cable is exhibiting signs of exhaustion after the failed breakout. Reification into the previous range.', tags: ['gbpusd', 'liquidity'], likesCount: 45, repliesCount: 12, lastActivityAt: new Date().toISOString() },
-  { id: 'node_009', mode: 'RESEARCH', title: 'Correlation Shift: Gold vs Real Yields', category: 'Macro', confidence: 4, metrics: [{ label: 'Yield_Divergence', value: -12 }], thesis_brief: 'Gold is holding despite rising yields. This structural deviation signals a deeper systemic shift.', tags: ['gold', 'yields'], likesCount: 89, repliesCount: 21, lastActivityAt: new Date().toISOString() },
-  { id: 'node_010', mode: 'LESSON', title: 'The Trinity: Price, Time, and Volatility', category: 'Education', confidence: 5, steps: ['Price Convergence', 'Time Window', 'Volatility Expansion'], thesis_brief: 'Understanding the three core pillars of the Reification Matrix.', tags: ['trinity', 'logic'], likesCount: 156, repliesCount: 34, lastActivityAt: new Date().toISOString() },
-  { id: 'node_011', mode: 'QUESTION', title: 'Doubt: Is the FVG a Mythical Construct?', category: 'Inquiry', confidence: 1, thesis_brief: 'Questioning the core algorithm? Or just failing to see the matrix?', tags: ['fvg', 'theory'], likesCount: 12, repliesCount: 456, lastActivityAt: new Date().toISOString() },
-  { id: 'node_012', mode: 'SETUP', title: 'US30: Dow Jones Pivot at 39000', category: 'Indices', confidence: 4, setupLevels: { tp: '38200', sl: '39400' }, thesis_brief: 'The Dow is reaching a psychological ceiling. Expecting a rapid reification of the lower gaps.', tags: ['us30', 'dji'], likesCount: 77, repliesCount: 9, lastActivityAt: new Date().toISOString() },
-  { id: 'node_013', mode: 'RESEARCH', title: 'Sentiment: Crypto Fear/Greed at 90', category: 'Market Data', confidence: 2, metrics: [{ label: 'Greed_Extreme', value: 90 }], thesis_brief: 'Euphoria detected. Reification of a local top is mathematically probable.', tags: ['crypto', 'sentiment'], likesCount: 231, repliesCount: 67, lastActivityAt: new Date().toISOString() },
-  { id: 'node_014', mode: 'LESSON', title: 'Order Flow Mastery: M5 Internal Range', category: 'Tactical', confidence: 4, steps: ['Range Def', 'Order Pick', 'Execute'], thesis_brief: 'How to manage intraday scalps without emotional interference.', tags: ['scalping', 'm5'], likesCount: 112, repliesCount: 23, lastActivityAt: new Date().toISOString() },
-  { id: 'node_015', mode: 'SETUP', title: 'BTCUSD: Monthly Range Equilibrium Tap', category: 'Crypto', confidence: 5, setupLevels: { tp: '62000', sl: '71500' }, thesis_brief: 'Bitcoin is returning to the source. Mean reversion protocol active.', tags: ['btc', 'range'], likesCount: 543, repliesCount: 122, lastActivityAt: new Date().toISOString() },
-  { id: 'node_016', mode: 'QUESTION', title: 'Logistics: Best Broker for Reification?', category: 'Meta', confidence: 3, thesis_brief: 'Seeking a terminal with zero slippage and direct matrix access.', tags: ['broker', 'slippage'], likesCount: 44, repliesCount: 88, lastActivityAt: new Date().toISOString() },
-  { id: 'node_017', mode: 'RESEARCH', title: 'Fiscal Pulse: Treasury Issuance Effects', category: 'Macro', confidence: 4, metrics: [{ label: 'Debt_Saturation', value: 82 }], thesis_brief: 'Analysis of how the current debt issuance schedule impacts SPX liquidity.', tags: ['spx', 'treasury'], likesCount: 132, repliesCount: 18, lastActivityAt: new Date().toISOString() },
-  { id: 'node_018', mode: 'SETUP', title: 'ETHUSD: Merge Artifact Liquidity Sweep', category: 'Crypto', confidence: 3, setupLevels: { tp: '2800', sl: '3600' }, thesis_brief: 'Ethereum is purging late long positions. Identifying the primary demand block.', tags: ['eth', 'purge'], likesCount: 67, repliesCount: 12, lastActivityAt: new Date().toISOString() },
-  { id: 'node_019', mode: 'LESSON', title: 'The Art of Patience: 0-Trade Weeks', category: 'Psychology', confidence: 5, steps: ['Observe', 'Wait', 'Survive'], thesis_brief: 'Why doing nothing is often the highest value action in the matrix.', tags: ['philosophy', 'waiting'], likesCount: 445, repliesCount: 99, lastActivityAt: new Date().toISOString() },
-  { id: 'node_020', mode: 'QUESTION', title: 'Oracle Inquiry: When will the cycle reset?', category: 'Esoteric', confidence: 5, thesis_brief: 'Looking for a temporal anchor in the next halving cycle.', tags: ['halving', 'cycle'], likesCount: 999, repliesCount: 333, lastActivityAt: new Date().toISOString() },
-  { id: 'node_021', mode: 'SETUP', title: 'NQ: Nasdaq Displacement at All-Time Highs', category: 'Tech', confidence: 4, setupLevels: { tp: '17200', sl: '18500' }, thesis_brief: 'Tech is bloating. Reification of the mean is imminent.', tags: ['nq', 'nasdaq'], likesCount: 122, repliesCount: 22, lastActivityAt: new Date().toISOString() },
-  { id: 'node_022', mode: 'RESEARCH', title: 'Volume Delta: Absorbtion at Support', category: 'Advanced', confidence: 5, metrics: [{ label: 'CVD_Divergence', value: 65 }], thesis_brief: 'Whales are absorbing sell-side pressure. A massive re-expansion is loading.', tags: ['volume', 'orderflow'], likesCount: 312, repliesCount: 44, lastActivityAt: new Date().toISOString() }
+  { id: 'node_008', mode: 'QUESTION', title: 'GBPUSD: Cable Displacement below 1.25', author: 'Hash Vector', category: 'Forex', confidence: 3, setupLevels: { tp: '1.2420', sl: '1.2580' }, thesis_brief: 'Cable is exhibiting signs of exhaustion after the failed breakout. Reification into the previous range.', tags: ['gbpusd', 'liquidity'], likesCount: 45, repliesCount: 12, lastActivityAt: new Date().toISOString() },
+  { id: 'node_009', mode: 'RESEARCH', title: 'Correlation Shift: Gold vs Real Yields', author: 'Mira', category: 'Macro', confidence: 4, metrics: [{ label: 'Yield_Divergence', value: -12 }], thesis_brief: 'Gold is holding despite rising yields. This structural deviation signals a deeper systemic shift.', tags: ['gold', 'yields'], likesCount: 89, repliesCount: 21, lastActivityAt: new Date().toISOString() },
+  { id: 'node_010', mode: 'LESSON', title: 'The Trinity: Price, Time, and Volatility', author: 'Aurum Log', category: 'Education', confidence: 5, steps: ['Price Convergence', 'Time Window', 'Volatility Expansion'], thesis_brief: 'Understanding the three core pillars of the Reification Matrix.', tags: ['trinity', 'logic'], likesCount: 156, repliesCount: 34, lastActivityAt: new Date().toISOString() },
+  { id: 'node_011', mode: 'QUESTION', title: 'Doubt: Is the FVG a Mythical Construct?', author: 'Risk Apprentice', category: 'Inquiry', confidence: 1, thesis_brief: 'Questioning the core algorithm? Or just failing to see the matrix?', tags: ['fvg', 'theory'], likesCount: 12, repliesCount: 456, lastActivityAt: new Date().toISOString() },
+  { id: 'node_012', mode: 'RESEARCH', title: 'US30: Dow Jones Pivot at 39000', author: 'Archive Seer', category: 'Indices', confidence: 4, setupLevels: { tp: '38200', sl: '39400' }, metrics: [{ label: 'Ceiling_Test', value: 64 }], thesis_brief: 'The Dow is reaching a psychological ceiling. Expecting a rapid reification of the lower gaps.', tags: ['us30', 'dji'], likesCount: 77, repliesCount: 9, lastActivityAt: new Date().toISOString() },
+  { id: 'node_013', mode: 'RESEARCH', title: 'Sentiment: Crypto Fear/Greed at 90', author: 'Macro Circuit', category: 'Market Data', confidence: 2, metrics: [{ label: 'Greed_Extreme', value: 90 }], thesis_brief: 'Euphoria detected. Reification of a local top is mathematically probable.', tags: ['crypto', 'sentiment'], likesCount: 231, repliesCount: 67, lastActivityAt: new Date().toISOString() },
+  { id: 'node_014', mode: 'LESSON', title: 'Order Flow Mastery: M5 Internal Range', author: 'Equity Ghost', category: 'Tactical', confidence: 4, steps: ['Range Def', 'Order Pick', 'Execute'], thesis_brief: 'How to manage intraday scalps without emotional interference.', tags: ['scalping', 'm5'], likesCount: 112, repliesCount: 23, lastActivityAt: new Date().toISOString() },
+  { id: 'node_015', mode: 'LESSON', title: 'BTCUSD: Monthly Range Equilibrium Tap', author: 'Data Monk', category: 'Crypto', confidence: 5, setupLevels: { tp: '62000', sl: '71500' }, steps: ['Map Monthly Range', 'Mark Equilibrium', 'Wait for Tap'], thesis_brief: 'Bitcoin is returning to the source. Mean reversion protocol active.', tags: ['btc', 'range'], likesCount: 543, repliesCount: 122, lastActivityAt: new Date().toISOString() },
+  { id: 'node_016', mode: 'QUESTION', title: 'Logistics: Best Broker for Reification?', author: 'Oracle', category: 'Meta', confidence: 3, thesis_brief: 'Seeking a terminal with zero slippage and direct matrix access.', tags: ['broker', 'slippage'], likesCount: 44, repliesCount: 88, lastActivityAt: new Date().toISOString() },
+  { id: 'node_017', mode: 'RESEARCH', title: 'Fiscal Pulse: Treasury Issuance Effects', author: 'Ghost in the Machine', category: 'Macro', confidence: 4, metrics: [{ label: 'Debt_Saturation', value: 82 }], thesis_brief: 'Analysis of how the current debt issuance schedule impacts SPX liquidity.', tags: ['spx', 'treasury'], likesCount: 132, repliesCount: 18, lastActivityAt: new Date().toISOString() },
+  { id: 'node_018', mode: 'QUESTION', title: 'ETHUSD: Merge Artifact Liquidity Sweep', author: 'Archiviste', category: 'Crypto', confidence: 3, setupLevels: { tp: '2800', sl: '3600' }, thesis_brief: 'Ethereum is purging late long positions. Identifying the primary demand block.', tags: ['eth', 'purge'], likesCount: 67, repliesCount: 12, lastActivityAt: new Date().toISOString() },
+  { id: 'node_019', mode: 'LESSON', title: 'The Art of Patience: 0-Trade Weeks', author: 'Hash Vector', category: 'Psychology', confidence: 5, steps: ['Observe', 'Wait', 'Survive'], thesis_brief: 'Why doing nothing is often the highest value action in the matrix.', tags: ['philosophy', 'waiting'], likesCount: 445, repliesCount: 99, lastActivityAt: new Date().toISOString() },
+  { id: 'node_020', mode: 'QUESTION', title: 'Oracle Inquiry: When will the cycle reset?', author: 'Mira', category: 'Esoteric', confidence: 5, thesis_brief: 'Looking for a temporal anchor in the next halving cycle.', tags: ['halving', 'cycle'], likesCount: 999, repliesCount: 333, lastActivityAt: new Date().toISOString() },
+  { id: 'node_021', mode: 'RESEARCH', title: 'NQ: Nasdaq Displacement at All-Time Highs', author: 'Aurum Log', category: 'Tech', confidence: 4, setupLevels: { tp: '17200', sl: '18500' }, metrics: [{ label: 'Mean_Distance', value: 58 }], thesis_brief: 'Tech is bloating. Reification of the mean is imminent.', tags: ['nq', 'nasdaq'], likesCount: 122, repliesCount: 22, lastActivityAt: new Date().toISOString() },
+  { id: 'node_022', mode: 'RESEARCH', title: 'Volume Delta: Absorbtion at Support', author: 'Risk Apprentice', category: 'Advanced', confidence: 5, metrics: [{ label: 'CVD_Divergence', value: 65 }], thesis_brief: 'Whales are absorbing sell-side pressure. A massive re-expansion is loading.', tags: ['volume', 'orderflow'], likesCount: 312, repliesCount: 44, lastActivityAt: new Date().toISOString() }
 ]

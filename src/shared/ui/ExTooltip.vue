@@ -1,6 +1,7 @@
 <template>
   <div 
     class="relative inline-block"
+    v-bind="$attrs"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
     ref="triggerRef"
@@ -13,6 +14,7 @@
       <Transition name="tooltip-fade">
         <div 
           v-if="isVisible"
+          ref="tooltipRef"
           :style="tooltipStyle"
           class="fixed pointer-events-none z-[2147483647] transition-colors duration-500"
           :class="[isDark ? 'is-dark theme-tooltip-dark' : 'theme-tooltip-light']"
@@ -29,15 +31,15 @@
           </div>
 
           <!-- BASIC VARIANT -->
-          <div v-else class="flex flex-col" :class="placement === 'bottom' ? 'flex-col' : 'flex-col-reverse'">
+          <div v-else class="flex flex-col" :class="effectivePlacement === 'bottom' ? 'flex-col' : 'flex-col-reverse'">
             <!-- Arrow stem: sibling of the box, sits outside it -->
             <div class="flex" :style="{ paddingLeft: stemStyle.left, boxSizing: 'content-box' }">
               <div
                 class="theme-tooltip-stem w-3 h-3 shrink-0 -ml-[6px]"
-                :class="placement === 'bottom'
+                :class="effectivePlacement === 'bottom'
                   ? 'border-l border-t'
                   : 'border-r border-b'"
-                :style="{ transform: 'rotate(45deg)', marginBottom: placement === 'bottom' ? '-6px' : '0', marginTop: placement !== 'bottom' ? '-6px' : '0', opacity: 1 }"
+                :style="{ transform: 'rotate(45deg)', marginBottom: effectivePlacement === 'bottom' ? '-6px' : '0', marginTop: effectivePlacement !== 'bottom' ? '-6px' : '0', opacity: 1 }"
               ></div>
             </div>
             <div class="theme-tooltip-panel border p-5 min-w-[200px] flex flex-col space-y-2 relative shadow-[6px_6px_0_0_rgba(0,0,0,0.25)] dark:shadow-[6px_6px_0_0_rgba(0,0,0,0.5)]">
@@ -57,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 
 const props = defineProps({
   title: String,
@@ -159,55 +161,86 @@ watch(() => props.forceShow, (newVal) => {
   }
 }, { immediate: true })
 
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', updateViewportSize, { passive: true })
+  window.addEventListener('scroll', updateViewportSize, { passive: true })
+}
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', updateViewportSize)
+  window.removeEventListener('scroll', updateViewportSize)
+})
+
 const tooltipStyle = computed(() => {
   // Center above/below the trigger element
   const centerX = triggerPos.value.x + (triggerPos.value.width / 2)
   const topY = triggerPos.value.y
   const bottomY = triggerPos.value.y + triggerPos.value.height
-  
-  // Base width
-  const w = props.variant === 'tactical' ? 600 : 300
+
+  const w = tooltipWidth.value
+  const measuredHeight = tooltipSize.value.height
+  const estimatedHeight = props.variant === 'tactical' ? 280 : 220
+  const h = measuredHeight || estimatedHeight
   const margin = 16
-  
+  const gap = 20
+
   // Center-align by default
   let left = centerX - (w / 2)
   
   // Strict viewport clamping
   if (left < margin) {
     left = margin
-  } else if (left + w > window.innerWidth - margin) {
-    left = window.innerWidth - w - margin
+  } else if (left + w > viewportSize.value.width - margin) {
+    left = viewportSize.value.width - w - margin
   }
 
-  if (props.placement === 'bottom') {
-    return {
-      left: `${left}px`,
-      top: `${bottomY}px`,
-      width: `${w}px`,
-      transform: `translateY(20px) scale(${props.scale})`,
-      transformOrigin: 'top center'
-    }
-  }
+  const preferredBottom = props.placement === 'bottom'
+  const spaceAbove = topY - margin
+  const spaceBelow = viewportSize.value.height - bottomY - margin
+  const shouldFlipToBottom = !preferredBottom && h + gap > spaceAbove && spaceBelow > spaceAbove
+  const shouldFlipToTop = preferredBottom && h + gap > spaceBelow && spaceAbove > spaceBelow
+  const placeBottom = shouldFlipToBottom || (preferredBottom && !shouldFlipToTop)
+
+  let top = placeBottom ? bottomY + gap : topY - h - gap
+  const maxTop = Math.max(margin, viewportSize.value.height - h - margin)
+  top = Math.max(margin, Math.min(top, maxTop))
 
   return {
     left: `${left}px`,
-    top: `${topY}px`,
+    top: `${top}px`,
     width: `${w}px`,
-    transform: `translateY(-100%) translateY(-20px) scale(${props.scale})`,
-    transformOrigin: 'bottom center'
+    maxWidth: `calc(100vw - ${margin * 2}px)`,
+    transform: `scale(${props.scale})`,
+    transformOrigin: placeBottom ? 'top center' : 'bottom center'
   }
+})
+
+const effectivePlacement = computed(() => {
+  const topY = triggerPos.value.y
+  const bottomY = triggerPos.value.y + triggerPos.value.height
+  const h = tooltipSize.value.height || (props.variant === 'tactical' ? 280 : 220)
+  const margin = 16
+  const gap = 20
+  const spaceAbove = topY - margin
+  const spaceBelow = viewportSize.value.height - bottomY - margin
+
+  if (props.placement === 'bottom') {
+    return h + gap > spaceBelow && spaceAbove > spaceBelow ? 'top' : 'bottom'
+  }
+  return h + gap > spaceAbove && spaceBelow > spaceAbove ? 'bottom' : 'top'
 })
 
 const stemStyle = computed(() => {
   const centerX = triggerPos.value.x + (triggerPos.value.width / 2)
-  const w = props.variant === 'tactical' ? 600 : 300
+  const w = tooltipWidth.value
   const margin = 16
   let left = centerX - (w / 2)
   
   if (left < margin) {
     left = margin
-  } else if (left + w > window.innerWidth - margin) {
-    left = window.innerWidth - w - margin
+  } else if (left + w > viewportSize.value.width - margin) {
+    left = viewportSize.value.width - w - margin
   }
 
   const offset = centerX - left

@@ -2,6 +2,7 @@ use reqwest::header::USER_AGENT;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
 pub struct BenchmarkState(pub Mutex<BenchmarkStateInner>);
@@ -11,6 +12,7 @@ pub struct BenchmarkStateInner {
     pub cached_rate: f64,
     pub cached_risk_free: f64,
     pub cached_betas: HashMap<String, f64>,
+    pub cached_period: Option<(i64, i64)>,
 }
 
 impl Default for BenchmarkState {
@@ -20,6 +22,7 @@ impl Default for BenchmarkState {
             cached_rate: 25.21,
             cached_risk_free: 5.00,
             cached_betas: HashMap::new(),
+            cached_period: None,
         }))
     }
 }
@@ -49,6 +52,10 @@ struct StrategyCacheData {
     benchmark_rate: f64,
     risk_free_rate: f64,
     strategies: HashMap<String, StrategyBenchmarkCache>,
+    #[serde(default)]
+    period_start_ts: Option<i64>,
+    #[serde(default)]
+    period_end_ts: Option<i64>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -72,18 +79,68 @@ struct ChartResult {
 struct ChartMeta {
     #[serde(rename = "regularMarketPrice")]
     regular_market_price: Option<f64>,
-    #[serde(rename = "chartPreviousClose")]
-    chart_previous_close: Option<f64>,
 }
 
 #[derive(Deserialize, Debug)]
 struct ChartIndicators {
     quote: Option<Vec<ChartQuote>>,
+    #[serde(rename = "adjclose")]
+    adjclose: Option<Vec<ChartAdjustedQuote>>,
 }
 
 #[derive(Deserialize, Debug)]
 struct ChartQuote {
     close: Option<Vec<Option<f64>>>,
+}
+
+#[derive(Deserialize, Debug)]
+struct ChartAdjustedQuote {
+    adjclose: Option<Vec<Option<f64>>>,
+}
+
+fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+    let adjusted_year = year - if month <= 2 { 1 } else { 0 };
+    let era = if adjusted_year >= 0 {
+        adjusted_year / 400
+    } else {
+        (adjusted_year - 399) / 400
+    };
+    let year_of_era = adjusted_year - era * 400;
+    let month_prime = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * month_prime + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    era * 146097 + day_of_era - 719468
+}
+
+fn civil_year_from_days(days_since_epoch: i64) -> i64 {
+    let adjusted_days = days_since_epoch + 719468;
+    let era = if adjusted_days >= 0 {
+        adjusted_days / 146097
+    } else {
+        (adjusted_days - 146096) / 146097
+    };
+    let day_of_era = adjusted_days - era * 146097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1460 + day_of_era / 36524 - day_of_era / 146096) / 365;
+    let year = year_of_era + era * 400;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let month_prime = (5 * day_of_year + 2) / 153;
+    let month = month_prime + if month_prime < 10 { 3 } else { -9 };
+    year + if month <= 2 { 1 } else { 0 }
+}
+
+fn last_completed_calendar_year_period() -> (i64, i64) {
+    let now_seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+    let current_year = civil_year_from_days(now_seconds.div_euclid(86_400));
+    let completed_year = current_year - 1;
+
+    (
+        days_from_civil(completed_year, 1, 1) * 86_400,
+        days_from_civil(current_year, 1, 1) * 86_400,
+    )
 }
 
 #[tauri::command]
@@ -95,6 +152,8 @@ pub async fn get_benchmark_and_beta(
     state: tauri::State<'_, BenchmarkState>,
     app: tauri::AppHandle,
 ) -> Result<BenchmarkResponse, String> {
+    let benchmark_period = last_completed_calendar_year_period();
+    let _ = (start_ts, end_ts);
     let strategy_key = strategy_id
         .as_deref()
         .map(str::trim)
@@ -105,9 +164,8 @@ pub async fn get_benchmark_and_beta(
     // 1. Check in-memory state lock for this concrete strategy.
     {
         let lock = state.0.lock().unwrap();
-        if lock.has_fetched {
+        if lock.has_fetched && lock.cached_period == Some(benchmark_period) {
             if let Some(beta) = lock.cached_betas.get(&strategy_key) {
-                log::info!("[benchmark] Using in-memory cached benchmark data for strategy {} -> rate: {:.2}%, beta: {:.2}, risk_free: {:.2}%", strategy_key, lock.cached_rate, beta, lock.cached_risk_free);
                 return Ok(BenchmarkResponse {
                     benchmark_rate: lock.cached_rate,
                     beta: *beta,
@@ -133,48 +191,64 @@ pub async fn get_benchmark_and_beta(
                 benchmark_rate: legacy.benchmark_rate,
                 risk_free_rate: legacy.risk_free_rate,
                 strategies,
+                period_start_ts: None,
+                period_end_ts: None,
             });
         }
         None
     };
 
-    let save_strategy_cache =
-        |path: &std::path::PathBuf, strategy: &str, rate: f64, beta: f64, risk_free: f64| {
-            let mut cache = load_strategy_cache(path).unwrap_or(StrategyCacheData {
-                benchmark_rate: rate,
-                risk_free_rate: risk_free,
-                strategies: HashMap::new(),
-            });
-            cache.benchmark_rate = rate;
-            cache.risk_free_rate = risk_free;
-            cache
-                .strategies
-                .insert(strategy.to_string(), StrategyBenchmarkCache { beta });
+    let save_strategy_cache = |path: &std::path::PathBuf,
+                               strategy: &str,
+                               period: (i64, i64),
+                               rate: f64,
+                               beta: f64,
+                               risk_free: f64| {
+        let mut cache = load_strategy_cache(path).unwrap_or(StrategyCacheData {
+            benchmark_rate: rate,
+            risk_free_rate: risk_free,
+            strategies: HashMap::new(),
+            period_start_ts: Some(period.0),
+            period_end_ts: Some(period.1),
+        });
+        cache.benchmark_rate = rate;
+        cache.risk_free_rate = risk_free;
+        cache.period_start_ts = Some(period.0);
+        cache.period_end_ts = Some(period.1);
+        cache
+            .strategies
+            .insert(strategy.to_string(), StrategyBenchmarkCache { beta });
 
-            if let Ok(json_str) = serde_json::to_string_pretty(&cache) {
-                let _ = std::fs::write(path, json_str);
-            }
-        };
+        if let Ok(json_str) = serde_json::to_string_pretty(&cache) {
+            let _ = std::fs::write(path, json_str);
+        }
+    };
 
-    let load_cached_strategy =
-        |path: &std::path::PathBuf, strategy: &str| -> Option<BenchmarkResponse> {
-            let cache = load_strategy_cache(path)?;
-            cache
-                .strategies
-                .get(strategy)
-                .map(|entry| BenchmarkResponse {
-                    benchmark_rate: cache.benchmark_rate,
-                    beta: entry.beta,
-                    risk_free_rate: cache.risk_free_rate,
-                    is_fallback: true,
-                })
-        };
+    let load_cached_strategy = |path: &std::path::PathBuf,
+                                strategy: &str,
+                                period: (i64, i64)|
+     -> Option<BenchmarkResponse> {
+        let cache = load_strategy_cache(path)?;
+        if cache.period_start_ts != Some(period.0) || cache.period_end_ts != Some(period.1) {
+            return None;
+        }
+        cache
+            .strategies
+            .get(strategy)
+            .map(|entry| BenchmarkResponse {
+                benchmark_rate: cache.benchmark_rate,
+                beta: entry.beta,
+                risk_free_rate: cache.risk_free_rate,
+                is_fallback: true,
+            })
+    };
 
     let cache_response_in_memory = |response: &BenchmarkResponse, strategy: &str| {
         let mut lock = state.0.lock().unwrap();
         lock.has_fetched = true;
         lock.cached_rate = response.benchmark_rate;
         lock.cached_risk_free = response.risk_free_rate;
+        lock.cached_period = Some(benchmark_period);
         lock.cached_betas
             .insert(strategy.to_string(), response.beta);
     };
@@ -191,8 +265,9 @@ pub async fn get_benchmark_and_beta(
     // their previous beta with the baseline default.
     if strategy_returns.len() < 2 {
         if let Ok(cache_path) = get_cache_path() {
-            if let Some(response) = load_cached_strategy(&cache_path, &strategy_key) {
-                log::info!("[benchmark] Strategy {} has < 2 returns; using cached beta {:.2} from local JSON.", strategy_key, response.beta);
+            if let Some(response) =
+                load_cached_strategy(&cache_path, &strategy_key, benchmark_period)
+            {
                 cache_response_in_memory(&response, &strategy_key);
                 return Ok(response);
             }
@@ -200,16 +275,27 @@ pub async fn get_benchmark_and_beta(
     }
 
     // 3. Attempt live fetch from Yahoo Finance
-    let bench_beta_res = fetch_live_benchmark_and_beta(&strategy_returns, start_ts, end_ts).await;
-    let risk_free_res = fetch_live_risk_free_rate(start_ts, end_ts).await;
+    let bench_beta_res = fetch_live_benchmark_and_beta(
+        &strategy_returns,
+        Some(benchmark_period.0),
+        Some(benchmark_period.1),
+    )
+    .await;
+    let risk_free_res =
+        fetch_live_risk_free_rate(Some(benchmark_period.0), Some(benchmark_period.1)).await;
 
     match bench_beta_res {
         Ok((rate, beta)) => {
             let risk_free = risk_free_res.unwrap_or(5.00);
-            log::info!("[benchmark] Successfully fetched live benchmark data for strategy {} -> rate: {:.2}%, beta: {:.2}, risk_free: {:.2}%", strategy_key, rate, beta, risk_free);
-
             if let Ok(cache_path) = get_cache_path() {
-                save_strategy_cache(&cache_path, &strategy_key, rate, beta, risk_free);
+                save_strategy_cache(
+                    &cache_path,
+                    &strategy_key,
+                    benchmark_period,
+                    rate,
+                    beta,
+                    risk_free,
+                );
             }
 
             let response = BenchmarkResponse {
@@ -225,8 +311,9 @@ pub async fn get_benchmark_and_beta(
             log::warn!("[benchmark] Live fetch failed for strategy {}: {}, attempting to load from local JSON cache...", strategy_key, e);
 
             if let Ok(cache_path) = get_cache_path() {
-                if let Some(response) = load_cached_strategy(&cache_path, &strategy_key) {
-                    log::info!("[benchmark] Successfully loaded cached benchmark data for strategy {} -> rate: {:.2}%, beta: {:.2}, risk_free: {:.2}%", strategy_key, response.benchmark_rate, response.beta, response.risk_free_rate);
+                if let Some(response) =
+                    load_cached_strategy(&cache_path, &strategy_key, benchmark_period)
+                {
                     cache_response_in_memory(&response, &strategy_key);
                     return Ok(response);
                 }
@@ -245,7 +332,11 @@ pub async fn get_benchmark_and_beta(
     }
 }
 
-async fn fetch_live_benchmark_and_beta(strategy_returns: &[f64], start_ts: Option<i64>, end_ts: Option<i64>) -> Result<(f64, f64), String> {
+async fn fetch_live_benchmark_and_beta(
+    strategy_returns: &[f64],
+    start_ts: Option<i64>,
+    end_ts: Option<i64>,
+) -> Result<(f64, f64), String> {
     let url = if let (Some(start), Some(end)) = (start_ts, end_ts) {
         format!("https://query2.finance.yahoo.com/v8/finance/chart/^GSPC?interval=1d&period1={}&period2={}", start - (10 * 86400), end + (2 * 86400))
     } else {
@@ -271,122 +362,107 @@ async fn fetch_live_benchmark_and_beta(strategy_returns: &[f64], start_ts: Optio
         .ok_or_else(|| "No chart result found".to_string())?;
 
     let mut benchmark_rate = 25.21;
-    let mut current_price = None;
-    let mut previous_price = None;
-
-    if let Some(meta) = &result.meta {
-        current_price = meta.regular_market_price;
-        previous_price = meta.chart_previous_close;
-    }
-
     let mut beta = 0.85;
+
     if let Some(indicators) = result.indicators {
-        if let Some(mut quotes) = indicators.quote {
-            if let Some(quote) = quotes.pop() {
-                if let Some(closes) = quote.close {
-                    let valid_prices: Vec<f64> = closes.into_iter().filter_map(|p| p).collect();
-                    let timestamps = result.timestamp.unwrap_or_default();
+        let ChartIndicators { quote, adjclose } = indicators;
+        let timestamps = result.timestamp.unwrap_or_default();
 
-                    log::info!(
-                        "[benchmark_diagnostic] Parsed {} valid close prices from Yahoo Finance.",
-                        valid_prices.len()
-                    );
-                    if !timestamps.is_empty() && timestamps.len() == valid_prices.len() {
-                        log::info!(
-                            "[benchmark_diagnostic] Time range: First TS={}, Last TS={}",
-                            timestamps.first().unwrap(),
-                            timestamps.last().unwrap()
-                        );
-                    }
+        if let Some(mut quotes) = quote {
+            if let Some(chart_quote) = quotes.pop() {
+                let close_prices = chart_quote.close.unwrap_or_default();
+                let adjusted_prices = adjclose
+                    .and_then(|mut rows| rows.pop())
+                    .and_then(|row| row.adjclose);
+                let prices = adjusted_prices.unwrap_or(close_prices);
 
-                    if let Some(&last_close) = valid_prices.last() {
-                        if current_price.is_none() {
-                            current_price = Some(last_close);
+                // The request includes padding so the previous year's final close is
+                // available as the correct starting anchor for the calendar year.
+                let all_price_points: Vec<(i64, f64)> = timestamps
+                    .into_iter()
+                    .zip(prices.into_iter())
+                    .filter_map(|(timestamp, price)| {
+                        let price = price?;
+                        if !price.is_finite() || price <= 0.0 {
+                            return None;
                         }
-                    }
-                    if let Some(&first_close) = valid_prices.first() {
-                        if previous_price.is_none() || previous_price == Some(0.0) {
-                            previous_price = Some(first_close);
-                        }
-                    }
+                        Some((timestamp, price))
+                    })
+                    .collect();
 
-                    log::info!("[benchmark_diagnostic] Prices to compute benchmark rate -> Current: {:?}, Previous: {:?}", current_price, previous_price);
+                let price_points: Vec<(i64, f64)> = all_price_points
+                    .iter()
+                    .copied()
+                    .filter(|(timestamp, _)| {
+                        !start_ts.is_some_and(|start| *timestamp < start)
+                            && !end_ts.is_some_and(|end| *timestamp >= end)
+                    })
+                    .collect();
 
-                    if let (Some(cur), Some(prev)) = (current_price, previous_price) {
-                        if prev > 0.0 {
-                            benchmark_rate = ((cur - prev) / prev) * 100.0;
-                            log::info!("[benchmark_diagnostic] Calculated Benchmark Rate: (({} - {}) / {}) * 100 = {:.2}%", cur, prev, prev, benchmark_rate);
-                        } else {
-                            log::warn!("[benchmark_diagnostic] Previous price was <= 0.0, cannot calculate benchmark rate.");
-                        }
-                    }
+                let benchmark_start = start_ts
+                    .and_then(|start| {
+                        all_price_points
+                            .iter()
+                            .rev()
+                            .find(|(timestamp, _)| *timestamp < start)
+                            .copied()
+                    })
+                    .or_else(|| price_points.first().copied());
+                let benchmark_end = end_ts
+                    .and_then(|end| {
+                        all_price_points
+                            .iter()
+                            .rev()
+                            .find(|(timestamp, _)| *timestamp < end)
+                            .copied()
+                    })
+                    .or_else(|| price_points.last().copied());
 
-                    if valid_prices.len() > 1 {
-                        let mut market_returns = Vec::new();
-                        for i in 1..valid_prices.len() {
-                            let prev = valid_prices[i - 1];
-                            let cur = valid_prices[i];
-                            if prev > 0.0 {
-                                market_returns.push((cur - prev) / prev);
-                            }
-                        }
-
-                        let n_strat = strategy_returns.len();
-                        log::info!("[benchmark_diagnostic] Strategy returns count: {}, Market returns count: {}", n_strat, market_returns.len());
-                        if n_strat >= 2 && !market_returns.is_empty() {
-                            let n_take = n_strat.min(market_returns.len());
-                            let s_slice = &strategy_returns[n_strat - n_take..];
-                            let m_slice = &market_returns[market_returns.len() - n_take..];
-
-                            log::info!("[benchmark_diagnostic] Computing Beta using recent {} data points.", n_take);
-
-                            let mean_s: f64 = s_slice.iter().sum::<f64>() / (n_take as f64);
-                            let mean_m: f64 = m_slice.iter().sum::<f64>() / (n_take as f64);
-
-                            let mut cov = 0.0;
-                            let mut var_m = 0.0;
-                            for i in 0..n_take {
-                                let ds = s_slice[i] - mean_s;
-                                let dm = m_slice[i] - mean_m;
-                                cov += ds * dm;
-                                var_m += dm * dm;
-                            }
-
-                            let denom = (n_take - 1) as f64;
-                            log::info!("[benchmark_diagnostic] Sum Covariance: {}, Sum Variance (Market): {}", cov, var_m);
-
-                            if denom > 0.0 && var_m > 0.0 {
-                                let calc_beta = (cov / denom) / (var_m / denom);
-                                log::info!(
-                                    "[benchmark_diagnostic] Calculated raw beta: {}",
-                                    calc_beta
-                                );
-                                if !calc_beta.is_nan() && calc_beta.is_finite() {
-                                    beta = calc_beta.clamp(-3.0, 5.0);
-                                    log::info!(
-                                        "[benchmark_diagnostic] Final clamped Beta: {}",
-                                        beta
-                                    );
-                                } else {
-                                    log::warn!("[benchmark_diagnostic] Calculated beta was NaN or infinite.");
-                                }
-                            } else {
-                                log::warn!("[benchmark_diagnostic] Denom ({}) or Market Variance ({}) <= 0.0, cannot calculate beta.", denom, var_m);
-                            }
-                        } else {
-                            log::warn!("[benchmark_diagnostic] Not enough strategy returns (needs >= 2) or market returns to calculate beta. Using default 0.85");
-                        }
-                    } else {
-                        log::warn!("[benchmark_diagnostic] Not enough valid prices (needs > 1) from Yahoo to calculate market returns.");
+                if let (Some(first), Some(last)) = (benchmark_start, benchmark_end) {
+                    if first.1 > 0.0 {
+                        benchmark_rate = ((last.1 / first.1) - 1.0) * 100.0;
                     }
                 } else {
-                    log::warn!("[benchmark_diagnostic] `quote.close` was None.");
+                    log::warn!("[benchmark_diagnostic] No valid S&P 500 prices found inside the completed calendar year.");
                 }
-            } else {
-                log::warn!("[benchmark_diagnostic] `indicators.quote` was empty.");
+
+                if price_points.len() > 1 {
+                    let market_returns: Vec<f64> = price_points
+                        .windows(2)
+                        .filter_map(|window| {
+                            let previous = window[0].1;
+                            let current = window[1].1;
+                            (previous > 0.0).then_some((current / previous) - 1.0)
+                        })
+                        .collect();
+
+                    let n_strat = strategy_returns.len();
+                    if n_strat >= 2 && !market_returns.is_empty() {
+                        let n_take = n_strat.min(market_returns.len());
+                        let s_slice = &strategy_returns[n_strat - n_take..];
+                        let m_slice = &market_returns[market_returns.len() - n_take..];
+
+                        let mean_s: f64 = s_slice.iter().sum::<f64>() / (n_take as f64);
+                        let mean_m: f64 = m_slice.iter().sum::<f64>() / (n_take as f64);
+                        let mut covariance_sum = 0.0;
+                        let mut market_variance_sum = 0.0;
+
+                        for i in 0..n_take {
+                            let strategy_delta = s_slice[i] - mean_s;
+                            let market_delta = m_slice[i] - mean_m;
+                            covariance_sum += strategy_delta * market_delta;
+                            market_variance_sum += market_delta * market_delta;
+                        }
+
+                        if market_variance_sum > 0.0 {
+                            let calc_beta = covariance_sum / market_variance_sum;
+                            if calc_beta.is_finite() {
+                                beta = calc_beta.clamp(-3.0, 5.0);
+                            }
+                        }
+                    }
+                }
             }
-        } else {
-            log::warn!("[benchmark_diagnostic] `indicators.quote` was None.");
         }
     } else {
         log::warn!("[benchmark_diagnostic] `result.indicators` was None.");
@@ -395,7 +471,10 @@ async fn fetch_live_benchmark_and_beta(strategy_returns: &[f64], start_ts: Optio
     Ok((benchmark_rate, beta))
 }
 
-async fn fetch_live_risk_free_rate(start_ts: Option<i64>, end_ts: Option<i64>) -> Result<f64, String> {
+async fn fetch_live_risk_free_rate(
+    start_ts: Option<i64>,
+    end_ts: Option<i64>,
+) -> Result<f64, String> {
     let url = if let (Some(start), Some(end)) = (start_ts, end_ts) {
         format!("https://query2.finance.yahoo.com/v8/finance/chart/^IRX?interval=1d&period1={}&period2={}", start, end)
     } else {
@@ -423,10 +502,6 @@ async fn fetch_live_risk_free_rate(start_ts: Option<i64>, end_ts: Option<i64>) -
     if let Some(meta) = &result.meta {
         if let Some(price) = meta.regular_market_price {
             if price > 0.0 && start_ts.is_none() {
-                log::info!(
-                    "[benchmark_diagnostic] Fetched live Risk-Free Rate (^IRX): {:.2}%",
-                    price
-                );
                 return Ok(price);
             }
         }
@@ -441,12 +516,10 @@ async fn fetch_live_risk_free_rate(start_ts: Option<i64>, end_ts: Option<i64>) -
                         let sum: f64 = valid_prices.iter().sum();
                         let mean = sum / (valid_prices.len() as f64);
                         if mean > 0.0 {
-                            log::info!("[benchmark_diagnostic] Fetched Historical Risk-Free Rate (^IRX) mean: {:.2}%", mean);
                             return Ok(mean);
                         }
                     } else if let Some(&last_close) = valid_prices.last() {
                         if last_close > 0.0 {
-                            log::info!("[benchmark_diagnostic] Fetched live Risk-Free Rate (^IRX) from last close: {:.2}%", last_close);
                             return Ok(last_close);
                         }
                     }
@@ -490,7 +563,7 @@ pub async fn get_historical_curves(
     };
 
     let jlj_dir = get_cache_dir()?;
-    let cache_path = jlj_dir.join(format!("historical_curves_{}.json", strategy_key));
+    let cache_path = jlj_dir.join(format!("historical_curves_v2_{}.json", strategy_key));
 
     // Try reading cache
     if let Ok(json_str) = std::fs::read_to_string(&cache_path) {
@@ -504,21 +577,10 @@ pub async fn get_historical_curves(
                 .last()
                 .map_or(false, |p| p.timestamp >= end_ts - 86400);
             if has_start && has_end {
-                log::info!(
-                    "[benchmark] Serving historical curves from cache for strategy {}",
-                    strategy_key
-                );
                 return Ok(cached);
             }
         }
     }
-
-    log::info!(
-        "[benchmark] Fetching live historical curves for strategy {} from {} to {}",
-        strategy_key,
-        start_ts,
-        end_ts
-    );
 
     let fetch_curve = |symbol: String| async move {
         // Yahoo expects timestamps in seconds.
@@ -550,16 +612,21 @@ pub async fn get_historical_curves(
 
         let mut points = Vec::new();
         if let (Some(timestamps), Some(indicators)) = (result.timestamp, result.indicators) {
-            if let Some(mut quotes) = indicators.quote {
-                if let Some(quote) = quotes.pop() {
-                    if let Some(closes) = quote.close {
-                        for (ts, price) in timestamps.into_iter().zip(closes.into_iter()) {
-                            if let Some(p) = price {
-                                points.push(DailyDataPoint {
-                                    timestamp: ts,
-                                    value: p,
-                                });
-                            }
+            let ChartIndicators { quote, adjclose } = indicators;
+            if let Some(mut quotes) = quote {
+                if let Some(chart_quote) = quotes.pop() {
+                    let close_prices = chart_quote.close.unwrap_or_default();
+                    let adjusted_prices = adjclose
+                        .and_then(|mut rows| rows.pop())
+                        .and_then(|row| row.adjclose);
+                    let prices = adjusted_prices.unwrap_or(close_prices);
+
+                    for (ts, price) in timestamps.into_iter().zip(prices.into_iter()) {
+                        if let Some(p) = price.filter(|value| value.is_finite() && *value > 0.0) {
+                            points.push(DailyDataPoint {
+                                timestamp: ts,
+                                value: p,
+                            });
                         }
                     }
                 }

@@ -18,6 +18,7 @@ export const useAuthStore = defineStore('auth', {
         loading: false as boolean,
         error: null as null | string,
         authReady: false as boolean,
+        isOffline: typeof navigator !== 'undefined' ? !navigator.onLine : false,
     }),
     getters: {
     isAuthenticated: (state) => !!state.user
@@ -31,16 +32,28 @@ export const useAuthStore = defineStore('auth', {
             avatarUrl?: string | null,
             joinedAt: any;
             type?: string;
+            expiresAt?: any;
         }) {
             if (!user) {
                 this.user = null;
                 return;
             }
             let computedType = user.type || 'common';
-            let expiresAt = undefined;
+            let expiresAt = user.expiresAt;
             let finalDisplayName = user.displayName;
             let finalPhotoURL = user.photoURL;
             let finalAvatarUrl = user.avatarUrl || null;
+
+            // Make the Firebase-persisted identity available immediately.
+            // Firestore enriches it when online, but must not block offline entry.
+            this.user = {
+                ...user,
+                displayName: finalDisplayName,
+                photoURL: finalPhotoURL,
+                avatarUrl: finalAvatarUrl,
+                type: computedType,
+                expiresAt
+            };
 
             try {
                 const { doc, getDoc } = await import('firebase/firestore')
@@ -78,6 +91,10 @@ export const useAuthStore = defineStore('auth', {
                 console.error('Failed to fetch user Firestore doc:', err)
             }
 
+            // Do not let a late Firestore response restore a user after logout
+            // or overwrite a newer Firebase session.
+            if (this.user?.uid !== user.uid) return;
+
             this.user = {
                 ...user,
                 displayName: finalDisplayName,
@@ -99,6 +116,13 @@ export const useAuthStore = defineStore('auth', {
         },
         setAuthReady(value: boolean) {
             this.authReady = value;
+        },
+        setOffline(value: boolean) {
+            this.isOffline = value;
+        },
+        setAvatarUrl(uid: string, avatarUrl: string | null) {
+            if (this.user?.uid !== uid) return;
+            this.user.avatarUrl = avatarUrl;
         }
     }
 })

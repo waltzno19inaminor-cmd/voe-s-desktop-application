@@ -12,8 +12,8 @@
     </div>
 
     <!-- Masks & Vignettes -->
-    <div class="fixed inset-0 z-[80] pointer-events-none focus-mask transition-all duration-1000"></div>
-    <div class="fixed inset-0 z-[81] pointer-events-none cinematic-vignette transition-all duration-1000"></div>
+    <div v-if="!isDark" class="fixed inset-0 z-[80] pointer-events-none focus-mask transition-all duration-1000"></div>
+    <div v-if="!isDark" class="fixed inset-0 z-[81] pointer-events-none cinematic-vignette transition-all duration-1000"></div>
   </div>
 </template>
 

@@ -58,7 +58,7 @@ const metricLabelRuByKey: Record<string, string> = {
   marRatio: 'MAR коэффициент',
   gainToPainRatio: 'Прибыль к боли',
   tailRatio: 'Хвостовой коэффициент',
-  commonSenseRatio: 'Коэффициент здравого смысла',
+  commonSenseRatio: 'Common Sense коэффициент',
   profitFactorStrategy: 'PF по стратегии',
   profitFactorMarket: 'PF по рынку',
   profitFactorTimeframe: 'PF по таймфрейму',
@@ -79,7 +79,7 @@ const metricLabelRuByKey: Record<string, string> = {
   kurtosis: 'Эксцесс доходностей',
   medianTradeResult: 'Медианный результат сделки',
   medianWinLossRatio: 'Медиана побед/убытков',
-  valueAtRisk: 'Риск потерь (VaR)',
+  valueAtRisk: 'Value at Risk',
   cvar: 'Условный VaR',
   expectedShortfall: 'Ожидаемый дефицит',
   mae: 'Макс. движение против',
@@ -90,7 +90,7 @@ const metricLabelRuByKey: Record<string, string> = {
   monteCarloDrawdown: 'MC оценка просадки',
   monteCarloRiskOfRuin: 'MC риск разорения',
   monteCarloExpectedReturn: 'MC ожидаемая доходность',
-  bootstrapConfidenceInterval: 'Бутстрэп-интервал',
+  bootstrapConfidenceInterval: 'Bootstrap интервал',
   ciExpectedValue: 'ДИ ожидаемого значения',
   ciWinRate: 'ДИ винрейта',
   bayesianWinRate: 'Байесовский винрейт',
@@ -101,7 +101,7 @@ const metricLabelRuByKey: Record<string, string> = {
   sqn: 'SQN',
   tTest: 'T-тест средней сделки',
   pValue: 'P-значение преимущества',
-  informationRatio: 'Информационный коэффициент',
+  informationRatio: 'Information Ratio',
   treynorRatio: 'Коэффициент Трейнора',
   jensensAlpha: 'Альфа Дженсена',
   betaToBenchmark: 'Бета к бенчмарку',
@@ -222,6 +222,109 @@ const metricDescRuByKey: Record<string, string> = {
   edgeHalfLife: 'Оценка горизонта в месяцах, за который преимущество стратегии сократится наполовину при текущем темпе угасания.',
   outlierImpactRatio: 'Доля чистой прибыли, которую дали только верхние 5% крупнейших прибыльных сделок.',
   distributionRobustness: 'Композитная оценка устойчивости распределения: нормальность, хвостовой риск и зависимость от выбросов.'
+}
+
+const metricSubRuByKey: Record<string, string> = {
+  netProfit: 'Дельта валового PnL',
+  grossProfit: 'Общий прибыльный PnL',
+  grossLoss: 'Общий убыточный PnL',
+  winRate: 'Процент прибыльных',
+  lossRate: 'Процент убыточных',
+  avgWin: 'Средний прибыльный PnL',
+  avgLoss: 'Средний убыточный PnL',
+  avgTrade: 'Ожидание на сделку',
+  payoffRatio: 'Средняя прибыль / средний убыток',
+  riskRewardRatio: 'Средний плановый RR',
+  realizedRR: 'Фактический RR',
+  expectedValue: 'Статистическое EV',
+  profitFactor: 'Валовая прибыль / валовый убыток',
+  beWinRate: 'Нужный win% для $0',
+  numTrades: 'Размер выборки',
+  numWin: 'Количество прибыльных',
+  numLoss: 'Количество убыточных',
+  largestWin: 'Максимальный прибыльный PnL',
+  largestLoss: 'Максимальный убыточный PnL',
+  maxConsWins: 'Самая длинная серия побед',
+  maxConsLosses: 'Самая длинная серия убытков',
+  avgHoldingTimeStr: 'Средняя длительность сделки',
+  avgProfitPerDay: 'День / неделя / месяц',
+  maxDrawdownNum: 'Пик до минимума',
+  avgDrawdownPct: 'Средняя глубина просадки',
+  drawdownDurationStr: 'Максимальный срок восстановления',
+  recoveryFactor: 'Чистая прибыль / макс. DD',
+  returnOnCapital: 'Чистая прибыль / депозит',
+  returnPerTrade: 'Средняя долларовая alpha',
+  riskPerTrade: 'Средний долларовый риск',
+  sharpeRatio: 'Доходность с учётом риска',
+  sortinoRatio: 'С учётом downside-риска',
+  calmarRatio: 'CAGR / макс. просадка',
+  sterlingRatio: 'CAGR / средняя просадка',
+  omegaRatio: 'Вес прибыли / убытка',
+  ulcerIndex: 'Глубина/длительность DD',
+  marRatio: 'CAGR / макс. DD',
+  gainToPainRatio: 'Метрика преимущества Швагера',
+  tailRatio: '95-й / 5-й процентиль',
+  commonSenseRatio: 'Tail * Gain-to-Pain',
+  profitFactorStrategy: 'PF активной стратегии',
+  profitFactorMarket: 'Лучшая alpha рынка',
+  profitFactorTimeframe: 'Лучшая alpha таймфрейма',
+  avgTradeExpectancy: 'Ожидаемый долларовый PnL',
+  expectancyScore: 'Ожидание / средний убыток',
+  latestRMultiple: 'R последней сделки',
+  avgRMultiple: 'Средний исторический R',
+  rMultipleDist: '% сделок >= 2.0R',
+  riskOfRuin: 'Вероятность истощения капитала',
+  slope: 'Скорость PnL регрессии',
+  equityCurveVolatility: 'Стд. отклонение остатков',
+  equityCurveStability: 'R² соответствия',
+  equityCurveCorrelation: 'Корреляция Пирсона (r)',
+  stdPnL: 'Матрица разброса PnL',
+  varPnL: 'Дисперсия PnL (σ²)',
+  coeffOfVariation: 'Стд. откл. / |средний PnL|',
+  skewness: 'Асимметрия доходности (S)',
+  kurtosis: 'Экстремальность хвостов (K)',
+  medianTradeResult: '50-й процентиль PnL',
+  medianWinLossRatio: 'Мед. прибыль / |мед. убыток|',
+  valueAtRisk: '95% дневной VaR в $',
+  cvar: 'Ожидаемый хвостовой убыток ($)',
+  expectedShortfall: 'CVaR / начальный депозит',
+  mae: 'Среднее движение против сделки',
+  mfe: 'Среднее движение в пользу сделки',
+  maeMfeRatio: 'Неблагоприятное / благоприятное',
+  zScore: 'Случайность серий (Z)',
+  runsTest: 'Оценка независимости',
+  monteCarloDrawdown: '500 симуляций DD',
+  monteCarloRiskOfRuin: '500 симуляций риска истощения',
+  monteCarloExpectedReturn: 'Средняя доходность 500 симуляций',
+  bootstrapConfidenceInterval: '95% ДИ среднего PnL ($)',
+  ciExpectedValue: '95% ДИ EV ($)',
+  ciWinRate: '95% нормальный ДИ',
+  bayesianWinRate: 'Оценка с Beta(1,1) prior',
+  bayesianExpectedValue: 'Сглаженное среднее ($)',
+  kellyCriterion: 'Полный Kelly %',
+  fractionalKelly: 'Половина Kelly %',
+  optimalF: 'Доля капитала Ralph Vince',
+  sqn: 'System Quality Number',
+  tTest: 'T-статистика (t)',
+  pValue: 'Двусторонняя значимость',
+  informationRatio: 'Активная доходность / tracking error',
+  treynorRatio: 'Избыточная доходность / beta',
+  jensensAlpha: 'Избыточная alpha CAPM',
+  betaToBenchmark: 'Системная рыночная beta',
+  alphaToBenchmark: 'Абсолютное превосходство',
+  returnAutocorrelation: 'Серийная корреляция lag-1 (ρ)',
+  volatilityClustering: 'Автокорр. абсолютного PnL (γ)',
+  hurstExponent: 'Долгая память (H)',
+  regimeStabilityScore: 'Структурная инвариантность',
+  rollingSharpe: 'Sharpe окно 10 сделок',
+  rollingProfitFactor: 'PF окно 10 сделок',
+  rollingExpectancy: 'EV окно 10 сделок ($)',
+  rollingDrawdown: 'DD окно 10 сделок',
+  rollingWinRate: 'Win% окно 10 сделок',
+  strategyDecayRate: 'Наклон регрессии Sharpe',
+  edgeHalfLife: 'Месяцы до истощения edge',
+  outlierImpactRatio: '% PnL от топ-5% сделок',
+  distributionRobustness: 'Композитная оценка (0-100)'
 }
 
 const formatMetricLabel = (label: string) => label.replaceAll('_', ' ')
@@ -1924,6 +2027,11 @@ export function useEquityCurveMetricsPanel() {
     return cfg.desc
   }
 
+  const metricDisplaySub = (cfg: MetricConfig) => {
+    if (locale.value === 'ru') return metricSubRuByKey[cfg.key] || cfg.sub
+    return cfg.sub
+  }
+
   const saveMetricsLayout = async () => {
     await saveToDisk('custom_metrics_layout_v1', activeMetricKeys.value)
   }
@@ -1959,6 +2067,7 @@ export function useEquityCurveMetricsPanel() {
         cfg.label.replaceAll('_', '').toLowerCase().includes(q) || 
         cfg.label.toLowerCase().includes(q) || 
         metricDisplayDesc(cfg).toLowerCase().includes(q) ||
+        metricDisplaySub(cfg).toLowerCase().includes(q) ||
         cfg.sub.toLowerCase().includes(q) || 
         cfg.formula.toLowerCase().includes(q);
       return matchesCategory && matchesSearch;
@@ -2831,7 +2940,7 @@ export function useEquityCurveMetricsPanel() {
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.font = '30px monospace'
-    ctx.fillText(cfg.sub, 0, 130)
+    ctx.fillText(metricDisplaySub(cfg), 0, 130)
   }
 
   const drawMetricsPanel = (params: {
@@ -3127,6 +3236,7 @@ export function useEquityCurveMetricsPanel() {
     activeMetricsConfigs,
     metricDisplayLabel,
     metricDisplayDesc,
+    metricDisplaySub,
     saveMetricsLayout,
     loadMetricsLayout,
     toggleMetric,

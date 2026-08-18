@@ -32,15 +32,24 @@ pub struct BybitSignedRequestOutput {
 }
 
 #[tauri::command]
-pub async fn bybit_signed_request(input: BybitSignedRequestInput) -> Result<BybitSignedRequestOutput, String> {
-    let method = input.method.unwrap_or_else(|| "GET".to_string()).to_uppercase();
-    let base_url = input.credentials.base_url.as_deref().unwrap_or(BYBIT_BASE_URL);
+pub async fn bybit_signed_request(
+    input: BybitSignedRequestInput,
+) -> Result<BybitSignedRequestOutput, String> {
+    let method = input
+        .method
+        .unwrap_or_else(|| "GET".to_string())
+        .to_uppercase();
+    let base_url = input
+        .credentials
+        .base_url
+        .as_deref()
+        .unwrap_or(BYBIT_BASE_URL);
     let params = input.params.unwrap_or_default();
-    
+
     let timestamp = current_timestamp_ms()?.to_string();
     let recv_window = "5000";
     let api_key = &input.credentials.api_key;
-    
+
     let (query_string, body_string, final_url) = if method == "GET" || method == "DELETE" {
         let qs = to_query_string(&params);
         let url = if qs.is_empty() {
@@ -50,25 +59,41 @@ pub async fn bybit_signed_request(input: BybitSignedRequestInput) -> Result<Bybi
         };
         (qs, String::new(), url)
     } else {
-        let body = if params.is_empty() { String::new() } else { serde_json::to_string(&params).unwrap_or_default() };
+        let body = if params.is_empty() {
+            String::new()
+        } else {
+            serde_json::to_string(&params).unwrap_or_default()
+        };
         let url = format!("{}{}", base_url.trim_end_matches('/'), input.path);
         (String::new(), body, url)
     };
-    
+
     let payload_to_sign = if method == "GET" || method == "DELETE" {
         format!("{}{}{}{}", timestamp, api_key, recv_window, query_string)
     } else {
         format!("{}{}{}{}", timestamp, api_key, recv_window, body_string)
     };
-    
+
     let signature = create_signature(&payload_to_sign, &input.credentials.api_secret)?;
 
     let mut headers = HeaderMap::new();
-    headers.insert("X-BAPI-API-KEY", HeaderValue::from_str(api_key).map_err(|err| err.to_string())?);
-    headers.insert("X-BAPI-TIMESTAMP", HeaderValue::from_str(&timestamp).map_err(|err| err.to_string())?);
-    headers.insert("X-BAPI-RECV-WINDOW", HeaderValue::from_str(recv_window).map_err(|err| err.to_string())?);
-    headers.insert("X-BAPI-SIGN", HeaderValue::from_str(&signature).map_err(|err| err.to_string())?);
-    
+    headers.insert(
+        "X-BAPI-API-KEY",
+        HeaderValue::from_str(api_key).map_err(|err| err.to_string())?,
+    );
+    headers.insert(
+        "X-BAPI-TIMESTAMP",
+        HeaderValue::from_str(&timestamp).map_err(|err| err.to_string())?,
+    );
+    headers.insert(
+        "X-BAPI-RECV-WINDOW",
+        HeaderValue::from_str(recv_window).map_err(|err| err.to_string())?,
+    );
+    headers.insert(
+        "X-BAPI-SIGN",
+        HeaderValue::from_str(&signature).map_err(|err| err.to_string())?,
+    );
+
     if method == "POST" {
         headers.insert("Content-Type", HeaderValue::from_static("application/json"));
     }
@@ -79,7 +104,7 @@ pub async fn bybit_signed_request(input: BybitSignedRequestInput) -> Result<Bybi
         "DELETE" => client.delete(&final_url),
         _ => client.get(&final_url),
     };
-    
+
     if method == "POST" && !body_string.is_empty() {
         request_builder = request_builder.body(body_string);
     }
@@ -89,13 +114,13 @@ pub async fn bybit_signed_request(input: BybitSignedRequestInput) -> Result<Bybi
         .send()
         .await
         .map_err(|err| format!("Bybit network request failed: {}", err))?;
-        
+
     let status = response.status().as_u16();
     let text = response
         .text()
         .await
         .map_err(|err| format!("Bybit response read failed: {}", err))?;
-        
+
     let payload = serde_json::from_str::<Value>(&text).unwrap_or_else(|_| Value::String(text));
 
     if status >= 400 {
@@ -105,7 +130,7 @@ pub async fn bybit_signed_request(input: BybitSignedRequestInput) -> Result<Bybi
             .unwrap_or("Bybit request failed");
         return Err(format!("{} ({})", message, status));
     }
-    
+
     if let Some(ret_code) = payload.get("retCode").and_then(Value::as_i64) {
         if ret_code != 0 {
             let message = payload
@@ -163,7 +188,7 @@ fn to_query_string(params: &HashMap<String, Value>) -> String {
         .filter(|(_, value)| !value.is_empty())
         .map(|(key, value)| format!("{}={}", percent_encode(key), percent_encode(&value)))
         .collect();
-        
+
     pairs.sort();
     pairs.join("&")
 }

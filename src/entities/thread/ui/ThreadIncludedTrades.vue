@@ -115,7 +115,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import EntryDetailsModal from '@/widgets/diary/ui/EntryDetailsModal.vue';
+import EntryDetailsModal from '@/widgets/diary/ui/modals/EntryDetailsModal.vue';
 import { normalizeDate } from '~/composables/normalizeDate';
 
 const props = defineProps({ trades: Array });

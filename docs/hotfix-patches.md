@@ -45,6 +45,22 @@ npm run hotfix:package -- \
   --out dist/hotfix/JLJ-1.0.4-hotfix.1.jljpatch
 ```
 
+For production, use the Tauri signer key that matches
+`src-tauri/tauri.conf.json.pub`:
+
+```bash
+npm run hotfix:package -- \
+  --base-version 1.0.4 \
+  --patch-id 1.0.4-hotfix.1 \
+  --to-patch-level hotfix.1 \
+  --platform windows-x64,macos-universal \
+  --base-dir artifacts/1.0.4/public \
+  --fixed-dir .output/public \
+  --tauri-signer-key-path .secrets/hotfix/jlj-hotfix.key \
+  --tauri-signer-password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" \
+  --out dist/hotfix/JLJ-1.0.4-hotfix.1.jljpatch
+```
+
 `--base-dir` should point to the original `.output/public` for the public base
 version. If it is omitted, every file in `--fixed-dir` is packaged as a replace
 operation.
@@ -93,9 +109,8 @@ Pass `--extra-payload-dir path/to/payload` so those files are included under
 
 Required:
 
-- `MINISIGN_PRIVATE_KEY`: private key text or path material used by the workflow
-  to sign `manifest.json`.
-- `MINISIGN_PRIVATE_KEY_PASSWORD`: if the key is password-protected.
+- `HOTFIX_PRIVATE_KEY`: contents of `.secrets/hotfix/jlj-hotfix.key`.
+- `HOTFIX_PRIVATE_KEY_PASSWORD`: contents of `.secrets/hotfix/jlj-hotfix.password`.
 - Existing Tauri release secrets for full app releases remain unchanged.
 
 Never commit private signing keys. `*.key`, `*.minisig`, and `.hotfix-work/` are

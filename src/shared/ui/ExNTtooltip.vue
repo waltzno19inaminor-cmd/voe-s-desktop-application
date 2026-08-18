@@ -1,9 +1,8 @@
 <template>
-  <div 
+  <div
     class="relative inline-block"
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
-    @mousemove="handleMouseMove"
     ref="triggerRef"
   >
     <!-- Trigger -->
@@ -28,7 +27,8 @@
             </div>
           </div>
           <!-- Tooltip Stem -->
-          <div class="theme-tooltip-stem w-3 h-3 border-r border-b rotate-45 absolute -bottom-1.5 left-1/2 -translate-x-1/2"
+          <div class="theme-tooltip-stem absolute h-3 w-3"
+               :class="stemClass"
                :style="stemStyle"></div>
         </div>
       </Transition>
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue'
 
 const props = defineProps<{
   title?: string
@@ -45,15 +45,49 @@ const props = defineProps<{
 }>()
 
 const isVisible = ref(false)
-const mousePos = ref({ x: 0, y: 0 })
 const triggerRef = ref<HTMLElement | null>(null)
 const tooltipRef = ref<HTMLElement | null>(null)
-const horizontalOffset = ref(0)
+const tooltipPosition = ref<{ left: number, top: number, stemLeft: number, placement: 'top' | 'bottom' }>({
+  left: 0,
+  top: 0,
+  stemLeft: 0,
+  placement: 'top'
+})
+const viewportPadding = 20
+const tooltipGap = 24
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+const positionTooltip = () => {
+  const trigger = triggerRef.value
+  if (!trigger || typeof window === 'undefined') return
+
+  const triggerRect = trigger.getBoundingClientRect()
+  const tooltipRect = tooltipRef.value?.getBoundingClientRect()
+  const tooltipWidth = tooltipRect?.width || 450
+  const tooltipHeight = tooltipRect?.height || 160
+  const triggerCenterX = triggerRect.left + triggerRect.width / 2
+  const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipWidth - viewportPadding)
+  const left = clamp(triggerCenterX - tooltipWidth / 2, viewportPadding, maxLeft)
+  const preferredTop = triggerRect.top - tooltipHeight - tooltipGap
+  const fallbackTop = triggerRect.bottom + tooltipGap
+  const maxTop = Math.max(viewportPadding, window.innerHeight - tooltipHeight - viewportPadding)
+  const top = clamp(preferredTop >= viewportPadding ? preferredTop : fallbackTop, viewportPadding, maxTop)
+  const placement = top > triggerRect.top ? 'bottom' : 'top'
+
+  tooltipPosition.value = {
+    left: Math.round(left),
+    top: Math.round(top),
+    stemLeft: Math.round(clamp(triggerCenterX - left, 12, tooltipWidth - 12)),
+    placement
+  }
+}
 
 const handleMouseEnter = () => {
   if (props.disabled) return
+  positionTooltip()
   isVisible.value = true
-  horizontalOffset.value = 0
+  nextTick(positionTooltip)
 }
 
 const handleMouseLeave = () => {
@@ -64,57 +98,46 @@ watch(() => props.disabled, (disabled) => {
   if (disabled) isVisible.value = false
 })
 
-const handleMouseMove = (e: MouseEvent) => {
-  if (props.disabled) {
-    isVisible.value = false
-    return
-  }
-  mousePos.value = { x: e.clientX, y: e.clientY }
-  
-  if (isVisible.value) {
-    nextTick(() => {
-      if (tooltipRef.value) {
-        const rect = tooltipRef.value.getBoundingClientRect()
-        const padding = 20
-        
-        let offset = 0
-        if (rect.left < padding) {
-          offset = padding - rect.left
-        } else if (rect.right > window.innerWidth - padding) {
-          offset = (window.innerWidth - padding) - rect.right
-        }
-        
-        horizontalOffset.value += offset
-      }
-    })
-  }
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', positionTooltip, { passive: true })
+  window.addEventListener('scroll', positionTooltip, { passive: true })
 }
+
+onBeforeUnmount(() => {
+  if (typeof window === 'undefined') return
+  window.removeEventListener('resize', positionTooltip)
+  window.removeEventListener('scroll', positionTooltip)
+})
 
 const tooltipStyle = computed(() => {
   return {
-    left: `${mousePos.value.x + horizontalOffset.value}px`,
-    top: `${mousePos.value.y}px`,
-    transform: 'translate(-50%, -100%) translateY(-24px)',
-    transition: 'left 0.1s ease-out'
+    left: `${tooltipPosition.value.left}px`,
+    top: `${tooltipPosition.value.top}px`
   }
 })
 
 const stemStyle = computed(() => {
   return {
-    left: `calc(50% - ${horizontalOffset.value}px)`
+    left: `${tooltipPosition.value.stemLeft}px`,
+    transform: 'translateX(-50%) rotate(45deg)'
   }
+})
+
+const stemClass = computed(() => {
+  return tooltipPosition.value.placement === 'bottom'
+    ? '-top-1.5 border-l border-t'
+    : '-bottom-1.5 border-r border-b'
 })
 </script>
 
 <style scoped>
 .nt-tooltip-fade-enter-active,
 .nt-tooltip-fade-leave-active {
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.18s ease-out;
 }
 
 .nt-tooltip-fade-enter-from,
 .nt-tooltip-fade-leave-to {
   opacity: 0;
-  transform: translate(-50%, -100%) translateY(-10px) scale(0.95);
 }
 </style>

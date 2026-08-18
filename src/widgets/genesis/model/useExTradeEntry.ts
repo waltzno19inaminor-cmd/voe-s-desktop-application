@@ -7,15 +7,14 @@ import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import ExText from '~/shared/ui/ExText.vue'
-import ExEquityCurve2D from '~/widgets/genesis/ui/ExEquityCurve2D.vue'
+import ExEquityCurve2D from '~/widgets/genesis/ui/analytics/ExEquityCurve2D.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
-import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
-import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
+
 
 export function useExTradeEntry(props, emit) {
 
@@ -29,6 +28,39 @@ const isDark = computed(() => themeStore?.settings?.isDark ?? false)
 // View Toggle
 const viewMode = ref('tactical') // 'tactical' or 'journal'
 const journalEntries = ref([])
+
+const normalizeJournalImage = (image, index = 0) => {
+  const source = typeof image === 'string' ? { url: image } : (image || {})
+  const url = source.url || source.image || source.src || ''
+  return {
+    id: source.id || `${Date.now()}-${index}`,
+    image: url,
+    name: source.name || '',
+    tags: Array.isArray(source.tags) ? [...source.tags] : [],
+    tagInput: '',
+    createdAt: source.createdAt || source.timestamp || source.date || new Date().toISOString(),
+    context: source.context || ''
+  }
+}
+
+const normalizeTradeNote = (note, index = 0) => {
+  if (typeof note === 'string') {
+    return {
+      id: `note-${Date.now()}-${index}`,
+      content: note,
+      date: new Date().toISOString(),
+      title: `SESSION_LOG_${index + 1}`
+    }
+  }
+
+  return {
+    id: note?.id || `note-${Date.now()}-${index}`,
+    content: note?.content || note?.text || '',
+    html: note?.html || '',
+    date: note?.date || note?.createdAt || note?.timestamp || new Date().toISOString(),
+    title: note?.title || `SESSION_LOG_${index + 1}`
+  }
+}
 
 const getArchiveNodeName = (id) => `Archive_Node_${id.toString(16).toUpperCase().slice(-6)}`
 
@@ -58,7 +90,7 @@ const addJournalEntry = () => {
   journalEntries.value.push({
     id,
     image: null,
-    name: getArchiveNodeName(id),
+    name: '',
     tags: [],
     tagInput: '',
     createdAt: new Date().toISOString()
@@ -169,25 +201,28 @@ const selectAsset = (a) => {
 const matrixNodes = ref([])
 const matrixConnections = ref([])
 const matrixZones = ref([])
-const isMatrixLoading = ref(true)
+const isMatrixLoading = ref(false)
 
 const loadMatrixData = async () => {
-  isMatrixLoading.value = true
-  try {
-    const data = await loadFromDisk('genesis_matrix_v2')
-    if (data && data.nodes) {
-      matrixNodes.value = data.nodes
-      matrixConnections.value = data.connections || []
-      matrixZones.value = data.zones || []
-    }
-  } catch (err) {
-    console.error('Failed to load matrix data:', err)
-  } finally {
-    isMatrixLoading.value = false
-  }
+  matrixNodes.value = []
+  matrixConnections.value = []
+  matrixZones.value = []
+  isMatrixLoading.value = false
 }
 
+// Default to Main Diary only unless cores are provided
 const tradeStore = useStrategyTradesStore()
+
+const strategies = computed(() => tradeStore.strategies)
+
+const selectedStrategyId = computed({
+  get: () => tradeStore.selectedStrategyId,
+  set: (val) => { tradeStore.selectedStrategyId = val }
+})
+const selectedStrategy = computed(() => {
+  const s = tradeStore.strategies.find(s => s.id === selectedStrategyId.value)
+  return s || tradeStore.strategies[0] || { id: 'MAIN_DIARY', name: 'MAIN_DIARY' }
+})
 
 const findAllNodes = (nodes) => {
   let list = []
@@ -225,30 +260,6 @@ const findNodeById = (list, id) => {
   return null
 }
 
-const isGhostStrategy = (strategy) => {
-  const id = String(strategy?.id || '').trim().toLowerCase()
-  const name = String(strategy?.name || '').trim().toLowerCase()
-  return id === 'strategy' || name === 'strategy'
-}
-
-const strategies = computed(() => tradeStore.strategies.filter(s => !isGhostStrategy(s)))
-
-const selectedStrategyId = computed({
-  get: () => {
-    const available = strategies.value
-    const current = tradeStore.selectedStrategyId
-    if (available.some(s => s.id === current)) return current
-    return available[0]?.id || 'MAIN_DIARY'
-  },
-  set: (val) => {
-    if (val) tradeStore.selectedStrategyId = val
-  }
-})
-
-const selectedStrategy = computed(() => {
-  return strategies.value.find(s => s.id === selectedStrategyId.value) || strategies.value[0] || { id: 'MAIN_DIARY', name: 'Main Diary' }
-})
-
 const activeRiskManagement = computed(() => {
   const allNodes = findAllNodes(matrixNodes.value)
   const allConnections = findAllConnections(matrixNodes.value, matrixConnections.value)
@@ -266,7 +277,8 @@ const currentCapital = computed(() => {
       const tradeExitTime = new Date(t?.dateExit || t?.exitTime || t?.date || 0).getTime()
       return Number.isFinite(tradeExitTime) && tradeExitTime > 0 && tradeExitTime < referenceOpenTime
     })
-  const totalPnl = historical.reduce((acc, t) => acc + getTradeCashPnl(t, initialDeposit), 0)
+  const totalPnl = historical
+    .reduce((acc, t) => acc + getTradeCashPnl(t, initialDeposit), 0)
   return initialDeposit + totalPnl
 })
 
@@ -329,6 +341,9 @@ const getNodeZoneType = (targetId, currentNodes, currentZones) => {
   return null
 }
 
+const SYSTEM_EXIT_SCENARIO_ID = 'default-exit-system'
+const SYSTEM_EXIT_PROTOCOL_IDS = ['cond-exit-tp', 'cond-exit-sl', 'cond-exit-fl']
+
 const showStrategyMenu = ref(false)
 
 const failedIcons = ref(new Set())
@@ -349,9 +364,9 @@ onMounted(() => {
     }
   } catch (e) {}
   window.addEventListener('click', closeAssetMenu)
-  loadMatrixData()
   tradeStore.init()
 
+  isHydratingInitialTrade.value = Boolean(props.initialTrade)
   if (props.initialTrade) {
     const t = props.initialTrade
     if (t.strategyId) {
@@ -369,37 +384,44 @@ onMounted(() => {
       const usesExitMethod = exitExecs.length > 1 || exitExecs.some(e => String(e?.label || '').toUpperCase() !== 'SINGLE')
       
       if (usesEntryMethod) {
-        entryMethodEnabled.value = true
-        activeProtocolTab.value = 'PYRAMIDING'
-        entryMethodType.value = 'PYRAMIDING'
-        pyramidingEntries.value = entryExecs.map(e => ({
+        const entryMethodLabel = String(entryExecs.find(e => String(e?.label || '').toUpperCase() !== 'SINGLE')?.label || '').toUpperCase().replace(/\s+/g, '_')
+        const storedEntryMethodType = String(t.entryMethodType || '').toUpperCase().replace(/\s+/g, '_')
+        const restoredEntryMethodType = ['PYRAMIDING', 'AVERAGING_DOWN'].includes(storedEntryMethodType)
+          ? storedEntryMethodType
+          : (entryMethodLabel === 'AVERAGING_DOWN' || entryMethodLabel === 'AVERAGING'
+            ? 'AVERAGING_DOWN'
+            : 'PYRAMIDING')
+        const restoredEntries = entryExecs.map(e => ({
+          id: e.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           price: e.price,
           size: e.size,
           fee: e.fee || 0
         }))
+        entryMethodType.value = restoredEntryMethodType
+        activeProtocolTab.value = restoredEntryMethodType
+        if (restoredEntryMethodType === 'AVERAGING_DOWN') averagingDownEntries.value = restoredEntries
+        else pyramidingEntries.value = restoredEntries
       } else {
-        entryMethodEnabled.value = false
         entry.value = entryExecs[0]?.price || t.entry || ''
         size.value = entryExecs[0]?.size || t.size || ''
         entryFee.value = t.entryFee || ''
       }
       
       if (usesExitMethod) {
-        exitMethodEnabled.value = true
+        exitEntriesSizeLinked.value = false
         exitEntries.value = exitExecs.map(e => ({
+          id: e.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           price: e.price,
           size: e.size,
           fee: e.fee || 0,
           reason: e.reason || 'MANUAL'
         }))
       } else {
-        exitMethodEnabled.value = false
+        exitEntriesSizeLinked.value = true
         exit.value = exitExecs[0]?.price || t.exit || ''
         exitFee.value = t.exitFee || ''
       }
     } else {
-      entryMethodEnabled.value = false
-      exitMethodEnabled.value = false
       entry.value = t.entry || ''
       exit.value = t.exit || ''
       size.value = t.size || ''
@@ -408,42 +430,38 @@ onMounted(() => {
     }
 
     feeType.value = t.feeType || '%'
+    const storedResultMode = String(t.resultMode || '').toLowerCase()
+    if (storedResultMode === 'manual' && t.profitInCurrency !== undefined && t.profitInCurrency !== null) {
+      resultMode.value = 'manual'
+      overridePnl.value = t.profitInCurrency
+    } else {
+      resultMode.value = 'auto'
+      overridePnl.value = null
+    }
     stopLoss.value = t.stopLoss || ''
     takeProfit.value = t.takeProfit || ''
     tradeTimeZone.value = t.timeZone || t.timezone || detectUserTimeZone()
     openDate.value = t.date ? new Date(t.date) : new Date()
     exitDate.value = t.dateExit ? new Date(t.dateExit) : new Date()
     selectedEmotions.value = Array.isArray(t.emotions) ? [...t.emotions] : []
+    hydrateTradeStudyMetrics(t.tradeStudyMetrics || t.studyMetrics)
 
-    if (t.images && Array.isArray(t.images)) {
-      journalEntries.value = t.images.map((img, index) => ({
-        id: Date.now() + index,
-        image: img.url,
-        name: img.name,
-        tags: img.tags || [],
-        tagInput: '',
-        createdAt: img.createdAt || new Date().toISOString()
-      }))
-    }
+    const storedImages = Array.isArray(t.images)
+      ? t.images
+      : (Array.isArray(t.journalEntries)
+        ? t.journalEntries
+        : (Array.isArray(t.visuals) ? t.visuals : (Array.isArray(t.attachments) ? t.attachments : [])))
+    journalEntries.value = storedImages
+      .map((img, index) => normalizeJournalImage(img, index))
+      .filter(entry => Boolean(entry.image))
 
-    // Reconstruct active conditions
-    const reconstructConditions = (scenario) => {
-      const conds = scenario?.info?.conditions || scenario?.conditions
-      if (!conds) return
-      conds.forEach(cond => {
-        if (cond.indicatorUnits) {
-          cond.indicatorUnits.forEach(unit => {
-            if (unit.type === 'bundle') unit.items?.forEach(i => activeConditions.value.add(i.id))
-            else if (unit.type === 'single' && unit.item) activeConditions.value.add(unit.item.id)
-          })
-        } else if (cond.id) {
-          activeConditions.value.add(cond.id)
-        }
-      })
-    }
-    reconstructConditions(t.boardScenarioEntry)
-    reconstructConditions(t.boardScenarioExit)
+    const storedNotes = Array.isArray(t.notesList)
+      ? t.notesList
+      : (Array.isArray(t.notes) ? t.notes : (typeof t.notes === 'string' && t.notes.trim() ? [t.notes] : []))
+    notesList.value = storedNotes.map((note, index) => normalizeTradeNote(note, index))
+
   }
+  isHydratingInitialTrade.value = false
 })
 
 const selectedScenarioNode = computed(() => {
@@ -482,7 +500,7 @@ const DEFAULT_ENTRY_CONDITIONS = []
 const DEFAULT_ENTRY_SCENARIOS = []
 const DEFAULT_EXIT_CONDITIONS = []
 const DEFAULT_EXIT_SCENARIOS = [
-  { id: 'default-exit-system', label: 'SYSTEM_PROTOCOLS', params: { customName: 'SYSTEM_PROTOCOLS', phase: 'EXIT' }, isMini: true }
+  { id: SYSTEM_EXIT_SCENARIO_ID, label: 'SYSTEM_PROTOCOLS', params: { customName: 'SYSTEM_PROTOCOLS', phase: 'EXIT' }, isMini: true }
 ]
 
 const entryConditions = computed(() => {
@@ -580,18 +598,50 @@ const mismatchedNodeIds = computed(() => {
 const hasVectorMismatch = computed(() => mismatchedNodeIds.value.size > 0)
 
 const activeConditions = ref(new Set())
+const activeConditionScenarioIds = ref(new Map())
+const isConditionActive = (id, scenarioId = null) => {
+  if (!activeConditions.value.has(id)) return false
+  if (!scenarioId) return true
+
+  const activeScenarioIds = activeConditionScenarioIds.value.get(id)
+  return !activeScenarioIds?.size || activeScenarioIds.has(scenarioId)
+}
+
 const toggleCondition = (id, scenarioId = null) => {
   if (mismatchedNodeIds.value.has(id)) return
 
   // 1. Identify which scenario this condition belongs to
   const targetScenarioId = scenarioId || selectedRegistryScenarioId.value
+  if (targetScenarioId) selectedRegistryScenarioId.value = targetScenarioId
+
+  const activateCondition = (conditionId) => {
+    activeConditions.value.add(conditionId)
+    if (targetScenarioId) {
+      const scenarioIds = activeConditionScenarioIds.value.get(conditionId) || new Set()
+      scenarioIds.add(targetScenarioId)
+      activeConditionScenarioIds.value.set(conditionId, scenarioIds)
+    }
+  }
+  const deactivateCondition = (conditionId, scenarioToRemove = targetScenarioId) => {
+    const scenarioIds = activeConditionScenarioIds.value.get(conditionId)
+    if (scenarioToRemove && scenarioIds?.size) {
+      scenarioIds.delete(scenarioToRemove)
+      if (scenarioIds.size > 0) {
+        activeConditionScenarioIds.value.set(conditionId, scenarioIds)
+        return
+      }
+    }
+
+    activeConditions.value.delete(conditionId)
+    activeConditionScenarioIds.value.delete(conditionId)
+  }
 
   // 2. Scenario Exclusivity Logic: Clear conditions from other scenarios of the same type
   if (targetScenarioId) {
     const getScenarioType = (scenId) => {
       if (!scenId) return 'ENTRY'
       const strId = String(scenId)
-      if (strId === 'default-exit-system') return 'SYSTEM_EXIT'
+      if (strId === SYSTEM_EXIT_SCENARIO_ID) return 'SYSTEM_EXIT'
       if (strId.includes('-entry-')) return 'ENTRY'
       if (strId.includes('-exit-')) return 'EXIT'
       const node = findNodeById(matrixNodes.value, scenId)
@@ -607,66 +657,102 @@ const toggleCondition = (id, scenarioId = null) => {
     allScens.forEach(s => {
       if (s.id !== targetScenarioId && getScenarioType(s.id) === targetType) {
         const conds = getActiveConditionsInScenario(s.id)
-        conds.forEach(cid => activeConditions.value.delete(cid))
+        conds.forEach(cid => deactivateCondition(cid, s.id))
       }
     })
   }
 
   // 3. Normal Toggle Logic
-  const systemProtocolIds = ['cond-exit-tp', 'cond-exit-sl', 'cond-exit-fl']
-  if (systemProtocolIds.includes(id)) {
-    if (activeConditions.value.has(id)) {
-      activeConditions.value.delete(id)
+  if (SYSTEM_EXIT_PROTOCOL_IDS.includes(id)) {
+    if (isConditionActive(id, targetScenarioId)) {
+      deactivateCondition(id)
     } else {
-      systemProtocolIds.forEach(rid => activeConditions.value.delete(rid))
-      activeConditions.value.add(id)
+      SYSTEM_EXIT_PROTOCOL_IDS.forEach(rid => deactivateCondition(rid, null))
+      activateCondition(id)
     }
     return
   }
 
-  // Find bundle context
-  let targetBundle = null
-  for (const cond of currentRegistryScenarioConditions.value) {
-    if (cond.indicatorUnits) {
-      for (const unit of cond.indicatorUnits) {
-        if (unit.type === 'bundle' && unit.items?.some(i => i.id === id)) {
-          targetBundle = unit
-          break
-        }
-      }
-    }
-    if (targetBundle) break
-  }
-
-  const isCurrentlyActive = activeConditions.value.has(id)
-
-  if (targetBundle) {
-    const itemIds = targetBundle.items.map(i => i.id)
-    const logic = targetBundle.logic?.toUpperCase()
-
-    if (logic === 'OR') {
-      if (isCurrentlyActive) {
-        activeConditions.value.delete(id)
-      } else {
-        itemIds.forEach(iid => activeConditions.value.delete(iid))
-        activeConditions.value.add(id)
-      }
-    } else if (logic === 'AND') {
-      if (isCurrentlyActive) {
-        itemIds.forEach(iid => activeConditions.value.delete(iid))
-      } else {
-        itemIds.forEach(iid => activeConditions.value.add(iid))
-      }
-    } else {
-      isCurrentlyActive ? activeConditions.value.delete(id) : activeConditions.value.add(id)
-    }
-  } else {
-    isCurrentlyActive ? activeConditions.value.delete(id) : activeConditions.value.add(id)
-  }
+  const isCurrentlyActive = isConditionActive(id, targetScenarioId)
+  isCurrentlyActive ? deactivateCondition(id) : activateCondition(id)
 }
 
+const showConditionLibrary = ref(false)
 const showEmotionSelector = ref(false)
 const registrySearchQuery = ref('')
+const libraryFilter = ref('ALL') // 'ALL', 'ENTRY', 'EXIT'
+
+const filteredLibraryScenarios = computed(() => {
+  const all = [...entryScenarios.value, ...exitScenarios.value]
+  return all.filter(s => {
+    const isTypeMatch = libraryFilter.value === 'ALL' || 
+                        (libraryFilter.value === 'ENTRY' && entryScenarios.value.some(e => e.id === s.id)) || 
+                        (libraryFilter.value === 'EXIT' && exitScenarios.value.some(e => e.id === s.id));
+    const isSearchMatch = !registrySearchQuery.value || 
+                          (s.params?.customName || s.label).toLowerCase().includes(registrySearchQuery.value.toLowerCase());
+    
+    if (!isTypeMatch || !isSearchMatch) return false;
+    if (libraryFilter.value === 'ALL') return true;
+
+    // Filter by direction for Entry/Exit tabs
+    const tradeSide = side.value.toLowerCase();
+    const nodeDir = (s.params?.direction || 'NONE').toLowerCase();
+    return nodeDir === 'none' || nodeDir === tradeSide;
+  })
+})
+
+const flatLibraryConditions = computed(() => {
+  const allScenarios = [...entryScenarios.value, ...exitScenarios.value]
+  const allConds = []
+  const seenKeys = new Set()
+  
+  allScenarios.forEach(scen => {
+    const nodeDir = (scen.params?.direction || 'NONE').toUpperCase();
+    const tradeSide = side.value.toUpperCase();
+    const isMismatched = nodeDir !== 'NONE' && nodeDir !== tradeSide;
+    const scenarioName = String(scen.params?.customName || scen.label || scen.id).toUpperCase();
+    const isDefaultScenario = String(scen.id).startsWith('default-');
+
+    const pushCondition = (condition) => {
+      if (!condition?.id) return;
+      const scopedKey = `${scen.id}:${condition.id}`;
+      if (seenKeys.has(scopedKey)) return;
+
+      const conditionName = condition.name || condition.label || '';
+      const tooltipName = isDefaultScenario ? conditionName : `${conditionName} (${scenarioName})`;
+      const isSearchMatch = !registrySearchQuery.value ||
+        tooltipName.toLowerCase().includes(registrySearchQuery.value.toLowerCase());
+
+      if (!isSearchMatch) return;
+
+      allConds.push({
+        ...condition,
+        id: condition.id,
+        name: conditionName,
+        tooltipName,
+        scenarioName,
+        isDefaultScenario,
+        isMismatched,
+        scenarioId: scen.id
+      });
+      seenKeys.add(scopedKey);
+    };
+
+    getScenarioConditions(scen.id).forEach(c => {
+      if (c.indicatorUnits) {
+        c.indicatorUnits.forEach(unit => {
+          const items = unit.type === 'bundle' ? unit.items : [unit.item];
+          items.forEach(item => {
+            pushCondition(item ? { ...item, name: item.label } : null);
+          })
+        })
+      } else {
+        pushCondition(c);
+      }
+    })
+  })
+  return allConds
+})
 const selectedRegistryScenarioId = ref(null)
 let hoverTimeout = null
 
@@ -690,15 +776,15 @@ const getActiveConditionsInScenario = (scenarioId) => {
   const conditions = getScenarioConditions(scenarioId)
   const activeIds = []
   conditions.forEach(cond => {
-    if (activeConditions.value.has(cond.id)) activeIds.push(cond.id)
+    if (isConditionActive(cond.id, scenarioId)) activeIds.push(cond.id)
     if (cond.indicatorUnits) {
       cond.indicatorUnits.forEach(unit => {
         if (unit.type === 'bundle') {
           unit.items?.forEach(i => {
-            if (activeConditions.value.has(i.id)) activeIds.push(i.id)
+            if (isConditionActive(i.id, scenarioId)) activeIds.push(i.id)
           })
         } else if (unit.type === 'single' && unit.item) {
-          if (activeConditions.value.has(unit.item.id)) activeIds.push(unit.item.id)
+          if (isConditionActive(unit.item.id, scenarioId)) activeIds.push(unit.item.id)
         }
       })
     }
@@ -720,11 +806,11 @@ const getScenarioConditions = (scenarioId) => {
   if (scenarioId.startsWith('default-')) {
     const isEntry = scenarioId.includes('-entry-')
     
-    if (scenarioId === 'default-exit-system') {
+    if (scenarioId === SYSTEM_EXIT_SCENARIO_ID) {
       return [
-        { id: 'cond-exit-tp', name: 'TAKE_PROFIT', description: 'STRATEGIC_PROFIT_CAPTURE_TARGET' },
-        { id: 'cond-exit-sl', name: 'STOP_LOSS', description: 'CAPITAL_PRESERVATION_THRESHOLD' },
-        { id: 'cond-exit-fl', name: 'FULL_LIQUIDATION', description: 'TOTAL_EXPOSURE_TERMINATION' }
+        { id: 'cond-exit-tp', name: 'TAKE-PROFIT', description: 'STRATEGIC_PROFIT_CAPTURE_TARGET' },
+        { id: 'cond-exit-sl', name: 'STOP-LOSS', description: 'CAPITAL_PRESERVATION_THRESHOLD' },
+        { id: 'cond-exit-fl', name: 'FULL-LIQUIDATION', description: 'TOTAL_EXPOSURE_TERMINATION' }
       ]
     }
 
@@ -833,7 +919,7 @@ const getScenarioConditions = (scenarioId) => {
   return tacticalUnits
 }
 
-const getFlattenedScenarioConditions = (scenarioId) => {
+  const getFlattenedScenarioConditions = (scenarioId) => {
   const conds = getScenarioConditions(scenarioId)
   const flattened = []
   const seenIds = new Set()
@@ -869,6 +955,35 @@ const getFlattenedScenarioConditions = (scenarioId) => {
     }
   })
   return flattened
+}
+
+const getScenarioRequiredConditionsSnapshot = (scenarioId) => {
+  if (!scenarioId) return []
+  return getFlattenedScenarioConditions(scenarioId)
+    .filter(c => c?.priority === 'REQUIRED' || c?.info?.priority === 'REQUIRED')
+    .map(c => ({
+      id: c.id,
+      info: {
+        name: (c.name || c.label || c.info?.name || '').toUpperCase(),
+        description: c.description || c.info?.description || '',
+        priority: 'REQUIRED'
+      }
+    }))
+}
+
+const getRequiredConditionsSnapshotForScenarios = (scenarios = []) => {
+  const seen = new Set()
+  const snapshot = []
+
+  scenarios.forEach(scenario => {
+    getScenarioRequiredConditionsSnapshot(scenario?.id).forEach(condition => {
+      if (!condition?.id || seen.has(condition.id)) return
+      seen.add(condition.id)
+      snapshot.push(condition)
+    })
+  })
+
+  return snapshot
 }
 
 // Sector Navigation
@@ -916,6 +1031,11 @@ const getNumberInputSanitizeOptions = (field) => ({
   allowNegative: field === 'overridePnl'
 })
 
+const assignSanitizedNumberInput = (targetRef, rawValue, options = {}) => {
+  if (!targetRef) return
+  targetRef.value = sanitizeDecimalInputValue(rawValue, options)
+}
+
 const getTradeNumberInputRef = (field) => ({
   entry,
   exit,
@@ -936,16 +1056,72 @@ const sanitizeTradeNumberInput = (event, targetRefOrField) => {
     : {}
   const sanitized = sanitizeDecimalInputValue(target?.value ?? '', options)
   if (target && target.value !== sanitized) target.value = sanitized
-
   const targetRef = typeof targetRefOrField === 'string'
     ? getTradeNumberInputRef(targetRefOrField)
     : targetRefOrField
-  if (targetRef) targetRef.value = sanitized
+  assignSanitizedNumberInput(targetRef, sanitized, options)
 }
 
 // Entry & Exit Protocol
 const showEntryMethod = ref(false)
+const showTradeStudyMetrics = ref(false)
 const activeProtocolTab = ref('PYRAMIDING') // 'PYRAMIDING', 'AVERAGING_DOWN', or 'EXIT'
+
+const createTradeStudyMetrics = () => ({
+  maxPriceDuringTrade: '',
+  minPriceDuringTrade: '',
+  priceDroppedBelowEntryLong: false,
+  priceBelowEntryLongMovePercent: '',
+  priceBelowEntryLongDurationDays: '',
+  priceBelowEntryLongDurationHours: '',
+  priceBelowEntryLongDurationMinutes: '',
+  priceBelowEntryLongDurationSeconds: '',
+  priceRoseAboveEntryShort: false,
+  priceAboveEntryShortMovePercent: '',
+  priceAboveEntryShortDurationDays: '',
+  priceAboveEntryShortDurationHours: '',
+  priceAboveEntryShortDurationMinutes: '',
+  priceAboveEntryShortDurationSeconds: '',
+  hadNews: false,
+  generatedInTradeAnalysis: null,
+  generatedMarketData: null
+})
+
+const tradeStudyMetrics = ref(createTradeStudyMetrics())
+
+const persistGeneratedTradeStudyMetrics = async (metrics = tradeStudyMetrics.value) => {
+  const tradeId = props.initialTrade?.id
+  if (!tradeId) return false
+
+  const strategyId = selectedStrategyId.value || 'MAIN_DIARY'
+  const snapshot = JSON.parse(JSON.stringify(metrics || createTradeStudyMetrics()))
+  const currentTrade = tradeStore.getAllTradesForStrategy(strategyId)
+    .find(trade => String(trade?.id || '') === String(tradeId))
+
+  if (!currentTrade) return false
+
+  // Keep the editor object and the persisted store in sync immediately after
+  // chart generation, even before the full trade form is saved.
+  props.initialTrade.tradeStudyMetrics = snapshot
+  await tradeStore.updateTrade(strategyId, tradeId, { tradeStudyMetrics: snapshot })
+  return true
+}
+
+const hydrateTradeStudyMetrics = (metrics = {}) => {
+  const defaults = createTradeStudyMetrics()
+  const normalized = {}
+  Object.keys(defaults).forEach(key => {
+    normalized[key] = metrics?.[key] ?? defaults[key]
+  })
+  tradeStudyMetrics.value = {
+    ...defaults,
+    ...normalized
+  }
+}
+
+const resetTradeStudyMetrics = () => {
+  hydrateTradeStudyMetrics()
+}
 
 // Entry State
 const entryMethodType = ref('PYRAMIDING') // Tracks the active entry calculation mode
@@ -956,7 +1132,67 @@ const activeMultipleEntries = computed(() =>
   entryMethodType.value === 'PYRAMIDING' ? pyramidingEntries.value : averagingDownEntries.value
 )
 
-const entryMethodEnabled = computed(() => activeMultipleEntries.value.length > 1)
+const persistedEntryEntries = computed(() => {
+  if (activeMultipleEntries.value.length > 0) return activeMultipleEntries.value
+  if (pyramidingEntries.value.length > 0) return pyramidingEntries.value
+  return averagingDownEntries.value
+})
+
+const persistedEntryMethodType = computed(() => {
+  if (activeMultipleEntries.value.length > 0) return entryMethodType.value
+  if (pyramidingEntries.value.length > 0) return 'PYRAMIDING'
+  if (averagingDownEntries.value.length > 0) return 'AVERAGING_DOWN'
+  return 'SINGLE'
+})
+
+const hasEntryMethodPositions = computed(() => (
+  pyramidingEntries.value.length > 0 || averagingDownEntries.value.length > 0
+))
+
+const entryMethodEnabled = computed(() => activeMultipleEntries.value.length > 0)
+
+const getEntryMethodPriceViolations = (entries, methodType) => {
+  if (entries.length < 2) return []
+
+  const firstPrice = parseFloat(entries[0]?.price)
+  if (!Number.isFinite(firstPrice) || firstPrice <= 0) return []
+
+  const isPyramiding = methodType === 'PYRAMIDING'
+  return entries.reduce((violations, entryItem, index) => {
+    if (index === 0) return violations
+    const price = parseFloat(entryItem?.price)
+    if (!Number.isFinite(price) || price <= 0) return violations
+
+    const isValid = isPyramiding ? price > firstPrice : price < firstPrice
+    if (!isValid) violations.push(index)
+    return violations
+  }, [])
+}
+
+const entryMethodPriceViolations = computed(() => (
+  getEntryMethodPriceViolations(activeMultipleEntries.value, entryMethodType.value)
+))
+
+const hasPyramidingPriceViolation = computed(() => (
+  getEntryMethodPriceViolations(pyramidingEntries.value, 'PYRAMIDING').length > 0
+))
+
+const hasAveragingDownPriceViolation = computed(() => (
+  getEntryMethodPriceViolations(averagingDownEntries.value, 'AVERAGING_DOWN').length > 0
+))
+
+const hasEntryMethodPriceViolation = computed(() => entryMethodPriceViolations.value.length > 0)
+
+const entryMethodPriceViolationMessage = computed(() => {
+  if (!hasEntryMethodPriceViolation.value) return ''
+  return entryMethodType.value === 'PYRAMIDING'
+    ? (locale.value === 'ru'
+      ? 'Пирамидинг: цена каждой следующей позиции должна быть выше цены первой позиции.'
+      : 'Pyramiding: each subsequent position price must be above the first position price.')
+    : (locale.value === 'ru'
+      ? 'Усреднение: цена каждой следующей позиции должна быть ниже цены первой позиции.'
+      : 'Averaging: each subsequent position price must be below the first position price.')
+})
 
 const hasActiveMethodNode = computed(() => {
   const pType = entryMethodType.value === 'PYRAMIDING' ? 'pyramiding' : 'averaging'
@@ -969,6 +1205,7 @@ const addMultipleEntry = () => {
 
 // Exit State
 const exitEntries = ref([])
+const exitEntriesSizeLinked = ref(true)
 const exitMethodEnabled = computed(() => exitEntries.value.length > 0)
 
 const totalExitSize = computed(() => {
@@ -990,12 +1227,18 @@ const averageExit = computed(() => {
 })
 
 const addExitEntry = () => {
+  if (!isClosed.value) return
   const remaining = Math.max(0, totalSize.value - totalExitSize.value)
   exitEntries.value.push({ id: Date.now(), price: '', size: remaining > 0 ? remaining.toFixed(2) : '' })
 }
 
+const setExitSizeManual = () => {
+  exitEntriesSizeLinked.value = false
+}
+
 const removeExitEntry = (id) => {
   exitEntries.value = exitEntries.value.filter(e => e.id !== id)
+  if (exitEntries.value.length === 0) exitEntriesSizeLinked.value = true
 }
 
 const removeMultipleEntry = (id) => {
@@ -1120,16 +1363,21 @@ const confirmAutoGenerate = () => {
 }
 
 const totalSize = computed(() => {
-  if (!entryMethodEnabled.value || activeMultipleEntries.value.length === 0) return parseFloat(size.value) || 0
-  return activeMultipleEntries.value.reduce((sum, e) => sum + (parseFloat(e.size) || 0), 0)
+  if (!hasEntryMethodPositions.value) return parseFloat(size.value) || 0
+  return persistedEntryEntries.value.reduce((sum, e) => sum + (parseFloat(e.size) || 0), 0)
+})
+
+watch(totalSize, (nextTotalSize) => {
+  if (!exitEntriesSizeLinked.value || exitEntries.value.length !== 1) return
+  exitEntries.value[0].size = nextTotalSize > 0 ? nextTotalSize.toFixed(2) : ''
 })
 
 const averageEntry = computed(() => {
-  if (!entryMethodEnabled.value || activeMultipleEntries.value.length === 0) return parseFloat(entry.value) || 0
+  if (!hasEntryMethodPositions.value) return parseFloat(entry.value) || 0
   
   let totalValue = 0
   let totalQty = 0
-  activeMultipleEntries.value.forEach(e => {
+  persistedEntryEntries.value.forEach(e => {
     const p = parseFloat(e.price) || 0
     const s = parseFloat(e.size) || 0
     if (p > 0 && s > 0) {
@@ -1167,13 +1415,34 @@ watch(isFixedFeeAsset, (val) => {
 }, { immediate: true })
 
 const overridePnl = ref(null)
-watch(asset, () => { 
+const isHydratingInitialTrade = ref(false)
+watch(asset, () => {
+  if (isHydratingInitialTrade.value) return
   overridePnl.value = null 
-})
+  resultMode.value = 'auto'
+}, { flush: 'sync' })
 
-watch(isManualEntryAsset, (val) => {
-  resultMode.value = val ? 'manual' : 'auto'
-}, { immediate: true })
+const setResultMode = (mode) => {
+  if (!isClosed.value) return
+  resultMode.value = mode
+  if (mode === 'auto') overridePnl.value = null
+}
+
+const handlePnlInput = (event) => {
+  const target = event?.target
+  const sanitized = sanitizeDecimalInputValue(target?.value ?? '', { allowNegative: true })
+
+  if (target && target.value !== sanitized) target.value = sanitized
+
+  if (!sanitized.trim()) {
+    setResultMode('auto')
+    return
+  }
+
+  if (!isClosed.value) return
+  resultMode.value = 'manual'
+  overridePnl.value = sanitized
+}
 
 // Forex Rates System
 const liveRates = ref({})
@@ -1275,7 +1544,7 @@ const toPositiveTradeNumber = (value) => {
 }
 
 const tradeEntryPrice = computed(() => {
-  return entryMethodEnabled.value ? averageEntry.value : toPositiveTradeNumber(entry.value)
+  return hasEntryMethodPositions.value ? averageEntry.value : toPositiveTradeNumber(entry.value)
 })
 
 const tradePositionSize = computed(() => {
@@ -1398,6 +1667,76 @@ const actualRR = computed(() => {
   return reward / risk
 })
 
+const tradeDurationHours = computed(() => {
+  if (!isClosed.value) return null
+  const start = cloneDate(openDate.value).getTime()
+  const end = cloneDate(exitDate.value).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null
+  return (end - start) / (1000 * 60 * 60)
+})
+
+const formatTradeDuration = (hours) => {
+  if (!Number.isFinite(hours) || hours <= 0) return 'N/A'
+  const totalMinutes = Math.round(hours * 60)
+  const days = Math.floor(totalMinutes / (24 * 60))
+  const hrs = Math.floor((totalMinutes % (24 * 60)) / 60)
+  const mins = totalMinutes % 60
+  const isRu = locale.value === 'ru'
+  const parts = []
+  if (days > 0) parts.push(`${days}${isRu ? 'д' : 'd'}`)
+  if (hrs > 0 || days > 0) parts.push(`${hrs}${isRu ? 'ч' : 'h'}`)
+  if (mins > 0 || parts.length === 0) parts.push(`${mins}${isRu ? 'м' : 'm'}`)
+  return parts.join(' ')
+}
+
+const tradingStyleDurationLimit = computed(() => {
+  const style = String(activeRiskManagement.value.tradingStyle || '').toUpperCase()
+  const extraType = activeRiskManagement.value.tradingStyleExtraType
+  if (extraType === 0 || style.includes('DAY')) {
+    return { maxHours: 24, maxExclusive: true, label: 'DAY_TRADING' }
+  }
+  if (extraType === 1 || style.includes('SWING')) {
+    return { minHours: 24, label: 'SWING_TRADING' }
+  }
+  if (extraType === 2 || style.includes('INVEST')) {
+    return { minHours: 90 * 24, label: 'INVESTING' }
+  }
+  return null
+})
+
+const violatesTradingStyleDuration = computed(() => {
+  const limit = tradingStyleDurationLimit.value
+  const hours = tradeDurationHours.value
+  if (!limit || !Number.isFinite(hours)) return false
+  if (limit.minHours !== undefined && hours < limit.minHours) return true
+  if (limit.maxHours !== undefined) {
+    return limit.maxExclusive ? hours >= limit.maxHours : hours > limit.maxHours
+  }
+  return false
+})
+
+const tradingStyleViolationMessage = computed(() => {
+  if (!violatesTradingStyleDuration.value) return null
+  return locale.value === 'ru'
+    ? 'НАРУШЕНО ПРАВИЛО СТИЛЯ ТОРГОВЛИ'
+    : 'YOU VIOLATE TRADE STYLE RULE'
+})
+
+const requiredTradingStyleDurationLabel = computed(() => {
+  const limit = tradingStyleDurationLimit.value
+  if (!limit) return null
+  const isRu = locale.value === 'ru'
+
+  if (limit.maxHours === 24 && limit.maxExclusive) return isRu ? '< 24ч' : '< 24h'
+  if (limit.maxHours !== undefined) return isRu ? `до ${formatTradeDuration(limit.maxHours)}` : `up to ${formatTradeDuration(limit.maxHours)}`
+  if (limit.minHours !== undefined) return isRu ? `от ${formatTradeDuration(limit.minHours)}` : `from ${formatTradeDuration(limit.minHours)}`
+  return null
+})
+
+const actualTradeDurationLabel = computed(() => {
+  return Number.isFinite(tradeDurationHours.value) ? formatTradeDuration(tradeDurationHours.value) : 'N/A'
+})
+
 const violatesRR = computed(() => {
   const required = activeRiskManagement.value.riskRewardRatio
   if (!required || actualRR.value === null) return false
@@ -1416,10 +1755,23 @@ const riskViolationMessage = computed(() => {
   if (riskInputViolationMessage.value) return riskInputViolationMessage.value
   const rrViol = violatesRR.value
   const rptViol = violatesRiskPerTrade.value
-  if (rrViol && rptViol) return 'YOU VIOLATE BOTH RISK RULES'
-  if (rrViol) return 'YOU VIOLATE RISK REWARD RULE'
-  if (rptViol) return 'YOU VIOLATE RISK PER TRADE RULE'
-  return null
+  const styleViol = violatesTradingStyleDuration.value
+  const messages = []
+  const isRu = locale.value === 'ru'
+
+  if (rrViol && rptViol) {
+    messages.push(isRu ? 'НАРУШЕНЫ ОБА ПРАВИЛА РИСКА' : 'YOU VIOLATE BOTH RISK RULES')
+  } else if (rrViol) {
+    messages.push(isRu ? 'НАРУШЕНО ПРАВИЛО RISK REWARD' : 'YOU VIOLATE RISK REWARD RULE')
+  } else if (rptViol) {
+    messages.push(isRu ? 'НАРУШЕНО ПРАВИЛО РИСКА НА СДЕЛКУ' : 'YOU VIOLATE RISK PER TRADE RULE')
+  }
+
+  if (styleViol && tradingStyleViolationMessage.value) {
+    messages.push(tradingStyleViolationMessage.value)
+  }
+
+  return messages.length ? messages.join(' / ') : null
 })
 
 const normalizeRiskInputs = () => {
@@ -1603,15 +1955,15 @@ const handleManualDate = (target, unit, val) => {
 // Equity Projection Logic
 const projectedProfit = computed(() => {
   if (!isClosed.value) return null
-  const en = entryMethodEnabled.value ? averageEntry.value : parseFloat(entry.value)
+  const en = hasEntryMethodPositions.value ? averageEntry.value : parseFloat(entry.value)
   const ex = exitMethodEnabled.value ? averageExit.value : parseFloat(exit.value)
-  const sz = exitMethodEnabled.value ? totalExitSize.value : (entryMethodEnabled.value ? totalSize.value : parseFloat(size.value))
+  const sz = exitMethodEnabled.value ? totalExitSize.value : (hasEntryMethodPositions.value ? totalSize.value : parseFloat(size.value))
   if (isNaN(en) || isNaN(ex) || isNaN(sz)) return null
 
   const finalProfit = calculateGrossPriceMoveDollars(en, ex, sz)
   if (!Number.isFinite(finalProfit)) return null
 
-  const entryFeeSize = entryMethodEnabled.value ? totalSize.value : parseFloat(size.value)
+  const entryFeeSize = hasEntryMethodPositions.value ? totalSize.value : parseFloat(size.value)
   const exitFeeSize = sz
   const eFee = calculateTradeFeeDollars(en, entryFeeSize, entryFee.value)
   const xFee = calculateTradeFeeDollars(ex, exitFeeSize, exitFee.value)
@@ -1620,13 +1972,14 @@ const projectedProfit = computed(() => {
 })
 
 const hasValidProjection = computed(() => {
+  if (!isClosed.value) return false
   if (resultMode.value === 'manual' && overridePnl.value !== null && overridePnl.value !== '') return true
   return projectedProfit.value !== null
 })
 
 const equityCurveTrades = computed(() => {
   let historical = tradeStore.getTradesForStrategy(selectedStrategyId.value)
-    .filter(t => t?.isClosed !== false && String(t?.status || '').toLowerCase() !== 'open')
+    .filter(t => t?.isClosed !== false)
   
   if (props.initialTrade) {
     const initialDateStr = props.initialTrade.dateExit || props.initialTrade.date
@@ -1653,7 +2006,7 @@ const equityCurveTrades = computed(() => {
   }
   const currentPnl = pnl.value
   
-  if (!isClosed.value || !hasValidProjection.value) return historical
+  if (!hasValidProjection.value) return historical
   
   // Create a projection point based on current setup
   const projection = {
@@ -1718,11 +2071,34 @@ watch(activeTemporalTarget, () => {
 const scrollContainer = ref(null)
 
 const pnl = computed({
-  get: () => (resultMode.value === 'manual' && overridePnl.value !== null) ? overridePnl.value : (projectedProfit.value || 0),
-  set: (val) => { overridePnl.value = val }
+  get: () => {
+    if (!isClosed.value) return 0
+    return (resultMode.value === 'manual' && overridePnl.value !== null) ? overridePnl.value : (projectedProfit.value || 0)
+  },
+  set: (val) => {
+    if (!isClosed.value) return
+    if (val === null || val === undefined || String(val).trim() === '') {
+      setResultMode('auto')
+      return
+    }
+    resultMode.value = 'manual'
+    overridePnl.value = val
+  }
 })
 
 const commitState = ref('idle')
+const showTradeSummary = ref(false)
+const savedTradeSummary = ref(null)
+
+watch(isClosed, (closed) => {
+  if (closed) return
+  exit.value = ''
+  exitFee.value = ''
+  exitEntries.value = []
+  exitEntriesSizeLinked.value = true
+  overridePnl.value = null
+  resultMode.value = 'auto'
+})
 
 const resetForm = () => {
   asset.value = ''
@@ -1734,6 +2110,7 @@ const resetForm = () => {
   stopLoss.value = ''
   takeProfit.value = ''
   activeConditions.value.clear()
+  activeConditionScenarioIds.value.clear()
   selectedEmotions.value = []
   journalEntries.value = []
   notesList.value = []
@@ -1742,13 +2119,18 @@ const resetForm = () => {
   exitDate.value = new Date()
   tradeTimeZone.value = detectUserTimeZone()
   overridePnl.value = null
+  resultMode.value = 'auto'
   selectedRegistryScenarioId.value = null
+  showConditionLibrary.value = false
   showEntryMethod.value = false
+  showTradeStudyMetrics.value = false
+  resetTradeStudyMetrics()
   activeProtocolTab.value = 'PYRAMIDING'
   entryMethodType.value = 'PYRAMIDING'
   pyramidingEntries.value = []
   averagingDownEntries.value = []
   exitEntries.value = []
+  exitEntriesSizeLinked.value = true
   showEmotionSelector.value = false
   viewMode.value = 'tactical'
   isTemporalOpen.value = false
@@ -1756,170 +2138,26 @@ const resetForm = () => {
 }
 
 const submit = async () => {
-  const finalEntry = entryMethodEnabled.value ? averageEntry.value : +entry.value
-  const finalExit = exitMethodEnabled.value ? averageExit.value : +exit.value
+  const finalEntry = hasEntryMethodPositions.value ? averageEntry.value : +entry.value
+  const finalExit = isClosed.value ? (exitMethodEnabled.value ? averageExit.value : +exit.value) : undefined
   const finalSize = totalSize.value
   const committedOpenDate = cloneDate(openDate.value)
   const committedExitDate = cloneDate(exitDate.value)
   const committedTimeZone = String(tradeTimeZone.value || detectUserTimeZone()).trim() || detectUserTimeZone()
-  const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
+  const commitStrategyId = selectedStrategyId.value || 'MAIN_DIARY'
 
-  if (!finalEntry || !finalSize || (isClosed.value && !finalExit)) return
+  if (!finalEntry || (isClosed.value && !finalExit) || !finalSize) return false
+  if (hasEntryMethodPriceViolation.value) return false
   if (riskInputViolationMessage.value) {
     normalizeRiskInputs()
     activeSector.value = 'risk'
-    return
+    return false
   }
-  if (commitState.value !== 'idle') return
+  if (commitState.value !== 'idle') return false
   
-  const findActiveScenario = (scenarios) => {
-    // First check if the currently selected registry ID belongs to this group
-    const explicit = scenarios.find(s => s.id === selectedRegistryScenarioId.value)
-    if (explicit) return explicit
-    
-    // Otherwise, find the first scenario that has active conditions
-    const byConditions = scenarios.find(s => getActiveConditionsInScenario(s.id).length > 0)
-    return byConditions || null
-  }
-
-  const activeEntry = findActiveScenario(entryScenarios.value)
-  const activeExit = findActiveScenario(exitScenarios.value.filter(s => !s.isMini))
-  const activeMini = miniExitScenarios.value.find(s => getActiveConditionsInScenario(s.id).length > 0)
-
-  const getScenarioActiveConditions = (scenId) => {
-    if (!scenId) return []
-    const scenarioConds = getScenarioConditions(scenId)
-    const activeResults = []
-    
-    scenarioConds.forEach(c => {
-       // We traverse the indicator units within each condition node
-       // and extract ONLY the specifically selected indicators.
-       if (c.indicatorUnits) {
-          c.indicatorUnits.forEach(u => {
-             if (u.type === 'bundle') {
-                u.items?.forEach(i => {
-                   if (activeConditions.value.has(i.id)) {
-                      activeResults.push({
-                         id: i.id,
-                         info: { 
-                            name: (i.label || '').toUpperCase(), 
-                            description: i.description || '',
-                            priority: i.priority || c.priority || 'NONE'
-                         }
-                      })
-                   }
-                })
-             } else if (u.type === 'single' && u.item) {
-                if (activeConditions.value.has(u.item.id)) {
-                   activeResults.push({
-                      id: u.item.id,
-                      info: { 
-                         name: (u.item.label || '').toUpperCase(), 
-                         description: u.item.description || '',
-                         priority: u.item.priority || c.priority || 'NONE'
-                      }
-                   })
-                }
-             }
-          })
-       }
-
-       // Special case: If the condition node itself is the selected entity 
-       // (e.g. standalone condition with no internal indicators), we add it.
-       if (activeResults.length === 0 && activeConditions.value.has(c.id)) {
-          activeResults.push({
-             id: c.id,
-             info: { 
-                name: (c.name || '').toUpperCase(), 
-                description: c.description || '',
-                priority: c.priority || 'NONE'
-             }
-          })
-       }
-    })
-    return activeResults
-  }
-
-  // Helper to format scenario info
-  const formatScen = (s, allTrades, side) => {
-    if (!s) return null
-    
-    // Virtual Scenario Handling for System Protocols
-    if (s.id === 'default-exit-system') {
-      const activeConds = getScenarioActiveConditions(s.id)
-      if (activeConds.length > 0) {
-        const first = activeConds[0]
-        const enrichedConds = activeConds.map(c => ({
-          ...c
-        }))
-        
-        return {
-          id: first.id,
-          info: {
-            name: first.info.name,
-            description: first.info.description,
-            conditions: enrichedConds
-          }
-        }
-      }
-    }
-
-    const activeConds = getScenarioActiveConditions(s.id).map(c => ({
-      ...c
-    }))
-
-    return {
-      id: s.id,
-      info: {
-        name: (s.params?.customName || s.label || '').toUpperCase(),
-        description: s.params?.description || s.params?.value || '',
-        conditions: activeConds
-      }
-    }
-  }
-
-  // Build condition lookup
-  const conditionLookup = {}
-  
-  // Add defaults to lookup
-  const allDefaults = [
-    ...DEFAULT_ENTRY_CONDITIONS,
-    ...DEFAULT_ENTRY_SCENARIOS,
-    ...DEFAULT_EXIT_CONDITIONS,
-    ...DEFAULT_EXIT_SCENARIOS
-  ]
-  allDefaults.forEach(d => {
-    conditionLookup[d.id] = { 
-      name: (d.params?.customName || d.label || '').toUpperCase(), 
-      description: d.params?.description || '' 
-    }
-  })
-
-  const processConds = (scenId) => {
-    if (!scenId) return
-    const conds = getScenarioConditions(scenId)
-    conds.forEach(c => {
-      conditionLookup[c.id] = { name: (c.name || '').toUpperCase(), description: c.description || '', priority: c.priority || 'NONE' }
-      if (c.indicatorUnits) {
-        c.indicatorUnits.forEach(u => {
-          if (u.type === 'bundle') {
-            u.items.forEach(i => {
-              conditionLookup[i.id] = { name: (i.label || '').toUpperCase(), description: i.description || '', priority: i.priority || c.priority || 'NONE' }
-            })
-          } else if (u.type === 'single' && u.item) {
-            conditionLookup[u.item.id] = { name: (u.item.label || '').toUpperCase(), description: u.item.description || '', priority: u.item.priority || c.priority || 'NONE' }
-          }
-        })
-      }
-    })
-  }
-
-  if (activeEntry?.id) processConds(activeEntry.id)
-  if (activeExit?.id) processConds(activeExit.id)
-
   const builtExecutions = []
-  if (entryMethodEnabled.value) {
-    activeMultipleEntries.value.forEach(e => {
+  if (hasEntryMethodPositions.value) {
+    persistedEntryEntries.value.forEach(e => {
        if (e.price && e.size) {
          builtExecutions.push({
            id: e.id.toString(),
@@ -1929,7 +2167,7 @@ const submit = async () => {
            size: parseFloat(e.size) || 0,
            date: cloneDate(committedOpenDate),
            timeZone: committedTimeZone,
-           label: entryMethodType.value
+           label: persistedEntryMethodType.value
          })
        }
     })
@@ -1978,60 +2216,74 @@ const submit = async () => {
     id: Date.now().toString(),
     asset: asset.value || 'UNTITLED',
     side: side.value === 'long' ? 'Long' : 'Short',
-    entry: entryMethodEnabled.value ? averageEntry.value : +entry.value,
+    entry: hasEntryMethodPositions.value ? averageEntry.value : +entry.value,
     exit: isClosed.value ? (exitMethodEnabled.value ? averageExit.value : +exit.value) : undefined,
     size: totalSize.value,
     executions: builtExecutions,
+    isClosed: isClosed.value,
+    status: isClosed.value ? 'closed' : 'open',
     timeZone: committedTimeZone,
     stopLoss: +stopLoss.value,
     takeProfit: +takeProfit.value,
     date: cloneDate(committedOpenDate),
     dateExit: isClosed.value ? cloneDate(committedExitDate) : undefined,
     profitInCurrency: isClosed.value ? pnl.value : undefined,
-    isClosed: isClosed.value,
-    status: isClosed.value ? 'closed' : 'open',
+    resultMode: isClosed.value ? resultMode.value : undefined,
+    profitInPercent: isClosed.value
+      ? ((Number(pnl.value) || 0) / Math.max(1, Number(currentCapital.value) || 0)) * 100
+      : undefined,
+    capitalBeforeTrade: currentCapital.value,
     assetType: currentAssetData.value?.type || 'Forex',
-    strategyId: selectedStrategyId.value,
+    strategyId: commitStrategyId,
+    entryMethodType: persistedEntryMethodType.value,
+    exitMethodType: exitMethodEnabled.value ? 'EXIT_SCALE' : 'SINGLE',
+    boardScenarioEntryId: undefined,
+    boardScenarioExitId: undefined,
     risk: actualRiskDollars.value !== null ? actualRiskDollars.value : undefined,
-    riskReward: actualRR.value ?? plannedRiskReward,
-    tradingStyle: activeRiskManagement.value.tradingStyle || undefined,
-    riskManagement: activeRiskSnapshot.value || undefined,
+    riskPercent: actualRiskPercent.value,
+    riskReward: actualRR.value,
+    tradeDuration: actualTradeDurationLabel.value,
+    tradingStyle: undefined,
+    riskManagement: undefined,
     entryFee: +entryFee.value || 0,
     exitFee: +exitFee.value || 0,
     feeType: feeType.value,
     emotions: [...selectedEmotions.value],
-    boardScenarioEntry: formatScen(activeEntry, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value),
-    boardScenarioExit: formatScen(activeExit || activeMini, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value),
+    boardScenarioEntry: undefined,
+    boardScenarioExit: undefined,
+    boardRequiredConditionsEntry: [],
+    boardRequiredConditionsExit: [],
     images: journalEntries.value.map(e => ({
       url: e.image,
-      name: e.name || getArchiveNodeName(e.id),
+      name: e.name || '',
       tags: Array.isArray(e.tags) ? e.tags : [],
       createdAt: e.createdAt || new Date().toISOString(),
-      context: ''
+      context: e.context || ''
     })).filter(img => img.url),
-    notes: '',
-    notesList: [...notesList.value]
+    notes: props.initialTrade?.notes ?? '',
+    notesList: [...notesList.value],
+    tradeStudyMetrics: { ...tradeStudyMetrics.value }
   }
 
   commitState.value = 'loading'
-  
-  if (props.initialTrade) {
-    const updatedTrade = { ...props.initialTrade, ...newTrade, id: props.initialTrade.id }
-    await tradeStore.updateTrade(selectedStrategyId.value, updatedTrade.id, updatedTrade)
-    emit('updateTrade', updatedTrade)
-  } else {
-    await tradeStore.addTrade(selectedStrategyId.value, newTrade)
-    emit('addTrade', newTrade)
-  }
-  
-  await new Promise(resolve => setTimeout(resolve, 1000))
-  
-  commitState.value = 'success'
-  
-  setTimeout(() => {
-    resetForm()
+
+  try {
+    if (props.initialTrade) {
+      const updatedTrade = { ...props.initialTrade, ...newTrade, id: props.initialTrade.id }
+      await tradeStore.updateTrade(commitStrategyId, updatedTrade.id, updatedTrade)
+      emit('updateTrade', updatedTrade)
+    } else {
+      await tradeStore.addTrade(commitStrategyId, newTrade)
+      emit('addTrade', newTrade)
+    }
+
+    return true
+  } catch (error) {
+    console.error('Failed to persist trade:', error)
+    return false
+  } finally {
     commitState.value = 'idle'
-  }, 2000)
+  }
 }
 
 
@@ -2074,6 +2326,7 @@ const submit = async () => {
     findAllConnections,
     findNodeById,
     activeRiskManagement,
+    currentCapital,
     activeRiskPerTradeDollars,
     activeRiskSnapshot,
     actualRR,
@@ -2081,11 +2334,14 @@ const submit = async () => {
     actualRiskPercent,
     violatesRR,
     violatesRiskPerTrade,
+    violatesTradingStyleDuration,
+    requiredTradingStyleDurationLabel,
+    actualTradeDurationLabel,
     riskViolationMessage,
     riskInputViolationMessage,
     hasRiskInputViolation,
-    normalizeRiskInputs,
     sanitizeTradeNumberInput,
+    normalizeRiskInputs,
     getReachableNodes,
     getNodeZoneType,
     showStrategyMenu,
@@ -2110,9 +2366,14 @@ const submit = async () => {
     mismatchedNodeIds,
     hasVectorMismatch,
     activeConditions,
+    isConditionActive,
     toggleCondition,
+    showConditionLibrary,
     showEmotionSelector,
     registrySearchQuery,
+    libraryFilter,
+    filteredLibraryScenarios,
+    flatLibraryConditions,
     selectedRegistryScenarioId,
     hoverTimeout,
     hoveredScenarioId,
@@ -2124,6 +2385,7 @@ const submit = async () => {
     handleMouseLeaveInsight,
     getScenarioConditions,
     getFlattenedScenarioConditions,
+    getRequiredConditionsSnapshotForScenarios,
     activeSector,
     sectors,
     side,
@@ -2135,20 +2397,34 @@ const submit = async () => {
     exitFee,
     feeType,
     resultMode,
+    setResultMode,
+    handlePnlInput,
     showEntryMethod,
+    showTradeStudyMetrics,
+    tradeStudyMetrics,
+    persistGeneratedTradeStudyMetrics,
+    resetTradeStudyMetrics,
     activeProtocolTab,
     entryMethodType,
     pyramidingEntries,
     averagingDownEntries,
     activeMultipleEntries,
+    hasEntryMethodPositions,
     entryMethodEnabled,
+    entryMethodPriceViolations,
+    hasEntryMethodPriceViolation,
+    entryMethodPriceViolationMessage,
+    hasPyramidingPriceViolation,
+    hasAveragingDownPriceViolation,
     hasActiveMethodNode,
     addMultipleEntry,
     exitEntries,
     exitMethodEnabled,
+    exitEntriesSizeLinked,
     totalExitSize,
     averageExit,
     addExitEntry,
+    setExitSizeManual,
     removeExitEntry,
     removeMultipleEntry,
     showAutoPrompt,
@@ -2200,6 +2476,8 @@ const submit = async () => {
     scrollContainer,
     pnl,
     commitState,
+    showTradeSummary,
+    savedTradeSummary,
     resetForm,
     submit,
     initialTrade: props.initialTrade

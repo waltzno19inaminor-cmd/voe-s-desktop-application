@@ -5,20 +5,27 @@ use sha2::{Digest, Sha256};
 use std::{
     borrow::Cow,
     fs,
-    io::Read,
+    io::{Cursor, Read},
     path::{Component, Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{http, AppHandle, Manager, Runtime};
+use walkdir::WalkDir;
+use zip::ZipArchive;
 
 pub const APP_IDENTIFIER: &str = "com.voe.app";
 pub const JLJ_DATA_DIR: &str = "JLJData";
 pub const PATCHES_DIR: &str = "patches";
+pub const MAX_PATCH_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
 pub const STATE_FILE: &str = "state.json";
 pub const ACTIVE_MANIFEST_FILE: &str = "active-manifest.json";
 pub const ACTIVE_SIGNATURE_FILE: &str = "active-manifest.minisig";
 pub const ACTIVE_WEB_DIR: &str = "active-web";
 pub const PATCH_PROTOCOL: &str = "jljpatch";
 pub const PATCH_PUBLIC_KEY: &str = include_str!("../tauri.conf.json.pub");
+const DELETE_TOMBSTONES_DIR: &str = ".deleted";
+const PATCH_MANIFEST_ENTRY: &str = "manifest.json";
+const PATCH_SIGNATURE_ENTRY: &str = "manifest.minisig";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
@@ -224,6 +231,58 @@ pub fn patch_clear_active(app: AppHandle) -> Result<(), String> {
     clear_active_from_root(&root)
 }
 
+#[tauri::command(rename_all = "camelCase")]
+pub fn patch_install_from_upload(
+    app: AppHandle,
+    file_name: String,
+    bytes: Vec<u8>,
+) -> Result<PatchState, String> {
+    if !file_name.to_lowercase().ends_with(".jljpatch") {
+        return Err("Only .jljpatch files can be installed.".to_string());
+    }
+    if bytes.is_empty() {
+        return Err("Patch file is empty.".to_string());
+    }
+    if bytes.len() > MAX_PATCH_UPLOAD_BYTES {
+        return Err(format!(
+            "Patch file is too large. Maximum size is {} MB.",
+            MAX_PATCH_UPLOAD_BYTES / 1024 / 1024
+        ));
+    }
+
+    let mut archive =
+        ZipArchive::new(Cursor::new(bytes)).map_err(|err| format!("read patch archive: {err}"))?;
+    let manifest_bytes = read_zip_entry(&mut archive, PATCH_MANIFEST_ENTRY)?;
+    let signature_text = String::from_utf8(read_zip_entry(&mut archive, PATCH_SIGNATURE_ENTRY)?)
+        .map_err(|err| format!("manifest signature is not UTF-8: {err}"))?;
+    verify_minisign(&manifest_bytes, &signature_text)?;
+
+    let manifest: PatchManifest =
+        serde_json::from_slice(&manifest_bytes).map_err(|err| format!("parse manifest: {err}"))?;
+    validate_installable_resource_manifest(&manifest, &app)?;
+
+    let root = patches_root(&app)?;
+    fs::create_dir_all(&root).map_err(|err| format!("create patches dir: {err}"))?;
+    validate_patch_chain(&manifest, &root)?;
+
+    install_resource_patch_from_archive(
+        &mut archive,
+        &manifest,
+        &signature_text,
+        &manifest_bytes,
+        &root,
+    )?;
+    let verify = verify_active_from_root(&root, Some(app.package_info().version.to_string()))?;
+    if !verify.valid {
+        return Err(format!(
+            "post-install verification failed: {}",
+            verify.message
+        ));
+    }
+
+    read_state_from_root(&root)?.ok_or_else(|| "patch installed but state is missing".to_string())
+}
+
 pub fn verify_active_from_root(
     patches_root: &Path,
     current_base_version: Option<String>,
@@ -328,6 +387,288 @@ pub fn clear_active_from_root(patches_root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+fn validate_installable_resource_manifest<R: Runtime>(
+    manifest: &PatchManifest,
+    app: &AppHandle<R>,
+) -> Result<(), String> {
+    if manifest.app_identifier != APP_IDENTIFIER {
+        return Err("Patch is for a different app identifier.".to_string());
+    }
+    if manifest.base_version != app.package_info().version.to_string() {
+        return Err(format!(
+            "Patch requires base version {}, but this app is {}.",
+            manifest.base_version,
+            app.package_info().version
+        ));
+    }
+    if !manifest.platforms.iter().any(|p| p == &current_platform()) {
+        return Err(format!(
+            "Patch does not support platform {}.",
+            current_platform()
+        ));
+    }
+    if manifest.patch_id.trim().is_empty() || manifest.to_patch_level.trim().is_empty() {
+        return Err("Patch manifest has empty patch identifiers.".to_string());
+    }
+    if manifest
+        .operations
+        .iter()
+        .any(|operation| operation.scope == PatchScope::Native)
+    {
+        return Err(
+            "Native patches cannot be installed from inside the running app. Use the standalone patcher."
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+fn validate_patch_chain(manifest: &PatchManifest, patches_root: &Path) -> Result<(), String> {
+    let state = read_state_from_root(patches_root)?;
+    match (manifest.from_patch_level.as_deref(), state.as_ref()) {
+        (None, None) => Ok(()),
+        (None, Some(existing)) if existing.patch_level.is_none() => Ok(()),
+        (Some(expected), Some(existing)) if existing.patch_level.as_deref() == Some(expected) => {
+            Ok(())
+        }
+        (Some(expected), _) => Err(format!("Patch requires existing patch level {expected}.")),
+        (None, Some(existing)) => Err(format!(
+            "Patch requires unpatched base, but current patch level is {:?}.",
+            existing.patch_level
+        )),
+    }
+}
+
+fn install_resource_patch_from_archive<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+    manifest: &PatchManifest,
+    signature_text: &str,
+    manifest_bytes: &[u8],
+    patches_root: &Path,
+) -> Result<(), String> {
+    let active_web = active_web_dir_from_root(patches_root);
+    let staging_web = patches_root.join(format!(
+        "staging-web-{}",
+        sanitize_patch_id_for_path(&manifest.patch_id)
+    ));
+    if staging_web.exists() {
+        fs::remove_dir_all(&staging_web)
+            .map_err(|err| format!("remove old staging web patch: {err}"))?;
+    }
+
+    if active_web.exists() {
+        copy_dir(&active_web, &staging_web)?;
+    } else {
+        fs::create_dir_all(&staging_web).map_err(|err| format!("create staging web: {err}"))?;
+    }
+
+    let install_result = apply_resource_operations(archive, manifest, &staging_web);
+    if let Err(err) = install_result {
+        let _ = fs::remove_dir_all(&staging_web);
+        return Err(err);
+    }
+
+    if active_web.exists() {
+        fs::remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
+    }
+    fs::rename(&staging_web, &active_web).map_err(|err| format!("activate web patch: {err}"))?;
+
+    fs::write(active_manifest_path_from_root(patches_root), manifest_bytes)
+        .map_err(|err| format!("write active manifest: {err}"))?;
+    fs::write(
+        active_signature_path_from_root(patches_root),
+        signature_text,
+    )
+    .map_err(|err| format!("write active signature: {err}"))?;
+
+    let verified_file_hashes = manifest
+        .operations
+        .iter()
+        .filter(|operation| operation.scope == PatchScope::Resource)
+        .filter_map(|operation| {
+            operation
+                .new_sha256
+                .as_ref()
+                .map(|sha256| VerifiedFileHash {
+                    path: operation.target.clone(),
+                    sha256: sha256.clone(),
+                })
+        })
+        .collect();
+
+    let state = PatchState {
+        base_version: manifest.base_version.clone(),
+        patch_level: Some(manifest.to_patch_level.clone()),
+        patch_id: Some(manifest.patch_id.clone()),
+        platform: current_platform(),
+        applied_at: Some(current_timestamp()),
+        manifest_sha256: Some(sha256_bytes_hex(manifest_bytes)),
+        verified_file_hashes,
+    };
+    save_state_to_root(patches_root, &state)?;
+
+    Ok(())
+}
+
+fn apply_resource_operations<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+    manifest: &PatchManifest,
+    staging_web: &Path,
+) -> Result<(), String> {
+    for operation in manifest
+        .operations
+        .iter()
+        .filter(|operation| operation.scope == PatchScope::Resource)
+    {
+        let target_rel = sanitize_relative_path(&operation.target)?;
+        let target = staging_web.join(&target_rel);
+        let tombstone = deleted_resource_tombstone_path(staging_web, &target_rel);
+
+        match operation.op {
+            PatchOpKind::Delete => {
+                if target.exists() {
+                    fs::remove_file(&target)
+                        .map_err(|err| format!("delete {}: {err}", target.display()))?;
+                }
+                if let Some(parent) = tombstone.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|err| format!("create delete tombstone dir: {err}"))?;
+                }
+                fs::write(&tombstone, b"deleted").map_err(|err| {
+                    format!("write delete tombstone {}: {err}", tombstone.display())
+                })?;
+            }
+            PatchOpKind::Replace => {
+                let payload = read_payload(archive, operation)?;
+                if let Some(expected) = operation.payload_sha256.as_deref() {
+                    let actual = sha256_bytes_hex(&payload);
+                    if !hash_eq(expected, &actual) {
+                        return Err(format!("payload hash mismatch for {}", operation.target));
+                    }
+                }
+                if target.exists() {
+                    if let Some(expected) = operation.old_sha256.as_deref() {
+                        let actual = sha256_file_hex(&target)?;
+                        if !hash_eq(expected, &actual) {
+                            return Err(format!("old hash mismatch for {}", target.display()));
+                        }
+                    }
+                }
+                if let Some(parent) = target.parent() {
+                    fs::create_dir_all(parent)
+                        .map_err(|err| format!("create target dir: {err}"))?;
+                }
+                if tombstone.exists() {
+                    fs::remove_file(&tombstone).map_err(|err| {
+                        format!("remove delete tombstone {}: {err}", tombstone.display())
+                    })?;
+                }
+                fs::write(&target, payload)
+                    .map_err(|err| format!("write {}: {err}", target.display()))?;
+            }
+            PatchOpKind::Bsdiff => {
+                let patch = read_payload(archive, operation)?;
+                if let Some(expected) = operation.payload_sha256.as_deref() {
+                    let actual = sha256_bytes_hex(&patch);
+                    if !hash_eq(expected, &actual) {
+                        return Err(format!("delta hash mismatch for {}", operation.target));
+                    }
+                }
+                if !target.exists() {
+                    return Err(format!("bsdiff target missing: {}", target.display()));
+                }
+                if let Some(expected) = operation.old_sha256.as_deref() {
+                    let actual = sha256_file_hex(&target)?;
+                    if !hash_eq(expected, &actual) {
+                        return Err(format!("old hash mismatch for {}", target.display()));
+                    }
+                }
+                let old =
+                    fs::read(&target).map_err(|err| format!("read {}: {err}", target.display()))?;
+                let mut new = Vec::new();
+                bsdiff::patch(&old, &mut patch.as_slice(), &mut new)
+                    .map_err(|err| format!("apply bsdiff to {}: {err}", target.display()))?;
+                if tombstone.exists() {
+                    fs::remove_file(&tombstone).map_err(|err| {
+                        format!("remove delete tombstone {}: {err}", tombstone.display())
+                    })?;
+                }
+                fs::write(&target, new)
+                    .map_err(|err| format!("write {}: {err}", target.display()))?;
+            }
+        }
+
+        if let Some(expected) = operation.new_sha256.as_deref() {
+            let actual = sha256_file_hex(&target)?;
+            if !hash_eq(expected, &actual) {
+                return Err(format!("new hash mismatch for {}", target.display()));
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn read_zip_entry<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+    name: &str,
+) -> Result<Vec<u8>, String> {
+    let mut file = archive
+        .by_name(name)
+        .map_err(|err| format!("missing {name}: {err}"))?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
+        .map_err(|err| format!("read {name}: {err}"))?;
+    Ok(bytes)
+}
+
+fn read_payload<R: Read + std::io::Seek>(
+    archive: &mut ZipArchive<R>,
+    operation: &PatchOperation,
+) -> Result<Vec<u8>, String> {
+    let payload = operation
+        .payload
+        .as_deref()
+        .ok_or_else(|| format!("operation {} has no payload", operation.target))?;
+    let payload = sanitize_relative_path(payload)?;
+    let entry = format!("payload/{}", payload.to_string_lossy().replace('\\', "/"));
+    read_zip_entry(archive, &entry)
+}
+
+fn copy_dir(from: &Path, to: &Path) -> Result<(), String> {
+    for entry in WalkDir::new(from).into_iter().filter_map(Result::ok) {
+        let rel = entry
+            .path()
+            .strip_prefix(from)
+            .map_err(|err| format!("copy strip prefix: {err}"))?;
+        let dest = to.join(rel);
+        if entry.file_type().is_dir() {
+            fs::create_dir_all(&dest).map_err(|err| format!("copy create dir: {err}"))?;
+        } else if entry.file_type().is_file() {
+            if let Some(parent) = dest.parent() {
+                fs::create_dir_all(parent).map_err(|err| format!("copy create parent: {err}"))?;
+            }
+            fs::copy(entry.path(), &dest)
+                .map_err(|err| format!("copy {}: {err}", entry.path().display()))?;
+        }
+    }
+    Ok(())
+}
+
+fn sanitize_patch_id_for_path(value: &str) -> String {
+    value
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '-' | '_') {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
 pub fn register_patch_protocol<R: Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
     builder.register_uri_scheme_protocol(PATCH_PROTOCOL, move |ctx, request| {
         patch_protocol_response(ctx.app_handle(), request)
@@ -344,9 +685,6 @@ pub fn navigate_to_active_resource_patch<R: Runtime>(app: &tauri::App<R>) {
         return;
     };
     if !verify.active || !verify.valid {
-        return;
-    }
-    if !active_web_dir_from_root(&root).join("index.html").exists() {
         return;
     }
 
@@ -396,12 +734,20 @@ fn resolve_patch_protocol<R: Runtime>(
         return Ok((bytes, mime));
     }
 
+    if deleted_resource_tombstone_path(&active_web, &relative).exists() {
+        return Err(http::StatusCode::NOT_FOUND);
+    }
+
     let asset_path = relative.to_string_lossy().replace('\\', "/");
     if let Some(asset) = app.asset_resolver().get(asset_path) {
         return Ok((asset.bytes.to_vec(), asset.mime_type.to_string()));
     }
 
     Err(http::StatusCode::NOT_FOUND)
+}
+
+fn deleted_resource_tombstone_path(active_web: &Path, relative: &Path) -> PathBuf {
+    active_web.join(DELETE_TOMBSTONES_DIR).join(relative)
 }
 
 pub fn sanitize_relative_path(path: &str) -> Result<PathBuf, String> {
@@ -499,6 +845,14 @@ fn hex_lower(bytes: &[u8]) -> String {
         out.push(HEX[(byte & 0x0f) as usize] as char);
     }
     out
+}
+
+fn current_timestamp() -> String {
+    let seconds = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    format!("{seconds}")
 }
 
 #[cfg(test)]

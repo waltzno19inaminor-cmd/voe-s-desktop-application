@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { doc, collection, getDoc, onSnapshot, setDoc, writeBatch, serverTimestamp, query, orderBy } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
 import { db, fireStorage } from '~/shared/firebase.client'
+import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
 import type { TournamentEvent, TournamentLeaderboardEntry, TournamentRound, TournamentSeason } from './tournament.types'
 
 export const DEFAULT_TOURNAMENT: TournamentEvent = {
@@ -266,6 +267,9 @@ async function resolveLeaderboardPhotoUrl(value: unknown): Promise<string> {
   if (!rawValue) return ''
 
   try {
+    const cachedUrl = await getCachedAvatarUrl(rawValue).catch(() => null)
+    if (cachedUrl) return cachedUrl
+
     if (rawValue.startsWith('gs://')) {
       return await getDownloadURL(storageRef(fireStorage, rawValue))
     }

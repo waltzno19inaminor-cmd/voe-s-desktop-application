@@ -1,6 +1,6 @@
 import type { UserProfileStatus } from '~/entities/user/model/user-status.types'
 
-export type ExNodeMode = 'SETUP' | 'RESEARCH' | 'LESSON' | 'QUESTION'
+export type ExNodeMode = 'SETUP' | 'RESEARCH' | 'LESSON' | 'QUESTION' | 'PUBLICATION'
 export type ExSignalDirection = 'up' | 'down'
 
 export interface ExNodeMetric {
@@ -26,6 +26,9 @@ export interface ExNodeSignal {
 export interface ExNode {
   id: string
   mode: ExNodeMode
+  type?: string
+  editorMode?: 'text' | 'board'
+  textPreviewHtml?: string
   title: string
   author?: string
   authorStatus?: UserProfileStatus | null

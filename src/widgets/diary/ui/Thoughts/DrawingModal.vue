@@ -195,7 +195,7 @@
                              <button @click="selectedElement.item.size = (selectedElement.item.size || 24) + 2" class="w-8 h-8 flex items-center justify-center text-zinc-500 dark:text-white/60 hover:bg-zinc-200 dark:hover:bg-white/10 transition active:scale-90 select-none">+</button>
                          </div>
                          <div class="h-8 w-px bg-zinc-100 dark:bg-white/5 mx-1"></div>
-                         <input type="color" v-model="selectedElement.item.color" class="w-8 h-8 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10 transition-transform active:scale-95" title="Font Color" />
+                         <input type="color" v-model="selectedElement.item.color" class="w-8 h-8 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10 transition-transform active:scale-95" />
                      </div>
                      <div class="flex items-center gap-2">
                          <button @click="selectedElement.item.bold = !selectedElement.item.bold" :class="selectedElement.item.bold ? 'bg-zinc-900 dark:bg-white nier-text-primary shadow-lg' : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-white/60'" class="flex-1 h-8 rounded-xl font-black text-[10px] transition active:scale-95">BOLD</button>
@@ -210,7 +210,7 @@
                              </div>
                              Background
                          </label>
-                         <input v-if="selectedElement.item.bgEnabled" type="color" v-model="selectedElement.item.bgColor" class="w-6 h-6 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10" title="Background Color" />
+                         <input v-if="selectedElement.item.bgEnabled" type="color" v-model="selectedElement.item.bgColor" class="w-6 h-6 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10" />
                      </div>
                      <div class="flex items-center justify-between gap-4">
                          <label class="flex items-center gap-2 text-[11px] text-zinc-600 dark:text-white/70 font-bold cursor-pointer select-none">
@@ -220,12 +220,12 @@
                              </div>
                              Border
                          </label>
-                         <input v-if="selectedElement.item.borderEnabled" type="color" v-model="selectedElement.item.borderColor" class="w-6 h-6 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10" title="Border Color" />
+                         <input v-if="selectedElement.item.borderEnabled" type="color" v-model="selectedElement.item.borderColor" class="w-6 h-6 p-1 border-0 rounded-full cursor-pointer outline-none bg-zinc-100 dark:bg-white/10" />
                      </div>
                   </div>                   <!-- Standard Shape/Line Settings -->
                   <div v-else class="flex flex-col gap-3 px-1 pb-1">
                       <div class="flex items-center gap-2">
-                         <input type="color" v-model="selectedElement.item.color" class="w-8 h-8 p-1 border-0 rounded-full cursor-pointer bg-zinc-100 dark:bg-white/10 outline-none transition-transform active:scale-95" title="Custom Color" />
+                         <input type="color" v-model="selectedElement.item.color" class="w-8 h-8 p-1 border-0 rounded-full cursor-pointer bg-zinc-100 dark:bg-white/10 outline-none transition-transform active:scale-95" />
                          <div class="flex-1 flex gap-1.5 bg-zinc-100 dark:bg-white/5 p-1 rounded-full border border-zinc-200 dark:border-white/5 transition-colors">
                              <div 
                                v-for="c in ['#ffffff', '#60a5fa', '#34d399', '#f87171', '#fbbf24']" 
@@ -289,19 +289,19 @@
 
           <!-- Tool Icons (Always Visible) -->
           <div class="flex items-center gap-1">
-              <button @click="activeTool = 'pencil'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'pencil' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white' " title="Brush (B)">
+              <button @click="activeTool = 'pencil'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'pencil' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white' ">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
               </button>
-              <button @click="activeTool = 'h-line'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'h-line' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Horizontal Line (H)">
+              <button @click="activeTool = 'h-line'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'h-line' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12h16" /></svg>
               </button>
-              <button @click="activeTool = 'trendline'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'trendline' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Trend Line (L)">
+              <button @click="activeTool = 'trendline'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'trendline' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19L20 5" /></svg>
               </button>
-              <button @click="activeTool = 'rect'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'rect' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Rectangle (S)">
+              <button @click="activeTool = 'rect'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'rect' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h16v16H4z" /></svg>
               </button>
-              <button @click="activeTool = 'text'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'text' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'" title="Text (T)">
+              <button @click="activeTool = 'text'" class="w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300" :class="activeTool === 'text' ? 'bg-[#050505] dark:bg-white nier-text-primary shadow-lg scale-105' : 'text-[#050505]/40 dark:text-white/40 hover:text-[#050505] dark:hover:text-white'">
                   <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 7V4h16v3M9 20h6M12 4v16" /></svg>
               </button>
           </div>
@@ -312,15 +312,15 @@
               <!-- Active Settings -->
               <div class="flex items-center gap-3">
                  <div class="flex items-center gap-2 px-3 py-1 bg-black/5 dark:bg-black/30 rounded-full border border-black/5 dark:border-white/5 transition-colors">
-                     <input type="color" v-model="selectedColor" class="w-6 h-6 p-0 border-0 rounded-full cursor-pointer outline-none bg-transparent" title="Stroke / Text Color" />
+                     <input type="color" v-model="selectedColor" class="w-6 h-6 p-0 border-0 rounded-full cursor-pointer outline-none bg-transparent" />
                  </div>
                  
                  <div class="flex items-center gap-2 pl-3 pr-1 py-1 bg-black/5 dark:bg-black/30 rounded-full border border-black/5 dark:border-white/5 transition-colors">
                      <span class="text-[9px] font-bold text-[#050505]/40 dark:text-white/40 uppercase tracking-widest leading-none">Size</span>
                      <div class="flex items-center gap-1">
-                         <button @click="selectedWidth = Math.max(1, selectedWidth - 1)" class="w-5 h-5 flex items-center justify-center text-[#050505]/50 dark:text-white/50 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition text-xs active:scale-90" title="Decrease Size">−</button>
+                         <button @click="selectedWidth = Math.max(1, selectedWidth - 1)" class="w-5 h-5 flex items-center justify-center text-[#050505]/50 dark:text-white/50 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition text-xs active:scale-90">−</button>
                          <div class="w-4 text-center text-[#050505] dark:text-white text-xs font-bold transition-colors">{{ selectedWidth }}</div>
-                         <button @click="selectedWidth += 1" class="w-5 h-5 flex items-center justify-center text-[#050505]/50 dark:text-white/50 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition text-xs active:scale-90" title="Increase Size">+</button>
+                         <button @click="selectedWidth += 1" class="w-5 h-5 flex items-center justify-center text-[#050505]/50 dark:text-white/50 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition text-xs active:scale-90">+</button>
                      </div>
                  </div>
               </div>
@@ -329,15 +329,15 @@
 
               <!-- Main Actions -->
               <div class="flex items-center gap-2">
-                  <button @click="clearAll" class="px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10 text-[#050505]/60 dark:text-white/60 hover:text-[#050505] dark:hover:text-white rounded-full transition text-[10px] uppercase font-bold tracking-widest" title="Clear All Layer">Clear</button>
-                  <button @click="save" class="px-6 py-2 bg-[#050505] dark:bg-white nier-text-primary rounded-full hover:shadow-lg transition-all duration-300 text-[10px] uppercase font-bold tracking-widest" title="Save & Close">Done</button>
+                  <button @click="clearAll" class="px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10 text-[#050505]/60 dark:text-white/60 hover:text-[#050505] dark:hover:text-white rounded-full transition text-[10px] uppercase font-bold tracking-widest">Clear</button>
+                  <button @click="save" class="px-6 py-2 bg-[#050505] dark:bg-white nier-text-primary rounded-full hover:shadow-lg transition-all duration-300 text-[10px] uppercase font-bold tracking-widest">Done</button>
               </div>
           </template>
 
           <div class="w-px h-8 bg-black/5 dark:bg-white/5 mx-1"></div>
 
           <!-- Shrink Toggle -->
-          <button @click="isDockShrunk = !isDockShrunk" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#050505]/30 dark:text-white/30 hover:text-[#050505] dark:hover:text-white transition-all shadow-sm" :title="isDockShrunk ? 'Expand Toolbar' : 'Minimize Toolbar'">
+          <button @click="isDockShrunk = !isDockShrunk" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-[#050505]/30 dark:text-white/30 hover:text-[#050505] dark:hover:text-white transition-all shadow-sm">
               <svg v-if="!isDockShrunk" class="w-5 h-5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 15l-3-3-3 3M15 9l-3 3-3-3"/></svg>
               <svg v-else class="w-5 h-5 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15l3-3 3 3M9 9l3 3 3-3"/></svg>
           </button>

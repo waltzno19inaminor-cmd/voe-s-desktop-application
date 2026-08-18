@@ -395,7 +395,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useThemeStore, type ThemeSettings } from '~/features/store/useTheme'
-import TradingViewNews from '~/widgets/dashboard/ui/TradingViewNews.vue'
+import TradingViewNews from '~/widgets/dashboard/ui/widgets/TradingViewNews.vue'
 import { closeSettings } from '~/widgets/settings/model/useSettings'
 
 const themeStore = useThemeStore()

@@ -1,12 +1,18 @@
 use std::collections::BTreeMap;
 
 #[tauri::command]
-pub async fn ibkr_fetch_xml(url: String, params: BTreeMap<String, String>) -> Result<String, String> {
+pub async fn ibkr_fetch_xml(
+    url: String,
+    params: BTreeMap<String, String>,
+) -> Result<String, String> {
     let client = reqwest::Client::new();
-    
+
     let mut headers = reqwest::header::HeaderMap::new();
     // Some endpoints may require a generic User-Agent
-    headers.insert("User-Agent", reqwest::header::HeaderValue::from_static("Mozilla/5.0"));
+    headers.insert(
+        "User-Agent",
+        reqwest::header::HeaderValue::from_static("Mozilla/5.0"),
+    );
 
     let response = client
         .get(&url)

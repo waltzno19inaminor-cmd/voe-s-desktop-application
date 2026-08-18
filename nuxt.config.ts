@@ -2,6 +2,11 @@
 export default defineNuxtConfig({
   srcDir: 'src/',
   ssr: false,
+  runtimeConfig: {
+    public: {
+      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || '',
+    },
+  },
   devServer: {
     host: '0.0.0.0',
     port: 3000,

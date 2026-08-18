@@ -3,8 +3,7 @@
  */
 
 /**
- * The S&P 500 live 1-year annualized yield (25.21%).
- * Used as a stable, reliable benchmark proxy for expert analytics,
- * decoupling from external third-party API dependencies that are prone to CORS/rate-limit failures.
+ * Fallback S&P 500 benchmark rate used when the completed-calendar-year
+ * historical data cannot be loaded from the market-data provider.
  */
 export const SP500_BENCHMARK_RATE = 25.21;

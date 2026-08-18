@@ -18,38 +18,43 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
   }
 
   function handleImageUpload(e: Event) {
-    const input = e.target as HTMLInputElement
-    const file = input.files?.[0]
-    if (!file || !uploadingNodeId.value) {
-      input.value = ''
-      return
-    }
-
+    const file = (e.target as HTMLInputElement).files?.[0]
+    if (!file || !uploadingNodeId.value) return
+    
     const reader = new FileReader()
     reader.onload = (event) => {
       const node = state.getNode(uploadingNodeId.value!)
       if (node) {
         if (!node.params) node.params = {}
+        const prevUrl = node.params.imageUrl
         node.params.imageUrl = event.target?.result as string
         node.params.width = 300
         node.params.height = 200
+
+        state.changeTree.recordNodeScreenshotChanged(node, {
+          undo: () => {
+            node.params.imageUrl = prevUrl
+            state.forceUpdate()
+          },
+          redo: () => {
+            node.params.imageUrl = event.target?.result as string
+            state.forceUpdate()
+          }
+        })
       }
       uploadingNodeId.value = null
     }
     reader.readAsDataURL(file)
-    input.value = ''
   }
 
   function handleGenericFileUpload(e: Event) {
-    const input = e.target as HTMLInputElement
-    const file = input.files?.[0]
+    const file = (e.target as HTMLInputElement).files?.[0]
     if (!file || !uploadingFileNodeId.value) return
 
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
-    if (!isPdf) {
-      window.alert('Only PDF files can be attached to FILE nodes.')
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      alert('Only PDF files are supported.')
+      if (fileInput.value) fileInput.value.value = ''
       uploadingFileNodeId.value = null
-      input.value = ''
       return
     }
 
@@ -58,10 +63,32 @@ export function useMatrixUploads(state: ReturnType<typeof useMatrixState>) {
       const node = state.getNode(uploadingFileNodeId.value!)
       if (node) {
         if (!node.params) node.params = {}
+        const prevName = node.params.fileName
+        const prevSize = node.params.fileSize
+        const prevType = node.params.fileType
+        const prevUrl = node.params.fileDataUrl
+
         node.params.fileName = file.name
         node.params.fileSize = file.size
         node.params.fileType = 'application/pdf'
         node.params.fileDataUrl = event.target?.result as string
+
+        state.changeTree.recordNodeFileAttachmentChanged(node, {
+          undo: () => {
+            node.params.fileName = prevName
+            node.params.fileSize = prevSize
+            node.params.fileType = prevType
+            node.params.fileDataUrl = prevUrl
+            state.forceUpdate()
+          },
+          redo: () => {
+            node.params.fileName = file.name
+            node.params.fileSize = file.size
+            node.params.fileType = 'application/pdf'
+            node.params.fileDataUrl = event.target?.result as string
+            state.forceUpdate()
+          }
+        })
       }
       uploadingFileNodeId.value = null
       if (fileInput.value) fileInput.value.value = ''

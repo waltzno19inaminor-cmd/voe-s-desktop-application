@@ -123,14 +123,14 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
   function getMainStemPath(fromId: string, bundleId?: string) {
     const layout = getBundleLayout(fromId, bundleId)
     if (!layout) return ""
-
+    
     return `M ${layout.startPoint.x} ${layout.startPoint.y} L ${layout.j1.x} ${layout.j1.y}`
   }
 
   function getBundleStemPath(fromId: string, bundleId: string) {
     const layout = getBundleLayout(fromId, bundleId)
     if (!layout) return ""
-
+    
     return `M ${layout.j1.x} ${layout.j1.y} ${createBundleStemCurve(layout)}`
   }
 
@@ -141,14 +141,14 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const layout = getBundleLayout(line.fromId, line.bundleId, line)
     if (!layout) return ""
     const endPoint = getNodePortPoint(to, line.toPort || 'left')
-
+    
     return `M ${layout.j2.x} ${layout.j2.y} ${createBundleBranchCurve(layout, endPoint)}`
   }
 
   function createCurvedPath(f: Point, t: Point, fromPort: string = 'right', toPort: string = 'left') {
     let cp1 = { x: f.x, y: f.y }
     let cp2 = { x: t.x, y: t.y }
-
+    
     const dx = Math.abs(t.x - f.x)
     const dy = Math.abs(t.y - f.y)
     const curveDist = Math.max(dx, dy) * 0.5
@@ -170,9 +170,9 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const from = state.getNode(fromId)
     const to = state.getNode(toId)
     if (!from || !to) return ""
-
+    
     const conn = state.connections.value.find(c => c.fromId === fromId && c.toId === toId)
-
+    
     const startPoint = getNodePortPoint(from, conn?.fromPort || 'right')
     const endPoint = getNodePortPoint(to, conn?.toPort || 'left')
 
@@ -190,14 +190,14 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const from = state.getNode(line.fromId)
     const to = state.getNode(line.toId)
     if (!from || !to) return { x: 0, y: 0 }
-
+    
     if (line.bundleId) {
        const layout = getBundleLayout(from.id, line.bundleId, line)
        if (!layout) return { x: 0, y: 0 }
-
+       
        return { x: layout.j2.x, y: layout.j2.y }
     }
-
+    
     const fromRadius = (from.type === 'scaling-entry' || from.type === 'step') ? 28 : 56
     const fromGap = (from.type === 'scaling-entry' || from.type === 'step') ? 2 : 6
     let startX = from.x + fromRadius + fromGap
@@ -205,7 +205,7 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     if (line.fromPort === 'top') { startX = from.x; startY = from.y - fromRadius - fromGap }
     else if (line.fromPort === 'bottom') { startX = from.x; startY = from.y + fromRadius + fromGap }
     else if (line.fromPort === 'left') { startX = from.x - fromRadius - fromGap; startY = from.y }
-
+    
     const toRadius = (to.type === 'scaling-entry' || to.type === 'step') ? 28 : 56
     const toGap = (to.type === 'scaling-entry' || to.type === 'step') ? 2 : 6
     let endX = to.x - toRadius - toGap
@@ -221,17 +221,23 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
   }
 
   function shouldShowLabel(line: Connection) {
+    if (!state.getNode(line.fromId) || !state.getNode(line.toId)) return false
     if (!line.label || !line.bundleId) return true
-    const siblings = state.connections.value.filter(c => c.fromId === line.fromId && c.bundleId === line.bundleId)
+    const siblings = state.connections.value.filter(c =>
+      c.fromId === line.fromId &&
+      c.bundleId === line.bundleId &&
+      state.getNode(c.fromId) &&
+      state.getNode(c.toId)
+    )
     return siblings[0] === line
   }
 
   function handleLabelDrag(e: MouseEvent, line: Connection) {
     if (!line.bundleId) return
-
+    
     const startX = e.clientX
     const startY = e.clientY
-
+    
     const bundleConns = state.connections.value.filter(c => c.fromId === line.fromId && c.bundleId === line.bundleId)
     const initialStemX = line.bundleStemX || 0
     const initialStemY = line.bundleStemY || 0
@@ -239,19 +245,19 @@ export function usePathMath(state: ReturnType<typeof useMatrixState>) {
     const move = (mE: MouseEvent) => {
       const deltaX = (mE.clientX - startX) / state.viewState.value.scale
       const deltaY = (mE.clientY - startY) / state.viewState.value.scale
-
+      
       bundleConns.forEach(c => {
         c.bundleStemX = initialStemX + deltaX
         c.bundleStemY = initialStemY + deltaY
       })
     }
-
+    
     const stop = () => {
       state.saveMatrixData()
       window.removeEventListener('mousemove', move)
       window.removeEventListener('mouseup', stop)
     }
-
+    
     window.addEventListener('mousemove', move)
     window.addEventListener('mouseup', stop)
   }

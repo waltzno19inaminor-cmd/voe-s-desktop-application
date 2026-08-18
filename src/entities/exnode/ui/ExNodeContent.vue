@@ -5,18 +5,13 @@
     <div class="flex items-center justify-between border-b border-current/10 py-6 px-12 bg-current/[0.01]">
       <button @click="$emit('back')" class="flex items-center space-x-4 text-current/40 hover:text-current transition-all group">
         <span class="text-xl opacity-30 group-hover:-translate-x-1 transition-transform">←</span>
-        <span class="text-[9px] tracking-[0.4em] uppercase">Return to The Journal</span>
+        <span class="text-[9px] tracking-[0.4em] uppercase">{{ contentLabels.returnToJournal }}</span>
       </button>
 
       <div class="flex items-center space-x-12">
-        <div class="flex flex-col items-end">
-          <span class="text-[7px] font-mono opacity-20 tracking-widest uppercase">Chronicle_ID</span>
-          <span class="text-xs font-serif italic text-current opacity-60 uppercase">{{ node.id }}</span>
-        </div>
-        <div class="w-px h-8 bg-current/10"></div>
         <div class="flex items-center space-x-6">
-          <button class="text-[9px] tracking-[0.4em] opacity-40 hover:opacity-100 uppercase transition-opacity">Export_Arch</button>
-          <button class="text-[9px] tracking-[0.4em] opacity-40 hover:opacity-100 uppercase transition-opacity">Sync_Node</button>
+          <button class="text-[9px] tracking-[0.4em] opacity-40 hover:opacity-100 uppercase transition-opacity">{{ contentLabels.exportArchive }}</button>
+          <button class="text-[9px] tracking-[0.4em] opacity-40 hover:opacity-100 uppercase transition-opacity">{{ contentLabels.syncNode }}</button>
         </div>
       </div>
     </div>
@@ -27,35 +22,52 @@
         
         <!-- Article Header -->
         <header class="space-y-8 text-center">
-          <div class="flex flex-col items-center space-y-3">
-            <span class="text-[8px] font-mono tracking-[0.5em] uppercase opacity-30">{{ node.category }} // {{ node.mode }}</span>
-            <div class="w-12 h-px bg-current opacity-10"></div>
-          </div>
-          
           <h1 class="text-5xl lg:text-7xl font-serif italic text-current leading-tight tracking-tight drop-shadow-sm">
             {{ node.title }}
           </h1>
 
-          <div class="flex items-center justify-center space-x-10 text-[8px] font-mono tracking-[0.4em] opacity-30 uppercase pt-4">
-             <span>Affinity: {{ node.likesCount }}</span>
+          <div class="flex items-center justify-center space-x-10 text-[8px] font-mono tracking-[0.32em] uppercase pt-4">
+             <span class="font-semibold text-current/80">{{ contentLabels.likes }}: {{ node.likesCount }}</span>
              <span class="w-1 h-1 bg-current opacity-20 rounded-full"></span>
-             <span>Echoes: {{ node.repliesCount }}</span>
+             <span class="text-current/40">{{ contentLabels.comments }}: {{ node.repliesCount }}</span>
              <span class="w-1 h-1 bg-current opacity-20 rounded-full"></span>
-             <span>{{ node.lastActivityAt.slice(0, 10) }}</span>
+             <span class="text-current/40">{{ contentLabels.published }}: {{ formatContentDate(node.lastActivityAt) }}</span>
           </div>
         </header>
 
         <!-- Dynamic Mode-Specific Block -->
         <div class="mode-specific-ledger">
            <!-- Setup Block -->
-           <div v-if="node.mode === 'SETUP'" class="p-10 border border-current/10 bg-current/[0.02] flex items-center justify-around">
+           <div v-if="node.signal" class="p-10 border border-current/10 bg-current/[0.02] flex flex-col gap-8">
+             <div class="flex items-end justify-between gap-8">
+               <div class="flex flex-col">
+                 <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">{{ contentLabels.signalAsset }}</span>
+                 <span class="text-4xl font-mono text-current opacity-70">{{ node.signal.asset }}</span>
+               </div>
+               <div class="flex flex-col items-end text-right">
+                 <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">{{ contentLabels.signalTarget }}</span>
+                 <span :class="['text-4xl font-mono', getSignalDirectionClass()]">
+                   {{ getSignalArrow() }} {{ formatSignalPrice(node.signal.targetPrice) }}
+                 </span>
+               </div>
+             </div>
+             <div class="flex items-center justify-between border-t border-current/10 pt-6">
+               <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest">{{ contentLabels.signalSource }}</span>
+               <span class="text-xl font-mono text-current/50">{{ formatSignalPrice(node.signal.entryPrice) }}</span>
+             </div>
+             <p class="text-base font-serif italic leading-relaxed text-current/60">
+               "{{ node.signal.description }}"
+             </p>
+           </div>
+
+           <div v-else-if="node.mode === 'SETUP'" class="p-10 border border-current/10 bg-current/[0.02] flex items-center justify-around">
              <div class="flex flex-col items-center">
-               <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">Buy_Entry // Target_Z</span>
+               <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">{{ contentLabels.buyEntry }}</span>
                <span class="text-4xl font-mono text-current opacity-60">{{ node.setupLevels?.tp }}</span>
              </div>
              <div class="w-px h-16 bg-current/10"></div>
              <div class="flex flex-col items-center">
-               <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">Invalidation // Void_X</span>
+               <span class="text-[8px] font-mono opacity-20 uppercase tracking-widest mb-2">{{ contentLabels.invalidation }}</span>
                <span class="text-4xl font-mono text-current opacity-60">{{ node.setupLevels?.sl }}</span>
              </div>
            </div>
@@ -119,7 +131,7 @@
         <footer class="pt-24 pb-12 text-center flex flex-col items-center space-y-6">
            <div class="w-12 h-px bg-current opacity-10"></div>
            <p class="text-[9px] font-serif italic opacity-30 tracking-[0.2em] max-w-sm">
-             Intelligence reified in the Celestial Archive. Document integrity verified by the Equilibrium Protocol.
+             {{ contentLabels.footerNote }}
            </p>
            <div class="flex items-center space-x-4 text-[7px] font-mono tracking-[0.5em] opacity-20 uppercase">
               <span>0x8A_REIFY</span>
@@ -134,13 +146,70 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from '~/shared/i18n/useI18n'
 import type { ExNode } from '../model/exnode.types'
 
-defineProps<{
+const props = defineProps<{
   node: ExNode
 }>()
 
 defineEmits(['back'])
+
+const { locale } = useI18n()
+
+const contentLabels = computed(() => locale.value === 'ru'
+  ? {
+      returnToJournal: 'Вернуться в журнал',
+      exportArchive: 'Экспорт_архива',
+      syncNode: 'Синхронизировать_узел',
+      likes: 'Лайки',
+      comments: 'Комменты',
+      published: 'Опубл.',
+      buyEntry: 'Вход_покупки // Цель_Z',
+      invalidation: 'Отмена // Void_X',
+      signalAsset: 'Актив',
+      signalTarget: 'Ближайшая цель',
+      signalSource: 'Цена прогноза',
+      footerNote: 'Интеллект сохранен в Небесном архиве. Целостность документа подтверждена протоколом равновесия.'
+    }
+  : {
+      returnToJournal: 'Return to The Journal',
+      exportArchive: 'Export_Arch',
+      syncNode: 'Sync_Node',
+      likes: 'Likes',
+      comments: 'Comments',
+      published: 'Pub.',
+      buyEntry: 'Buy_Entry // Target_Z',
+      invalidation: 'Invalidation // Void_X',
+      signalAsset: 'Asset',
+      signalTarget: 'Nearest target',
+      signalSource: 'Source price',
+      footerNote: 'Intelligence reified in the Celestial Archive. Document integrity verified by the Equilibrium Protocol.'
+    })
+
+const getSignalDirectionClass = () => props.node.signal?.direction === 'up'
+  ? 'text-emerald-500'
+  : 'text-red-500'
+
+const getSignalArrow = () => props.node.signal?.direction === 'up' ? '↑' : '↓'
+
+const formatSignalPrice = (price: number) => {
+  const signal = props.node.signal
+  const precision = signal?.pricePrecision ?? (price < 10 ? 4 : price < 100 ? 2 : 0)
+  const formatted = new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision
+  }).format(price)
+
+  return signal?.quoteCurrency ? `${formatted} ${signal.quoteCurrency}` : formatted
+}
+
+const formatContentDate = (value: string) => new Intl.DateTimeFormat(locale.value === 'ru' ? 'ru-RU' : 'en-US', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric'
+}).format(new Date(value))
 
 const scrollToStep = (stepNum: number) => {
   const el = document.getElementById(`step-anchor-${stepNum}`)

@@ -4,6 +4,7 @@ import {  collection, doc, getDocs,  updateDoc, arrayUnion, arrayRemove, increme
 import { db } from '~/shared/firebase.client'
 import { saveToDisk, loadFromDisk } from '@/shared/diskStorage';
 import { useForumStore } from '@/features/store/useForum';
+import { getMatrixStrategyOptions } from '@/widgets/genesis/model/matrix/useMatrixStrategies';
 
 
 
@@ -197,6 +198,21 @@ export async function loadDiaryFromDisk(uid: string) {
 
 export async function loadStrategies() {
   try {
+    const matrixData = await loadFromDisk<any>('genesis_matrix_v2');
+    const matrixOptions = getMatrixStrategyOptions(matrixData).map((strategy) => ({
+      id: strategy.id,
+      name: strategy.name,
+      boardName: strategy.boardName || 'Genesis Matrix',
+      boardId: strategy.boardId || 'genesis-matrix-main',
+      targetRR: strategy.targetRR || 0,
+      initialDeposit: strategy.initialDeposit
+    }));
+
+    if (matrixOptions.length > 0) {
+      strategyOptions.value = matrixOptions;
+      return;
+    }
+
     const meta = await loadFromDisk<any[]>('trading_boards_meta_v3');
     if (!meta) return;
 

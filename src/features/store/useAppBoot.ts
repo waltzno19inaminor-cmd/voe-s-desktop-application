@@ -11,6 +11,8 @@ export const useAppBootStore = defineStore('appBoot', () => {
   
   // Caches
   const genesisMatrixCache = ref<any>(null)
+  const isGenesisMatrixSessionRestored = ref(false)
+  const areGenesisMatrixImagesPreloaded = ref(false)
   
   async function executeBootSequence(userId: string) {
     isBooting.value = true
@@ -20,9 +22,17 @@ export const useAppBootStore = defineStore('appBoot', () => {
       // Helper for minimum visual delay (so it doesn't flash instantly)
       const delay = (ms: number) => new Promise(r => setTimeout(r, ms))
       
-      // Step 1: Network - Activity
-      currentLog.value = 'Fetching monitor activity...'
-      await fetchDailyActivity(userId)
+      // Step 1: Network - Activity. The local workspace must still boot when
+      // the operator has no connection; the activity panel can sync later.
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        currentLog.value = 'Fetching monitor activity...'
+        await Promise.race([
+          fetchDailyActivity(userId),
+          delay(2500)
+        ])
+      } else {
+        currentLog.value = 'Offline mode: loading local workspace...'
+      }
       await delay(600) // Visual pause
       bootProgress.value = 33
       
@@ -56,6 +66,8 @@ export const useAppBootStore = defineStore('appBoot', () => {
     bootProgress,
     currentLog,
     genesisMatrixCache,
+    isGenesisMatrixSessionRestored,
+    areGenesisMatrixImagesPreloaded,
     executeBootSequence
   }
 })

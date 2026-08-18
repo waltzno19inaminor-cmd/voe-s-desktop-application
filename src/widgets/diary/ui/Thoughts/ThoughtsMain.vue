@@ -6,7 +6,6 @@
         v-if="!isDrawingModalActive"
         @click="$emit('close')"
         class="absolute top-6 right-6 z-50 p-2 text-[#777] hover:text-black dark:hover:text-white transition-colors"
-        title="Close Reflections"
       >
         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12" />

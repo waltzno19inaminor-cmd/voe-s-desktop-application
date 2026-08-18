@@ -14,7 +14,7 @@
           <span class="truncate">{{ node.author }}</span>
           <ExUserStatusBadge v-if="node.authorStatus" :status="node.authorStatus" />
         </span>
-        <span class="text-[9px] font-semibold text-current/80">{{ nodeLabels.published }} {{ formatNodeDate(node.lastActivityAt) }}</span>
+        <span class="text-[9px] font-semibold text-current/80">{{ formatNodeDate(node.lastActivityAt) }}</span>
       </div>
       <div v-else class="flex items-center justify-between font-mono uppercase">
         <span v-if="node.author" class="inline-flex min-w-0 items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-current/90">

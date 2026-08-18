@@ -10,8 +10,7 @@ export function useExGenesisMatrixUndo() {
 
   const getStorageKey = () => {
     const pageId = state.activePageId.value || 'default';
-    const versionId = state.selectedStrategyVersionId.value || 'current';
-    return `${STORAGE_KEY_PREFIX}_${pageId}_${versionId}`;
+    return `${STORAGE_KEY_PREFIX}_${pageId}`;
   }
 
   const getBuffer = (): any[] => {
@@ -56,6 +55,11 @@ export function useExGenesisMatrixUndo() {
     saveBuffer(buffer)
   }
 
+  const resetSnapshot = () => {
+    if (typeof sessionStorage === 'undefined') return
+    saveBuffer([captureSnapshot()])
+  }
+
   const undo = () => {
     const buffer = getBuffer()
     if (buffer.length <= 1) return // Nothing to undo
@@ -69,13 +73,11 @@ export function useExGenesisMatrixUndo() {
     // Revert to previous state
     const previousState = buffer[buffer.length - 1]
     if (previousState) {
-      const versionCheckpoints = state.changeTree.events.value.filter(event => event.type === 'version')
       state.rootNodes.value = previousState.rootNodes
       state.rootConnections.value = previousState.rootConnections
       state.rootZones.value = previousState.rootZones
       if (previousState.treeEvents) {
-        const restoredEvents = previousState.treeEvents.filter((event: any) => event.type !== 'version')
-        state.changeTree.events.value = [...restoredEvents, ...versionCheckpoints]
+        state.changeTree.events.value = previousState.treeEvents
           .filter((event, index, allEvents) => allEvents.findIndex(item => item.id === event.id) === index)
           .sort((left, right) => left.createdAt - right.createdAt)
       }
@@ -136,11 +138,9 @@ export function useExGenesisMatrixUndo() {
   )
 
   watch(
-    () => [state.activePageId.value, state.selectedStrategyVersionId.value],
+    () => state.activePageId.value,
     () => {
-      if (getBuffer().length === 0) {
-        pushSnapshot()
-      }
+      resetSnapshot()
     }
   )
 
@@ -157,6 +157,7 @@ export function useExGenesisMatrixUndo() {
 
   return {
     undo,
-    pushSnapshot
+    pushSnapshot,
+    resetSnapshot
   }
 }

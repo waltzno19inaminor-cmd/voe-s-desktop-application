@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue'
 
-export type MatrixChangeType = 'add' | 'delete' | 'connect' | 'version' | 'clear' | 'update'
+export type MatrixChangeType = 'add' | 'delete' | 'connect' | 'clear' | 'update'
 
 export type MatrixChangeEvent = {
   id: string
@@ -9,7 +9,7 @@ export type MatrixChangeEvent = {
   node: string
   createdAt: number
   targetId?: string
-  targetKind?: 'node' | 'connection' | 'board' | 'version' | 'domain'
+  targetKind?: 'node' | 'connection' | 'board' | 'domain'
   subchanges: any[]
 }
 
@@ -362,26 +362,6 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
   }
   function recordConnectionCreated(...args: any[]) {}
   function recordConnectionDeleted(...args: any[]) {}
-  function appendStrategyVersionCheckpoint(title: string, versionLabel?: string) {
-    events.value.push({
-      id: changeId(),
-      type: 'version',
-      title,
-      node: versionLabel || 'strategy version',
-      createdAt: Date.now(),
-      targetKind: 'version',
-      subchanges: []
-    })
-  }
-  function recordStrategyVersionCreated(versionLabel?: string) {
-    appendStrategyVersionCheckpoint('SET_STRATEGY_VERSION', versionLabel)
-  }
-  function recordStrategyVersionUpdated(versionLabel?: string) {
-    appendStrategyVersionCheckpoint('UPDATE_STRATEGY_VERSION', versionLabel)
-  }
-  function clearStrategyVersionCheckpoints() {
-    events.value = events.value.filter(event => event.type !== 'version')
-  }
   function recordNodeIdentityChanged(node: any, value: string, ...args: any[]) {
     setFinalNodeValue(node, 'identity', value)
     updateEventNodeDisplay(node)
@@ -399,8 +379,47 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
   function recordZoneTypeChanged(...args: any[]) {}
 
   // Additional stubs required by ExSkillNode.vue and useMatrixState.ts
-  function recordNodeLabelTextChanged(node: any, ...args: any[]) {
+  function recordNodeLabelTextChanged(node: any, value: string, ...args: any[]) {
+    let parent = findAddNodeContainer(node.id)
+    const payload = args.find(arg => arg && typeof arg === 'object' && ('nextHtml' in arg || 'previousHtml' in arg || 'nextValue' in arg || 'previousValue' in arg))
+
+    if (!parent) {
+      parent = {
+        id: changeId(),
+        type: 'update',
+        title: 'UPDATE_NODE',
+        node: `${node.type}: ${nodeDisplayValue(node)}`,
+        createdAt: Date.now(),
+        targetId: node.id,
+        targetKind: 'node',
+        subchanges: []
+      } as MatrixChangeEvent
+      events.value.push(parent as MatrixChangeEvent)
+    } else if ('title' in parent && parent.title === 'ADD_NODE') {
+      parent.title = 'ADD_NODE*'
+    }
+
+    const existingIndex = parent.subchanges.findIndex(change => change.label === 'text')
+    const nextChange = {
+      id: existingIndex !== -1 ? parent.subchanges[existingIndex].id : changeId('sub'),
+      label: 'text',
+      value: String(value ?? ''),
+      targetId: node.id,
+      payload: payload ? { ...payload } : undefined,
+      subchanges: []
+    }
+
+    if (existingIndex !== -1) {
+      parent.subchanges[existingIndex] = nextChange
+      parent.subchanges = parent.subchanges.filter((change, index) => (
+        change.label !== 'text' || index === existingIndex
+      ))
+    } else {
+      parent.subchanges.push(nextChange)
+    }
+
     updateEventNodeDisplay(node)
+    events.value = [...events.value]
   }
   function recordNodeEmbedUrlChanged(...args: any[]) {}
   function recordNodeDescriptionChanged(...args: any[]) {}
@@ -453,9 +472,6 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
     recordLogicPlaceholderNodeAdded,
     recordConnectionCreated,
     recordConnectionDeleted,
-    recordStrategyVersionCreated,
-    recordStrategyVersionUpdated,
-    clearStrategyVersionCheckpoints,
     recordNodeIdentityChanged,
     recordNodeDirectionChanged,
     recordNodePriorityChanged,

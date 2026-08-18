@@ -13,6 +13,7 @@ export interface MatrixIndicatorCategory {
   id: string
   name: string
   indicators: MatrixIndicatorDefinition[]
+  source?: string
 }
 
 interface FundamentalIndicatorCache {
@@ -25,15 +26,37 @@ const CACHE_FILE = 'fundamental_indicators_cache'
 const OPTIONAL_API_URL = 'VITE_FUNDAMENTAL_INDICATORS_API_URL'
 const FUNDAMENTAL_CATEGORY_ID = 'FUNDAMENTAL'
 
+function sanitizeFundamentalIndicator(indicator: MatrixIndicatorDefinition): MatrixIndicatorDefinition {
+  const params = { ...(indicator.params || {}) }
+  delete params.source
+
+  return {
+    ...indicator,
+    params: {
+      ...params,
+      fundamental: true,
+      needsConfig: params.needsConfig ?? true
+    }
+  }
+}
+
+function withFundamentalSource(category: MatrixIndicatorCategory, source: string): MatrixIndicatorCategory {
+  return {
+    ...category,
+    source,
+    indicators: (category.indicators || []).map(sanitizeFundamentalIndicator)
+  }
+}
+
 function fallbackFundamentalCategory(): MatrixIndicatorCategory {
   const category = (indicatorData.categories as MatrixIndicatorCategory[])
     .find(item => item.id === FUNDAMENTAL_CATEGORY_ID)
 
-  return category || {
+  return withFundamentalSource(category || {
     id: FUNDAMENTAL_CATEGORY_ID,
     name: 'Fundamental & Macro Indicators',
     indicators: []
-  }
+  }, 'fallback')
 }
 
 function normalizeLabel(value: unknown) {
@@ -56,7 +79,6 @@ function normalizeIndicator(raw: any): MatrixIndicatorDefinition | null {
     params: {
       ...(raw?.params || {}),
       fundamental: true,
-      source: raw?.source || 'api',
       needsConfig: raw?.params?.needsConfig ?? raw?.needsConfig ?? true
     }
   }
@@ -79,13 +101,8 @@ function normalizeCategory(payload: any, source: string): MatrixIndicatorCategor
   return {
     id: FUNDAMENTAL_CATEGORY_ID,
     name: directCategory?.name || payload?.name || 'Fundamental & Macro Indicators',
-    indicators: dedupeIndicators(indicators).map(indicator => ({
-      ...indicator,
-      params: {
-        ...(indicator.params || {}),
-        source
-      }
-    }))
+    source,
+    indicators: dedupeIndicators(indicators).map(sanitizeFundamentalIndicator)
   }
 }
 
@@ -104,7 +121,9 @@ function getOptionalApiUrl() {
 
 export async function loadFundamentalIndicatorCategory() {
   const cached = await loadFromDisk<FundamentalIndicatorCache>(CACHE_FILE)
-  return cached?.category || fallbackFundamentalCategory()
+  return cached?.category
+    ? withFundamentalSource(cached.category, cached.source || 'cache')
+    : fallbackFundamentalCategory()
 }
 
 export async function syncFundamentalIndicatorCategory() {

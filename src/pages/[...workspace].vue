@@ -1,9 +1,9 @@
 <template>
-  <ExTestCleanWorkspace />
+  <ExWorkspaceView />
 </template>
 
 <script setup>
-import ExTestCleanWorkspace from '~/widgets/test-clean/ui/ExTestCleanWorkspace.vue'
+import ExWorkspaceView from '~/widgets/workspace/ui/workspace/ExWorkspaceView.vue'
 
 definePageMeta({ 
   layout: false,

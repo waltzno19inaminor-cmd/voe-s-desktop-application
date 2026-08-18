@@ -989,7 +989,6 @@
           "description": "Earnings Per Share - Tracks company profitability per share and earnings quality.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1000,7 +999,6 @@
           "description": "Revenue Growth - Measures top-line expansion or contraction across reporting periods.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1011,7 +1009,6 @@
           "description": "Gross Margin - Evaluates pricing power and cost pressure inside the business model.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1022,7 +1019,6 @@
           "description": "Free Cash Flow - Measures operational cash generation after capital expenditures.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1033,7 +1029,6 @@
           "description": "Debt Load - Tracks leverage, balance-sheet stress, and refinancing sensitivity.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1044,7 +1039,6 @@
           "description": "Price to Earnings - Compares valuation against company earnings power.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1055,7 +1049,6 @@
           "description": "Guidance Revision - Captures management upgrades, downgrades, and forecast risk.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1066,7 +1059,6 @@
           "description": "Earnings Event - Company reporting window with elevated repricing risk.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1077,7 +1069,6 @@
           "description": "Interest Rate Decision - Central-bank policy event affecting discount rates and liquidity.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1088,7 +1079,6 @@
           "description": "Consumer Price Index - Inflation print that can shift rate expectations and risk appetite.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1099,7 +1089,6 @@
           "description": "Nonfarm Payrolls - Labor-market release that can trigger macro volatility.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1110,7 +1099,6 @@
           "description": "Gross Domestic Product - Growth regime marker for macro and sector exposure.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1121,7 +1109,6 @@
           "description": "Purchasing Managers Index - Forward-looking activity signal for expansion or contraction.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         },
@@ -1132,7 +1119,6 @@
           "description": "Inventory Data - Supply-demand pressure signal for commodities, energy, and cyclicals.",
           "params": {
             "fundamental": true,
-            "source": "fallback",
             "needsConfig": true
           }
         }

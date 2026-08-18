@@ -1,13 +1,13 @@
 <template>
-  <div class="ethereal-void h-screen relative overflow-y-auto transition-all duration-1000"
+  <div class="design-gradflow-page ethereal-void h-screen relative overflow-y-auto transition-all duration-1000"
        :class="[isDark ? 'is-dark dark theme-dark' : 'theme-light']">
     
-    <!-- SYSTEM BACKGROUNDS -->
-    <EtherealBackground :is-dark="isDark" :is-assembled="true" :show-bloom="false" />
+    <!-- SYSTEM BACKGROUND -->
+    <GradflowBackground preset="mystic" :config="gradflowConfig" />
     <DesignVignette :is-dark="isDark" />
 
 
-    <div class="p-16 bg-theme-bg text-theme-text min-h-screen">
+    <div class="relative z-10 p-16 bg-transparent text-theme-text min-h-screen">
       <!-- HEADER -->
       <header class="mb-24 flex flex-col items-start text-theme-text">
         <div class="flex items-center space-x-4 mb-4">
@@ -1016,7 +1016,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
-import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
+import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
@@ -1024,17 +1024,16 @@ import ExHeading from '~/shared/ui/ExHeading.vue'
 import ExText from '~/shared/ui/ExText.vue'
 import ExInput from '~/shared/ui/ExInput.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
-import ExGenesisMenu from '~/widgets/genesis/ui/ExGenesisMenu.vue'
-import ExInitialization from '~/widgets/test-clean/ui/ExInitialization.vue'
-import ExDashboard from '~/widgets/dashboard/ui/ExDashboard.vue'
-import ExTradeAnalysisPanel from '~/widgets/genesis/ui/ExTradeAnalysisPanel.vue'
-import ExImageArchiveSlot from '~/widgets/genesis/ui/ExImageArchiveSlot.vue'
-import ExImageEditor from '~/widgets/genesis/ui/ExImageEditor.vue'
-import ExTacticalNodeMap from '~/widgets/genesis/ui/ExTacticalNodeMap.vue'
-import ExVerticalTradeList from '~/widgets/genesis/ui/ExVerticalTradeList.vue'
-import OpenStrategyMetrics from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
-import ExActivityMonitor from '~/widgets/dashboard/ui/ExActivityMonitor.vue'
-import ExTradeShareCardPreview from '~/widgets/genesis/ui/ExTradeShareCardPreview.vue'
+import ExGenesisMenu from '~/widgets/genesis/ui/common/ExGenesisMenu.vue'
+import ExInitialization from '~/widgets/workspace/ui/init/ExInitialization.vue'
+import ExDashboard from '~/widgets/dashboard/ui/main/ExDashboard.vue'
+import ExTradeAnalysisPanel from '~/widgets/genesis/ui/analytics/ExTradeAnalysisPanel.vue'
+import ExImageArchiveSlot from '~/widgets/genesis/ui/common/ExImageArchiveSlot.vue'
+import ExImageEditor from '~/widgets/genesis/ui/common/ExImageEditor.vue'
+import ExVerticalTradeList from '~/widgets/genesis/ui/diary/ExVerticalTradeList.vue'
+import OpenStrategyMetrics from '~/widgets/genesis/ui/analytics/ExStrategyMetricsPanel.vue'
+import ExActivityMonitor from '~/widgets/dashboard/ui/activity/ExActivityMonitor.vue'
+import ExTradeShareCardPreview from '~/widgets/genesis/ui/common/ExTradeShareCardPreview.vue'
 import ExProfileSettings from '~/widgets/profile/ui/ExProfileSettings.vue'
 import { useAuthStore } from '~/entities/user/auth.store'
 
@@ -1046,10 +1045,20 @@ const isPreviewMode = ref(false)
 const showNodeMap = ref(false)
 const demoImageUrl = '/assets/ui/tactical_chart_preview.png'
 
+const gradflowConfig = {
+  color1: { r: 2, g: 145, b: 135 },
+  color2: { r: 165, g: 249, b: 193 },
+  color3: { r: 153, g: 151, b: 231 },
+  speed: 0.8,
+  scale: 2,
+  type: 'smoke' as const,
+  noise: 0.16
+}
+
 const handleEditMetrics = () => {
 }
 
-import type { MetricConfig } from '~/widgets/genesis/ui/Open_Strategy_Metrics.vue'
+import type { MetricConfig } from '~/widgets/genesis/ui/analytics/ExStrategyMetricsPanel.vue'
 
 const mockMetricsConfigs: MetricConfig[] = [
   {
@@ -1452,6 +1461,10 @@ const getDiaryHeatmapFontClasses = (trade: any) => {
   background-color: var(--theme-bg);
   color: var(--theme-text);
   font-family: 'Cormorant Garamond', serif;
+}
+
+.design-gradflow-page {
+  background-color: transparent !important;
 }
 
 .ethereal-void.is-dark {

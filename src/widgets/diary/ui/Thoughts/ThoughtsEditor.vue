@@ -10,7 +10,7 @@
              class="w-full text-4xl lg:text-5xl font-serif text-[#050505] dark:text-white bg-transparent outline-none placeholder:text-[#ccc] dark:placeholder:text-[#333]"
              placeholder="Session Title..."
            />
-           <button @click="onDeleteSession" class="shrink-0 p-3 rounded-2xl bg-red-500/5 dark:bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-transparent hover:shadow-[0_10px_30px_rgba(239,68,68,0.3)] duration-300" title="Delete Session">
+           <button @click="onDeleteSession" class="shrink-0 p-3 rounded-2xl bg-red-500/5 dark:bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors border border-transparent hover:shadow-[0_10px_30px_rgba(239,68,68,0.3)] duration-300">
               <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
@@ -50,7 +50,7 @@
           <div class="w-px h-4 bg-black/10 dark:bg-white/10 mx-2"></div>
 
           <!-- Color Output & Input -->
-          <div class="relative w-6 h-6 rounded-lg overflow-hidden border border-black/15 dark:border-white/15 shadow-sm cursor-pointer transition hover:scale-105" title="Text Color">
+          <div class="relative w-6 h-6 rounded-lg overflow-hidden border border-black/15 dark:border-white/15 shadow-sm cursor-pointer transition hover:scale-105">
               <input type="color" v-model="activeTextColor" @input="format('foreColor', activeTextColor)" class="absolute inset-[-10px] w-[50px] h-[50px] cursor-pointer" />
           </div>
 
@@ -58,11 +58,11 @@
 
           <!-- Font Size Number Input -->
           <div class="flex items-center bg-black/5 dark:bg-white/5 rounded-lg border border-black/5 dark:border-white/5 hover:border-black/20 transition-colors">
-             <button @click="currentFontSize = Math.max(10, currentFontSize - 2); applyCustomFontSize()" class="w-7 h-7 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition text-[#333] dark:text-[#ddd] rounded-l-lg" title="Decrease font size">
+             <button @click="currentFontSize = Math.max(10, currentFontSize - 2); applyCustomFontSize()" class="w-7 h-7 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition text-[#333] dark:text-[#ddd] rounded-l-lg">
                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M20 12H4"/></svg>
              </button>
-             <input type="number" v-model="currentFontSize" @change="applyCustomFontSize" min="10" max="72" class="w-8 text-center bg-transparent outline-none text-xs font-bold py-1 text-[#333] dark:text-[#ddd] hide-spinners z-10" title="Font Size" />
-             <button @click="currentFontSize = Math.min(72, currentFontSize + 2); applyCustomFontSize()" class="w-7 h-7 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition text-[#333] dark:text-[#ddd] rounded-r-lg" title="Increase font size">
+             <input type="number" v-model="currentFontSize" @change="applyCustomFontSize" min="10" max="72" class="w-8 text-center bg-transparent outline-none text-xs font-bold py-1 text-[#333] dark:text-[#ddd] hide-spinners z-10" />
+             <button @click="currentFontSize = Math.min(72, currentFontSize + 2); applyCustomFontSize()" class="w-7 h-7 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/10 transition text-[#333] dark:text-[#ddd] rounded-r-lg">
                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M12 4v16m8-8H4"/></svg>
              </button>
           </div>
@@ -72,7 +72,6 @@
           <button 
             @click="format('insertUnorderedList')" 
             class="w-8 h-8 rounded-lg transition flex items-center justify-center" 
-            title="Bullet List"
             :class="toolbarState.isList ? 'bg-black/10 dark:bg-white/10 shadow-inner' : 'hover:bg-black/5 dark:hover:bg-white/5'"
           >
              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -81,7 +80,6 @@
           <button 
             @click="format('formatBlock', 'BLOCKQUOTE')" 
             class="w-8 h-8 rounded-lg transition flex items-center justify-center" 
-            title="Quote"
             :class="toolbarState.isBlockquote ? 'bg-black/10 dark:bg-white/10 shadow-inner' : 'hover:bg-black/5 dark:hover:bg-white/5'"
           >
              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/></svg>
@@ -345,10 +343,10 @@ const onImageUpload = async (event: Event) => {
         if (editorRef.value) {
             const imgStr = `
             <div class="image-attachment-block relative group/imgblock" contenteditable="false" style="margin: 2rem auto; display: table; width: max-content; max-width: 100%; user-select: none;">
-                <button type="button" class="remove-image-btn absolute -top-3 -right-3 w-8 h-8 rounded-full border border-black/10 shadow-lg flex items-center justify-center text-[#999] bg-[#fff] hover:text-red-500 hover:border-red-500/30 transition-colors z-[60] cursor-pointer" title="Remove image">
+                <button type="button" class="remove-image-btn absolute -top-3 -right-3 w-8 h-8 rounded-full border border-black/10 shadow-lg flex items-center justify-center text-[#999] bg-[#fff] hover:text-red-500 hover:border-red-500/30 transition-colors z-[60] cursor-pointer">
                     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 14px; height: 14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <img src="${base64Str}" class="transition-[filter,transform] duration-200" style="max-width: 100%; display: block; border-radius: 12px; cursor: crosshair;" title="Click to draw/annotate" />
+                <img src="${base64Str}" class="transition-[filter,transform] duration-200" style="max-width: 100%; display: block; border-radius: 12px; cursor: crosshair;" />
             </div>`;
             editorRef.value.insertAdjacentHTML('beforeend', imgStr);
             editorRef.value.insertAdjacentHTML('beforeend', '<p><br></p>');
@@ -591,7 +589,7 @@ const insertTradeBlock = (entry: DiaryEntry) => {
     const html = `
     <div contenteditable="false" class="trade-attachment-block relative" style="cursor: default; user-select: none; -webkit-user-select: none; -moz-user-select: none;" unselectable="on">
         <!-- Remove Button -->
-        <button type="button" class="remove-trade-btn absolute -top-3 -right-3 w-8 h-8 rounded-full border border-black/10 shadow-lg flex items-center justify-center text-[#999] bg-[#fff] hover:text-red-500 hover:border-red-500/30 transition-colors z-50 cursor-pointer" title="Remove attached trade">
+        <button type="button" class="remove-trade-btn absolute -top-3 -right-3 w-8 h-8 rounded-full border border-black/10 shadow-lg flex items-center justify-center text-[#999] bg-[#fff] hover:text-red-500 hover:border-red-500/30 transition-colors z-50 cursor-pointer">
             <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 14px; height: 14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
         <div style="margin: 2rem 0; padding: 1.5rem; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; font-family: sans-serif; ${bgClass};">

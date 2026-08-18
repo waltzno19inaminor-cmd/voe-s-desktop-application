@@ -35,8 +35,13 @@ pub struct BinanceSignedRequestOutput {
 }
 
 #[tauri::command]
-pub async fn binance_signed_request(input: BinanceSignedRequestInput) -> Result<BinanceSignedRequestOutput, String> {
-    let method = input.method.unwrap_or_else(|| "GET".to_string()).to_uppercase();
+pub async fn binance_signed_request(
+    input: BinanceSignedRequestInput,
+) -> Result<BinanceSignedRequestOutput, String> {
+    let method = input
+        .method
+        .unwrap_or_else(|| "GET".to_string())
+        .to_uppercase();
     let base_url = match input.market.as_deref() {
         Some("usdm-futures") => input
             .credentials
@@ -51,7 +56,10 @@ pub async fn binance_signed_request(input: BinanceSignedRequestInput) -> Result<
     };
     let mut params = input.params.unwrap_or_default();
 
-    params.insert("timestamp".to_string(), Value::from(current_timestamp_ms()?));
+    params.insert(
+        "timestamp".to_string(),
+        Value::from(current_timestamp_ms()?),
+    );
     params
         .entry("recvWindow".to_string())
         .or_insert_with(|| Value::from(5000));
