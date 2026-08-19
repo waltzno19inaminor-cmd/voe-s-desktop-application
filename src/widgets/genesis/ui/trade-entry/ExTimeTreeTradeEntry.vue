@@ -27,6 +27,21 @@ const props = defineProps<{
 const { locale } = useI18n()
 const tradeStore = useStrategyTradesStore()
 const isForecastMode = computed(() => props.mode === 'forecast')
+
+const analysisStrategyId = computed(() => (
+  props.forecastStrategyId ||
+  props.trade?.strategyId ||
+  'MAIN_DIARY'
+))
+
+const analysisInitialCapital = computed(() => {
+  return props.forecastInitialCapital || tradeStore.getInitialDeposit(analysisStrategyId.value) || 1000
+})
+
+const analysisAllTrades = computed(() => {
+  if (Array.isArray(props.forecastTrades) && props.forecastTrades.length > 0) return props.forecastTrades
+  return tradeStore.getAllTradesForStrategy(analysisStrategyId.value)
+})
 const activeEntryFormTab = ref<'main' | 'notes' | 'images'>('main')
 const activeProjectionMode = ref<'core' | 'chart'>('core')
 const isCreatingTradeNote = ref(false)
