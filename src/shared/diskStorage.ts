@@ -3,7 +3,6 @@ import {
     readTextFile, 
     mkdir, 
     exists, 
-    BaseDirectory,
     remove
 } from '@tauri-apps/plugin-fs';
 import { dataDir, join } from '@tauri-apps/api/path';
@@ -27,26 +26,27 @@ const getStorageCandidates = (fileName: string): string[] => {
     return [fileName, getBackupKey(fileName)];
 };
 
-const readLocalStorageJson = <T>(fileName: string): T | null => {
-    if (typeof localStorage === 'undefined') return null;
-    const localData = localStorage.getItem(fileName);
-    if (!localData) return null;
-    return JSON.parse(localData) as T;
+const storageApiUrl = (fileName: string): string => `/api/storage/${encodeURIComponent(fileName)}`;
+
+const loadFromStorageApi = async <T>(fileName: string): Promise<T | null> => {
+    const response = await fetch(storageApiUrl(fileName));
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`Storage API read failed (${response.status})`);
+    return await response.json() as T;
 };
 
-const saveLocalStorageJson = (fileName: string, content: string): void => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(fileName, content);
-    if (!isBackupKey(fileName)) {
-        localStorage.setItem(getBackupKey(fileName), content);
-    }
+const saveToStorageApi = async (fileName: string, data: unknown): Promise<void> => {
+    const response = await fetch(storageApiUrl(fileName), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error(`Storage API write failed (${response.status})`);
 };
 
-const removeLocalStorageJson = (fileName: string): void => {
-    if (typeof localStorage === 'undefined') return;
-    for (const candidate of getStorageCandidates(fileName)) {
-        localStorage.removeItem(candidate);
-    }
+const removeFromStorageApi = async (fileName: string): Promise<void> => {
+    const response = await fetch(storageApiUrl(fileName), { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Storage API delete failed (${response.status})`);
 };
 
 /**
@@ -74,7 +74,8 @@ export const ensureDataDir = async (): Promise<string> => {
 };
 
 /**
- * Saves a JSON object to a file in the JLJData directory or falls back to localStorage.
+ * Saves a JSON object to a file in the JLJData directory. Browser development
+ * uses the Nuxt storage API, so it reads and writes the same JSON files.
  * @param fileName Name of the file (without .json extension)
  * @param data Data to save
  */
@@ -92,20 +93,20 @@ export const saveToDisk = async (fileName: string, data: any): Promise<void> => 
                 await writeTextFile(backupPath, content);
             }
         } else {
-            saveLocalStorageJson(fileName, content);
+            await saveToStorageApi(fileName, data);
+            if (!isBackupKey(fileName)) {
+                await saveToStorageApi(getBackupKey(fileName), data);
+            }
         }
     } catch (error: any) {
         console.error(`[DiskStorage] Error saving ${fileName}:`, error);
-        try {
-            saveLocalStorageJson(fileName, content);
-        } catch (e) {
-            console.error('[DiskStorage] LocalStorage fallback failed:', e);
-        }
+        throw error;
     }
 };
 
 /**
- * Loads a JSON object from a file in the JLJData directory or falls back to localStorage.
+ * Loads a JSON object from the JLJData directory. Browser development reads the
+ * same JSON files through the Nuxt storage API rather than localStorage.
  * @param fileName Name of the file (without .json extension)
  */
 export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
@@ -128,38 +129,21 @@ export const loadFromDisk = async <T>(fileName: string): Promise<T | null> => {
                 }
             }
             
-            for (const candidate of candidates) {
-                try {
-                    const localData = readLocalStorageJson<T>(candidate);
-                    if (localData !== null) return localData;
-                } catch (error) {
-                    console.error(`[DiskStorage] Failed to read localStorage ${candidate}:`, error);
-                }
-            }
-            
             return null;
         }
         
         for (const candidate of candidates) {
             try {
-                const localData = readLocalStorageJson<T>(candidate);
-                if (localData !== null) return localData;
+                const diskData = await loadFromStorageApi<T>(candidate);
+                if (diskData !== null) return diskData;
             } catch (error) {
-                console.error(`[DiskStorage] Failed to read localStorage ${candidate}:`, error);
+                console.error(`[DiskStorage] Failed to read JSON storage ${candidate}:`, error);
             }
         }
         
         return null;
     } catch (error: any) {
         console.error(`Error loading ${fileName} from disk:`, error);
-        for (const candidate of candidates) {
-            try {
-                const localData = readLocalStorageJson<T>(candidate);
-                if (localData !== null) return localData;
-            } catch (fallbackError) {
-                console.error(`[DiskStorage] LocalStorage fallback failed for ${candidate}:`, fallbackError);
-            }
-        }
         return null;
     }
 };
@@ -171,7 +155,9 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
     try {
         const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__;
         if (!isTauri) {
-            removeLocalStorageJson(fileName);
+            for (const candidate of getStorageCandidates(fileName)) {
+                await removeFromStorageApi(candidate);
+            }
             return;
         }
         
@@ -183,7 +169,6 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
                 await remove(path);
             }
         }
-        removeLocalStorageJson(fileName);
     } catch (error: any) {
         console.error(`Error removing ${fileName} from disk:`, error);
         await message(`Failed to remove file: ${error.message || error}`, { title: 'Delete Error', kind: 'error' });
