@@ -27,6 +27,11 @@ import ExTradeNoteListItem from './ExTradeNoteListItem.vue';
 import ExTradeImageEntry from './ExTradeImageEntry.vue';
 import ExAssetPickerMenu from '~/shared/ui/ExAssetPickerMenu.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis';
+import { getTradeResultPercent, resolveTradeBalanceBefore } from '~/widgets/genesis/model/metrics';
+
+const genesisTrades = useGenesisTrades();
+const genesisMatrix = useGenesisMatrixData();
 
 const { themeStore, isDark, viewMode, archiveMode, journalEntries, notesList, getArchiveNodeName, addJournalEntry, removeJournalEntry, addNote, removeNote, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, isConditionActive, toggleCondition, showConditionLibrary, showEmotionSelector, showTradeStudyMetrics, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, isScenarioSelected, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, hasEntryMethodPositions, entryMethodEnabled, hasEntryMethodPriceViolation, hasPyramidingPriceViolation, hasAveragingDownPriceViolation, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
 const tradeState = inject('tradeState');
@@ -352,10 +357,10 @@ const hasPositiveSummaryRiskLevels = (trade) => {
 
 const summaryProfitPercent = (trade) => {
   if (!trade) return null;
-  const profit = Number(trade.profitInCurrency);
-  const capital = Number(trade.capitalBeforeTrade) > 0 ? Number(trade.capitalBeforeTrade) : Number(currentCapital.value);
-  if (!Number.isFinite(profit) || !Number.isFinite(capital) || capital <= 0) return null;
-  return (profit / capital) * 100;
+  const deposit = Number(tradeStore?.getInitialDeposit?.(selectedStrategyId?.value)) || Number(currentCapital.value) || 1000;
+  const balanceBefore = resolveTradeBalanceBefore(trade, Array.isArray(journalEntries?.value) ? journalEntries.value : [], deposit);
+  const resultPct = getTradeResultPercent(trade, balanceBefore, deposit);
+  return Number.isFinite(resultPct) ? resultPct : null;
 };
 
 const summaryDisplayTrade = computed(() => savedTradeSummary.value || {

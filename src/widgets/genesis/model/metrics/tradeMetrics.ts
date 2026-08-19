@@ -43,9 +43,25 @@ export const getTradePnl = (trade: TradeLike | null | undefined, initialCapital 
 
 export const getTradeResultPercent = (
   trade: TradeLike | null | undefined,
-  balanceBeforeTrade = 1000
+  balanceBeforeTrade = 1000,
+  initialDeposit = 1000
 ): number => {
-  return getTradeReturnPct(trade, balanceBeforeTrade) ?? Number.NaN
+  return getTradeReturnPct(trade, balanceBeforeTrade, initialDeposit) ?? Number.NaN
+}
+
+export const resolveTradeBalanceBefore = (
+  trade: TradeLike | null | undefined,
+  trades?: TradeLike[],
+  initialCapital = 1000
+): number => {
+  const storedCapital = toFiniteTradeNumber(trade?.capitalBeforeTrade)
+  if (storedCapital !== null) {
+    return storedCapital
+  }
+  if (trade && Array.isArray(trades) && trades.length > 0) {
+    return getTradeBalanceBefore(trades, trade, initialCapital)
+  }
+  return Number.isFinite(initialCapital) ? initialCapital : 1000
 }
 
 export const getTradeBalanceBefore = (

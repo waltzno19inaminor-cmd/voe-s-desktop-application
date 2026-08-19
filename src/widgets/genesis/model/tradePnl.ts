@@ -38,14 +38,14 @@ export const getTradeCashPnl = (trade: any, initialDeposit = 1000): number => {
   const cashKeys = ['pnlNum', 'pnl', 'profit', 'netProfit'] as const
   const cashFallback = cashKeys
     .map(key => toFiniteTradeNumber(trade[key]))
-    .find(value => value !== null)
+    .find((value): value is number => value !== null)
 
   const profitInCurrency = toFiniteTradeNumber(trade.profitInCurrency)
-  if (profitInCurrency !== null && !(profitInCurrency === 0 && ((result !== null && result !== 0) || (cashFallback !== null && cashFallback !== 0)))) {
+  if (profitInCurrency !== null && !(profitInCurrency === 0 && ((result !== null && result !== 0) || (cashFallback !== undefined && cashFallback !== 0)))) {
     return profitInCurrency
   }
 
-  if (cashFallback !== null) return cashFallback
+  if (cashFallback !== undefined) return cashFallback
 
   const storedPercent = getStoredTradePercent(trade)
   if (storedPercent !== null && initialDeposit > 0) {
@@ -70,26 +70,46 @@ export const getTradeCashPnl = (trade: any, initialDeposit = 1000): number => {
  * Returns the trade return in percent using the value saved with the trade
  * when available. Legacy records may only have `result`; those records are
  * interpreted using the same fallback rules as getTradeCashPnl.
+ *
+ * When balanceBeforeTrade is <= 0 (e.g. account capital fell to 0 or negative),
+ * initialDeposit is used as the base denominator to avoid division by zero or
+ * flipping the sign of profits/losses.
  */
-export const getTradeReturnPct = (trade: any, balanceBeforeTrade = 1000): number | null => {
+export const getTradeReturnPct = (
+  trade: any,
+  balanceBeforeTrade = 1000,
+  initialDeposit = 1000
+): number | null => {
   if (!trade) return null
+
+  const balance = toFiniteTradeNumber(balanceBeforeTrade)
+  const deposit = toFiniteTradeNumber(initialDeposit) ?? 1000
+  const validDeposit = deposit > 0 ? deposit : 1000
+
+  const cashKeys = ['profitInCurrency', 'pnlNum', 'pnl', 'profit', 'netProfit'] as const
+  const hasCashValue = cashKeys.some((key) => toFiniteTradeNumber(trade[key]) !== null)
+
+  // Prioritize actual cash PnL when available. This prevents corrupted saved `profitInPercent`
+  // (e.g. -15000% caused by historical division by clamped capital=1) from overriding real calculation.
+  if (hasCashValue) {
+    const cashPnl = getTradeCashPnl(trade, (balance !== null && balance > 0) ? balance : validDeposit)
+    const denominator = (balance !== null && balance > 0) ? balance : validDeposit
+    return (cashPnl / denominator) * 100
+  }
 
   const storedPercent = getStoredTradePercent(trade)
   if (storedPercent !== null) return storedPercent
 
   const result = toFiniteTradeNumber(trade.result)
-  const hasCashValue = ['profitInCurrency', 'pnlNum', 'pnl', 'profit', 'netProfit']
-    .some((key) => toFiniteTradeNumber(trade[key]) !== null)
   const unit = String(trade.resultUnit || trade.resultType || trade.resultMode || '').trim().toLowerCase()
 
-  // Older diary records used `result` as a percentage when no cash PnL was
-  // stored. Preserve that meaning instead of dividing it by capital again.
-  if (result !== null && !hasCashValue && (unit.includes('%') || unit.includes('percent') || Math.abs(result) <= 100)) {
+  // Older diary records used `result` as a percentage when no cash PnL was stored.
+  if (result !== null && (unit.includes('%') || unit.includes('percent') || Math.abs(result) <= 100)) {
     return result
   }
 
-  const balance = toFiniteTradeNumber(balanceBeforeTrade)
-  if (balance === null || balance <= 0) return null
+  const cashPnl = getTradeCashPnl(trade, (balance !== null && balance > 0) ? balance : validDeposit)
+  const denominator = (balance !== null && balance > 0) ? balance : validDeposit
 
-  return (getTradeCashPnl(trade, balance) / balance) * 100
+  return (cashPnl / denominator) * 100
 }

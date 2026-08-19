@@ -623,7 +623,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import globalAssets from '~/shared/data/global_assets.json'
-import { getTradeDurationMs, getTradeResultPercent, getTradePnl } from '~/widgets/genesis/model/metrics'
+import { getTradeDurationMs, getTradeResultPercent, resolveTradeBalanceBefore, getTradePnl } from '~/widgets/genesis/model/metrics'
 
 const { locale, t } = useI18n()
 const openTradeText = () => t('genesis.virtualLog.openTrade')
@@ -838,15 +838,18 @@ const onNoteClick = (tradeId: string, noteId: string) => {
 
 const getResultMetricValue = (trade: any) => {
   if (!isClosedTradeRecord(trade)) return Number.NaN
+  const strategyId = resolveTradeStrategyId(trade)
+  const initialDeposit = strategyStore.getInitialDeposit(strategyId) || 1000
   if (resultDisplayMode.value === 'currency') {
-    return getTradePnl(trade, strategyStore.getInitialDeposit(resolveTradeStrategyId(trade)))
+    return getTradePnl(trade, initialDeposit)
   }
 
   const storedPercent = Number(trade.profitValue)
   if (Number.isFinite(storedPercent)) return storedPercent
 
-  const initialDeposit = strategyStore.getInitialDeposit(resolveTradeStrategyId(trade))
-  return getTradeResultPercent(trade, initialDeposit) || 0
+  const balanceBefore = resolveTradeBalanceBefore(trade, props.trades, initialDeposit)
+  const resultPct = getTradeResultPercent(trade, balanceBefore, initialDeposit)
+  return Number.isFinite(resultPct) ? resultPct : 0
 }
 
 const resultMetricLabel = computed(() => resultDisplayMode.value === 'currency' ? '$' : '%')

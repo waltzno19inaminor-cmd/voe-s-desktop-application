@@ -10,6 +10,7 @@ import {
   getTradeDurationMs,
   getTradePnl,
   getTradeResultPercent,
+  resolveTradeBalanceBefore,
   getTradeRiskReward
 } from '~/widgets/genesis/model/metrics'
 
@@ -196,11 +197,9 @@ const tradeResultValue = () => {
 const tradeResultPercentValue = () => {
   const trade = props.trade
   if (!trade) return null
-  const initialCapital = props.forecastInitialCapital || tradeStore.getInitialDeposit(trade.strategyId || 'MAIN_DIARY')
-  const balanceBefore = Number(trade.capitalBeforeTrade) > 0
-    ? Number(trade.capitalBeforeTrade)
-    : initialCapital
-  return getTradeResultPercent(trade, balanceBefore)
+  const initialCapital = props.forecastInitialCapital || tradeStore.getInitialDeposit(trade.strategyId || 'MAIN_DIARY') || 1000
+  const balanceBefore = resolveTradeBalanceBefore(trade, analysisAllTrades.value, initialCapital)
+  return getTradeResultPercent(trade, balanceBefore, initialCapital)
 }
 const tradeResultClass = (rawValue: any) => {
   const value = Number(rawValue)

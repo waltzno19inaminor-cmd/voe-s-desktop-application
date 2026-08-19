@@ -2249,7 +2249,7 @@ const submit = async () => {
     profitInCurrency: isClosed.value ? pnl.value : undefined,
     resultMode: isClosed.value ? resultMode.value : undefined,
     profitInPercent: isClosed.value
-      ? ((Number(pnl.value) || 0) / Math.max(1, Number(currentCapital.value) || 0)) * 100
+      ? ((Number(pnl.value) || 0) / ((Number.isFinite(Number(currentCapital.value)) && Number(currentCapital.value) > 0) ? Number(currentCapital.value) : (Number(tradeStore.getInitialDeposit(commitStrategyId)) || 1000))) * 100
       : undefined,
     capitalBeforeTrade: currentCapital.value,
     assetType: currentAssetData.value?.type || 'Forex',

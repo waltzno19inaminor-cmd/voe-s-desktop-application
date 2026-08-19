@@ -1110,6 +1110,7 @@ import {
   getEmotionWeight as getGenesisEmotionWeight,
   getTradePnl as getGenesisTradePnl,
   getTradeResultPercent as getGenesisTradeResultPercent,
+  resolveTradeBalanceBefore,
   getTradeRiskReward,
   formatTradeDurationCompact,
   getTradeTimelineTimestamp as getGenesisTradeTimelineTimestamp,
@@ -1735,10 +1736,8 @@ const getTradeResultPercent = (trade: any) => {
   if (!isClosedDiaryTrade(trade)) return Number.NaN
   const strategyId = trade?.strategyId || selectedStrategyId.value
   const deposit = tradeStore.getInitialDeposit(strategyId) || 1000
-  const balanceBefore = Number(trade?.capitalBeforeTrade) > 0
-    ? Number(trade.capitalBeforeTrade)
-    : deposit
-  return getGenesisTradeResultPercent(trade, balanceBefore)
+  const balanceBefore = resolveTradeBalanceBefore(trade, timeTreeSourceTrades.value, deposit)
+  return getGenesisTradeResultPercent(trade, balanceBefore, deposit)
 }
 
 const normalizeAssetSymbol = (asset: unknown) => String(asset || '').trim().toUpperCase()
