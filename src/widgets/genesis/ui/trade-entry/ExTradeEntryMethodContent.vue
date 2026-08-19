@@ -26,7 +26,8 @@ const {
   entryMethodPriceViolations,
   entryMethodPriceViolationMessage,
   averageEntry,
-  averageExit
+  averageExit,
+  getEntryPositionNumber
 } = inject('tradeState')
 
 const sanitizeInlineNumberInput = (event, target, key) => {
@@ -56,7 +57,7 @@ const handleExitSizeInput = (event, target) => {
     <div class="min-h-0 flex-1 overflow-y-auto pr-4 pb-10 custom-scrollbar">
       <div v-if="activeProtocolTab === 'PYRAMIDING' || activeProtocolTab === 'AVERAGING_DOWN'" class="flex flex-col gap-4 transition-all">
         <div v-for="(ent, idx) in activeMultipleEntries" :key="ent.id" class="flex items-center gap-4">
-          <span class="w-6 text-[8px] font-mono font-black tracking-widest opacity-40">#{{ idx + 1 }}</span>
+          <span class="w-6 text-[8px] font-mono font-black tracking-widest opacity-40">#{{ getEntryPositionNumber(ent) }}</span>
           <div class="flex flex-1 flex-col gap-1">
             <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/45">{{ locale === 'ru' ? 'УРОВЕНЬ ЦЕНЫ' : 'Price Lvl' }}</span>
             <input v-model="ent.price" type="text" inputmode="decimal" placeholder="0.00" :aria-invalid="entryMethodPriceViolations.includes(idx)" class="nier-input w-full border-b border-black/20 pb-1 !text-black dark:border-white/20 dark:!text-white" :class="entryMethodPriceViolations.includes(idx) ? '!border !border-rose-500/80 !bg-rose-500/5 !pl-3 !text-rose-500 dark:!text-rose-300 placeholder:!text-rose-500/40 dark:placeholder:!text-rose-300/30 focus:!border-rose-400' : ''" @input="sanitizeInlineNumberInput($event, ent, 'price')" />

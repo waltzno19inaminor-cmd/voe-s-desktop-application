@@ -395,12 +395,16 @@ onMounted(() => {
           id: e.id || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           price: e.price,
           size: e.size,
-          fee: e.fee || 0
+          fee: e.fee || 0,
+          method: ['AVERAGING', 'AVERAGING_DOWN'].includes(String(e.label || '').toUpperCase())
+            ? 'AVERAGING_DOWN'
+            : 'PYRAMIDING'
         }))
         entryMethodType.value = restoredEntryMethodType
         activeProtocolTab.value = restoredEntryMethodType
-        if (restoredEntryMethodType === 'AVERAGING_DOWN') averagingDownEntries.value = restoredEntries
-        else pyramidingEntries.value = restoredEntries
+        entrySequence.value = restoredEntries
+        pyramidingEntries.value = restoredEntries.filter(e => e.method === 'PYRAMIDING')
+        averagingDownEntries.value = restoredEntries.filter(e => e.method === 'AVERAGING_DOWN')
       } else {
         entry.value = entryExecs[0]?.price || t.entry || ''
         size.value = entryExecs[0]?.size || t.size || ''
@@ -1127,15 +1131,14 @@ const resetTradeStudyMetrics = () => {
 const entryMethodType = ref('PYRAMIDING') // Tracks the active entry calculation mode
 const pyramidingEntries = ref([])
 const averagingDownEntries = ref([])
+const entrySequence = ref([])
 
 const activeMultipleEntries = computed(() => 
   entryMethodType.value === 'PYRAMIDING' ? pyramidingEntries.value : averagingDownEntries.value
 )
 
 const persistedEntryEntries = computed(() => {
-  if (activeMultipleEntries.value.length > 0) return activeMultipleEntries.value
-  if (pyramidingEntries.value.length > 0) return pyramidingEntries.value
-  return averagingDownEntries.value
+  return entrySequence.value
 })
 
 const persistedEntryMethodType = computed(() => {
@@ -1149,17 +1152,21 @@ const hasEntryMethodPositions = computed(() => (
   pyramidingEntries.value.length > 0 || averagingDownEntries.value.length > 0
 ))
 
-const entryMethodEnabled = computed(() => activeMultipleEntries.value.length > 0)
+const entryMethodEnabled = computed(() => entrySequence.value.length > 0)
+
+const getEntryPositionNumber = (entryItem) => {
+  const index = entrySequence.value.findIndex(entry => entry.id === entryItem?.id)
+  return index >= 0 ? index + 1 : 1
+}
 
 const getEntryMethodPriceViolations = (entries, methodType) => {
-  if (entries.length < 2) return []
-
-  const firstPrice = parseFloat(entries[0]?.price)
+  const firstPrice = parseFloat(entrySequence.value[0]?.price)
   if (!Number.isFinite(firstPrice) || firstPrice <= 0) return []
 
   const isPyramiding = methodType === 'PYRAMIDING'
   return entries.reduce((violations, entryItem, index) => {
-    if (index === 0) return violations
+    const sequenceIndex = entrySequence.value.findIndex(entry => entry.id === entryItem.id)
+    if (sequenceIndex === 0) return violations
     const price = parseFloat(entryItem?.price)
     if (!Number.isFinite(price) || price <= 0) return violations
 
@@ -1200,7 +1207,14 @@ const hasActiveMethodNode = computed(() => {
 })
 
 const addMultipleEntry = () => {
-  activeMultipleEntries.value.push({ id: Date.now(), price: '', size: '' })
+  const entry = {
+    id: `${Date.now()}-${entrySequence.value.length}`,
+    price: '',
+    size: '',
+    method: entryMethodType.value
+  }
+  activeMultipleEntries.value.push(entry)
+  entrySequence.value.push(entry)
 }
 
 // Exit State
@@ -1247,6 +1261,7 @@ const removeMultipleEntry = (id) => {
   } else {
     averagingDownEntries.value = averagingDownEntries.value.filter(e => e.id !== id)
   }
+  entrySequence.value = entrySequence.value.filter(e => e.id !== id)
 }
 
 const showAutoPrompt = ref(false)
@@ -1323,7 +1338,8 @@ const confirmAutoGenerate = () => {
   newEntries.push({
     id: Date.now().toString() + 'base',
     price: basePrice,
-    size: baseLots
+    size: baseLots,
+    method: methodMode
   })
 
   let currentBase = basePrice
@@ -1347,24 +1363,26 @@ const confirmAutoGenerate = () => {
     newEntries.push({
       id: Date.now().toString() + i,
       price: parseFloat(calculatedPrice.toFixed(5)),
-      size: s.lots
+      size: s.lots,
+      method: methodMode
     })
     
     currentBase = calculatedPrice
   }
 
   if (methodMode === 'PYRAMIDING') {
-    pyramidingEntries.value = newEntries
+    pyramidingEntries.value.push(...newEntries)
   } else {
-    averagingDownEntries.value = newEntries
+    averagingDownEntries.value.push(...newEntries)
   }
+  entrySequence.value.push(...newEntries)
 
   showAutoPrompt.value = false
 }
 
 const totalSize = computed(() => {
   if (!hasEntryMethodPositions.value) return parseFloat(size.value) || 0
-  return persistedEntryEntries.value.reduce((sum, e) => sum + (parseFloat(e.size) || 0), 0)
+  return entrySequence.value.reduce((sum, e) => sum + (parseFloat(e.size) || 0), 0)
 })
 
 watch(totalSize, (nextTotalSize) => {
@@ -1377,7 +1395,7 @@ const averageEntry = computed(() => {
   
   let totalValue = 0
   let totalQty = 0
-  persistedEntryEntries.value.forEach(e => {
+  entrySequence.value.forEach(e => {
     const p = parseFloat(e.price) || 0
     const s = parseFloat(e.size) || 0
     if (p > 0 && s > 0) {
@@ -2129,6 +2147,7 @@ const resetForm = () => {
   entryMethodType.value = 'PYRAMIDING'
   pyramidingEntries.value = []
   averagingDownEntries.value = []
+  entrySequence.value = []
   exitEntries.value = []
   exitEntriesSizeLinked.value = true
   showEmotionSelector.value = false
@@ -2167,7 +2186,7 @@ const submit = async () => {
            size: parseFloat(e.size) || 0,
            date: cloneDate(committedOpenDate),
            timeZone: committedTimeZone,
-           label: persistedEntryMethodType.value
+           label: e.method || persistedEntryMethodType.value
          })
        }
     })
@@ -2408,7 +2427,9 @@ const submit = async () => {
     entryMethodType,
     pyramidingEntries,
     averagingDownEntries,
+    entrySequence,
     activeMultipleEntries,
+    getEntryPositionNumber,
     hasEntryMethodPositions,
     entryMethodEnabled,
     entryMethodPriceViolations,
