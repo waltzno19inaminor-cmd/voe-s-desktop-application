@@ -45,6 +45,25 @@ export const useAppBootStore = defineStore('appBoot', () => {
       // Step 3: Disk - Genesis Matrix
       currentLog.value = 'Synchronizing Genesis Matrix...'
       genesisMatrixCache.value = await loadFromDisk<any>('genesis_matrix_v2')
+      // Hydrate the shared Matrix singleton before any Genesis screen mounts.
+      // Matrix, Log, and Equity Curve then read one state sourced from the
+      // same genesis_matrix_v2.json file, including the selected version.
+      const { useMatrixState } = await import('~/widgets/genesis/model/matrix/useMatrixState')
+      const matrixState = useMatrixState()
+      await matrixState.ensureMatrixDataRestored()
+
+      const flattenNodes = (nodes: any[] = []): any[] => nodes.flatMap(node => [
+        node,
+        ...flattenNodes(node.subGraph?.nodes || [])
+      ])
+      const matrixStrategies = matrixState.matrixPages.value
+        .flatMap(page => flattenNodes(page.nodes || []))
+        .filter(node => node.type === 'strategy' || node.type === 'system')
+        .map(node => ({
+          id: String(node.id),
+          name: String(node.params?.customName || node.label || node.id)
+        }))
+      await useStrategyTradesStore().syncStrategies(matrixStrategies)
       await delay(500)
       bootProgress.value = 95
       
