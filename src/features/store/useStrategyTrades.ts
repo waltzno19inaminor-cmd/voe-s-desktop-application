@@ -172,8 +172,30 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
 
   function enforceDemoMainDiaryOnly() {
     // The demo only displays MAIN_DIARY, but it must preserve every other
-    // JSON record exactly as loaded. Reset first so a later forced reload
-    // cannot re-save stale hidden data that no longer exists on disk.
+    // JSON record exactly as loaded. Merge with the previous hidden snapshot
+    // before rebuilding it: syncStrategies can temporarily expose a hidden
+    // strategy as an empty live bucket during app boot.
+    const preservedStrategies = [
+      ..._hiddenStrategies.value,
+      ...strategies.value
+    ].filter((strategy, index, list) => (
+      strategy.id !== 'MAIN_DIARY' && list.findIndex(item => item.id === strategy.id) === index
+    ))
+    const preservedTrades = { ..._hiddenTradesByStrategy.value }
+    Object.entries(tradesByStrategy.value).forEach(([strategyId, trades]) => {
+      if (strategyId === 'MAIN_DIARY' || !preservedTrades[strategyId] || trades.length > 0) {
+        preservedTrades[strategyId] = trades
+      }
+    })
+    const preservedDeposits = { ..._hiddenInitialDeposits.value }
+    Object.entries(initialDepositsByStrategy.value).forEach(([strategyId, deposit]) => {
+      if (strategyId !== 'MAIN_DIARY') preservedDeposits[strategyId] = deposit
+    })
+    const preservedHiddenIds = { ..._hiddenHiddenTradeIds.value }
+    Object.entries(hiddenTradeIdsByStrategy.value).forEach(([strategyId, tradeIds]) => {
+      if (strategyId !== 'MAIN_DIARY') preservedHiddenIds[strategyId] = tradeIds
+    })
+
     _hiddenStrategies.value = []
     _hiddenTradesByStrategy.value = {}
     _hiddenInitialDeposits.value = {}
@@ -181,25 +203,10 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
 
     const mainDiaryTrades = tradesByStrategy.value['MAIN_DIARY'] || []
 
-    _hiddenStrategies.value = strategies.value.filter(strategy => strategy.id !== 'MAIN_DIARY')
-
-    Object.entries(tradesByStrategy.value).forEach(([strategyId, trades]) => {
-      if (strategyId !== 'MAIN_DIARY') {
-        _hiddenTradesByStrategy.value[strategyId] = trades
-      }
-    })
-
-    Object.entries(initialDepositsByStrategy.value).forEach(([strategyId, deposit]) => {
-      if (strategyId !== 'MAIN_DIARY') {
-        _hiddenInitialDeposits.value[strategyId] = deposit
-      }
-    })
-
-    Object.entries(hiddenTradeIdsByStrategy.value).forEach(([strategyId, tradeIds]) => {
-      if (strategyId !== 'MAIN_DIARY') {
-        _hiddenHiddenTradeIds.value[strategyId] = tradeIds
-      }
-    })
+    _hiddenStrategies.value = preservedStrategies
+    _hiddenTradesByStrategy.value = preservedTrades
+    _hiddenInitialDeposits.value = preservedDeposits
+    _hiddenHiddenTradeIds.value = preservedHiddenIds
 
     const mainDiaryInitialDeposit = initialDepositsByStrategy.value['MAIN_DIARY'] ?? 1000
     strategies.value = [{ ...MAIN_DIARY_STRATEGY }]
@@ -385,8 +392,8 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
           name: ms.name,
           createdAt: new Date().toISOString()
         })
-        tradesByStrategy.value[ms.id] = []
-        hiddenTradeIdsByStrategy.value[ms.id] = []
+        tradesByStrategy.value[ms.id] = _hiddenTradesByStrategy.value[ms.id] || []
+        hiddenTradeIdsByStrategy.value[ms.id] = _hiddenHiddenTradeIds.value[ms.id] || []
         changed = true
       } else if (existing.name !== ms.name) {
         existing.name = ms.name
