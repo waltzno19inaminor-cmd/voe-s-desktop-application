@@ -54,19 +54,6 @@
             <span class="text-[13px] font-bold">{{ (winRate * 100).toFixed(1) }}%</span>
           </div>
 
-          <div class="flex flex-col space-y-2">
-            <span class="text-[8px] tracking-[0.2em] opacity-40 uppercase">{{ locale === 'ru' ? 'ОБЩИЙ R' : 'TOTAL R' }}</span>
-            <span class="text-[13px] font-bold" :class="totalR >= 0 ? 'text-white' : 'text-white/60'">
-              {{ totalR >= 0 ? '+' : '' }}{{ totalR.toFixed(1) }}R
-            </span>
-          </div>
-
-          <div class="flex flex-col space-y-2">
-            <span class="text-[8px] tracking-[0.2em] opacity-40 uppercase">{{ locale === 'ru' ? 'СРЕДНИЙ R' : 'AVG R' }}</span>
-            <span class="text-[13px] font-bold" :class="avgR >= 0 ? 'text-white' : 'text-white/60'">
-              {{ avgR >= 0 ? '+' : '' }}{{ avgR.toFixed(2) }}R
-            </span>
-          </div>
         </div>
       </div>
 
@@ -88,16 +75,13 @@
               <span :class="group.totalPnl >= 0 ? 'text-white' : ''">
                 {{ group.totalPnl >= 0 ? '+' : '' }}{{ group.totalPnl.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
               </span>
-              <span :class="group.totalR >= 0 ? 'text-white' : ''">
-                {{ group.totalR >= 0 ? '+' : '' }}{{ group.totalR.toFixed(1) }}R
-              </span>
             </div>
           </div>
 
           <!-- Trades in Month -->
           <div class="flex flex-col gap-1">
             <div v-for="trade in group.trades" :key="trade.id" 
-                 class="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr_1fr] items-center text-[10px] tracking-widest px-2 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer border border-transparent hover:border-white/5 rounded-sm"
+                 class="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr] items-center text-[10px] tracking-widest px-2 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer border border-transparent hover:border-white/5 rounded-sm"
                  @click="handleTradeClick($event, trade)">
               
               <span class="opacity-70">{{ formatDate(getTradeTime(trade)) }}</span>
@@ -120,10 +104,6 @@
                 {{ getTradePnl(trade) >= 0 ? '+' : '' }}{{ getTradePnl(trade).toFixed(2) }}
               </span>
               
-              <span v-if="!isTradeClosed(trade)" class="text-right font-bold text-white/50">-</span>
-              <span v-else class="text-right opacity-80" :class="getTradeR(trade) >= 0 ? 'text-white' : 'text-white/60'">
-                {{ getTradeR(trade) >= 0 ? '+' : '' }}{{ getTradeR(trade).toFixed(1) }}R
-              </span>
             </div>
           </div>
 
@@ -160,13 +140,10 @@ const {
   selectedStrategy,
   trades,
   getTradePnl,
-  getTradeR,
   isTradeClosed,
   getTradeTime,
   totalPnl,
   winRate,
-  totalR,
-  avgR,
   groupedTrades,
   generateSparkline,
   getSparklineEnd,
