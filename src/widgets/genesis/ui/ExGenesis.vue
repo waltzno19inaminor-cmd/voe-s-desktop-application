@@ -275,8 +275,10 @@ const backToOrigin = () => {
   router.push({ path: '/genesis', query: { ...restQuery, tab: 'genesis' } })
 }
 
-onMounted(() => {
-  genesisTrades.init()
+onMounted(async () => {
+  // Always re-read the disk snapshot when Genesis is opened. The JSON can be
+  // edited by the local tools while the Pinia store is still alive.
+  await genesisTrades.init(true)
   genesisMatrix.loadMatrix()
   syncModeFromRoute()
   window.addEventListener('keydown', handleKeydown)
@@ -291,7 +293,21 @@ const handleKeydown = (e: KeyboardEvent) => {
     backToOrigin()
   }
 }
-watch(() => [route.params.section, route.query.mode, route.query.view], syncModeFromRoute)
+watch(
+  () => [route.params.section, route.query.mode, route.query.view],
+  async () => {
+    const nextMode = getModeFromRoute()
+    const previousMode = currentMode.value
+
+    // Moving between Genesis protocol pages unmounts/remounts the child
+    // panels, but the shared store survives. Force a fresh JSON read before
+    // exposing the new page so external edits cannot remain stale.
+    if (nextMode && nextMode !== previousMode) {
+      await genesisTrades.init(true)
+    }
+    syncModeFromRoute()
+  }
+)
 </script>
 
 <style scoped>
