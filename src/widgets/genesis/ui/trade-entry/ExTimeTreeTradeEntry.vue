@@ -134,8 +134,13 @@ const exitPositions = computed(() => {
     : []
 })
 
-const hasEntryMethod = computed(() => entryPositions.value.length > 1 || String(props.trade?.entryMethodType || '').toUpperCase() !== 'SINGLE')
-const hasExitMethod = computed(() => exitPositions.value.length > 1 || String(props.trade?.exitMethodType || '').toUpperCase() !== 'SINGLE')
+const isMultipleMethodType = (type: unknown) => {
+  const str = String(type || '').trim().toUpperCase()
+  return str !== '' && str !== 'SINGLE' && str !== 'NONE' && str !== 'UNDEFINED'
+}
+
+const hasEntryMethod = computed(() => entryPositions.value.length > 1 || isMultipleMethodType(props.trade?.entryMethodType))
+const hasExitMethod = computed(() => exitPositions.value.length > 1 || isMultipleMethodType(props.trade?.exitMethodType))
 
 const weightedAveragePrice = (positions: any[]) => {
   const weightedTotal = positions.reduce((total, position) => {
