@@ -171,6 +171,14 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
   const _hiddenHiddenTradeIds = ref<Record<string, string[]>>({})
 
   function enforceDemoMainDiaryOnly() {
+    // The demo only displays MAIN_DIARY, but it must preserve every other
+    // JSON record exactly as loaded. Reset first so a later forced reload
+    // cannot re-save stale hidden data that no longer exists on disk.
+    _hiddenStrategies.value = []
+    _hiddenTradesByStrategy.value = {}
+    _hiddenInitialDeposits.value = {}
+    _hiddenHiddenTradeIds.value = {}
+
     const mainDiaryTrades = tradesByStrategy.value['MAIN_DIARY'] || []
 
     _hiddenStrategies.value = strategies.value.filter(strategy => strategy.id !== 'MAIN_DIARY')
@@ -248,12 +256,9 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
         }
       }
 
-      const removedSyntheticTrades = removeSyntheticSeedTrades()
-      const addedLivermoreTrades = ensureLivermoreNflxxScenarioTrades()
       enforceDemoMainDiaryOnly()
-      if (removedSyntheticTrades || addedLivermoreTrades) await save()
-
-      // Main diary trades are loaded exclusively from disk storage
+      // Demo data is read exactly as it exists in strategy_trades_v1.json.
+      // Strategies remain intentionally hidden in the demo UI, not deleted.
     } finally {
       isInitialized.value = true
       isLoading.value = false
@@ -275,9 +280,8 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
       initialDepositsByStrategy: { ...initialDepositsByStrategy.value, ..._hiddenInitialDeposits.value },
       hiddenTradeIdsByStrategy: { ...hiddenTradeIdsByStrategy.value, ..._hiddenHiddenTradeIds.value }
     }
-    // Save to both Main and Backup for safety
+    // saveToDisk writes this file and its backup in one storage operation.
     await saveToDisk('strategy_trades_v1', data)
-    await saveToDisk('strategy_trades_v1_backup', data)
   }
 
   function ensureLivermoreNflxxScenarioTrades() {
@@ -328,12 +332,11 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
   function getTradesForStrategy(strategyId: string) {
     const trades = tradesByStrategy.value[strategyId] || []
     const hiddenIds = new Set(hiddenTradeIdsByStrategy.value[strategyId] || [])
-    return trades.filter(trade => !hiddenIds.has(trade.id!) && !String(trade?.id || '').startsWith(LIVERMORE_BTC_SEED_PREFIX))
+    return trades.filter(trade => !hiddenIds.has(trade.id!))
   }
 
   function getAllTradesForStrategy(strategyId: string) {
-    return (tradesByStrategy.value[strategyId] || [])
-      .filter(trade => !String(trade?.id || '').startsWith(LIVERMORE_BTC_SEED_PREFIX))
+    return tradesByStrategy.value[strategyId] || []
   }
 
   function isTradeHidden(strategyId: string, tradeId: string) {
@@ -403,14 +406,6 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
 
     if (!hiddenTradeIdsByStrategy.value['MAIN_DIARY']) {
       hiddenTradeIdsByStrategy.value['MAIN_DIARY'] = []
-      changed = true
-    }
-
-    if (removeSyntheticSeedTrades()) {
-      changed = true
-    }
-
-    if (ensureLivermoreNflxxScenarioTrades()) {
       changed = true
     }
 

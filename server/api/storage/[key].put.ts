@@ -1,4 +1,5 @@
 import { mkdir, rename, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,7 +24,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await mkdir(directory, { recursive: true })
-  const temporaryPath = `${filePath}.${process.pid}.tmp`
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`
   await writeFile(temporaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
   await rename(temporaryPath, filePath)
 

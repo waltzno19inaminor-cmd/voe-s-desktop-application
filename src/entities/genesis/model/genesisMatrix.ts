@@ -1,6 +1,7 @@
 import { ref, computed, readonly } from 'vue'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import { useAppBootStore } from '~/features/store/useAppBoot'
+import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 import {
   isStrategyNode,
   getMatrixStrategyName,
@@ -260,25 +261,31 @@ export function getAllZonesFromMatrix(matrixData?: any): any[] {
  * Main Vue Composable providing convenient reactive access to ExGenesisMatrix state, strategies, scenarios, and conditions.
  */
 export function useGenesisMatrixData() {
-  const appBootStore = useAppBootStore()
-  const matrixData = ref<GenesisMatrixDataPayload | null>(null)
+  const matrixState = useMatrixState()
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
+  // The demo deliberately does not expose strategies or versions, but every
+  // Genesis screen must still observe the same matrix JSON-backed state.
+  const matrixData = computed<GenesisMatrixDataPayload>(() => {
+    const pages = matrixState.matrixPages.value
+    return {
+      pages,
+      nodes: pages.flatMap(page => flattenMatrixNodes(page.nodes || [])),
+      connections: pages.flatMap(page => flattenMatrixConnections(page.nodes || [], page.connections || [])),
+      zones: pages.flatMap(page => page.zones || []),
+      version: '2.0.0'
+    }
+  })
+
   const loadMatrix = async (force = false) => {
-    if (matrixData.value && !force) return matrixData.value
     isLoading.value = true
     error.value = null
     try {
-      if (appBootStore.genesisMatrixCache) {
-        matrixData.value = parseMatrixFromJson(appBootStore.genesisMatrixCache)
-      } else {
-        const disk = await loadMatrixFromDisk()
-        if (disk) {
-          matrixData.value = disk
-          appBootStore.genesisMatrixCache = disk
-        }
-      }
+      // There is no per-component cache to invalidate: the matrix singleton
+      // always reflects the current JSON-backed state.
+      void force
+      await matrixState.ensureMatrixDataRestored()
     } catch (err: any) {
       error.value = err?.message || 'Failed to load Genesis Matrix data'
       console.error('[useGenesisMatrixData] Error loading matrix:', err)
@@ -316,14 +323,15 @@ export function useGenesisMatrixData() {
 
   const importFromJson = async (jsonInput: unknown): Promise<GenesisMatrixDataPayload> => {
     const parsed = parseMatrixFromJson(jsonInput)
-    matrixData.value = parsed
-    appBootStore.genesisMatrixCache = parsed
     await saveToDisk(STORAGE_KEY, parsed)
-    return parsed
+    const appBootStore = useAppBootStore()
+    appBootStore.genesisMatrixCache = parsed
+    await matrixState.restoreData()
+    return matrixData.value
   }
 
   const exportToJson = (): string => {
-    return exportMatrixToJson(matrixData.value || { pages: [], nodes: [], connections: [], zones: [] })
+    return exportMatrixToJson(matrixData.value)
   }
 
   return {

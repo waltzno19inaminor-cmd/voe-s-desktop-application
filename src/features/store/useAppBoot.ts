@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { loadFromDisk } from '~/shared/diskStorage'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { fetchDailyActivity } from '~/widgets/dashboard/model/useActivity'
 
@@ -44,7 +43,10 @@ export const useAppBootStore = defineStore('appBoot', () => {
       
       // Step 3: Disk - Genesis Matrix
       currentLog.value = 'Synchronizing Genesis Matrix...'
-      genesisMatrixCache.value = await loadFromDisk<any>('genesis_matrix_v2')
+      // The shared matrix state owns the single loaded copy. The demo only
+      // hides strategy/version controls; it does not use a separate dataset.
+      const { useMatrixState } = await import('~/widgets/genesis/model/matrix/useMatrixState')
+      await useMatrixState().ensureMatrixDataRestored()
       await delay(500)
       bootProgress.value = 95
       
