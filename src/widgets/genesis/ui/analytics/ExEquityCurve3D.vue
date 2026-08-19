@@ -998,6 +998,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useAppBootStore } from '~/features/store/useAppBoot'
+import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTradeEntry.vue'
@@ -1212,11 +1213,21 @@ const studentTPDF = (x: number, mean: number, scale: number, nu: number): number
   return coef * Math.pow(factor, -(nu + 1) / 2);
 };
 
-const matrixNodes = computed(() => matrixState.matrixPages.value.flatMap(page => page.nodes || []))
-const matrixConnections = computed(() => matrixState.matrixPages.value.flatMap(page => page.connections || []))
+const matrixNodes = ref<any[]>([])
+const matrixConnections = ref<any[]>([])
+const genesisTrades = useGenesisTrades()
+const genesisMatrix = useGenesisMatrixData()
 
 const loadMatrixData = async () => {
-  await matrixState.ensureMatrixDataRestored()
+  try {
+    const data = await genesisMatrix.loadMatrix()
+    if (data && data.nodes) {
+      matrixNodes.value = data.nodes
+      matrixConnections.value = data.connections || []
+    }
+  } catch (err) {
+    console.error('Failed to load matrix data:', err)
+  }
 }
 
 watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
@@ -3202,13 +3213,6 @@ watch([() => props.trades, () => tradeStore.tradesByStrategy[selectedStrategyId.
   initData()
 }, { deep: true })
 
-watch([
-  () => matrixState.selectedStrategyVersionId.value,
-  () => matrixState.strategyVersions.value
-], () => {
-  initData()
-}, { deep: true })
-
 watch(showMetricsPanel, (val) => {
   if (val) {
     showDistribution3D.value = false
@@ -4377,10 +4381,8 @@ onMounted(() => {
 
   const hydrateData = async () => {
     await loadBenchmarkMetricsCache()
-    await Promise.all([
-      tradeStore.init(),
-      loadMatrixData()
-    ])
+    await tradeStore.init()
+    await loadMatrixData()
 
     await metricsPanel.loadMetricsLayout()
 
