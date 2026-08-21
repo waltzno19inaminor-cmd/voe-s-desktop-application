@@ -41,3 +41,5 @@ __pycache__/
 *.minisig
 .hotfix-work/
 dist/hotfix/
+target/
+**/target/
