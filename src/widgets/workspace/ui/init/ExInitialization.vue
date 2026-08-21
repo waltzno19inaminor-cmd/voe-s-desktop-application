@@ -416,13 +416,7 @@ const updateTitle = ref('ПРОВЕРКА_ОБНОВЛЕНИЙ')
 const updateLog = ref('проверка доступных обновлений')
 let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 
-// Preview default so user sees design immediately:
-const pendingUpdate = ref<AvailableUpdate | null>({
-  type: 'payload',
-  version: '1.0.6',
-  notes: 'Обновление веб-интерфейса и аналитики',
-  isSuitable: true
-})
+const pendingUpdate = ref<AvailableUpdate | null>(null)
 
 const clearUpdateProgressTimer = () => {
   if (!updateProgressTimer) return
@@ -621,10 +615,7 @@ const startUpdateCheck = async () => {
   const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__
 
   if (!isTauri) {
-    // Keep pendingUpdate preview if set, otherwise artificial progress
-    if (!pendingUpdate.value) {
-      await runArtificialUpdateProgress()
-    }
+    await runArtificialUpdateProgress()
     return
   }
 
@@ -648,15 +639,11 @@ const startUpdateCheck = async () => {
       }
     }
 
-    // If no real update found, keep pendingUpdate preview if present
-    if (!pendingUpdate.value) {
-      await runArtificialUpdateProgress()
-    }
+    // If no real update found
+    await runArtificialUpdateProgress()
   } catch (error) {
     console.warn('[updater] initialization update check failed', error)
-    if (!pendingUpdate.value) {
-      await runArtificialUpdateProgress()
-    }
+    await runArtificialUpdateProgress()
   }
 }
 
