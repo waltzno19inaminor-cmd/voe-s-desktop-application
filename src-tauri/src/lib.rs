@@ -37,6 +37,7 @@ pub fn run() {
             patch::patch_install_from_upload,
             payload_update::payload_update_get_state,
             payload_update::payload_update_clear,
+            payload_update::payload_update_fetch_manifest,
             payload_update::payload_update_install_from_feed
         ])
         .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {

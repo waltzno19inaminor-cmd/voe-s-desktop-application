@@ -485,12 +485,19 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
 
 const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate | null> => {
   try {
-    const res = await fetch(manifestUrl)
-    if (!res.ok) return null
-    const manifest = await res.json()
+    const { invoke } = await import('@tauri-apps/api/core')
+    let manifest: any = null
+
+    try {
+      manifest = await invoke('payload_update_fetch_manifest', { manifestUrl })
+    } catch (invokeErr) {
+      const res = await fetch(manifestUrl)
+      if (!res.ok) return null
+      manifest = await res.json()
+    }
+
     if (!manifest || !manifest.version) return null
 
-    const { invoke } = await import('@tauri-apps/api/core')
     const localState = await invoke<{ version?: string | null; active: boolean }>('payload_update_get_state').catch(() => null)
 
     const activeVersion = localState?.active ? (localState.version || appVersion) : appVersion

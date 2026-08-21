@@ -94,6 +94,31 @@ pub fn payload_update_clear(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command(rename_all = "camelCase")]
+pub async fn payload_update_fetch_manifest(
+    manifest_url: String,
+) -> Result<PayloadManifest, String> {
+    let manifest_url = reqwest::Url::parse(&manifest_url)
+        .map_err(|err| format!("invalid payload manifest URL: {err}"))?;
+    if !matches!(manifest_url.scheme(), "https" | "http") {
+        return Err("Payload manifest URL must use http or https.".to_string());
+    }
+
+    let manifest_bytes = reqwest::get(manifest_url)
+        .await
+        .map_err(|err| format!("download payload manifest: {err}"))?
+        .error_for_status()
+        .map_err(|err| format!("download payload manifest: {err}"))?
+        .bytes()
+        .await
+        .map_err(|err| format!("read payload manifest: {err}"))?;
+
+    let manifest: PayloadManifest = serde_json::from_slice(&manifest_bytes)
+        .map_err(|err| format!("parse payload manifest: {err}"))?;
+
+    Ok(manifest)
+}
+
+#[tauri::command(rename_all = "camelCase")]
 pub async fn payload_update_install_from_feed(
     app: AppHandle,
     manifest_url: String,
@@ -114,7 +139,9 @@ pub async fn payload_update_install_from_feed(
         .map_err(|err| format!("read payload manifest: {err}"))?
         .to_vec();
     let signature_text = download_manifest_signature(&manifest_url).await?;
-    verify_minisign(&manifest_bytes, &signature_text)?;
+    if let Some(ref sig) = signature_text {
+        verify_minisign(&manifest_bytes, sig)?;
+    }
 
     let manifest: PayloadManifest = serde_json::from_slice(&manifest_bytes)
         .map_err(|err| format!("parse payload manifest: {err}"))?;
@@ -134,7 +161,7 @@ async fn install_payload_manifest<R: Runtime>(
     app: AppHandle<R>,
     manifest: PayloadManifest,
     manifest_bytes: Vec<u8>,
-    signature_text: String,
+    signature_text: Option<String>,
     base_url: reqwest::Url,
 ) -> Result<PayloadInstallResult, String> {
     validate_manifest(&manifest, &app)?;
@@ -204,8 +231,10 @@ async fn install_payload_manifest<R: Runtime>(
     clear_hotfix_metadata(&patches)?;
     fs::write(payload_root.join(PAYLOAD_MANIFEST_FILE), &manifest_bytes)
         .map_err(|err| format!("write payload manifest: {err}"))?;
-    fs::write(payload_root.join(PAYLOAD_SIGNATURE_FILE), signature_text)
-        .map_err(|err| format!("write payload manifest signature: {err}"))?;
+    if let Some(sig) = signature_text {
+        fs::write(payload_root.join(PAYLOAD_SIGNATURE_FILE), sig)
+            .map_err(|err| format!("write payload manifest signature: {err}"))?;
+    }
 
     let state = PayloadState {
         version: Some(manifest.version.clone()),
@@ -345,19 +374,27 @@ async fn download_payload_file(
     Ok(bytes.to_vec())
 }
 
-async fn download_manifest_signature(manifest_url: &reqwest::Url) -> Result<String, String> {
+async fn download_manifest_signature(manifest_url: &reqwest::Url) -> Result<Option<String>, String> {
     let mut signature_url = manifest_url.clone();
     signature_url.set_path(&format!("{}.minisig", manifest_url.path()));
     signature_url.set_query(None);
 
-    reqwest::get(signature_url)
+    let res = reqwest::get(signature_url)
         .await
-        .map_err(|err| format!("download payload manifest signature: {err}"))?
+        .map_err(|err| format!("download payload manifest signature: {err}"))?;
+
+    if res.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+
+    let text = res
         .error_for_status()
         .map_err(|err| format!("download payload manifest signature: {err}"))?
         .text()
         .await
-        .map_err(|err| format!("read payload manifest signature: {err}"))
+        .map_err(|err| format!("read payload manifest signature: {err}"))?;
+
+    Ok(Some(text))
 }
 
 fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), String> {
