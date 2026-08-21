@@ -195,26 +195,7 @@
                 </div>
               </form>
 
-              <div v-else-if="activeTab === 'appearance'" class="max-w-2xl space-y-8">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <button
-                    v-for="mode in appearanceModes"
-                    :key="mode.key"
-                    type="button"
-                    @click="setAppearanceMode(mode.key)"
-                    class="p-4 border text-left transition-colors duration-300 cursor-pointer"
-                    :class="mode.active ? 'border-black dark:border-white bg-black/5 dark:bg-white/10 shadow-[inset_3px_0_0_rgba(0,0,0,0.9)] dark:shadow-[inset_3px_0_0_rgba(255,255,255,0.9)] nier-text-primary' : 'nier-border-primary bg-black/[0.03] dark:bg-white/[0.03] hover:border-black/30 dark:hover:border-white/30 text-black/60 dark:text-white/60'"
-                  >
-                    <span class="block text-[9px] font-mono uppercase tracking-[0.35em] font-black">{{ mode.label }}</span>
-                    <span class="block text-[8px] font-mono uppercase tracking-[0.25em] mt-2" :class="mode.active ? 'opacity-70' : 'opacity-40'">
-                      {{ mode.note }}
-                    </span>
-                  </button>
-                </div>
 
-
-
-              </div>
 
               <section v-else class="max-w-3xl space-y-7">
                 <input
@@ -403,22 +384,12 @@ const selectStatus = async (statusName: string) => {
   isStatusDropdownOpen.value = false
 }
 
-type ProfileOverlayTab = 'profile' | 'appearance' | 'patch'
+type ProfileOverlayTab = 'profile' | 'patch'
 type PatchInstallState = 'idle' | 'ready' | 'installing' | 'clearing' | 'success' | 'cleared' | 'error'
 
 const activeTab = ref<ProfileOverlayTab>('profile')
 
 const activeTabMeta = computed(() => {
-  if (activeTab.value === 'profile') {
-    return {
-      eyebrow: locale.value === 'ru' ? 'Аккаунт' : 'Account',
-      title: locale.value === 'ru' ? 'Личные данные' : 'Personal details',
-      description: locale.value === 'ru'
-        ? 'Держите основные поля идентификации видимыми и ненавязчивыми.'
-        : 'Keep the core identity fields visible and unobtrusive.'
-    }
-  }
-
   if (activeTab.value === 'patch') {
     return {
       eyebrow: locale.value === 'ru' ? 'Патчи' : 'Patches',
@@ -430,60 +401,25 @@ const activeTabMeta = computed(() => {
   }
 
   return {
-    eyebrow: locale.value === 'ru' ? 'Внешний вид' : 'Appearance',
-    title: locale.value === 'ru' ? 'Тема приложения' : 'App theme',
+    eyebrow: locale.value === 'ru' ? 'Аккаунт' : 'Account',
+    title: locale.value === 'ru' ? 'Личные данные' : 'Personal details',
     description: locale.value === 'ru'
-      ? 'Минималистичное управление темой с несколькими сдержанными акцентами.'
-      : 'Minimal theme controls with a few restrained accent choices.'
+      ? 'Держите основные поля идентификации видимыми и ненавязчивыми.'
+      : 'Keep the core identity fields visible and unobtrusive.'
   }
 })
 
 const profileTabs = computed(() => {
-  const tabs = [
-    { key: 'profile' as const, label: locale.value === 'ru' ? 'Профиль' : 'Profile', note: locale.value === 'ru' ? 'Основа' : 'Core' },
-    { key: 'appearance' as const, label: locale.value === 'ru' ? 'Внешний вид' : 'Appearance', note: locale.value === 'ru' ? 'Тема' : 'Theme' }
+  const tabs: Array<{ key: ProfileOverlayTab; label: string; note: string }> = [
+    { key: 'profile', label: locale.value === 'ru' ? 'Профиль' : 'Profile', note: locale.value === 'ru' ? 'Основа' : 'Core' }
   ]
 
   if (SHOW_PATCH_TAB) {
-    tabs.push({ key: 'patch' as const, label: locale.value === 'ru' ? 'Патч' : 'Patch', note: locale.value === 'ru' ? 'Hotfix' : 'Hotfix' })
+    tabs.push({ key: 'patch', label: locale.value === 'ru' ? 'Патч' : 'Patch', note: locale.value === 'ru' ? 'Hotfix' : 'Hotfix' })
   }
 
   return tabs
 })
-
-const appearanceModes = computed(() => {
-  const currentMode = themeStore.settings.themeMode || (themeStore.settings.isDark ? 'dark' : 'light')
-  return [
-    {
-      key: 'dark' as const,
-      label: locale.value === 'ru' ? 'Темная' : 'Dark',
-      note: currentMode === 'dark'
-        ? (locale.value === 'ru' ? 'Активна' : 'Active')
-        : (locale.value === 'ru' ? 'Доступна' : 'Available'),
-      active: currentMode === 'dark'
-    },
-    {
-      key: 'light' as const,
-      label: locale.value === 'ru' ? 'Светлая' : 'Light',
-      note: currentMode === 'light'
-        ? (locale.value === 'ru' ? 'Активна' : 'Active')
-        : (locale.value === 'ru' ? 'Доступна' : 'Available'),
-      active: currentMode === 'light'
-    },
-    {
-      key: 'system' as const,
-      label: locale.value === 'ru' ? 'Системная' : 'System',
-      note: currentMode === 'system'
-        ? (locale.value === 'ru' ? 'Активна' : 'Active')
-        : (locale.value === 'ru' ? 'Авто' : 'Auto'),
-      active: currentMode === 'system'
-    }
-  ]
-})
-
-function setAppearanceMode(mode: 'light' | 'dark' | 'system') {
-  themeStore.setTheme({ themeMode: mode })
-}
 
 const patchFileInput = ref<HTMLInputElement | null>(null)
 const selectedPatchFile = ref<File | null>(null)
