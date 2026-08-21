@@ -30,7 +30,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/garder-les-ciseaux-droits/voe-s/releases/download/release-demo/latest.json"
+        "https://github.com/jorudr/JLJ/releases/download/release-demo/latest.json"
       ]
     }
   }

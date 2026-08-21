@@ -64,7 +64,7 @@ downloading any files.
 Set the manifest URL at build time:
 
 ```bash
-NUXT_PUBLIC_PAYLOAD_MANIFEST_URL=https://example.com/releases/release/payload-manifest.json \
+NUXT_PUBLIC_PAYLOAD_MANIFEST_URL=https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json \
   npm run build
 ```
 
