@@ -93,7 +93,7 @@
           <!-- Skip Text Link (Below Install Button) -->
           <button
             @click="skipUpdate"
-            class="font-mono text-[9px] tracking-[0.3em] uppercase font-bold text-black opacity-50 hover:opacity-100 transition-opacity py-1"
+            class="initialization-skip-button font-mono text-[9px] tracking-[0.3em] uppercase font-bold text-black opacity-50 hover:opacity-100 transition-opacity py-1"
           >
             <span>{{ locale === 'ru' ? 'Пропустить' : 'Skip' }}</span>
           </button>
@@ -296,6 +296,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRuntimeConfig } from '#imports'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
@@ -1066,8 +1067,14 @@ onBeforeUnmount(() => {
   color: var(--startup-light) !important;
 }
 
-.ex-initialization.is-startup .initialization-sign-out-button {
+.ex-initialization.is-startup .initialization-sign-out-button,
+.ex-initialization.is-startup .initialization-skip-button {
   background: transparent !important;
+  border-color: transparent !important;
+  color: var(--startup-light) !important;
+}
+
+.ex-initialization.is-startup .initialization-skip-button span {
   color: var(--startup-light) !important;
 }
 
