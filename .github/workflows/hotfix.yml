@@ -80,7 +80,7 @@ jobs:
 
       - name: build standalone patcher
         working-directory: src-tauri
-        run: cargo build --release --bin hotfix_patcher
+        run: cargo build --release --manifest-path tools/hotfix_patcher/Cargo.toml --target-dir target
 
       - name: create signed jljpatch
         shell: bash
