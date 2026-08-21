@@ -68,6 +68,27 @@ const hoveredPoint = ref<any>(null)
 const tooltipPos = ref<{ x: number, y: number } | null>(null)
 let renderFrame = 0
 
+const getPlotBounds = (canvasWidth = width.value, canvasHeight = height.value) => {
+  // Keep markers, axes and the hovered date inside the canvas in the compact
+  // add/edit trade view. The values scale down on very narrow containers.
+  const horizontalInset = Math.min(40, Math.max(20, Math.round(canvasWidth * 0.06)))
+  const topInset = Math.min(36, Math.max(22, Math.round(canvasHeight * 0.07)))
+  const bottomInset = Math.min(48, Math.max(34, Math.round(canvasHeight * 0.1)))
+  const left = Math.min(horizontalInset, Math.max(0, (canvasWidth - 1) / 2))
+  const right = Math.max(left + 1, canvasWidth - horizontalInset)
+  const top = Math.min(topInset, Math.max(0, (canvasHeight - 1) / 2))
+  const bottom = Math.max(top + 1, canvasHeight - bottomInset)
+
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    width: right - left,
+    height: bottom - top
+  }
+}
+
 const handleCanvasMouseMove = (e: MouseEvent) => {
   const rect = canvasRef.value?.getBoundingClientRect()
   if (!rect) return
@@ -159,12 +180,13 @@ const points = computed(() => {
   const min = Math.min(...balances)
   const max = Math.max(...balances)
   const range = (max - min) || 1
-  const padding = height.value * 0.05
+  const plot = getPlotBounds()
 
   return balances.map((val, i) => {
-    const x = (i / (balances.length - 1)) * width.value
+    const progress = balances.length > 1 ? i / (balances.length - 1) : 0.5
+    const x = plot.left + progress * plot.width
     // Invert Y: 0 is top, height is bottom
-    const y = height.value - padding - ((val - min) / range) * (height.value - 2 * padding)
+    const y = plot.bottom - ((val - min) / range) * plot.height
     
   const trade = i === 0 ? null : (sortedTrades[i - 1] || null)
   return {
@@ -243,22 +265,23 @@ const renderCurve = () => {
   const themeAxis = isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.10)'
   const themeMuted = isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.30)'
   const themeGuide = isDark ? 'rgba(255,255,255,0.20)' : 'rgba(0,0,0,0.20)'
+  const plot = getPlotBounds(cssWidth, cssHeight)
 
   ctx.strokeStyle = themeAxis
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(0, cssHeight)
-  ctx.lineTo(cssWidth, cssHeight)
-  ctx.moveTo(0, 0)
-  ctx.lineTo(0, cssHeight)
+  ctx.moveTo(plot.left, plot.bottom)
+  ctx.lineTo(plot.right, plot.bottom)
+  ctx.moveTo(plot.left, plot.top)
+  ctx.lineTo(plot.left, plot.bottom)
   ctx.stroke()
 
   ctx.fillStyle = themeMuted
   ctx.font = '900 8px monospace'
   ctx.textAlign = 'left'
-  ctx.fillText('$', 8, 12)
+  ctx.fillText('$', plot.left + 8, plot.top + 12)
   ctx.textAlign = 'right'
-  ctx.fillText(locale.value === 'ru' ? 'ВРЕМЯ' : 'TIME', cssWidth - 8, cssHeight - 12)
+  ctx.fillText(locale.value === 'ru' ? 'ВРЕМЯ' : 'TIME', plot.right - 8, plot.bottom - 10)
   ctx.textAlign = 'left'
 
   const allPoints = points.value
@@ -307,7 +330,7 @@ const renderCurve = () => {
     ctx.setLineDash([4, 4])
     ctx.beginPath()
     ctx.moveTo(hoveredPoint.value.x, hoveredPoint.value.y)
-    ctx.lineTo(hoveredPoint.value.x, cssHeight)
+    ctx.lineTo(hoveredPoint.value.x, plot.bottom)
     ctx.stroke()
     ctx.setLineDash([])
 
@@ -315,7 +338,10 @@ const renderCurve = () => {
       ctx.fillStyle = isDark ? 'rgba(255,255,255,0.60)' : 'rgba(0,0,0,0.60)'
       ctx.font = '700 11px monospace'
       ctx.textAlign = 'center'
-      ctx.fillText(formatDate(hoveredPoint.value.date).toUpperCase(), hoveredPoint.value.x, cssHeight - 2)
+      const dateLabel = formatDate(hoveredPoint.value.date).toUpperCase()
+      const halfLabelWidth = ctx.measureText(dateLabel).width / 2 + 4
+      const dateX = Math.min(cssWidth - halfLabelWidth, Math.max(halfLabelWidth, hoveredPoint.value.x))
+      ctx.fillText(dateLabel, dateX, Math.min(cssHeight - 6, plot.bottom + 22))
     }
     ctx.restore()
   }
