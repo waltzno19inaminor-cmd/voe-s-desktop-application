@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   ssr: false,
   runtimeConfig: {
     public: {
-      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || '',
+      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || 'https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json',
     },
   },
   devServer: {
