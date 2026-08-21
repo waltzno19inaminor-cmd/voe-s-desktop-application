@@ -5,7 +5,10 @@ import { readdir } from 'node:fs/promises'
 import { dirname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
-const APP_IDENTIFIER = 'com.voe.app'
+const RELEASE_CHANNELS = {
+  release: { appIdentifier: 'com.voe.app' },
+  'release-demo': { appIdentifier: 'com.voe.app.demo' },
+}
 
 const args = parseArgs(process.argv.slice(2))
 
@@ -14,9 +17,11 @@ if (args.help) {
   process.exit(0)
 }
 
-for (const required of ['version', 'platform', 'dir', 'out']) {
+for (const required of ['channel', 'version', 'platform', 'dir', 'out']) {
   if (!args[required]) fail(`Missing --${kebab(required)}`)
 }
+
+const channel = resolveReleaseChannel(args.channel)
 
 if (!existsSync(args.dir)) fail(`Input directory does not exist: ${args.dir}`)
 
@@ -33,7 +38,8 @@ for (const file of await listFiles(args.dir)) {
 }
 
 const manifest = {
-  appIdentifier: args.appIdentifier || APP_IDENTIFIER,
+  channel: args.channel,
+  appIdentifier: channel.appIdentifier,
   version: args.version,
   platform: args.platform,
   baseUrl: args.baseUrl || null,
@@ -90,6 +96,14 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
+function resolveReleaseChannel(value) {
+  const channel = RELEASE_CHANNELS[value]
+  if (!channel) {
+    fail(`Unknown --channel ${value}. Expected one of: ${Object.keys(RELEASE_CHANNELS).join(', ')}`)
+  }
+  return channel
+}
+
 function writeSignature(manifestPath) {
   const signaturePath = `${manifestPath}.minisig`
   if (args.minisignKey) {
@@ -142,6 +156,7 @@ function fail(message) {
 function printHelp() {
   console.log(`Usage:
   npm run payload:manifest -- \\
+    --channel release \\
     --version 1.0.6 \\
     --platform macos-universal \\
     --dir .output/public \\

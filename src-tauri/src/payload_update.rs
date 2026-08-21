@@ -9,9 +9,9 @@ use walkdir::WalkDir;
 
 use crate::patch::{
     active_manifest_path_from_root, active_signature_path_from_root, active_web_dir_from_root,
-    app_data_dir, current_platform, hash_eq, jlj_data_root_from_data_dir, patches_root,
-    sanitize_relative_path, sha256_bytes_hex, sha256_file_hex, state_path_from_root,
-    verify_minisign, APP_IDENTIFIER,
+    app_data_dir, app_release_channel, current_platform, hash_eq, jlj_data_root_from_data_dir,
+    patches_root, sanitize_relative_path, sha256_bytes_hex, sha256_file_hex, state_path_from_root,
+    verify_minisign,
 };
 
 const PAYLOAD_STATE_FILE: &str = "payload-state.json";
@@ -32,6 +32,8 @@ pub struct PayloadFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PayloadManifest {
+    #[serde(default)]
+    pub channel: String,
     pub app_identifier: String,
     pub version: String,
     pub platform: String,
@@ -135,7 +137,7 @@ async fn install_payload_manifest<R: Runtime>(
     signature_text: String,
     base_url: reqwest::Url,
 ) -> Result<PayloadInstallResult, String> {
-    validate_manifest(&manifest)?;
+    validate_manifest(&manifest, &app)?;
 
     let payload_root = payload_root(&app)?;
     let patches = patches_root(&app)?;
@@ -253,9 +255,15 @@ pub fn navigate_to_active_payload<R: Runtime>(app: &tauri::App<R>) {
     }
 }
 
-fn validate_manifest(manifest: &PayloadManifest) -> Result<(), String> {
-    if manifest.app_identifier != APP_IDENTIFIER {
+fn validate_manifest<R: Runtime>(
+    manifest: &PayloadManifest,
+    app: &AppHandle<R>,
+) -> Result<(), String> {
+    if manifest.app_identifier != app.config().identifier {
         return Err("Payload manifest is for a different app identifier.".to_string());
+    }
+    if manifest.channel != app_release_channel(app)? {
+        return Err("Payload manifest is for a different release channel.".to_string());
     }
     if manifest.version.trim().is_empty() {
         return Err("Payload manifest version is empty.".to_string());

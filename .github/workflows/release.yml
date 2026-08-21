@@ -2,11 +2,43 @@ name: "publish"
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - release
+      - release-demo
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Update channel to publish
+        required: true
+        type: choice
+        options:
+          - release
+          - release-demo
 
 jobs:
+  resolve-channel:
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.channel.outputs.value }}
+      tauri_config: ${{ steps.channel.outputs.tauri_config }}
+    steps:
+      - id: channel
+        shell: bash
+        run: |
+          channel="${{ inputs.channel || github.ref_name }}"
+          if [[ "$channel" != "release" && "$channel" != "release-demo" ]]; then
+            echo "Unsupported release channel: $channel" >&2
+            exit 1
+          fi
+          echo "value=$channel" >> "$GITHUB_OUTPUT"
+          if [[ "$channel" == "release-demo" ]]; then
+            echo "tauri_config=--config src-tauri/tauri.demo.conf.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "tauri_config=" >> "$GITHUB_OUTPUT"
+          fi
+
   publish-tauri:
+    needs: resolve-channel
     permissions:
       contents: write
     strategy:
@@ -30,14 +62,7 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Install both targets for Universal build
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
-
-      - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
         run: npm install
@@ -48,9 +73,9 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "App ${{ github.ref_name }}"
-          releaseBody: "See the assets to download this version and install."
+          tagName: ${{ needs.resolve-channel.outputs.channel }}
+          releaseName: "JLJ ${{ needs.resolve-channel.outputs.channel }}"
+          releaseBody: "Automated ${{ needs.resolve-channel.outputs.channel }} channel release."
           releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.args }}
+          prerelease: ${{ needs.resolve-channel.outputs.channel == 'release-demo' }}
+          args: ${{ matrix.args }} ${{ needs.resolve-channel.outputs.tauri_config }}

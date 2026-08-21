@@ -3,6 +3,13 @@ name: "hotfix"
 on:
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Target update channel"
+        required: true
+        type: choice
+        options:
+          - release
+          - release-demo
       base_version:
         description: "Public base version, e.g. 1.0.4"
         required: true
@@ -80,12 +87,13 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.HOTFIX_PRIVATE_KEY_PASSWORD }}
         run: |
-          mkdir -p dist/hotfix
+          mkdir -p "dist/hotfix/${{ inputs.channel }}"
           FROM_PATCH_ARGS=()
           if [[ -n "${{ inputs.from_patch_level }}" ]]; then
             FROM_PATCH_ARGS=(--from-patch-level "${{ inputs.from_patch_level }}")
           fi
           npm run hotfix:package -- \
+            --channel "${{ inputs.channel }}" \
             --base-version "${{ inputs.base_version }}" \
             --patch-id "${{ inputs.patch_id }}" \
             --to-patch-level "${{ inputs.to_patch_level }}" \
@@ -94,15 +102,15 @@ jobs:
             --base-dir artifacts/base \
             --fixed-dir .output/public \
             --tauri-signer-key-path "$RUNNER_TEMP/jlj-hotfix/jlj-hotfix.key" \
-            --out "dist/hotfix/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}.jljpatch"
+            --out "dist/hotfix/${{ inputs.channel }}/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}.jljpatch"
 
       - name: collect patcher
         shell: bash
         run: |
-          cp "${{ matrix.patcher_source }}" "dist/hotfix/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}-patcher${{ matrix.patcher_ext }}"
+          cp "${{ matrix.patcher_source }}" "dist/hotfix/${{ inputs.channel }}/JLJ-${{ inputs.patch_id }}-${{ matrix.patch_platform }}-patcher${{ matrix.patcher_ext }}"
 
       - name: upload hotfix artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: hotfix-${{ matrix.patch_platform }}
-          path: dist/hotfix/*
+          name: hotfix-${{ inputs.channel }}-${{ matrix.patch_platform }}
+          path: dist/hotfix/${{ inputs.channel }}/*

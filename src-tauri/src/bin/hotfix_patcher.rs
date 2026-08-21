@@ -3,7 +3,8 @@ use app_lib::patch::{
     current_platform, hash_eq, jlj_data_root_from_data_dir, patches_root_from_data_dir,
     read_state_from_root, sanitize_relative_path, save_state_to_root, sha256_bytes_hex,
     sha256_file_hex, verify_active_from_root, verify_minisign, PatchManifest, PatchOpKind,
-    PatchOperation, PatchScope, PatchState, VerifiedFileHash, APP_IDENTIFIER,
+    PatchOperation, PatchScope, PatchState, VerifiedFileHash, RELEASE_APP_IDENTIFIER,
+    RELEASE_CHANNEL, RELEASE_DEMO_APP_IDENTIFIER, RELEASE_DEMO_CHANNEL,
 };
 use std::{
     env, fs,
@@ -23,9 +24,49 @@ const LEGACY_PRODUCT_NAME: &str = "JLJ";
 
 #[derive(Debug)]
 struct Args {
+    channel: ReleaseChannel,
     patch_path: PathBuf,
     app_path: Option<PathBuf>,
     dry_run: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ReleaseChannel {
+    Release,
+    ReleaseDemo,
+}
+
+impl ReleaseChannel {
+    fn parse(value: &str) -> Result<Self, String> {
+        match value {
+            RELEASE_CHANNEL => Ok(Self::Release),
+            RELEASE_DEMO_CHANNEL => Ok(Self::ReleaseDemo),
+            _ => Err(format!(
+                "unknown --channel {value}; expected {RELEASE_CHANNEL} or {RELEASE_DEMO_CHANNEL}"
+            )),
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Release => RELEASE_CHANNEL,
+            Self::ReleaseDemo => RELEASE_DEMO_CHANNEL,
+        }
+    }
+
+    fn app_identifier(self) -> &'static str {
+        match self {
+            Self::Release => RELEASE_APP_IDENTIFIER,
+            Self::ReleaseDemo => RELEASE_DEMO_APP_IDENTIFIER,
+        }
+    }
+
+    fn product_name(self) -> &'static str {
+        match self {
+            Self::Release => PRODUCT_NAME,
+            Self::ReleaseDemo => "J.L.JÖRMUNGANDR Demo",
+        }
+    }
 }
 
 fn main() {
@@ -39,7 +80,7 @@ fn run() -> Result<(), String> {
     let args = parse_args()?;
     let app_path = match args.app_path {
         Some(path) => path,
-        None => locate_installed_app()?,
+        None => locate_installed_app(args.channel)?,
     };
 
     if !app_path.exists() {
@@ -60,11 +101,12 @@ fn run() -> Result<(), String> {
 
     let manifest: PatchManifest =
         serde_json::from_slice(&manifest_bytes).map_err(|err| format!("parse manifest: {err}"))?;
-    validate_manifest(&manifest)?;
+    validate_manifest(&manifest, args.channel)?;
     validate_install(&manifest, &app_path)?;
 
-    let data_dir =
-        dirs::data_dir().ok_or_else(|| "system data directory is unavailable".to_string())?;
+    let data_dir = dirs::data_dir()
+        .ok_or_else(|| "system data directory is unavailable".to_string())?
+        .join(args.channel.app_identifier());
     let jlj_data = jlj_data_root_from_data_dir(&data_dir);
     let patches_root = patches_root_from_data_dir(&data_dir);
     fs::create_dir_all(&patches_root).map_err(|err| format!("create patches dir: {err}"))?;
@@ -122,6 +164,7 @@ fn run() -> Result<(), String> {
 }
 
 fn parse_args() -> Result<Args, String> {
+    let mut channel = None;
     let mut patch_path = None;
     let mut app_path = None;
     let mut dry_run = false;
@@ -129,6 +172,12 @@ fn parse_args() -> Result<Args, String> {
 
     while let Some(arg) = iter.next() {
         match arg.as_str() {
+            "--channel" => {
+                channel = iter
+                    .next()
+                    .map(|value| ReleaseChannel::parse(&value))
+                    .transpose()?;
+            }
             "--patch" => {
                 patch_path = iter.next().map(PathBuf::from);
             }
@@ -150,6 +199,7 @@ fn parse_args() -> Result<Args, String> {
     }
 
     Ok(Args {
+        channel: channel.ok_or_else(|| "missing --channel release|release-demo".to_string())?,
         patch_path: patch_path
             .ok_or_else(|| "missing --patch path/to/file.jljpatch".to_string())?,
         app_path,
@@ -159,23 +209,30 @@ fn parse_args() -> Result<Args, String> {
 
 fn print_help() {
     println!(
-        "J.L.JÖRMUNGANDR hotfix patcher\n\nUsage:\n  hotfix_patcher --patch JLJ-1.0.4-hotfix.1.jljpatch [--app /path/to/J.L.JÖRMUNGANDR.app|J.L.JÖRMUNGANDR.exe] [--dry-run]"
+        "J.L.JÖRMUNGANDR hotfix patcher\n\nUsage:\n  hotfix_patcher --channel release|release-demo --patch JLJ-1.0.4-hotfix.1.jljpatch [--app /path/to/J.L.JÖRMUNGANDR.app|J.L.JÖRMUNGANDR.exe] [--dry-run]"
     );
 }
 
-fn locate_installed_app() -> Result<PathBuf, String> {
+fn locate_installed_app(channel: ReleaseChannel) -> Result<PathBuf, String> {
     let mut candidates = Vec::new();
 
     #[cfg(target_os = "macos")]
     {
-        candidates.push(PathBuf::from(format!("/Applications/{PRODUCT_NAME}.app")));
         candidates.push(PathBuf::from(format!(
-            "/Applications/{LEGACY_PRODUCT_NAME}.app"
+            "/Applications/{}.app",
+            channel.product_name()
         )));
+        if matches!(channel, ReleaseChannel::Release) {
+            candidates.push(PathBuf::from(format!(
+                "/Applications/{LEGACY_PRODUCT_NAME}.app"
+            )));
+        }
         if let Some(home) = dirs::home_dir() {
             let applications = home.join("Applications");
-            candidates.push(applications.join(format!("{PRODUCT_NAME}.app")));
-            candidates.push(applications.join(format!("{LEGACY_PRODUCT_NAME}.app")));
+            candidates.push(applications.join(format!("{}.app", channel.product_name())));
+            if matches!(channel, ReleaseChannel::Release) {
+                candidates.push(applications.join(format!("{LEGACY_PRODUCT_NAME}.app")));
+            }
         }
     }
 
@@ -184,7 +241,11 @@ fn locate_installed_app() -> Result<PathBuf, String> {
         for root in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
             if let Some(value) = env::var_os(root) {
                 let root = PathBuf::from(value);
-                for app_name in [PRODUCT_NAME, LEGACY_PRODUCT_NAME] {
+                let mut app_names = vec![channel.product_name()];
+                if matches!(channel, ReleaseChannel::Release) {
+                    app_names.push(LEGACY_PRODUCT_NAME);
+                }
+                for app_name in app_names {
                     candidates.push(root.join(app_name).join(format!("{app_name}.exe")));
                     candidates.push(
                         root.join(app_name)
@@ -214,9 +275,12 @@ fn read_zip_entry<R: Read + std::io::Seek>(
     Ok(bytes)
 }
 
-fn validate_manifest(manifest: &PatchManifest) -> Result<(), String> {
-    if manifest.app_identifier != APP_IDENTIFIER {
+fn validate_manifest(manifest: &PatchManifest, channel: ReleaseChannel) -> Result<(), String> {
+    if manifest.app_identifier != channel.app_identifier() {
         return Err("patch is for a different app identifier".to_string());
+    }
+    if manifest.channel != channel.name() {
+        return Err("patch is for a different release channel".to_string());
     }
     if !manifest.platforms.iter().any(|p| p == &current_platform()) {
         return Err(format!(
@@ -240,6 +304,9 @@ fn validate_install(manifest: &PatchManifest, app_path: &Path) -> Result<(), Str
         if plist.exists() {
             let content =
                 fs::read_to_string(&plist).map_err(|err| format!("read Info.plist: {err}"))?;
+            if !content.contains(&format!("<string>{}</string>", manifest.app_identifier)) {
+                return Err("installed app identifier does not match patch channel".to_string());
+            }
             if !content.contains(&format!("<string>{}</string>", manifest.base_version)) {
                 return Err(format!(
                     "installed app does not look like base version {}",

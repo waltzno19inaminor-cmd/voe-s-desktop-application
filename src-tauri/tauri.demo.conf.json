@@ -1,0 +1,37 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "J.L.JÖRMUNGANDR Demo",
+  "identifier": "com.voe.app.demo",
+  "app": {
+    "windows": [
+      {
+        "title": "J.L.JÖRMUNGANDR Demo",
+        "width": 1200,
+        "height": 800,
+        "resizable": false,
+        "maximized": true,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ]
+  },
+  "bundle": {
+    "shortDescription": "J.L.JÖRMUNGANDR Demo Desktop Application",
+    "longDescription": "J.L.JÖRMUNGANDR Demo is an isolated preview build for testing.",
+    "macOS": {
+      "infoPlist": "Info.demo.plist"
+    },
+    "windows": {
+      "nsis": {
+        "startMenuFolder": "VOSHE COMPANY DOO Demo"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/garder-les-ciseaux-droits/voe-s/releases/download/release-demo/latest.json"
+      ]
+    }
+  }
+}

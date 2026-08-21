@@ -6,7 +6,10 @@ import { basename, dirname, join, relative } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import JSZip from 'jszip'
 
-const APP_IDENTIFIER = 'com.voe.app'
+const RELEASE_CHANNELS = {
+  release: { appIdentifier: 'com.voe.app' },
+  'release-demo': { appIdentifier: 'com.voe.app.demo' },
+}
 
 const args = parseArgs(process.argv.slice(2))
 
@@ -15,9 +18,11 @@ if (args.help) {
   process.exit(0)
 }
 
-for (const required of ['baseVersion', 'patchId', 'toPatchLevel', 'platform', 'fixedDir', 'out']) {
+for (const required of ['channel', 'baseVersion', 'patchId', 'toPatchLevel', 'platform', 'fixedDir', 'out']) {
   if (!args[required]) fail(`Missing --${kebab(required)}`)
 }
+
+const channel = resolveReleaseChannel(args.channel)
 
 const fromPatchLevel = args.fromPatchLevel || null
 const baseDir = args.baseDir || null
@@ -77,11 +82,12 @@ const extraOperations = args.operations ? JSON.parse(readFileSync(args.operation
 operations.push(...extraOperations)
 
 const manifest = {
+  channel: args.channel,
   patchId: args.patchId,
   baseVersion: args.baseVersion,
   fromPatchLevel,
   toPatchLevel: args.toPatchLevel,
-  appIdentifier: APP_IDENTIFIER,
+  appIdentifier: channel.appIdentifier,
   platforms: args.platform.split(',').map((value) => value.trim()).filter(Boolean),
   kind: args.kind || inferKind(operations),
   operations,
@@ -194,6 +200,14 @@ function inferKind(operations) {
   return 'resource'
 }
 
+function resolveReleaseChannel(value) {
+  const channel = RELEASE_CHANNELS[value]
+  if (!channel) {
+    fail(`Unknown --channel ${value}. Expected one of: ${Object.keys(RELEASE_CHANNELS).join(', ')}`)
+  }
+  return channel
+}
+
 function camel(value) {
   return value.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())
 }
@@ -225,6 +239,7 @@ Create a signed JLJ .jljpatch package.
 
 Resource patch example:
   node scripts/create-hotfix-patch.mjs \\
+    --channel release \\
     --base-version 1.0.4 \\
     --patch-id 1.0.4-hotfix.1 \\
     --to-patch-level hotfix.1 \\
@@ -236,6 +251,7 @@ Resource patch example:
 
 Tauri signer example:
   node scripts/create-hotfix-patch.mjs \\
+    --channel release \\
     --base-version 1.0.4 \\
     --patch-id 1.0.4-hotfix.1 \\
     --to-patch-level hotfix.1 \\

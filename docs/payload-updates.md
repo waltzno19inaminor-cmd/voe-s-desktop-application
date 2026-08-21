@@ -20,6 +20,7 @@ Generate a manifest:
 
 ```bash
 npm run payload:manifest -- \
+  --channel release \
   --version 1.0.6 \
   --platform macos-universal \
   --dir .output/public \
@@ -44,12 +45,26 @@ listed size and SHA-256.
 manifest, validates app id/platform/version, stages the target tree, verifies all
 hashes, then atomically replaces `JLJData/patches/active-web`.
 
+## Release channels
+
+Payloads are channel-bound and cannot be installed by the other application:
+
+| Git branch / release tag | App identifier | Manifest argument |
+| --- | --- | --- |
+| `release` | `com.voe.app` | `--channel release` |
+| `release-demo` | `com.voe.app.demo` | `--channel release-demo` |
+
+The demo app has its own Tauri app-data directory (`…/com.voe.app.demo`), so its
+active payload and patch state are isolated from the full app. Every manifest
+includes both the channel and app identifier; the runtime verifies both before
+downloading any files.
+
 ## Enable startup auto-check
 
 Set the manifest URL at build time:
 
 ```bash
-NUXT_PUBLIC_PAYLOAD_MANIFEST_URL=https://example.com/releases/stable/payload-manifest.json \
+NUXT_PUBLIC_PAYLOAD_MANIFEST_URL=https://example.com/releases/release/payload-manifest.json \
   npm run build
 ```
 
@@ -63,4 +78,5 @@ progress bar before continuing.
 ## Current scope
 
 This updates the frontend payload fully. Native/Rust/Tauri shell changes still
-require a normal Tauri full update.
+require a normal Tauri full update. The normal Tauri updater is also checked at
+startup and uses the endpoint baked into its channel-specific Tauri config.

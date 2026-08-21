@@ -431,13 +431,47 @@ const runArtificialUpdateProgress = async () => {
   finishUpdatePhase()
 }
 
+const installNativeUpdateIfAvailable = async () => {
+  const { check } = await import('@tauri-apps/plugin-updater')
+  const update = await check()
+  if (!update) return false
+
+  setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', `загрузка версии ${update.version}`)
+  updateProgress.value = 18
+  let downloadedBytes = 0
+  let totalBytes: number | undefined
+
+  await update.downloadAndInstall((event) => {
+    if (event.event === 'Started') {
+      totalBytes = event.data.contentLength
+      return
+    }
+    if (event.event === 'Progress') {
+      downloadedBytes += event.data.chunkLength
+      if (totalBytes) {
+        updateProgress.value = Math.min(94, Math.max(18, Math.round((downloadedBytes / totalBytes) * 94)))
+      }
+    }
+  })
+  await update.close()
+
+  clearUpdateProgressTimer()
+  updateProgress.value = 100
+  setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', 'обновление установлено. перезапуск')
+  const { relaunch } = await import('@tauri-apps/plugin-process')
+  setTimeout(() => {
+    void relaunch()
+  }, 450)
+  return true
+}
+
 const startUpdateCheck = async () => {
   phase.value = 'update'
   const config = useRuntimeConfig()
   const manifestUrl = String(config.public.payloadManifestUrl || '').trim()
   const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__
 
-  if (!isTauri || !manifestUrl) {
+  if (!isTauri) {
     await runArtificialUpdateProgress()
     return
   }
@@ -445,6 +479,13 @@ const startUpdateCheck = async () => {
   try {
     setUpdateCopy('ПРОВЕРКА_ОБНОВЛЕНИЙ', 'проверка доступных обновлений')
     updateProgress.value = 8
+
+    if (await installNativeUpdateIfAvailable()) return
+
+    if (!manifestUrl) {
+      await runArtificialUpdateProgress()
+      return
+    }
 
     updateProgressTimer = setInterval(() => {
       updateProgress.value = Math.min(82, updateProgress.value + Math.max(1, Math.round((82 - updateProgress.value) * 0.08)))

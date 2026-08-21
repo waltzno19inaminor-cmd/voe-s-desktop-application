@@ -35,6 +35,7 @@ Create a signed patch:
 
 ```bash
 npm run hotfix:package -- \
+  --channel release \
   --base-version 1.0.4 \
   --patch-id 1.0.4-hotfix.1 \
   --to-patch-level hotfix.1 \
@@ -50,6 +51,7 @@ For production, use the Tauri signer key that matches
 
 ```bash
 npm run hotfix:package -- \
+  --channel release \
   --base-version 1.0.4 \
   --patch-id 1.0.4-hotfix.1 \
   --to-patch-level hotfix.1 \
@@ -65,6 +67,26 @@ npm run hotfix:package -- \
 version. If it is omitted, every file in `--fixed-dir` is packaged as a replace
 operation.
 
+## Separate full and demo patches
+
+Patches must be created for exactly one release channel:
+
+| Target build | Command value | App identifier | CI artifact directory |
+| --- | --- | --- | --- |
+| Full | `--channel release` | `com.voe.app` | `dist/hotfix/release/` |
+| Demo | `--channel release-demo` | `com.voe.app.demo` | `dist/hotfix/release-demo/` |
+
+The app rejects a patch when either its channel or app identifier differs from
+the installed build. The standalone patcher also requires the matching
+`--channel` value; use it when applying a native patch:
+
+```bash
+./target/release/hotfix_patcher \
+  --channel release \
+  --patch ../dist/hotfix/release/JLJ-1.0.4-hotfix.1-macos-universal.jljpatch \
+  --app /Applications/J.L.JÖRMUNGANDR.app
+```
+
 ## Build the standalone patcher
 
 ```bash
@@ -76,6 +98,7 @@ Run it:
 
 ```bash
 ./target/release/hotfix_patcher \
+  --channel release \
   --patch ../dist/hotfix/JLJ-1.0.4-hotfix.1.jljpatch \
   --app /Applications/JLJ.app
 ```

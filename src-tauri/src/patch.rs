@@ -13,7 +13,10 @@ use tauri::{http, AppHandle, Manager, Runtime};
 use walkdir::WalkDir;
 use zip::ZipArchive;
 
-pub const APP_IDENTIFIER: &str = "com.voe.app";
+pub const RELEASE_CHANNEL: &str = "release";
+pub const RELEASE_DEMO_CHANNEL: &str = "release-demo";
+pub const RELEASE_APP_IDENTIFIER: &str = "com.voe.app";
+pub const RELEASE_DEMO_APP_IDENTIFIER: &str = "com.voe.app.demo";
 pub const JLJ_DATA_DIR: &str = "JLJData";
 pub const PATCHES_DIR: &str = "patches";
 pub const MAX_PATCH_UPLOAD_BYTES: usize = 50 * 1024 * 1024;
@@ -65,6 +68,8 @@ pub struct PatchOperation {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchManifest {
+    #[serde(default)]
+    pub channel: String,
     pub patch_id: String,
     pub base_version: String,
     pub from_patch_level: Option<String>,
@@ -77,6 +82,23 @@ pub struct PatchManifest {
     pub old_sha256: Option<String>,
     pub new_sha256: Option<String>,
     pub payload_sha256: Option<String>,
+}
+
+pub fn release_channel_for_identifier(identifier: &str) -> Option<&'static str> {
+    match identifier {
+        RELEASE_APP_IDENTIFIER => Some(RELEASE_CHANNEL),
+        RELEASE_DEMO_APP_IDENTIFIER => Some(RELEASE_DEMO_CHANNEL),
+        _ => None,
+    }
+}
+
+pub fn app_release_channel<R: Runtime>(app: &AppHandle<R>) -> Result<&'static str, String> {
+    release_channel_for_identifier(&app.config().identifier).ok_or_else(|| {
+        format!(
+            "Unsupported application identifier for patch updates: {}",
+            app.config().identifier
+        )
+    })
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,7 +165,7 @@ pub fn patches_root_from_data_dir(data_dir: &Path) -> PathBuf {
 }
 
 pub fn app_data_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    app.path().data_dir().map_err(|err| err.to_string())
+    app.path().app_data_dir().map_err(|err| err.to_string())
 }
 
 pub fn patches_root<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
@@ -305,8 +327,11 @@ pub fn verify_active_from_root(
         });
     };
 
-    if manifest.app_identifier != APP_IDENTIFIER {
-        return Ok(invalid(state, "Patch app identifier does not match JLJ."));
+    if release_channel_for_identifier(&manifest.app_identifier) != Some(manifest.channel.as_str()) {
+        return Ok(invalid(
+            state,
+            "Patch release channel does not match its app identifier.",
+        ));
     }
     if let Some(version) = current_base_version {
         if manifest.base_version != version {
@@ -391,8 +416,11 @@ fn validate_installable_resource_manifest<R: Runtime>(
     manifest: &PatchManifest,
     app: &AppHandle<R>,
 ) -> Result<(), String> {
-    if manifest.app_identifier != APP_IDENTIFIER {
+    if manifest.app_identifier != app.config().identifier {
         return Err("Patch is for a different app identifier.".to_string());
+    }
+    if manifest.channel != app_release_channel(app)? {
+        return Err("Patch is for a different release channel.".to_string());
     }
     if manifest.base_version != app.package_info().version.to_string() {
         return Err(format!(
