@@ -26,7 +26,7 @@
       </div>
     </Transition>
 
-    <div v-show="!isTradeEntryOpen" class="absolute inset-0">
+    <div v-show="!isTradeEntryOpen && !selectedCurveTrade" class="absolute inset-0">
       <!-- CANVAS LAYER -->
       <canvas ref="canvasRef"
               v-show="!showRobustnessExplanations && !showCalendarMode && !showSimulator"
@@ -676,7 +676,7 @@
     </Teleport>
 
     <!-- MINIMAL BOTTOM CONTROL PANEL -->
-    <div v-if="!isTradeEntryOpen && !showSimulator"
+    <div v-if="!isTradeEntryOpen && !showSimulator && !selectedCurveTrade"
          class="absolute bottom-12 left-0 right-0 z-40 flex items-center justify-center pointer-events-none">
       <ExGenesisHudPanel>
         <!-- ADD TRADE -->
@@ -947,6 +947,37 @@
 
     </div>
 
+    <Transition name="page-reify">
+      <ExTimeTreeTradeEntry
+        v-if="selectedCurveTrade"
+        class="absolute inset-0 z-[2000]"
+        :is-dark="themeStore.settings.isDark"
+        :trade="selectedCurveTrade"
+        mode="trade"
+        :forecast-trades="getFilteredTrades()"
+        :forecast-initial-capital="props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+        :forecast-strategy-id="String(selectedStrategyId || 'MAIN_DIARY')"
+        :forecast-strategy-name="selectedStrategy?.name || 'MAIN DIARY'"
+      />
+    </Transition>
+
+    <div v-if="selectedCurveTrade" class="pointer-events-none absolute bottom-12 left-0 right-0 z-[2200] flex items-center justify-center">
+      <ExGenesisHudPanel>
+        <button
+          type="button"
+          class="pointer-events-auto group relative flex h-10 items-center gap-2 border border-white/20 px-4 text-white/70 transition-all hover:border-white/40 hover:bg-white/5 hover:text-white"
+          @click="closeCurveTradeDetails"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span class="font-mono text-[9px] font-bold uppercase tracking-widest">
+            {{ isRu ? '[ НАЗАД ]' : '[ BACK ]' }}
+          </span>
+        </button>
+      </ExGenesisHudPanel>
+    </div>
+
     <ExTradeEntryBottomBar
       v-if="isTradeEntryOpen"
       :is-trade-entry-open="isTradeEntryOpen"
@@ -1002,6 +1033,7 @@ import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTradeEntry.vue'
+import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
 import ExTradeEntryBottomBar from '~/widgets/genesis/ui/trade-entry/ExTradeEntryBottomBar.vue'
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -2792,7 +2824,7 @@ import ExRobustnessDiagnostic from './ExRobustnessDiagnostic.vue'
 
 interface Point3D { x: number; y: number; z: number }
 interface Point2D { x: number; y: number; opacity: number; depth: number }
-interface CurvePoint extends Point3D { value: number; dateLabel: string; isProjection?: boolean }
+interface CurvePoint extends Point3D { value: number; dateLabel: string; isProjection?: boolean; trade?: any }
 
 const props = defineProps<{
   trades?: any[]
@@ -2810,6 +2842,27 @@ const bootProgress = ref(0)
 const container = ref<HTMLElement | null>(null)
 const revealProgress = ref(0)
 const hoveredCurveIndex = ref<number | null>(null)
+const selectedCurveTrade = ref<any | null>(null)
+const hasDraggedCurve = ref(false)
+const curvePointerStart = ref({ x: 0, y: 0 })
+
+const closeCurveTradeDetails = () => {
+  selectedCurveTrade.value = null
+}
+
+const handleCurveTradeDetailsKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && selectedCurveTrade.value) {
+    event.preventDefault()
+    closeCurveTradeDetails()
+  }
+}
+
+const openCurveTradeDetails = (index: number | null) => {
+  if (index === null || showWinrateCurve.value || showDistribution3D.value || showMetricsPanel.value || showCalendarMode.value || showSimulator.value) return
+  const point = equityPoints3D.value[index]
+  if (!point?.trade) return
+  selectedCurveTrade.value = point.trade
+}
 
 const hoveredQQPoint = computed(() => {
   if (!showQQPlot.value || hoveredCurveIndex.value === null) return null
@@ -3016,11 +3069,12 @@ const initData = () => {
       ? `${date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: false })}`
       : 'DATE_UNKNOWN'
     
-    equityPoints3D.value.push({ 
-      x, y, z, 
+    equityPoints3D.value.push({
+      x, y, z,
       value: runningBalance,
       dateLabel,
-      isProjection: !!trade.isProjection
+      isProjection: !!trade.isProjection,
+      trade
     })
 
     if (useTargetWinrate && selectedWinrateNodeId.value) {
@@ -4082,6 +4136,8 @@ const handleMouseDown = (e: MouseEvent) => {
   }
 
   isPanning.value = true; lastMousePos.value = { x: e.clientX, y: e.clientY }
+  curvePointerStart.value = { x: e.clientX, y: e.clientY }
+  hasDraggedCurve.value = false
 }
 
 const handleMouseMove = (e: MouseEvent) => {
@@ -4093,6 +4149,9 @@ const handleMouseMove = (e: MouseEvent) => {
   
   if (isPanning.value) {
     const dx = e.clientX - lastMousePos.value.x; const dy = e.clientY - lastMousePos.value.y
+    if (Math.hypot(e.clientX - curvePointerStart.value.x, e.clientY - curvePointerStart.value.y) > 5) {
+      hasDraggedCurve.value = true
+    }
     if (e.shiftKey || showMetricsPanel.value) {
       viewOffset.value.x += dx; viewOffset.value.y += dy
     } else {
@@ -4320,14 +4379,19 @@ const handleMouseMove = (e: MouseEvent) => {
 }
 
 const handleMouseUp = () => { 
+  const clickedCurveIndex = !hasDraggedCurve.value ? hoveredCurveIndex.value : null
   if (metricsPanel.handleMetricMouseUp()) {
     isPanning.value = false
+    hasDraggedCurve.value = false
     return
   }
   isPanning.value = false 
+  openCurveTradeDetails(clickedCurveIndex)
+  hasDraggedCurve.value = false
 }
 
 const handleMouseLeave = () => {
+  hasDraggedCurve.value = true
   handleMouseUp()
   hoveredDistributionTooltip.value = null
   hoveredCurveIndex.value = null
@@ -4358,6 +4422,7 @@ onMounted(() => {
 
   window.addEventListener('online', updateNetworkState)
   window.addEventListener('offline', updateNetworkState)
+  window.addEventListener('keydown', handleCurveTradeDetailsKeydown)
 
   const bootInterval = setInterval(() => {
     bootProgress.value += Math.random() * 30
@@ -4400,6 +4465,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('online', updateNetworkState)
   window.removeEventListener('offline', updateNetworkState)
+  window.removeEventListener('keydown', handleCurveTradeDetailsKeydown)
   cancelAnimationFrame(rafId)
 })
 
