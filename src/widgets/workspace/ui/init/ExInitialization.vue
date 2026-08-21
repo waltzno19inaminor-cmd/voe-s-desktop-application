@@ -577,7 +577,7 @@ const performPayloadInstall = async (manifestUrl: string) => {
   })
 
   clearUpdateProgressTimer()
-  if (result.downloadedFiles > 0 && result.state.active) {
+  if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
     updateProgress.value = 100
     setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', 'обновление установлено. перезапуск')
     const { relaunch } = await import('@tauri-apps/plugin-process')
