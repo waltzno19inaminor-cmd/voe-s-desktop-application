@@ -300,6 +300,7 @@ import { useRuntimeConfig } from '#imports'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
+import pkg from '../../../../../package.json'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import {
@@ -336,7 +337,7 @@ interface AvailableUpdate {
   reason?: string
 }
 
-const appVersion = String(tauriConfig.version || '0.0.0')
+const appVersion = String(tauriConfig.version || pkg.version || '1.0.6')
 
 const initializationGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },

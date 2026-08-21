@@ -293,6 +293,7 @@ import { db } from '~/shared/firebase.client'
 import { open } from '@tauri-apps/plugin-shell'
 import { useI18n } from '~/shared/i18n/useI18n'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
+import pkg from '../../../../../package.json'
 import ExHeading from "~/shared/ui/ExHeading.vue"
 import ExText from "~/shared/ui/ExText.vue"
 import ExTag from "~/shared/ui/ExTag.vue"
@@ -319,7 +320,7 @@ const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const appVersion = String(tauriConfig.version || '0.0.0')
+const appVersion = computed(() => String(tauriConfig.version || pkg.version || '1.0.6'))
 
 const dashboardGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
