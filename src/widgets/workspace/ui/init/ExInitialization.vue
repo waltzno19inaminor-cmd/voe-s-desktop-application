@@ -81,16 +81,22 @@
       <!-- ── PHASE SWITCHER ── -->
       <Transition name="step-fade" mode="out-in">
         <!-- ── UPDATE CONFIRMATION CARD (when update is found) ── -->
-        <div v-if="phase === 'update' && pendingUpdate" key="update-confirmation" class="w-full max-w-xs flex flex-col items-center my-2">
-          <!-- Action Button ("Установить обновление") -->
-          <div class="w-full">
-            <button
-              @click="confirmAndInstallUpdate"
-              class="w-full py-3 font-mono text-[9px] tracking-[0.4em] uppercase font-black transition-all hover:opacity-90 flex items-center justify-center space-x-2 bg-white !text-black shadow-lg"
-            >
-              <span>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
-            </button>
-          </div>
+        <div v-if="phase === 'update' && pendingUpdate" key="update-confirmation" class="w-full max-w-xs flex flex-col items-center space-y-3 my-2">
+          <!-- Install Button (Full Width) -->
+          <button
+            @click="confirmAndInstallUpdate"
+            class="w-full py-3 font-mono text-[9px] tracking-[0.3em] uppercase font-black transition-all hover:opacity-90 flex items-center justify-center space-x-2 bg-white !text-black shadow-lg"
+          >
+            <span>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
+          </button>
+
+          <!-- Skip Text Link (Below Install Button) -->
+          <button
+            @click="skipUpdate"
+            class="font-mono text-[9px] tracking-[0.3em] uppercase font-bold text-black opacity-50 hover:opacity-100 transition-opacity py-1"
+          >
+            <span>{{ locale === 'ru' ? 'Пропустить' : 'Skip' }}</span>
+          </button>
         </div>
 
         <!-- ── UPDATE CHECK / INSTALLING PROGRESS ── -->
