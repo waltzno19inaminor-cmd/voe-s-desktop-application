@@ -71,7 +71,7 @@
 
     <header class="dashboard-top-bar absolute left-6 right-6 top-0 z-[200] flex h-[84px] items-center justify-between bg-black px-4 backdrop-blur-md lg:left-10 lg:right-10 lg:px-5">
       <div class="flex items-center gap-4">
-        <ExTag class="shrink-0">v{{ appVersion.toUpperCase().replace('-', '_') }}</ExTag>
+        <ExTag class="shrink-0">v{{ appVersion.toUpperCase() }}</ExTag>
       </div>
 
       <div class="flex shrink-0 items-center gap-4 sm:gap-8">
@@ -320,7 +320,7 @@ const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const appVersion = computed(() => String(tauriConfig.version || pkg.version || '1.0.7-7'))
+const appVersion = computed(() => String(tauriConfig.version || pkg.version || '1.0.7-8'))
 
 const dashboardGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
