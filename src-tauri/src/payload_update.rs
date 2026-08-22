@@ -207,7 +207,19 @@ pub struct PayloadProgressEvent {
     let mut reused_files = 0;
     let mut zip_extracted = false;
 
-    if let Some(zip_url) = base_url.join("payload.zip").ok() {
+    let is_patch = if let Some(patch_url) = base_url.join("patch.zip").ok() {
+        if let Ok(res) = reqwest::get(patch_url).await {
+            res.status().is_success()
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    let zip_filename = if is_patch { "patch.zip" } else { "payload.zip" };
+
+    if let Some(zip_url) = base_url.join(zip_filename).ok() {
         if let Ok(res) = reqwest::get(zip_url).await {
             if res.status().is_success() {
                 let total_bytes = res.content_length().unwrap_or(0);
@@ -279,9 +291,31 @@ pub struct PayloadProgressEvent {
                                 }
                             }
                         }
-                        if verify_payload_tree(&staging, &manifest).is_ok() {
+
+                        if is_patch {
+                            for file in &manifest.files {
+                                let relative = sanitize_relative_path(&file.path)?;
+                                let target = staging.join(&relative);
+                                if !target.exists() {
+                                    if let Ok(Some(bytes)) = reusable_file_bytes(&app, &active_web, &relative, &file.sha256) {
+                                        if let Some(parent) = target.parent() {
+                                            let _ = fs::create_dir_all(parent);
+                                        }
+                                        if fs::write(&target, bytes).is_ok() {
+                                            reused_files += 1;
+                                        }
+                                    }
+                                } else {
+                                    downloaded_files += 1;
+                                }
+                            }
+                        }
+
+                        if staging.join("index.html").exists() {
                             zip_extracted = true;
-                            downloaded_files = manifest.files.len();
+                            if !is_patch {
+                                downloaded_files = manifest.files.len();
+                            }
                         }
                     }
                 }
