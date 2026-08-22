@@ -320,7 +320,7 @@ const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const payloadVersion = ref<string | null>(null)
-const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.0.5'))
+const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || '1.0.5'))
 
 onMounted(async () => {
   try {
