@@ -388,6 +388,9 @@ async fn download_payload_file(
     file: &PayloadFile,
     base_url: &reqwest::Url,
 ) -> Result<Vec<u8>, String> {
+    if file.path.ends_with(".DS_Store") || file.path.ends_with("Thumbs.db") || file.path.contains("._") || file.path.contains("__MACOSX") {
+        return Ok(Vec::new());
+    }
     let url = match file.url.as_deref() {
         Some(value) => reqwest::Url::parse(value).or_else(|_| base_url.join(value)),
         None => base_url.join(&file.path),
@@ -439,6 +442,7 @@ fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), St
         .files
         .iter()
         .map(|file| file.path.as_str())
+        .filter(|path| !path.ends_with(".DS_Store") && !path.ends_with("Thumbs.db") && !path.contains("._") && !path.contains("__MACOSX"))
         .collect::<Vec<_>>();
     expected.sort_unstable();
 
@@ -453,6 +457,9 @@ fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), St
             .map_err(|err| format!("strip payload root: {err}"))?
             .to_string_lossy()
             .replace('\\', "/");
+        if rel.ends_with(".DS_Store") || rel.ends_with("Thumbs.db") || rel.contains("._") || rel.contains("__MACOSX") {
+            continue;
+        }
         actual.push(rel);
     }
     actual.sort_unstable();
@@ -462,6 +469,9 @@ fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), St
     }
 
     for file in &manifest.files {
+        if file.path.ends_with(".DS_Store") || file.path.ends_with("Thumbs.db") || file.path.contains("._") || file.path.contains("__MACOSX") {
+            continue;
+        }
         let path = root.join(sanitize_relative_path(&file.path)?);
         let actual = sha256_file_hex(&path)?;
         if !hash_eq(&file.sha256, &actual) {
