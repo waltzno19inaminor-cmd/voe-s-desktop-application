@@ -365,7 +365,7 @@
                             {{ isRu ? 'ОТМЕНА' : 'CANCEL' }}
                          </ExButton>
                          <ExButton @click="handleClearTrades" variant="solid" size="md" class="!bg-red-500 !border-red-500 !text-white hover:!bg-red-600 transition-colors">
-                            {{ isRu ? 'ВЫПОЛНИТЬ_ОЧИСТКУ' : 'EXECUTE_PURGE' }}
+                            {{ isRu ? 'ВЫПОЛНИТЬ ОЧИСТКУ' : 'EXECUTE PURGE' }}
                          </ExButton>
                       </div>
                    </div>
