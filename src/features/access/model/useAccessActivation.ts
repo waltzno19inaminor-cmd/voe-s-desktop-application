@@ -200,12 +200,22 @@ export function useAccessActivation() {
       (snapshot) => {
         const data = snapshot.data()
         if (data?.isActivated === true) {
-          accessState.value = 'granted'
-          accessError.value = ''
-          offlineAccessRestored.value = false
-          void persistGrantedAccess(normalizedUserId, data?.expiresAt).catch((error) => {
-            console.warn('[Access] Unable to cache confirmed access:', error)
-          })
+          const expiresAtMs = toMillis(data?.expiresAt)
+          if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
+            accessState.value = 'requires_key'
+            accessError.value = 'Your access period has expired. Please enter a new activation key.'
+            offlineAccessRestored.value = false
+            void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
+              console.warn('[Access] Unable to clear expired access cache:', error)
+            })
+          } else {
+            accessState.value = 'granted'
+            accessError.value = ''
+            offlineAccessRestored.value = false
+            void persistGrantedAccess(normalizedUserId, data?.expiresAt).catch((error) => {
+              console.warn('[Access] Unable to cache confirmed access:', error)
+            })
+          }
         } else if (snapshot.metadata.fromCache || isOffline.value) {
           // A local Firestore snapshot is not authoritative. This matters in
           // Tauri/WebView environments where navigator.onLine can stay true
