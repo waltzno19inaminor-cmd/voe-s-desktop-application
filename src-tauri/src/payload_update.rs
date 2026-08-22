@@ -6,7 +6,6 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::{AppHandle, Emitter, Manager, Runtime};
-use walkdir::WalkDir;
 
 use crate::patch::{
     active_manifest_path_from_root, active_signature_path_from_root, active_web_dir_from_root,
@@ -498,41 +497,18 @@ async fn download_manifest_signature(manifest_url: &reqwest::Url) -> Result<Opti
 }
 
 fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), String> {
-    let mut expected = manifest
-        .files
-        .iter()
-        .map(|file| file.path.as_str())
-        .filter(|path| !path.ends_with(".DS_Store") && !path.ends_with("Thumbs.db") && !path.contains("._") && !path.contains("__MACOSX"))
-        .collect::<Vec<_>>();
-    expected.sort_unstable();
-
-    let mut actual = Vec::new();
-    for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
-        if !entry.file_type().is_file() {
-            continue;
-        }
-        let rel = entry
-            .path()
-            .strip_prefix(root)
-            .map_err(|err| format!("strip payload root: {err}"))?
-            .to_string_lossy()
-            .replace('\\', "/");
-        if rel.ends_with(".DS_Store") || rel.ends_with("Thumbs.db") || rel.contains("._") || rel.contains("__MACOSX") {
-            continue;
-        }
-        actual.push(rel);
-    }
-    actual.sort_unstable();
-
-    if actual != expected {
-        return Err("Payload tree does not match manifest file list.".to_string());
-    }
-
     for file in &manifest.files {
-        if file.path.ends_with(".DS_Store") || file.path.ends_with("Thumbs.db") || file.path.contains("._") || file.path.contains("__MACOSX") {
+        if file.path.ends_with(".DS_Store")
+            || file.path.ends_with("Thumbs.db")
+            || file.path.contains("._")
+            || file.path.contains("__MACOSX")
+        {
             continue;
         }
         let path = root.join(sanitize_relative_path(&file.path)?);
+        if !path.exists() {
+            return Err(format!("Missing payload file: {}", file.path));
+        }
         let actual = sha256_file_hex(&path)?;
         if !hash_eq(&file.sha256, &actual) {
             return Err(format!("Payload tree hash mismatch for {}", file.path));
