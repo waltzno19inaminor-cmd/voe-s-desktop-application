@@ -110,7 +110,10 @@ if (args.minisignKey) {
   if (result.status !== 0) fail('minisign failed')
 } else if (args.tauriSignerKeyPath || process.env.TAURI_SIGNING_PRIVATE_KEY_PATH) {
   const keyPath = args.tauriSignerKeyPath || process.env.TAURI_SIGNING_PRIVATE_KEY_PATH
-  const password = args.tauriSignerPassword ?? process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  let password = args.tauriSignerPassword ?? process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  if (password === undefined && existsSync('.secrets/hotfix/jlj-hotfix.password')) {
+    password = readFileSync('.secrets/hotfix/jlj-hotfix.password', 'utf8').trim()
+  }
   const generatedSignaturePath = `${manifestPath}.sig`
   rmSync(generatedSignaturePath, { force: true })
 
