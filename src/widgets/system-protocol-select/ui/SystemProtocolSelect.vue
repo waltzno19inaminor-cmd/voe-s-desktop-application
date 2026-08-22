@@ -55,6 +55,7 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import type { Strategy } from '../models/types'
+import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 
 const props = withDefaults(defineProps<{
   modelValue: string | null
@@ -72,10 +73,22 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const showStrategyMenu = ref(false)
+const matrixState = useMatrixState()
+
 const selectedStrategyName = computed(() => {
   const strat = props.strategies.find(s => s.id === props.modelValue)
   if (!strat) return null
-  return strat.name
+
+  let suffix = ''
+  const vId = matrixState.selectedStrategyVersionId.value
+  const versionInfo = vId ? matrixState.strategyVersions.value.find((v: any) => v.id === vId) : null
+  const versionMatch = versionInfo?.label?.match(/(V\d+)$/i)
+  
+  if (versionMatch && strat.id !== 'MAIN_DIARY') {
+    suffix = ` // ${versionMatch[1]}`
+  }
+
+  return `${strat.name}${suffix}`
 })
 
 const menuPositionClass = computed(() => {

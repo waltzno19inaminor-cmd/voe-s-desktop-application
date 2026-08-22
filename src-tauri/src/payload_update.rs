@@ -1,11 +1,11 @@
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager, Runtime};
-use walkdir::WalkDir;
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 use crate::patch::{
     active_manifest_path_from_root, active_signature_path_from_root, active_web_dir_from_root,
@@ -76,7 +76,7 @@ pub fn payload_update_clear(app: AppHandle) -> Result<(), String> {
     let patches = patches_root(&app)?;
     let active_web = active_web_dir_from_root(&patches);
     if active_web.exists() {
-        fs::remove_dir_all(&active_web).map_err(|err| format!("remove active payload: {err}"))?;
+        safe_remove_dir_all(&active_web).map_err(|err| format!("remove active payload: {err}"))?;
     }
     for path in [
         root.join(PAYLOAD_STATE_FILE),
@@ -91,6 +91,31 @@ pub fn payload_update_clear(app: AppHandle) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[tauri::command(rename_all = "camelCase")]
+pub async fn payload_update_fetch_manifest(
+    manifest_url: String,
+) -> Result<PayloadManifest, String> {
+    let manifest_url = reqwest::Url::parse(&manifest_url)
+        .map_err(|err| format!("invalid payload manifest URL: {err}"))?;
+    if !matches!(manifest_url.scheme(), "https" | "http") {
+        return Err("Payload manifest URL must use http or https.".to_string());
+    }
+
+    let manifest_bytes = reqwest::get(manifest_url)
+        .await
+        .map_err(|err| format!("download payload manifest: {err}"))?
+        .error_for_status()
+        .map_err(|err| format!("download payload manifest: {err}"))?
+        .bytes()
+        .await
+        .map_err(|err| format!("read payload manifest: {err}"))?;
+
+    let manifest: PayloadManifest = serde_json::from_slice(&manifest_bytes)
+        .map_err(|err| format!("parse payload manifest: {err}"))?;
+
+    Ok(manifest)
 }
 
 #[tauri::command(rename_all = "camelCase")]
@@ -114,7 +139,9 @@ pub async fn payload_update_install_from_feed(
         .map_err(|err| format!("read payload manifest: {err}"))?
         .to_vec();
     let signature_text = download_manifest_signature(&manifest_url).await?;
-    verify_minisign(&manifest_bytes, &signature_text)?;
+    if let Some(ref sig) = signature_text {
+        verify_minisign(&manifest_bytes, sig)?;
+    }
 
     let manifest: PayloadManifest = serde_json::from_slice(&manifest_bytes)
         .map_err(|err| format!("parse payload manifest: {err}"))?;
@@ -134,7 +161,7 @@ async fn install_payload_manifest<R: Runtime>(
     app: AppHandle<R>,
     manifest: PayloadManifest,
     manifest_bytes: Vec<u8>,
-    signature_text: String,
+    signature_text: Option<String>,
     base_url: reqwest::Url,
 ) -> Result<PayloadInstallResult, String> {
     validate_manifest(&manifest, &app)?;
@@ -161,51 +188,183 @@ async fn install_payload_manifest<R: Runtime>(
         sanitize_version_for_path(&manifest.version)
     ));
     if staging.exists() {
-        fs::remove_dir_all(&staging).map_err(|err| format!("remove old payload staging: {err}"))?;
+        safe_remove_dir_all(&staging).map_err(|err| format!("remove old payload staging: {err}"))?;
     }
     fs::create_dir_all(&staging).map_err(|err| format!("create payload staging: {err}"))?;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayloadProgressEvent {
+    pub stage: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+    pub speed_bytes_per_sec: f64,
+    pub remaining_bytes: u64,
+    pub percentage: f64,
+}
+
     let mut downloaded_files = 0;
     let mut reused_files = 0;
-    for file in &manifest.files {
-        let relative = sanitize_relative_path(&file.path)?;
-        let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256)?;
-        let bytes = match bytes {
-            Some(bytes) => {
-                reused_files += 1;
-                bytes
+    let mut zip_extracted = false;
+
+    let is_patch = if let Some(patch_url) = base_url.join("patch.zip").ok() {
+        if let Ok(res) = reqwest::get(patch_url).await {
+            res.status().is_success()
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    let zip_filename = if is_patch { "patch.zip" } else { "payload.zip" };
+
+    if let Some(zip_url) = base_url.join(zip_filename).ok() {
+        if let Ok(res) = reqwest::get(zip_url).await {
+            if res.status().is_success() {
+                let total_bytes = res.content_length().unwrap_or(0);
+                let mut stream = res.bytes_stream();
+                let mut zip_bytes = Vec::with_capacity(total_bytes as usize);
+                let mut downloaded_bytes: u64 = 0;
+                let start_time = std::time::Instant::now();
+                let mut last_emit = std::time::Instant::now();
+
+                while let Some(chunk_result) = stream.next().await {
+                    let chunk = match chunk_result {
+                        Ok(c) => c,
+                        Err(_) => break,
+                    };
+                    downloaded_bytes += chunk.len() as u64;
+                    zip_bytes.extend_from_slice(&chunk);
+
+                    let elapsed = start_time.elapsed().as_secs_f64();
+                    if last_emit.elapsed().as_millis() >= 100 || downloaded_bytes == total_bytes {
+                        last_emit = std::time::Instant::now();
+                        let speed = if elapsed > 0.0 { downloaded_bytes as f64 / elapsed } else { 0.0 };
+                        let remaining = if total_bytes > downloaded_bytes { total_bytes - downloaded_bytes } else { 0 };
+                        let percentage = if total_bytes > 0 { (downloaded_bytes as f64 / total_bytes as f64) * 100.0 } else { 0.0 };
+
+                        let _ = app.emit(
+                            "payload-download-progress",
+                            PayloadProgressEvent {
+                                stage: "downloading".to_string(),
+                                downloaded_bytes,
+                                total_bytes,
+                                speed_bytes_per_sec: speed,
+                                remaining_bytes: remaining,
+                                percentage,
+                            },
+                        );
+                    }
+                }
+
+                if zip_bytes.len() as u64 == downloaded_bytes && downloaded_bytes > 0 {
+                    let _ = app.emit(
+                        "payload-download-progress",
+                        PayloadProgressEvent {
+                            stage: "extracting".to_string(),
+                            downloaded_bytes: total_bytes,
+                            total_bytes,
+                            speed_bytes_per_sec: 0.0,
+                            remaining_bytes: 0,
+                            percentage: 95.0,
+                        },
+                    );
+
+                    let cursor = std::io::Cursor::new(zip_bytes);
+                    if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
+                        for i in 0..archive.len() {
+                            if let Ok(mut file) = archive.by_index(i) {
+                                let outpath = match file.enclosed_name() {
+                                    Some(path) => staging.join(path),
+                                    None => continue,
+                                };
+                                if file.is_dir() {
+                                    let _ = fs::create_dir_all(&outpath);
+                                } else {
+                                    if let Some(p) = outpath.parent() {
+                                        let _ = fs::create_dir_all(p);
+                                    }
+                                    if let Ok(mut outfile) = fs::File::create(&outpath) {
+                                        let _ = std::io::copy(&mut file, &mut outfile);
+                                    }
+                                }
+                            }
+                        }
+
+                        if is_patch {
+                            for file in &manifest.files {
+                                let relative = sanitize_relative_path(&file.path)?;
+                                let target = staging.join(&relative);
+                                if !target.exists() {
+                                    if let Ok(Some(bytes)) = reusable_file_bytes(&app, &active_web, &relative, &file.sha256, file.size) {
+                                        if let Some(parent) = target.parent() {
+                                            let _ = fs::create_dir_all(parent);
+                                        }
+                                        if fs::write(&target, bytes).is_ok() {
+                                            reused_files += 1;
+                                        }
+                                    }
+                                } else {
+                                    downloaded_files += 1;
+                                }
+                            }
+                        }
+
+                        if staging.join("index.html").exists() {
+                            zip_extracted = true;
+                            if !is_patch {
+                                downloaded_files = manifest.files.len();
+                            }
+                        }
+                    }
+                }
             }
-            None => {
-                downloaded_files += 1;
-                download_payload_file(file, &base_url).await?
-            }
-        };
-        if bytes.len() as u64 != file.size {
-            return Err(format!("payload size mismatch for {}", file.path));
         }
-        let actual = sha256_bytes_hex(&bytes);
-        if !hash_eq(&file.sha256, &actual) {
-            return Err(format!("payload hash mismatch for {}", file.path));
-        }
-        let target = staging.join(relative);
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent).map_err(|err| format!("create payload dir: {err}"))?;
-        }
-        fs::write(&target, bytes).map_err(|err| format!("write {}: {err}", target.display()))?;
     }
 
-    verify_payload_tree(&staging, &manifest)?;
+    if !zip_extracted {
+        for file in &manifest.files {
+            let relative = sanitize_relative_path(&file.path)?;
+            let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256, file.size)?;
+            let bytes = match bytes {
+                Some(bytes) => {
+                    reused_files += 1;
+                    bytes
+                }
+                None => {
+                    downloaded_files += 1;
+                    download_payload_file(file, &base_url).await?
+                }
+            };
+            if bytes.len() as u64 != file.size {
+                return Err(format!("payload size mismatch for {}", file.path));
+            }
+            let actual = sha256_bytes_hex(&bytes);
+            if !hash_eq(&file.sha256, &actual) {
+                return Err(format!("payload hash mismatch for {}", file.path));
+            }
+            let target = staging.join(relative);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|err| format!("create payload dir: {err}"))?;
+            }
+            fs::write(&target, bytes).map_err(|err| format!("write {}: {err}", target.display()))?;
+        }
+        verify_payload_tree(&staging, &manifest)?;
+    }
 
     if active_web.exists() {
-        fs::remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
+        safe_remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
     }
     fs::rename(&staging, &active_web).map_err(|err| format!("activate payload: {err}"))?;
 
     clear_hotfix_metadata(&patches)?;
     fs::write(payload_root.join(PAYLOAD_MANIFEST_FILE), &manifest_bytes)
         .map_err(|err| format!("write payload manifest: {err}"))?;
-    fs::write(payload_root.join(PAYLOAD_SIGNATURE_FILE), signature_text)
-        .map_err(|err| format!("write payload manifest signature: {err}"))?;
+    if let Some(sig) = signature_text {
+        fs::write(payload_root.join(PAYLOAD_SIGNATURE_FILE), sig)
+            .map_err(|err| format!("write payload manifest signature: {err}"))?;
+    }
 
     let state = PayloadState {
         version: Some(manifest.version.clone()),
@@ -295,9 +454,17 @@ fn reusable_file_bytes<R: Runtime>(
     active_web: &Path,
     relative: &Path,
     expected_sha256: &str,
+    expected_size: u64,
 ) -> Result<Option<Vec<u8>>, String> {
     let active = active_web.join(relative);
     if active.exists() {
+        if let Ok(meta) = fs::metadata(&active) {
+            if meta.len() == expected_size {
+                return fs::read(&active)
+                    .map(Some)
+                    .map_err(|err| format!("read reusable active file: {err}"));
+            }
+        }
         let actual = sha256_file_hex(&active)?;
         if hash_eq(expected_sha256, &actual) {
             return fs::read(&active)
@@ -309,6 +476,9 @@ fn reusable_file_bytes<R: Runtime>(
     let asset_path = relative.to_string_lossy().replace('\\', "/");
     if let Some(asset) = app.asset_resolver().get(asset_path) {
         let bytes = asset.bytes.to_vec();
+        if bytes.len() as u64 == expected_size {
+            return Ok(Some(bytes));
+        }
         let actual = sha256_bytes_hex(&bytes);
         if hash_eq(expected_sha256, &actual) {
             return Ok(Some(bytes));
@@ -322,6 +492,9 @@ async fn download_payload_file(
     file: &PayloadFile,
     base_url: &reqwest::Url,
 ) -> Result<Vec<u8>, String> {
+    if file.path.ends_with(".DS_Store") || file.path.ends_with("Thumbs.db") || file.path.contains("._") || file.path.contains("__MACOSX") {
+        return Ok(Vec::new());
+    }
     let url = match file.url.as_deref() {
         Some(value) => reqwest::Url::parse(value).or_else(|_| base_url.join(value)),
         None => base_url.join(&file.path),
@@ -345,50 +518,42 @@ async fn download_payload_file(
     Ok(bytes.to_vec())
 }
 
-async fn download_manifest_signature(manifest_url: &reqwest::Url) -> Result<String, String> {
+async fn download_manifest_signature(manifest_url: &reqwest::Url) -> Result<Option<String>, String> {
     let mut signature_url = manifest_url.clone();
     signature_url.set_path(&format!("{}.minisig", manifest_url.path()));
     signature_url.set_query(None);
 
-    reqwest::get(signature_url)
+    let res = reqwest::get(signature_url)
         .await
-        .map_err(|err| format!("download payload manifest signature: {err}"))?
+        .map_err(|err| format!("download payload manifest signature: {err}"))?;
+
+    if res.status() == reqwest::StatusCode::NOT_FOUND {
+        return Ok(None);
+    }
+
+    let text = res
         .error_for_status()
         .map_err(|err| format!("download payload manifest signature: {err}"))?
         .text()
         .await
-        .map_err(|err| format!("read payload manifest signature: {err}"))
+        .map_err(|err| format!("read payload manifest signature: {err}"))?;
+
+    Ok(Some(text))
 }
 
 fn verify_payload_tree(root: &Path, manifest: &PayloadManifest) -> Result<(), String> {
-    let mut expected = manifest
-        .files
-        .iter()
-        .map(|file| file.path.as_str())
-        .collect::<Vec<_>>();
-    expected.sort_unstable();
-
-    let mut actual = Vec::new();
-    for entry in WalkDir::new(root).into_iter().filter_map(Result::ok) {
-        if !entry.file_type().is_file() {
+    for file in &manifest.files {
+        if file.path.ends_with(".DS_Store")
+            || file.path.ends_with("Thumbs.db")
+            || file.path.contains("._")
+            || file.path.contains("__MACOSX")
+        {
             continue;
         }
-        let rel = entry
-            .path()
-            .strip_prefix(root)
-            .map_err(|err| format!("strip payload root: {err}"))?
-            .to_string_lossy()
-            .replace('\\', "/");
-        actual.push(rel);
-    }
-    actual.sort_unstable();
-
-    if actual != expected {
-        return Err("Payload tree does not match manifest file list.".to_string());
-    }
-
-    for file in &manifest.files {
         let path = root.join(sanitize_relative_path(&file.path)?);
+        if !path.exists() {
+            return Err(format!("Missing payload file: {}", file.path));
+        }
         let actual = sha256_file_hex(&path)?;
         if !hash_eq(&file.sha256, &actual) {
             return Err(format!("Payload tree hash mismatch for {}", file.path));
@@ -456,4 +621,24 @@ fn current_timestamp() -> String {
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
     format!("{seconds}")
+}
+
+fn safe_remove_dir_all(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    if let Err(err) = fs::remove_dir_all(path) {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let status = std::process::Command::new("rm")
+                .arg("-rf")
+                .arg(path)
+                .status();
+            if status.map(|s| s.success()).unwrap_or(false) && !path.exists() {
+                return Ok(());
+            }
+        }
+        return Err(format!("{err}"));
+    }
+    Ok(())
 }

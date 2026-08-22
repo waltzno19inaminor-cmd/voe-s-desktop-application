@@ -10,10 +10,13 @@ import ExText from '~/shared/ui/ExText.vue'
 import ExEquityCurve2D from '~/widgets/genesis/ui/analytics/ExEquityCurve2D.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
+import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
+import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
+import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 
 
 export function useExTradeEntry(props, emit) {
@@ -201,17 +204,30 @@ const selectAsset = (a) => {
 const matrixNodes = ref([])
 const matrixConnections = ref([])
 const matrixZones = ref([])
-const isMatrixLoading = ref(false)
+const isMatrixLoading = ref(true)
+
+const genesisTrades = useGenesisTrades()
+const genesisMatrix = useGenesisMatrixData()
 
 const loadMatrixData = async () => {
-  matrixNodes.value = []
-  matrixConnections.value = []
-  matrixZones.value = []
-  isMatrixLoading.value = false
+  isMatrixLoading.value = true
+  try {
+    const data = await genesisMatrix.loadMatrix()
+    if (data && data.nodes) {
+      matrixNodes.value = data.nodes
+      matrixConnections.value = data.connections || []
+      matrixZones.value = data.zones || []
+    }
+  } catch (err) {
+    console.error('Failed to load matrix data:', err)
+  } finally {
+    isMatrixLoading.value = false
+  }
 }
 
 // Default to Main Diary only unless cores are provided
 const tradeStore = useStrategyTradesStore()
+const matrixState = useMatrixState()
 
 const strategies = computed(() => tradeStore.strategies)
 
@@ -222,6 +238,11 @@ const selectedStrategyId = computed({
 const selectedStrategy = computed(() => {
   const s = tradeStore.strategies.find(s => s.id === selectedStrategyId.value)
   return s || tradeStore.strategies[0] || { id: 'MAIN_DIARY', name: 'MAIN_DIARY' }
+})
+
+const commitStrategyVersionId = computed(() => {
+  if (selectedStrategyId.value === 'MAIN_DIARY') return undefined
+  return matrixState.selectedStrategyVersionId.value || matrixState.strategyVersions.value.at(-1)?.id
 })
 
 const findAllNodes = (nodes) => {
@@ -344,6 +365,18 @@ const getNodeZoneType = (targetId, currentNodes, currentZones) => {
 const SYSTEM_EXIT_SCENARIO_ID = 'default-exit-system'
 const SYSTEM_EXIT_PROTOCOL_IDS = ['cond-exit-tp', 'cond-exit-sl', 'cond-exit-fl']
 
+// Sync strategies when matrix nodes change
+watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
+  if (loading) return
+  const allNodes = findAllNodes(nodes)
+  const cores = allNodes
+    .filter(n => n.type === 'strategy' || n.type === 'system')
+    .map(n => ({
+      id: n.id,
+      name: (n.params?.customName || n.label).toUpperCase()
+    }))
+  tradeStore.syncStrategies(cores)
+}, { immediate: true, deep: true })
 const showStrategyMenu = ref(false)
 
 const failedIcons = ref(new Set())
@@ -364,6 +397,7 @@ onMounted(() => {
     }
   } catch (e) {}
   window.addEventListener('click', closeAssetMenu)
+  loadMatrixData()
   tradeStore.init()
 
   isHydratingInitialTrade.value = Boolean(props.initialTrade)
@@ -464,6 +498,38 @@ onMounted(() => {
       : (Array.isArray(t.notes) ? t.notes : (typeof t.notes === 'string' && t.notes.trim() ? [t.notes] : []))
     notesList.value = storedNotes.map((note, index) => normalizeTradeNote(note, index))
 
+    // Reconstruct active conditions from stored scenario snapshots.
+    const reconstructConditions = (scenario, fallbackScenarioId = null) => {
+      const conds = scenario?.info?.conditions || scenario?.conditions || []
+      const storedScenarioId = scenario?.id || fallbackScenarioId || null
+      const scenarioId = SYSTEM_EXIT_PROTOCOL_IDS.includes(String(storedScenarioId))
+        ? SYSTEM_EXIT_SCENARIO_ID
+        : storedScenarioId
+      const activate = (conditionId, targetScenarioId = scenarioId) => {
+        if (!conditionId) return
+        activeConditions.value.add(conditionId)
+        if (targetScenarioId) {
+          const scenarioIds = activeConditionScenarioIds.value.get(conditionId) || new Set()
+          scenarioIds.add(targetScenarioId)
+          activeConditionScenarioIds.value.set(conditionId, scenarioIds)
+        }
+      }
+      conds.forEach(cond => {
+        if (cond.indicatorUnits) {
+          cond.indicatorUnits.forEach(unit => {
+            if (unit.type === 'bundle') unit.items?.forEach(i => activate(i.id))
+            else if (unit.type === 'single' && unit.item) activate(unit.item.id)
+          })
+        } else if (cond.id) {
+          activate(cond.id)
+        }
+      })
+      if (SYSTEM_EXIT_PROTOCOL_IDS.includes(String(storedScenarioId))) {
+        activate(String(storedScenarioId), SYSTEM_EXIT_SCENARIO_ID)
+      }
+    }
+    reconstructConditions(t.boardScenarioEntry, t.boardScenarioEntryId)
+    reconstructConditions(t.boardScenarioExit, t.boardScenarioExitId)
   }
   isHydratingInitialTrade.value = false
 })
@@ -1131,6 +1197,8 @@ const resetTradeStudyMetrics = () => {
 const entryMethodType = ref('PYRAMIDING') // Tracks the active entry calculation mode
 const pyramidingEntries = ref([])
 const averagingDownEntries = ref([])
+// Both methods share this canonical order. The method-specific arrays are only
+// views used by the two protocol tabs and keep references to the same entries.
 const entrySequence = ref([])
 
 const activeMultipleEntries = computed(() => 
@@ -2163,6 +2231,7 @@ const submit = async () => {
   const committedOpenDate = cloneDate(openDate.value)
   const committedExitDate = cloneDate(exitDate.value)
   const committedTimeZone = String(tradeTimeZone.value || detectUserTimeZone()).trim() || detectUserTimeZone()
+  const plannedRiskReward = activeRiskSnapshot.value?.riskRewardRatio ?? undefined
   const commitStrategyId = selectedStrategyId.value || 'MAIN_DIARY'
 
   if (!finalEntry || (isClosed.value && !finalExit) || !finalSize) return false
@@ -2174,6 +2243,164 @@ const submit = async () => {
   }
   if (commitState.value !== 'idle') return false
   
+  const findActiveScenario = (scenarios) => {
+    // First check if the currently selected registry ID belongs to this group
+    const explicit = scenarios.find(s => s.id === selectedRegistryScenarioId.value)
+    if (explicit) return explicit
+    
+    // Otherwise, find the first scenario that has active conditions
+    const byConditions = scenarios.find(s => getActiveConditionsInScenario(s.id).length > 0)
+    return byConditions || null
+  }
+
+  const activeEntry = findActiveScenario(entryScenarios.value)
+  const activeExit = findActiveScenario(exitScenarios.value.filter(s => !s.isMini))
+  const activeMini = miniExitScenarios.value.find(s => getActiveConditionsInScenario(s.id).length > 0)
+
+  const getScenarioActiveConditions = (scenId) => {
+    if (!scenId) return []
+    const scenarioConds = getScenarioConditions(scenId)
+    const activeResults = []
+    
+    scenarioConds.forEach(c => {
+       let conditionAdded = false
+       // We traverse the indicator units within each condition node
+       // and extract ONLY the specifically selected indicators.
+       if (c.indicatorUnits) {
+          c.indicatorUnits.forEach(u => {
+             if (u.type === 'bundle') {
+                u.items?.forEach(i => {
+                   if (isConditionActive(i.id, scenId)) {
+                      activeResults.push({
+                         id: i.id,
+                         info: { 
+                            name: (i.label || '').toUpperCase(), 
+                            description: i.description || '',
+                            priority: i.priority || c.priority || 'NONE'
+                         }
+                      })
+                      conditionAdded = true
+                   }
+                })
+             } else if (u.type === 'single' && u.item) {
+                if (isConditionActive(u.item.id, scenId)) {
+                   activeResults.push({
+                      id: u.item.id,
+                      info: { 
+                         name: (u.item.label || '').toUpperCase(), 
+                         description: u.item.description || '',
+                         priority: u.item.priority || c.priority || 'NONE'
+                      }
+                   })
+                   conditionAdded = true
+                }
+             }
+          })
+       }
+
+       // Special case: If the condition node itself is the selected entity 
+       // (e.g. standalone condition with no internal indicators), we add it.
+       if (!conditionAdded && isConditionActive(c.id, scenId)) {
+          activeResults.push({
+             id: c.id,
+             info: { 
+                name: (c.name || '').toUpperCase(), 
+                description: c.description || '',
+                priority: c.priority || 'NONE'
+             }
+          })
+       }
+    })
+    return activeResults
+  }
+
+  // Helper to format scenario info
+  const formatScen = (s, allTrades, side) => {
+    if (!s) return null
+    const requiredConds = getScenarioRequiredConditionsSnapshot(s.id)
+    
+    // Virtual Scenario Handling for System Protocols
+    if (s.id === SYSTEM_EXIT_SCENARIO_ID) {
+      const activeConds = getScenarioActiveConditions(s.id)
+      if (activeConds.length > 0) {
+        const first = activeConds[0]
+        const enrichedConds = activeConds.map(c => ({
+          ...c
+        }))
+        
+        return {
+          id: first.id,
+          info: {
+            name: first.info.name,
+            description: first.info.description,
+            conditions: enrichedConds,
+            requiredConditions: requiredConds
+          }
+        }
+      }
+    }
+
+    const activeConds = getScenarioActiveConditions(s.id).map(c => ({
+      ...c
+    }))
+
+    return {
+      id: s.id,
+      info: {
+        name: (s.params?.customName || s.label || '').toUpperCase(),
+        description: s.params?.description || s.params?.value || '',
+        conditions: activeConds,
+        requiredConditions: requiredConds
+      }
+    }
+  }
+
+  // Build condition lookup
+  const conditionLookup = {}
+  
+  // Add defaults to lookup
+  const allDefaults = [
+    ...DEFAULT_ENTRY_CONDITIONS,
+    ...DEFAULT_ENTRY_SCENARIOS,
+    ...DEFAULT_EXIT_CONDITIONS,
+    ...DEFAULT_EXIT_SCENARIOS
+  ]
+  allDefaults.forEach(d => {
+    conditionLookup[d.id] = { 
+      name: (d.params?.customName || d.label || '').toUpperCase(), 
+      description: d.params?.description || '' 
+    }
+  })
+
+  const processConds = (scenId) => {
+    if (!scenId) return
+    const conds = getScenarioConditions(scenId)
+    conds.forEach(c => {
+      conditionLookup[c.id] = { name: (c.name || '').toUpperCase(), description: c.description || '', priority: c.priority || 'NONE' }
+      if (c.indicatorUnits) {
+        c.indicatorUnits.forEach(u => {
+          if (u.type === 'bundle') {
+            u.items.forEach(i => {
+              conditionLookup[i.id] = { name: (i.label || '').toUpperCase(), description: i.description || '', priority: i.priority || c.priority || 'NONE' }
+            })
+          } else if (u.type === 'single' && u.item) {
+            conditionLookup[u.item.id] = { name: (u.item.label || '').toUpperCase(), description: u.item.description || '', priority: u.item.priority || c.priority || 'NONE' }
+          }
+        })
+      }
+    })
+  }
+
+  if (activeEntry?.id) processConds(activeEntry.id)
+  if (activeExit?.id) processConds(activeExit.id)
+
+  const boardRequiredConditionsEntry = activeEntry?.id
+    ? getScenarioRequiredConditionsSnapshot(activeEntry.id)
+    : []
+  const boardRequiredConditionsExit = (activeExit || activeMini)?.id
+    ? getScenarioRequiredConditionsSnapshot((activeExit || activeMini).id)
+    : []
+
   const builtExecutions = []
   if (hasEntryMethodPositions.value) {
     persistedEntryEntries.value.forEach(e => {
@@ -2254,24 +2481,25 @@ const submit = async () => {
     capitalBeforeTrade: currentCapital.value,
     assetType: currentAssetData.value?.type || 'Forex',
     strategyId: commitStrategyId,
+    strategyVersionId: commitStrategyVersionId.value,
     entryMethodType: persistedEntryMethodType.value,
     exitMethodType: exitMethodEnabled.value ? 'EXIT_SCALE' : 'SINGLE',
-    boardScenarioEntryId: undefined,
-    boardScenarioExitId: undefined,
+    boardScenarioEntryId: activeEntry?.id || undefined,
+    boardScenarioExitId: isClosed.value ? ((activeExit || activeMini)?.id || undefined) : undefined,
     risk: actualRiskDollars.value !== null ? actualRiskDollars.value : undefined,
     riskPercent: actualRiskPercent.value,
-    riskReward: actualRR.value,
+    riskReward: actualRR.value ?? plannedRiskReward,
     tradeDuration: actualTradeDurationLabel.value,
-    tradingStyle: undefined,
-    riskManagement: undefined,
+    tradingStyle: activeRiskManagement.value.tradingStyle || undefined,
+    riskManagement: activeRiskSnapshot.value || undefined,
     entryFee: +entryFee.value || 0,
     exitFee: +exitFee.value || 0,
     feeType: feeType.value,
     emotions: [...selectedEmotions.value],
-    boardScenarioEntry: undefined,
-    boardScenarioExit: undefined,
-    boardRequiredConditionsEntry: [],
-    boardRequiredConditionsExit: [],
+    boardScenarioEntry: formatScen(activeEntry, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value),
+    boardScenarioExit: isClosed.value ? formatScen(activeExit || activeMini, tradeStore.getTradesForStrategy(selectedStrategyId.value), side.value) : undefined,
+    boardRequiredConditionsEntry,
+    boardRequiredConditionsExit,
     images: journalEntries.value.map(e => ({
       url: e.image,
       name: e.name || '',

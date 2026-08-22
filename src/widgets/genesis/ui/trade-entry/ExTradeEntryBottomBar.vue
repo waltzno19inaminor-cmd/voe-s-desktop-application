@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { Strategy } from '~/widgets/system-protocol-select'
 import { useI18n } from '~/shared/i18n/useI18n'
+import ExTradeEntryProtocolButton from './ExTradeEntryProtocolButton.vue'
 
 const { locale } = useI18n()
 const tr = (ru: string, en: string) => locale.value === 'ru' ? ru : en
@@ -11,7 +13,7 @@ defineProps<{
   isCloseModeActive: boolean
   commitState?: 'idle' | 'loading' | 'success'
   activePanel: 'matrix' | 'journal' | 'method' | null
-  strategies: any[]
+  strategies: Strategy[]
   selectedStrategyId: string | null
   isMatrixLoading?: boolean
   protocolCloseSignal?: number
@@ -82,6 +84,34 @@ const emit = defineEmits<{
           </svg>
           <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
             [ {{ tr('Режим закрытия', 'Close mode') }} ]
+          </span>
+        </button>
+
+        <ExTradeEntryProtocolButton
+          :model-value="selectedStrategyId"
+          :strategies="strategies"
+          :is-loading="isMatrixLoading"
+          :close-signal="protocolCloseSignal"
+          @update:model-value="emit('update-strategy', $event)"
+        />
+
+        <button
+          type="button"
+          class="group relative flex h-10 w-10 items-center justify-center border transition-all"
+          :class="activePanel === 'matrix'
+            ? 'border-white/30 bg-white/10 text-white'
+            : 'border-transparent text-white/70 hover:border-white/20 hover:bg-white/5 hover:text-white'"
+          :aria-label="tr('Протокол Матрицы', 'Matrix protocol')"
+          @click="emit('open-panel', 'matrix')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" />
+            <rect x="14" y="3" width="7" height="7" />
+            <rect x="3" y="14" width="7" height="7" />
+            <rect x="14" y="14" width="7" height="7" />
+          </svg>
+          <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+            [ {{ tr('Протокол матрицы', 'Matrix protocol') }} ]
           </span>
         </button>
 

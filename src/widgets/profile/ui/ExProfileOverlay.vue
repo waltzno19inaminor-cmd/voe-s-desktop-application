@@ -404,8 +404,8 @@ const activeTabMeta = computed(() => {
     eyebrow: locale.value === 'ru' ? 'Аккаунт' : 'Account',
     title: locale.value === 'ru' ? 'Личные данные' : 'Personal details',
     description: locale.value === 'ru'
-      ? 'Держите основные поля идентификации видимыми и ненавязчивыми.'
-      : 'Keep the core identity fields visible and unobtrusive.'
+      ? 'Изменяйте допустимые данные по желанию.'
+      : 'Change allowed data as desired.'
   }
 })
 

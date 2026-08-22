@@ -285,6 +285,18 @@
       </div>
     </div>
 
+    <!-- NODE MAP VISUALIZATION OVERLAY -->
+    <ExTacticalNodeMap 
+      v-if="showNodeMap" 
+      :is-open="showNodeMap" 
+      :trade="mappedTradeForAnalysis"
+      :is-dark="isDark"
+      :initial-page="panelInitialPage"
+      :initial-expanded-note-id="panelInitialNoteId"
+      :open-analytics-on-mount="showExtraDetails"
+      @close="showNodeMap = false; showExtraDetails = false" 
+    />
+
     <!-- TOP CENTER COMPLIANCE DASHBOARD -->
     <div v-if="!showNodeMap && viewType === 'timeTree' && showComplianceStatus && !showCapitalForecast && isHudVisible" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9000] w-[1100px] max-w-[95vw] pointer-events-auto">
        <ExPanel
@@ -629,6 +641,20 @@
     </div>
 
     <div
+      v-if="!showNodeMap && (viewType === 'cube' || viewType === 'timeTree') && showCapitalForecast && isHudVisible && canOpenCapitalForecast"
+      class="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[8990] w-[1100px] max-w-[95vw] pointer-events-auto opacity-30 hover:opacity-100 transition-opacity duration-500"
+    >
+      <ExPatternForecastPanel
+        :visible="showCapitalForecast"
+        :trades="currentTrades"
+        :initial-capital="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+        :strategy-id="selectedStrategyId"
+        :strategy-name="selectedStrategy.name"
+        @loading-change="patternForecastLoading = $event"
+      />
+    </div>
+
+    <div
       v-if="!showNodeMap && (viewType === 'cube' || viewType === 'timeTree') && isHudVisible && !isTradeEntryOpen && !isTimeTreeFullscreen"
       v-show="showFiltersPanel"
       class="pointer-events-auto absolute left-1/2 top-8 z-[10010] w-[562px] -translate-x-1/2"
@@ -780,6 +806,15 @@
           <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">[ {{ locale === 'ru' ? 'ЦЕНТР' : 'CENTER' }} ]</span>
         </button>
 
+        <ExTradeEntryVersionButton
+          v-if="!isMainDiaryStrategy"
+          :model-value="selectedStrategyVersionId"
+          :versions="strategyVersions"
+          :strategy-name="selectedStrategyLabel"
+          :is-loading="isMatrixLoading"
+          :close-signal="protocolMenuCloseSignal"
+          @update:model-value="selectStrategyVersion($event)"
+        />
       </div>
     </div>
 
@@ -1072,6 +1107,96 @@
     </Transition>
   </Teleport>
 
+  <Teleport to="body">
+    <Transition name="fade-blur">
+      <div
+        v-if="showCapitalForecastIntro"
+        class="fixed inset-0 z-[10040] flex items-center justify-center bg-black/45 p-8 backdrop-blur-md"
+        @click.self="rejectCapitalForecastIntro"
+      >
+        <ExPanel
+          variant="light"
+          :no-padding="true"
+          :no-shadow="true"
+          :show-corners="true"
+          class="w-full max-w-[560px] !border-black/15 dark:!border-white/15"
+        >
+          <div class="px-8 py-7 nier-text-primary">
+            <div class="mb-5 flex items-center justify-between gap-6 border-b border-black/10 pb-4 dark:border-white/10">
+              <div>
+                <div class="text-[8px] font-mono uppercase tracking-[0.42em] opacity-45">
+                  {{ locale === 'ru' ? 'Прогноз паттернов' : 'Pattern forecast' }}
+                </div>
+                <h2 class="mt-2 text-lg font-mono font-black uppercase tracking-[0.18em]">
+                  {{ locale === 'ru' ? 'Предупреждение перед запуском' : 'Forecast Preview Notice' }}
+                </h2>
+              </div>
+              <div class="flex h-10 w-10 shrink-0 items-center justify-center border nier-border-primary">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 17l5-5 4 4 8-9"></path>
+                  <path d="M17 7h3v3"></path>
+                </svg>
+              </div>
+            </div>
+
+            <div class="font-mono text-[10px] uppercase tracking-[0.12em] leading-relaxed">
+              <div class="grid grid-cols-1 gap-3 border-b border-black/10 pb-4 dark:border-white/10">
+                <div class="text-center">
+                  <div class="opacity-40">{{ locale === 'ru' ? 'Ваши сделки' : 'Your trades' }}</div>
+                  <div class="mt-1 text-base font-black">{{ patternForecastIntroStats.userTrades }}</div>
+                </div>
+              </div>
+
+              <ol class="mt-5 space-y-3">
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">01</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? `Берем ваши закрытые сделки: сейчас ${patternForecastIntroStats.userTrades}, минимум для запуска ${patternForecastIntroStats.minTrades}.`
+                      : `We read your closed trades: ${patternForecastIntroStats.userTrades} now, ${patternForecastIntroStats.minTrades} minimum to run.` }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">02</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? 'Сравниваем вашу динамику, риск, длительность сделок, серии win/loss и структурные блоки с историями других трейдеров.'
+                      : 'We compare your performance path, risk, trade duration, win/loss streaks, and structural blocks with histories from other traders.' }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3">
+                  <span class="font-black opacity-35">03</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? `Выбираем до ${patternForecastIntroStats.maxMatches} ближайших исторических совпадений и строим прогноз на ${patternForecastIntroStats.horizonsLabel} следующих сделок.`
+                      : `We select up to ${patternForecastIntroStats.maxMatches} closest historical matches and build a forecast for the next ${patternForecastIntroStats.horizonsLabel} trades.` }}
+                  </span>
+                </li>
+                <li class="grid grid-cols-[32px_1fr] gap-3 opacity-70">
+                  <span class="font-black opacity-45">04</span>
+                  <span>
+                    {{ locale === 'ru'
+                      ? 'На выходе вы получите вероятный диапазон капитала, confidence, похожие исторические сценарии и слабые места модели. Это проверка сценария, не торговый сигнал.'
+                      : 'Output: probable capital range, confidence, similar historical scenarios, and weak points in the model. This is scenario review, not a trade signal.' }}
+                  </span>
+                </li>
+              </ol>
+            </div>
+
+            <div class="mt-7 flex items-center justify-end gap-3">
+              <ExButton variant="ghost" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="rejectCapitalForecastIntro">
+                {{ locale === 'ru' ? 'Отклонить' : 'Decline' }}
+              </ExButton>
+              <ExButton variant="solid" class="!px-5 !py-2 text-[10px] uppercase tracking-[0.24em]" @click="acceptCapitalForecastIntro">
+                {{ locale === 'ru' ? 'Принять' : 'Accept' }}
+              </ExButton>
+            </div>
+          </div>
+        </ExPanel>
+      </div>
+    </Transition>
+  </Teleport>
+
   <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
 
   </div>
@@ -1087,12 +1212,15 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
 import { calculateTacticalHistory } from '~/shared/utils/tacticalHistory'
 import { tradeMatchesProtocol } from '~/shared/utils/scenarioConditionScope'
+import ExTradeAnalysisPanel from '~/widgets/genesis/ui/analytics/ExTradeAnalysisPanel.vue'
 import globalAssets from '~/shared/data/global_assets.json'
 import { getIconForAsset } from '~/shared/api/asset.service'
+import ExTacticalNodeMap from '~/widgets/genesis/ui/analytics/ExTacticalNodeMap.vue'
 import ExTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTradeEntry.vue'
 import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
 import ExTradeEntryBottomBar from '~/widgets/genesis/ui/trade-entry/ExTradeEntryBottomBar.vue'
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
+import ExTradeEntryVersionButton from '~/widgets/genesis/ui/trade-entry/ExTradeEntryVersionButton.vue'
 import ExTradeForceGraph from '~/widgets/genesis/ui/analytics/ExTradeForceGraph.vue'
 import ExTrades from '~/widgets/genesis/ui/common/ExTrades.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/diary/ExVerticalTradeList.vue'
@@ -1101,8 +1229,10 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/common/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
+import ExPatternForecastPanel from '~/widgets/genesis/ui/analytics/ExPatternForecastPanel.vue'
+import { PATTERN_FORECAST_LIMITS } from '~/widgets/genesis/model/patternForecast'
 import { buildTradeProfitabilityScoreIndex, getTradePnlForScore } from '~/widgets/genesis/model/tradeProfitabilityScore'
-import { isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
+import { hasFiniteTradePnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 import {
   buildComplianceAudit,
   buildTradeDistributionBars,
@@ -1121,6 +1251,10 @@ import OpenStrategyMetrics from '~/widgets/genesis/ui/analytics/ExStrategyMetric
 import type { MetricConfig } from '~/widgets/genesis/ui/analytics/ExStrategyMetricsPanel.vue'
 import { resolveRiskManagementForStrategy } from '~/widgets/genesis/model/riskManagement'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
+import {
+  filterTradesBySelectedStrategyVersion,
+  getSelectedStrategyVersionSnapshot
+} from '~/shared/utils/strategyVersionScope'
 
 const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openTrade'])
 
@@ -1135,8 +1269,15 @@ const authStore = useAuthStore()
 const {
   nodes: matrixStateNodes,
   connections: matrixStateConnections,
+  strategyVersions,
+  selectedStrategyVersionId,
+  selectStrategyVersion,
   ensureMatrixDataRestored
 } = useMatrixState()
+
+const selectedMatrixSnapshot = computed(() => {
+  return getSelectedStrategyVersionSnapshot(strategyVersions.value || [], selectedStrategyVersionId.value)
+})
 
 const matrixNodes = computed(() => {
   const allNodes: any[] = []
@@ -1147,7 +1288,7 @@ const matrixNodes = computed(() => {
     })
   }
 
-  flatten(matrixStateNodes.value || [])
+  flatten(selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || [])
   return allNodes
 })
 
@@ -1162,17 +1303,27 @@ const matrixConnections = computed(() => {
     })
   }
 
-  flatten(matrixStateNodes.value || [], matrixStateConnections.value || [])
+  flatten(
+    selectedMatrixSnapshot.value?.nodes || matrixStateNodes.value || [],
+    selectedMatrixSnapshot.value?.connections || matrixStateConnections.value || []
+  )
   return allConnections
 })
 
 const scopeTradesToSelectedVersion = <T,>(trades: T[]) => {
-  return trades
+  if (selectedStrategyId.value === 'MAIN_DIARY') return trades
+  return filterTradesBySelectedStrategyVersion(
+    trades,
+    strategyVersions.value || [],
+    selectedStrategyVersionId.value
+  )
 }
 
 const showShareCardModal = ref(false)
 const isGeneratingPng = ref(false)
 const showCapitalForecast = ref(false)
+const showCapitalForecastIntro = ref(false)
+const patternForecastLoading = ref(false)
 
 const tradeEfficiency = computed(() => {
   return mappedTradeForAnalysis.value?.percentileRank ?? 0
@@ -1280,6 +1431,8 @@ const editTrade = (trade: any) => {
 }
 
 const showExtraDetails = ref(false)
+const panelInitialPage = ref<number | undefined>(undefined)
+const panelInitialNoteId = ref<string | undefined>(undefined)
 const showNodeMap = ref(false)
 const isHudVisible = ref(true)
 const showComplianceStatus = ref(false)
@@ -1339,6 +1492,7 @@ const closeNavigationOverlays = (keepProtocol = false) => {
   showFiltersPanel.value = false
   showToolsMenu.value = false
   showCapitalForecast.value = false
+  showCapitalForecastIntro.value = false
   genesisTreeRef.value?.closePresetPanel?.()
   isGenesisTreePresetPanelOpen.value = false
   if (showTimeTreeTradeDetails.value) closeTimeTreeTradeDetails()
@@ -1368,20 +1522,27 @@ watch(isHudVisible, (val) => {
   emit('hudState', val)
 })
 const showPaywall = ref(false)
+const canOpenCapitalForecast = computed(() => {
+  return true
+})
 
 const openNodeMap = () => {
-  showPaywall.value = true
+  showNodeMap.value = true
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {
   selectedTradeId.value = payload.tradeId
+  panelInitialPage.value = 5
+  panelInitialNoteId.value = payload.noteId
   showExtraDetails.value = true
-  showNodeMap.value = false
+  showNodeMap.value = true
   emit('openNote', payload)
 }
 
 const handleOpenTrade = (payload: { tradeId: string }) => {
   selectedTradeId.value = payload.tradeId
+  panelInitialPage.value = undefined
+  panelInitialNoteId.value = undefined
   showExtraDetails.value = false
   showNodeMap.value = false
   emit('openTrade', payload)
@@ -1614,6 +1775,8 @@ const openTimeTreeTradeDetailsForTrade = (trade: any) => {
     assetIcon: freshTrade.assetIcon || resolveTimeTreeAssetIcon(freshTrade)
   }
   timeTreeEntryMode.value = 'trade'
+  panelInitialPage.value = undefined
+  panelInitialNoteId.value = undefined
   showExtraDetails.value = false
   showNodeMap.value = false
   showTimeTreeTradeDetails.value = true
@@ -1821,6 +1984,22 @@ const timeTreeGroups = computed(() => {
       trades: group.trades.sort((left, right) => left.timestamp - right.timestamp)
     }))
 })
+
+const patternForecastClosedTradesCount = computed(() => {
+  return closedCurrentTrades.value.filter((trade: any) => {
+    return Number.isFinite(new Date(trade?.date).getTime()) &&
+      Number.isFinite(new Date(trade?.dateExit).getTime()) &&
+      hasFiniteTradePnl(trade)
+  }).length
+})
+
+const patternForecastIntroStats = computed(() => ({
+  userTrades: patternForecastClosedTradesCount.value,
+  minTrades: PATTERN_FORECAST_LIMITS.minUserTrades,
+  historicalProfiles: PATTERN_FORECAST_LIMITS.historicalProfiles,
+  maxMatches: PATTERN_FORECAST_LIMITS.maxMatches,
+  horizonsLabel: PATTERN_FORECAST_LIMITS.horizons.join('/')
+}))
 
 const getTradePnlValue = (trade: any) => {
   const strategyId = trade?.strategyId || selectedStrategyId.value
@@ -2166,7 +2345,17 @@ const exitTreeView = () => {
 }
 
 const toggleCapitalForecast = () => {
-  showPaywall.value = true
+  if (!canOpenCapitalForecast.value) {
+    showPaywall.value = true
+    return
+  }
+
+  if (showCapitalForecast.value) {
+    showCapitalForecast.value = false
+    return
+  }
+
+  showCapitalForecastIntro.value = true
 }
 
 const openCapitalForecastFromMenu = () => {
@@ -2180,6 +2369,22 @@ const openComplianceFromMenu = () => {
   closeNavigationOverlays()
   viewType.value = 'timeTree'
   showComplianceStatus.value = shouldOpen
+}
+
+const acceptCapitalForecastIntro = () => {
+  showCapitalForecastIntro.value = false
+  showCapitalForecast.value = false
+  viewType.value = 'timeTree'
+  selectedTradeId.value = null
+  timeTreeSelectedTradeId.value = null
+  selectedTimeTreeTradeForDetails.value = null
+  timeTreeEntryMode.value = 'forecast'
+  showTimeTreeTradeDetails.value = true
+  closeTradeContextMenu()
+}
+
+const rejectCapitalForecastIntro = () => {
+  showCapitalForecastIntro.value = false
 }
 
 const calculateRR = (trade: any) => {

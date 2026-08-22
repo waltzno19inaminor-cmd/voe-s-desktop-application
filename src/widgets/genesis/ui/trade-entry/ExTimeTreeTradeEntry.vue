@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
+import ExTradeAnalysisPanel from '../analytics/ExTradeAnalysisPanel.vue'
+import ExTacticalNodeMap from '../analytics/ExTacticalNodeMap.vue'
 import ExTradeGeneratedChart from '../analytics/ExTradeGeneratedChart.vue'
 import ExTradeNoteEditor from './ExTradeNoteEditor.vue'
 import ExTradeNoteListItem from './ExTradeNoteListItem.vue'
 import ExTradeImageEntry from './ExTradeImageEntry.vue'
+import ExPatternForecastPanel from '../analytics/ExPatternForecastPanel.vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import {
   getTradeDurationMs,
@@ -27,8 +30,23 @@ const props = defineProps<{
 const { locale } = useI18n()
 const tradeStore = useStrategyTradesStore()
 const isForecastMode = computed(() => props.mode === 'forecast')
+const isForecastLoading = ref(true)
+const forecastTab = ref<'summary' | 'settings'>('summary')
+const forecastIncludeAverageRR = ref(false)
+const activeEntryFormTab = ref<'main' | 'advanced' | 'metrics' | 'notes' | 'images'>('main')
+const activeProjectionMode = ref<'core' | 'mapping' | 'chart'>('core')
+const isCreatingTradeNote = ref(false)
+const tradeNoteDraft = ref('')
+const isPersistingArchive = ref(false)
+const expandedTradeNoteIds = ref<string[]>([])
+const editingTradeNoteContentId = ref<string | null>(null)
 
-const analysisStrategyId = computed(() => (
+const isMainDiaryTrade = computed(() => {
+  const trade = props.trade
+  return trade?.tradingStyle === 'Main Diary' || trade?.strategyId === 'MAIN_DIARY'
+})
+
+const analysisStrategyId = computed(() => String(
   props.forecastStrategyId ||
   props.trade?.strategyId ||
   'MAIN_DIARY'
@@ -42,13 +60,6 @@ const analysisAllTrades = computed(() => {
   if (Array.isArray(props.forecastTrades) && props.forecastTrades.length > 0) return props.forecastTrades
   return tradeStore.getAllTradesForStrategy(analysisStrategyId.value)
 })
-const activeEntryFormTab = ref<'main' | 'notes' | 'images'>('main')
-const activeProjectionMode = ref<'core' | 'chart'>('core')
-const isCreatingTradeNote = ref(false)
-const tradeNoteDraft = ref('')
-const isPersistingArchive = ref(false)
-const expandedTradeNoteIds = ref<string[]>([])
-const editingTradeNoteContentId = ref<string | null>(null)
 
 const positiveOrNull = (value: unknown) => {
   const parsed = Number(value)
@@ -58,8 +69,8 @@ const positiveOrNull = (value: unknown) => {
 const displayTrade = computed<Record<string, any>>(() => {
   const trade = (props.trade || {}) as Record<string, any>
   const entryValue = positiveOrNull(trade.entry)
-  const stopLossValue = positiveOrNull(trade.stopLoss)
-  const takeProfitValue = positiveOrNull(trade.takeProfit)
+  const stopLossValue = positiveOrNull(trade.stopLoss ?? trade.sl ?? trade.stop_loss)
+  const takeProfitValue = positiveOrNull(trade.takeProfit ?? trade.tp ?? trade.take_profit)
   const hasValidRiskRewardLevels = entryValue !== null && stopLossValue !== null && takeProfitValue !== null
 
   return {
@@ -86,6 +97,7 @@ const analysisTrade = computed<Record<string, any>>(() => {
     emotions: Array.isArray(trade.emotions) ? trade.emotions : []
   }
 })
+
 const displayValue = (value: unknown) => value === null || value === undefined || value === '' ? '--' : String(value)
 
 const formatPrice = (value: unknown) => {
@@ -154,14 +166,57 @@ const weightedAveragePrice = (positions: any[]) => {
   return totalSize > 0 ? weightedTotal / totalSize : positions[0]?.price
 }
 
-const summaryEntryPrice = computed(() => hasEntryMethod.value ? weightedAveragePrice(entryPositions.value) : displayTrade.value.entry)
-const summaryExitPrice = computed(() => hasExitMethod.value ? weightedAveragePrice(exitPositions.value) : displayTrade.value.exit)
+const summaryEntryPrice = computed(() => hasEntryMethod.value
+  ? weightedAveragePrice(entryPositions.value)
+  : displayTrade.value.entry)
+
+const summaryExitPrice = computed(() => hasExitMethod.value
+  ? weightedAveragePrice(exitPositions.value)
+  : displayTrade.value.exit)
+
+const positionMethodLabel = (position: any, type: 'entry' | 'exit') => {
+  const label = String(position.label || '').toUpperCase()
+  if (label && label !== 'SINGLE' && label !== 'NONE' && label !== 'ENTRY_METHOD') return label.replace(/_/g, ' ')
+  if (type === 'entry' && hasEntryMethod.value) {
+    return entryMethodDisplayLabel(position)
+  }
+  return type === 'exit' && hasExitMethod.value ? (locale.value === 'ru' ? 'ВЫХОД' : 'EXIT') : 'SINGLE'
+}
 
 const entryMethodDisplayLabel = (position: any) => {
-  const rawMethod = String(position.label || props.trade?.entryMethodType || '').toUpperCase().replace(/\s+/g, '_')
-  if (rawMethod === 'AVERAGING' || rawMethod === 'AVERAGING_DOWN') return locale.value === 'ru' ? 'УСРЕДНЕНИЕ' : 'AVERAGING'
-  if (rawMethod === 'PYRAMIDING') return locale.value === 'ru' ? 'ПИРАМИДИНГ' : 'PYRAMIDING'
-  return rawMethod || 'ENTRY'
+  const explicitLabel = String(position?.label || '').toUpperCase().replace(/\s+/g, '_')
+  if (explicitLabel && explicitLabel !== 'SINGLE' && explicitLabel !== 'NONE' && explicitLabel !== 'ENTRY_METHOD' && explicitLabel !== 'ENTRY_METHOD_TYPE') {
+    if (explicitLabel === 'AVERAGING' || explicitLabel === 'AVERAGING_DOWN') return locale.value === 'ru' ? 'УСРЕДНЕНИЕ' : 'AVERAGING'
+    if (explicitLabel === 'PYRAMIDING') return locale.value === 'ru' ? 'ПИРАМИДИНГ' : 'PYRAMIDING'
+    return explicitLabel.replace(/_/g, ' ')
+  }
+
+  if (position?.positionNumber === 1 || entryPositions.value[0] === position) {
+    return locale.value === 'ru' ? 'ВХОД' : 'ENTRY'
+  }
+
+  const firstPrice = Number(entryPositions.value[0]?.price || 0)
+  const currentPrice = Number(position?.price || 0)
+  if (!Number.isFinite(firstPrice) || firstPrice <= 0 || !Number.isFinite(currentPrice) || currentPrice <= 0) {
+    return locale.value === 'ru' ? 'ВХОД' : 'ENTRY'
+  }
+
+  let sideStr = String(props.trade?.side || props.trade?.direction || '').toUpperCase()
+  if (!sideStr && entryPositions.value.length > 0) {
+    sideStr = String(entryPositions.value[0]?.side || '').toUpperCase()
+  }
+
+  const isLong = sideStr === 'LONG' || sideStr === 'BUY' || sideStr === ''
+
+  if (isLong) {
+    return currentPrice > firstPrice
+      ? (locale.value === 'ru' ? 'ПИРАМИДИНГ' : 'PYRAMIDING')
+      : (locale.value === 'ru' ? 'УСРЕДНЕНИЕ' : 'AVERAGING')
+  } else {
+    return currentPrice < firstPrice
+      ? (locale.value === 'ru' ? 'ПИРАМИДИНГ' : 'PYRAMIDING')
+      : (locale.value === 'ru' ? 'УСРЕДНЕНИЕ' : 'AVERAGING')
+  }
 }
 
 const formatDateValue = (value: unknown) => {
@@ -513,6 +568,20 @@ const tradeEntryThemeStyle = computed(() => props.isDark
               <path d="M8 8h8M8 12h8M8 16h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="square" />
             </svg>
           </button>
+                  <button
+                    type="button"
+                    :aria-label="locale === 'ru' ? 'Второй режим' : 'Second mode'"
+                    class="grid h-11 w-12 place-items-center border-r border-black/10 transition-colors dark:border-white/10"
+                    :class="activeProjectionMode === 'mapping' ? 'nier-bg-inverted nier-text-primary' : 'nier-text-primary opacity-45 hover:opacity-100'"
+                    @click="activeProjectionMode = 'mapping'"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M7 6l10 6-10 6M7 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter" />
+                      <circle cx="7" cy="6" r="2" stroke="currentColor" stroke-width="1.6" />
+                      <circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="1.6" />
+                      <circle cx="7" cy="18" r="2" stroke="currentColor" stroke-width="1.6" />
+                    </svg>
+                  </button>
           <button
             type="button"
             :aria-label="locale === 'ru' ? 'График' : 'Chart'"
@@ -525,6 +594,24 @@ const tradeEntryThemeStyle = computed(() => props.isDark
               <path d="M5 8h4v7H5zM15 6h4v10h-4z" fill="currentColor" />
             </svg>
           </button>
+        </div>
+
+        <ExTacticalNodeMap
+          v-if="activeProjectionMode === 'mapping' && !isMainDiaryTrade"
+          :is-open="true"
+          :is-dark="Boolean(props.isDark)"
+          :trade="analysisTrade"
+          embedded
+          @close="activeProjectionMode = 'core'"
+        />
+
+        <div
+          v-else-if="activeProjectionMode === 'mapping'"
+          class="absolute inset-0 flex items-center justify-center px-10 text-center"
+        >
+          <p class="max-w-2xl text-sm font-mono uppercase leading-relaxed tracking-[0.16em] text-white/60">
+            {{ locale === 'ru' ? 'Для Main Diary данные Node Mapping недоступны.' : 'Node Mapping data is unavailable for Main Diary.' }}
+          </p>
         </div>
 
         <div
@@ -545,12 +632,76 @@ const tradeEntryThemeStyle = computed(() => props.isDark
           </div>
         </div>
 
-        <div v-if="isForecastMode" class="absolute inset-0 flex items-center justify-center px-10 text-center text-white">
-          <div class="max-w-2xl font-mono uppercase">
-            <div class="mx-auto mb-6 h-10 w-10 rotate-45 border border-current opacity-25"></div>
-            <p class="text-sm font-bold leading-relaxed tracking-[0.18em] text-white/60">
-              {{ locale === 'ru' ? 'Pattern Forecast удален из demo-версии.' : 'Pattern Forecast is removed from the demo build.' }}
-            </p>
+        <div v-if="isForecastMode" class="absolute inset-0 flex flex-col overflow-hidden text-left text-white">
+          <div class="h-full min-h-0 w-full flex flex-col overflow-hidden">
+            <div class="shrink-0 px-10 pt-10">
+              <div class="w-full px-6 sm:px-10 md:px-12 xl:px-16 2xl:px-20">
+                <div class="z-20 w-full shrink-0 border-b border-white/10 bg-black/60 pb-3 pt-1 backdrop-blur-md">
+                  <div class="flex w-full items-center justify-between gap-4">
+                    <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 border px-4 py-2 font-mono text-[9px] font-black uppercase tracking-[0.24em] transition-colors"
+                      :class="forecastTab === 'summary' ? 'border-white bg-white text-black' : 'border-white/15 text-white/45 hover:border-white/40 hover:text-white'"
+                      @click="forecastTab = 'summary'"
+                    >
+                      {{ locale === 'ru' ? 'ОСНОВНЫЕ' : 'MAIN' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 border px-4 py-2 font-mono text-[9px] font-black uppercase tracking-[0.24em] transition-colors"
+                      :class="forecastTab === 'settings' ? 'border-white bg-white text-black' : 'border-white/15 text-white/45 hover:border-white/40 hover:text-white'"
+                      @click="forecastTab = 'settings'"
+                    >
+                      {{ locale === 'ru' ? 'НАСТРОЙКИ' : 'SETTINGS' }}
+                    </button>
+                    </div>
+                    <label class="flex cursor-pointer items-center gap-2 select-none text-white/60">
+                      <input v-model="forecastIncludeAverageRR" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="flex h-5 w-5 items-center justify-center border border-white/25 bg-black/40 transition-colors"
+                        :class="forecastIncludeAverageRR ? 'bg-white text-black' : 'text-transparent'"
+                      >
+                        <svg viewBox="0 0 12 12" class="h-3 w-3" fill="none" aria-hidden="true">
+                          <path d="M2.2 6.2L4.7 8.7L9.8 3.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                      </span>
+                      <span class="font-mono text-[8px] font-black uppercase tracking-[0.22em]">
+                        {{ locale === 'ru' ? 'Учитывать Avg RR' : 'Include Avg RR' }}
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="min-h-0 flex-1 w-full overflow-y-auto overflow-x-hidden custom-scrollbar">
+              <div class="h-full min-h-full px-10 pb-10 pt-10">
+                <div class="relative h-full w-full px-6 sm:px-10 md:px-12 xl:px-16 2xl:px-20">
+                  <div v-if="isForecastLoading" class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 text-center">
+                    <span class="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-white" aria-hidden="true"></span>
+                    <span class="max-w-md font-mono text-[10px] font-black uppercase leading-relaxed tracking-[0.25em] text-white/55">
+                      {{ locale === 'ru' ? 'ИДЁТ АНАЛИЗ. ЭТО МОЖЕТ ЗАНЯТЬ НЕМНОГО ВРЕМЕНИ.' : 'ANALYSIS IN PROGRESS. THIS MAY TAKE A LITTLE TIME.' }}
+                    </span>
+                  </div>
+                  <ExPatternForecastPanel
+                    v-show="!isForecastLoading"
+                    class="h-full w-full"
+                    :visible="true"
+                    :trades="(props.forecastTrades as any[]) || []"
+                    :initial-capital="Number(props.forecastInitialCapital) || 1000"
+                    :strategy-id="props.forecastStrategyId || 'MAIN_DIARY'"
+                    :strategy-name="props.forecastStrategyName || 'MAIN DIARY'"
+                    compact-navigation
+                    :active-tab="forecastTab"
+                    :include-average-rr="forecastIncludeAverageRR"
+                    @update:active-tab="forecastTab = $event"
+                    @update:include-average-rr="forecastIncludeAverageRR = $event"
+                    @loading-change="isForecastLoading = $event"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -568,6 +719,22 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                   @click="activeEntryFormTab = 'main'"
                 >
                   {{ locale === 'ru' ? 'ОСНОВНЫЕ' : 'MAIN' }}
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 border px-4 py-2 font-mono text-[9px] font-black uppercase tracking-[0.24em] transition-colors"
+                  :class="activeEntryFormTab === 'advanced' ? 'border-white bg-white text-black' : 'border-white/15 text-white/45 hover:border-white/40 hover:text-white'"
+                  @click="activeEntryFormTab = 'advanced'"
+                >
+                  {{ locale === 'ru' ? 'ПРОДВИНУТЫЕ' : 'ADVANCED' }}
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 border px-4 py-2 font-mono text-[9px] font-black uppercase tracking-[0.24em] transition-colors"
+                  :class="activeEntryFormTab === 'metrics' ? 'border-white bg-white text-black' : 'border-white/15 text-white/45 hover:border-white/40 hover:text-white'"
+                  @click="activeEntryFormTab = 'metrics'"
+                >
+                  {{ locale === 'ru' ? 'МЕТРИКИ' : 'METRICS' }}
                 </button>
                 <button
                   type="button"
@@ -696,7 +863,9 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                 <div v-if="hasEntryMethod || hasExitMethod" class="grid w-full grid-cols-1 gap-6 border-t border-white/10 pt-8 lg:grid-cols-2">
                   <section v-if="hasEntryMethod" class="min-w-0 border border-white/10 p-5">
                     <div class="mb-5 flex items-start justify-between gap-4">
-                      <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/60">{{ locale === 'ru' ? 'ПОЗИЦИИ ВХОДА' : 'ENTRY POSITIONS' }}</span>
+                      <div>
+                        <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/60">{{ locale === 'ru' ? 'ПОЗИЦИИ ВХОДА' : 'ENTRY POSITIONS' }}</span>
+                      </div>
                     </div>
                     <div class="flex flex-col divide-y divide-white/10">
                       <div v-for="position in entryPositions" :key="`entry-position-${position.positionNumber}-${position.id || position.date || position.price}`" class="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-3 first:pt-0 last:pb-0">
@@ -712,13 +881,15 @@ const tradeEntryThemeStyle = computed(() => props.isDark
 
                   <section v-if="hasExitMethod" class="min-w-0 border border-white/10 p-5">
                     <div class="mb-5 flex items-start justify-between gap-4">
-                      <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/60">{{ locale === 'ru' ? 'ПОЗИЦИИ ВЫХОДА' : 'EXIT POSITIONS' }}</span>
+                      <div>
+                        <span class="text-[9px] font-mono uppercase tracking-[0.35em] text-white/60">{{ locale === 'ru' ? 'ПОЗИЦИИ ВЫХОДА' : 'EXIT POSITIONS' }}</span>
+                      </div>
                     </div>
-                    <div class="flex flex-col divide-y divide-white/10">
+                    <div v-if="exitPositions.length" class="flex flex-col divide-y divide-white/10">
                       <div v-for="position in exitPositions" :key="`exit-position-${position.positionNumber}-${position.id || position.date || position.price}`" class="grid grid-cols-[auto_1fr_auto] items-center gap-4 py-3 first:pt-0 last:pb-0">
                         <span class="font-mono text-[9px] text-white/35">{{ String(position.positionNumber).padStart(2, '0') }}</span>
                         <div class="min-w-0">
-                          <div class="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-white/45">EXIT SCALE</div>
+                          <div class="truncate font-mono text-[9px] uppercase tracking-[0.16em] text-white/45">{{ positionMethodLabel(position, 'exit') }}</div>
                           <div class="mt-1 font-mono text-sm font-black tracking-[0.12em] text-white">${{ formatPrice(position.price) }}</div>
                         </div>
                         <span class="font-mono text-sm font-black tracking-[0.12em] text-white">{{ Number.isFinite(position.size) && position.size > 0 ? position.size : '--' }}</span>
@@ -726,6 +897,50 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                     </div>
                   </section>
                 </div>
+              </section>
+
+              <section v-else-if="activeEntryFormTab === 'advanced'" class="flex w-full flex-col items-start gap-8">
+                <div class="text-[10px] font-mono font-black uppercase tracking-[0.6em] text-white/45">II.</div>
+                <h2 class="text-2xl font-mono font-black uppercase tracking-[0.22em] text-white md:text-3xl">
+                  {{ locale === 'ru' ? 'ПРОДВИНУТЫЕ МЕТРИКИ' : 'ADVANCED METRICS' }}
+                </h2>
+
+                <p v-if="isMainDiaryTrade" class="max-w-2xl text-sm font-mono uppercase leading-relaxed tracking-[0.16em] text-white/60">
+                  {{ locale === 'ru' ? 'Для Main Diary продвинутый анализ недоступен.' : 'Advanced analysis is unavailable for Main Diary.' }}
+                </p>
+
+                <ExTradeAnalysisPanel
+                  v-else
+                  class="w-full min-h-[620px]"
+                  :trade="analysisTrade"
+                  :all-trades="analysisAllTrades"
+                  :initial-balance="analysisInitialCapital"
+                  :initial-page="3"
+                  embedded
+                  :embedded-brief="true"
+                />
+              </section>
+
+              <section v-else-if="activeEntryFormTab === 'metrics'" class="flex w-full flex-col items-start gap-8">
+                <div class="text-[10px] font-mono font-black uppercase tracking-[0.6em] text-white/45">III.</div>
+                <h2 class="text-2xl font-mono font-black uppercase tracking-[0.22em] text-white md:text-3xl">
+                  {{ locale === 'ru' ? 'МЕТРИКИ' : 'METRICS' }}
+                </h2>
+
+                <ExTradeAnalysisPanel
+                  v-if="!isMainDiaryTrade"
+                  class="w-full min-h-[620px]"
+                  :trade="analysisTrade"
+                  :all-trades="analysisAllTrades"
+                  :initial-balance="analysisInitialCapital"
+                  :initial-page="3"
+                  embedded
+                  embedded-brief
+                  metrics-only
+                />
+                <p v-else class="max-w-2xl text-sm font-mono uppercase leading-relaxed tracking-[0.16em] text-white/60">
+                  {{ locale === 'ru' ? 'Для Main Diary метрики недоступны.' : 'Metrics are unavailable for Main Diary.' }}
+                </p>
               </section>
 
               <section v-else-if="activeEntryFormTab === 'notes'" class="flex w-full flex-col items-start gap-8">

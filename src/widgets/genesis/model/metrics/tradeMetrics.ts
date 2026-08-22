@@ -100,6 +100,29 @@ export const getTradeRealizedR = (
   trade: TradeLike | null | undefined,
   initialCapital = 1000
 ): number => {
+  const entry = toFiniteTradeNumber(trade?.entry)
+  const stopLoss = toFiniteTradeNumber(trade?.stopLoss ?? trade?.sl)
+  const exit = toFiniteTradeNumber(trade?.exit ?? trade?.exitPrice)
+  const side = String(trade?.side || trade?.direction || '').toLowerCase()
+  const isShort = side.includes('short') || side.includes('sell')
+  const riskDistance = isShort
+    ? (stopLoss !== null && entry !== null ? stopLoss - entry : Number.NaN)
+    : (entry !== null && stopLoss !== null ? entry - stopLoss : Number.NaN)
+  const realizedMove = isShort
+    ? (entry !== null && exit !== null ? entry - exit : Number.NaN)
+    : (exit !== null && entry !== null ? exit - entry : Number.NaN)
+
+  // Prefer the actual exit result. This keeps losing trades negative and
+  // prevents stale saved `realizedR: 0` values from masking the calculation.
+  if (
+    Number.isFinite(entry) && entry > 0 &&
+    Number.isFinite(exit) && exit > 0 &&
+    Number.isFinite(riskDistance) && riskDistance > 0 &&
+    Number.isFinite(realizedMove)
+  ) {
+    return realizedMove / riskDistance
+  }
+
   const stored = toFiniteTradeNumber(trade?.realizedR ?? trade?.rMultiple)
   if (stored !== null) return stored
 

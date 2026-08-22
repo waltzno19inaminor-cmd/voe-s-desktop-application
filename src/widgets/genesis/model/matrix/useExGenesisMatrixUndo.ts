@@ -10,7 +10,8 @@ export function useExGenesisMatrixUndo() {
 
   const getStorageKey = () => {
     const pageId = state.activePageId.value || 'default';
-    return `${STORAGE_KEY_PREFIX}_${pageId}`;
+    const versionId = state.selectedStrategyVersionId.value || 'current';
+    return `${STORAGE_KEY_PREFIX}_${pageId}_${versionId}`;
   }
 
   const getBuffer = (): any[] => {
@@ -73,11 +74,13 @@ export function useExGenesisMatrixUndo() {
     // Revert to previous state
     const previousState = buffer[buffer.length - 1]
     if (previousState) {
+      const versionCheckpoints = state.changeTree.events.value.filter(event => event.type === 'version')
       state.rootNodes.value = previousState.rootNodes
       state.rootConnections.value = previousState.rootConnections
       state.rootZones.value = previousState.rootZones
       if (previousState.treeEvents) {
-        state.changeTree.events.value = previousState.treeEvents
+        const restoredEvents = previousState.treeEvents.filter((event: any) => event.type !== 'version')
+        state.changeTree.events.value = [...restoredEvents, ...versionCheckpoints]
           .filter((event, index, allEvents) => allEvents.findIndex(item => item.id === event.id) === index)
           .sort((left, right) => left.createdAt - right.createdAt)
       }
@@ -138,7 +141,7 @@ export function useExGenesisMatrixUndo() {
   )
 
   watch(
-    () => state.activePageId.value,
+    () => [state.activePageId.value, state.selectedStrategyVersionId.value],
     () => {
       resetSnapshot()
     }

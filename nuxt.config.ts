@@ -4,7 +4,7 @@ export default defineNuxtConfig({
   ssr: false,
   runtimeConfig: {
     public: {
-      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || '',
+      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || 'https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json',
     },
   },
   devServer: {
@@ -97,10 +97,20 @@ export default defineNuxtConfig({
     '**/.nuxt/**',
     '**/.hotfix-work/**',
     '**/.secrets/**',
-    '**/dist/**'
+    '**/dist/**',
+    // Static assets do not participate in Nuxt's module graph. Watching the
+    // icon catalogue alone creates thousands of file descriptors on macOS.
+    '**/public/**',
+    '**/.capture-*/**',
+    '**/artifacts/**',
+    '**/cloudflare/**'
   ],
   vite: {
     server: {
+      // Do not silently start a second Nuxt instance on another port. Two
+      // instances each watch the project tree and can exhaust macOS' global
+      // file table (ENFILE).
+      strictPort: true,
       watch: {
         ignored: [
           '**/src-tauri/**',
@@ -108,7 +118,11 @@ export default defineNuxtConfig({
           '**/.nuxt/**',
           '**/.hotfix-work/**',
           '**/.secrets/**',
-          '**/dist/**'
+          '**/dist/**',
+          '**/public/**',
+          '**/.capture-*/**',
+          '**/artifacts/**',
+          '**/cloudflare/**'
         ]
       }
     }

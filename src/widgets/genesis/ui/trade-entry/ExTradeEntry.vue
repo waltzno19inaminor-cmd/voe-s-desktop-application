@@ -6,6 +6,7 @@ import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import ExTradeEntryCmeNotice from './ExTradeEntryCmeNotice.vue'
 import ExTradeEntryMiddleSection from './ExTradeEntryMiddleSection.vue'
 import ExTradeEntryEmotionMatrix from './ExTradeEntryEmotionMatrix.vue'
+import ExTradeEntryConditionLibrary from './ExTradeEntryConditionLibrary.vue'
 import ExTradeEntryMethodMatrix from './ExTradeEntryMethodMatrix.vue'
 import ExTradeEntryStudyMetricsPanel from './ExTradeEntryStudyMetricsPanel.vue'
 
@@ -22,6 +23,7 @@ provide('tradeState', state)
 useDomI18n(state.scrollContainer, 'genesis.dom')
 
 const getActivePanel = () => {
+  if (state.showConditionLibrary.value) return 'matrix'
   if (state.showEntryMethod.value || state.viewMode.value === 'method') return 'method'
   if (state.viewMode.value === 'journal') return 'journal'
   return null
@@ -61,7 +63,8 @@ const openTradeEntryPanel = (panel) => {
   }
 
   if (panel === 'matrix') {
-    return false
+    state.viewMode.value = 'tactical'
+    state.showConditionLibrary.value = true
   } else if (panel === 'journal') {
     state.viewMode.value = state.viewMode.value === 'journal' ? 'tactical' : 'journal'
   } else if (panel === 'method') {
@@ -112,6 +115,7 @@ const tradeEntryThemeStyle = computed(() => isDark.value
      <ExTradeEntryCmeNotice />
      <ExTradeEntryMiddleSection />
      <ExTradeEntryEmotionMatrix />
+     <ExTradeEntryConditionLibrary />
      <ExTradeEntryMethodMatrix />
      <ExTradeEntryStudyMetricsPanel />
   </div>

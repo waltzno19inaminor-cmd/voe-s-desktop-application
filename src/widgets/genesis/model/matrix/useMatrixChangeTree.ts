@@ -1,6 +1,6 @@
 import { ref, computed, type Ref } from 'vue'
 
-export type MatrixChangeType = 'add' | 'delete' | 'connect' | 'clear' | 'update'
+export type MatrixChangeType = 'add' | 'delete' | 'connect' | 'version' | 'clear' | 'update'
 
 export type MatrixChangeEvent = {
   id: string
@@ -9,7 +9,7 @@ export type MatrixChangeEvent = {
   node: string
   createdAt: number
   targetId?: string
-  targetKind?: 'node' | 'connection' | 'board' | 'domain'
+  targetKind?: 'node' | 'connection' | 'board' | 'version' | 'domain'
   subchanges: any[]
 }
 
@@ -362,6 +362,26 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
   }
   function recordConnectionCreated(...args: any[]) {}
   function recordConnectionDeleted(...args: any[]) {}
+  function appendStrategyVersionCheckpoint(title: string, versionLabel?: string) {
+    events.value.push({
+      id: changeId(),
+      type: 'version',
+      title,
+      node: versionLabel || 'strategy version',
+      createdAt: Date.now(),
+      targetKind: 'version',
+      subchanges: []
+    })
+  }
+  function recordStrategyVersionCreated(versionLabel?: string) {
+    appendStrategyVersionCheckpoint('SET_STRATEGY_VERSION', versionLabel)
+  }
+  function recordStrategyVersionUpdated(versionLabel?: string) {
+    appendStrategyVersionCheckpoint('UPDATE_STRATEGY_VERSION', versionLabel)
+  }
+  function clearStrategyVersionCheckpoints() {
+    events.value = events.value.filter(event => event.type !== 'version')
+  }
   function recordNodeIdentityChanged(node: any, value: string, ...args: any[]) {
     setFinalNodeValue(node, 'identity', value)
     updateEventNodeDisplay(node)
@@ -472,6 +492,9 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
     recordLogicPlaceholderNodeAdded,
     recordConnectionCreated,
     recordConnectionDeleted,
+    recordStrategyVersionCreated,
+    recordStrategyVersionUpdated,
+    clearStrategyVersionCheckpoints,
     recordNodeIdentityChanged,
     recordNodeDirectionChanged,
     recordNodePriorityChanged,

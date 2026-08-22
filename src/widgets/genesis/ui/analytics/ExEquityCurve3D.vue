@@ -26,7 +26,7 @@
       </div>
     </Transition>
 
-    <div v-show="!isTradeEntryOpen && !selectedCurveTrade" class="absolute inset-0">
+    <div v-show="!isTradeEntryOpen" class="absolute inset-0">
       <!-- CANVAS LAYER -->
       <canvas ref="canvasRef"
               v-show="!showRobustnessExplanations && !showCalendarMode && !showSimulator"
@@ -190,7 +190,7 @@
             <div class="flex items-center space-x-3 mb-2 cursor-pointer group/strat pointer-events-auto" @click="showStrategyMenu = !showStrategyMenu">
               <div class="w-1.5 h-1.5 nier-bg-inverted rotate-45 transition-all duration-500" :class="showStrategyMenu ? 'scale-150 rotate-[225deg]' : 'animate-pulse'"></div>
               <span class="text-[10px] font-mono tracking-[0.5em] uppercase font-black nier-text-primary transition-opacity group-hover/strat:opacity-100" :class="showStrategyMenu ? 'opacity-100' : 'opacity-40'">
-                {{ selectedStrategy?.name || 'SYSTEM_EQUITY_PROJECTION' }}
+                {{ selectedStrategy?.name || 'SYSTEM_EQUITY_PROJECTION' }}{{ selectedStrategy?.id !== 'MAIN_DIARY' && strategyVersionSuffix ? ' // ' + strategyVersionSuffix : '' }}
               </span>
               <div class="w-2 h-2 border-b border-r border-black/40 dark:border-white/40 rotate-45 transition-transform duration-500 ml-2" :class="showStrategyMenu ? '-rotate-[135deg] translate-y-0.5' : ''"></div>
             </div>
@@ -351,8 +351,13 @@
                             </svg>
                          </div>
                          <div class="flex flex-col space-y-2">
-                            <span class="text-[14px] font-mono font-black tracking-widest nier-text-primary uppercase">Critical_System_Alert</span>
-                            <p class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
+                            <span class="text-[14px] font-mono font-black tracking-widest nier-text-primary uppercase">{{ isRu ? 'КРИТИЧЕСКОЕ_СИСТЕМНОЕ_ПРЕДУПРЕЖДЕНИЕ' : 'Critical_System_Alert' }}</span>
+                            <p v-if="isRu" class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
+                               Вы собираетесь безвозвратно удалить все записи сделок, связанные со стратегией <span class="text-red-500 font-bold">[{{ selectedStrategy?.name }}]</span>. 
+                               <br><br>
+                               Эта операция обнулит текущее состояние и является <span class="text-red-500 font-black">необратимой</span>.
+                            </p>
+                            <p v-else class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
                                You are about to permanently erase all trade records associated with <span class="text-red-500 font-bold">[{{ selectedStrategy?.name }}]</span>. 
                                <br><br>
                                This operation will reify an empty state and is <span class="text-red-500 font-black">irreversible</span>.
@@ -362,10 +367,10 @@
 
                       <div class="flex justify-end space-x-4 pt-4 border-t nier-border-primary nier-text-primary">
                          <ExButton @click="showClearConfirmation = false" variant="ghost" size="md">
-                            CANCEL
+                            {{ isRu ? 'ОТМЕНА' : 'CANCEL' }}
                          </ExButton>
                          <ExButton @click="handleClearTrades" variant="solid" size="md" class="!bg-red-500 !border-red-500 !text-white hover:!bg-red-600 transition-colors">
-                            EXECUTE_PURGE
+                            {{ isRu ? 'ВЫПОЛНИТЬ ОЧИСТКУ' : 'EXECUTE PURGE' }}
                          </ExButton>
                       </div>
                    </div>
@@ -624,7 +629,7 @@
                 <!-- BROKER / EXCHANGE -->
                 <button
                   type="button"
-                  @click="closeToolsMenu(); showPaywall = true"
+                  @click="closeToolsMenu(); showBrokerConnectPanel = true"
                   :aria-label="isRu ? 'Брокер / биржа' : 'Broker / exchange'"
                   class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
                 >
@@ -640,11 +645,12 @@
                 <!-- SYNC API -->
                 <button
                   type="button"
-                  @click="closeToolsMenu(); showPaywall = true"
+                  @click="closeToolsMenu(); syncCurrentStrategyApi()"
+                  :disabled="isApiSyncing"
                   :aria-label="isRu ? 'Синхронизация API' : 'Sync API'"
-                  class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
+                  class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6" :class="isApiSyncing ? 'animate-spin' : ''">
                     <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
                     <path d="M3 21v-5h5M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M16 8h5V3"/>
                   </svg>
@@ -754,7 +760,7 @@
           <!-- SELECT TARGET -->
           <button
             v-if="!showMetricsPanel && !showCalendarMode"
-            @click="showPaywall = true"
+            @click="showWinrateMenu = true; showWinrateCurve = false"
             :aria-label="isRu ? 'Выбор цели системы' : 'Select system target'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showWinrateMenu ? 'border-white/30 bg-white/10 text-white' : ''"
@@ -896,6 +902,27 @@
       </ExGenesisHudPanel>
     </div>
 
+    <div
+      v-if="selectedCurveTrade"
+      class="pointer-events-none absolute bottom-12 left-0 right-0 z-[2200] flex items-center justify-center"
+    >
+      <ExGenesisHudPanel>
+        <button
+          type="button"
+          class="group relative flex h-10 w-10 items-center justify-center border border-white bg-white text-black transition-all hover:bg-white/85"
+          :aria-label="isRu ? 'Назад к кривой капитала' : 'Back to equity curve'"
+          @click="closeCurveTradeDetails"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true">
+            <path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="square" stroke-linejoin="miter" />
+          </svg>
+          <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+            [ {{ isRu ? 'НАЗАД' : 'BACK' }} ]
+          </span>
+        </button>
+      </ExGenesisHudPanel>
+    </div>
+
 
 
     <!-- CALENDAR OVERLAY -->
@@ -947,37 +974,6 @@
 
     </div>
 
-    <Transition name="page-reify">
-      <ExTimeTreeTradeEntry
-        v-if="selectedCurveTrade"
-        class="absolute inset-0 z-[2000]"
-        :is-dark="themeStore.settings.isDark"
-        :trade="selectedCurveTrade"
-        mode="trade"
-        :forecast-trades="getFilteredTrades()"
-        :forecast-initial-capital="props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
-        :forecast-strategy-id="String(selectedStrategyId || 'MAIN_DIARY')"
-        :forecast-strategy-name="selectedStrategy?.name || 'MAIN DIARY'"
-      />
-    </Transition>
-
-    <div v-if="selectedCurveTrade" class="pointer-events-none absolute bottom-12 left-0 right-0 z-[2200] flex items-center justify-center">
-      <ExGenesisHudPanel>
-        <button
-          type="button"
-          class="pointer-events-auto group relative flex h-10 items-center gap-2 border border-white/20 px-4 text-white/70 transition-all hover:border-white/40 hover:bg-white/5 hover:text-white"
-          @click="closeCurveTradeDetails"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-            <path d="M19 12H5M12 19l-7-7 7-7" />
-          </svg>
-          <span class="font-mono text-[9px] font-bold uppercase tracking-widest">
-            {{ isRu ? '[ НАЗАД ]' : '[ BACK ]' }}
-          </span>
-        </button>
-      </ExGenesisHudPanel>
-    </div>
-
     <ExTradeEntryBottomBar
       v-if="isTradeEntryOpen"
       :is-trade-entry-open="isTradeEntryOpen"
@@ -1007,6 +1003,14 @@
 
     <Teleport to="body">
       <Transition name="page-reify">
+        <ExBrokerConnectPanel v-if="!isTradeEntryOpen && showBrokerConnectPanel"
+                              :strategy-id="selectedStrategyId"
+                              @close="showBrokerConnectPanel = false" />
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
+      <Transition name="page-reify">
         <ExEquityCurveSimulator 
           v-if="!isTradeEntryOpen && showSimulator"
           @close="showSimulator = false"
@@ -1018,6 +1022,21 @@
         />
       </Transition>
     </Teleport>
+
+    <!-- Reuse the complete trade-details view used by the diary. -->
+    <Transition name="page-reify">
+      <ExTimeTreeTradeEntry
+        v-if="selectedCurveTrade"
+        class="absolute inset-0 z-[2000]"
+        :is-dark="themeStore.settings.isDark"
+        :trade="selectedCurveTrade"
+        mode="trade"
+        :forecast-trades="getFilteredTrades()"
+        :forecast-initial-capital="props.initialBalance || tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+        :forecast-strategy-id="String(selectedStrategyId || 'MAIN_DIARY')"
+        :forecast-strategy-name="selectedStrategy?.name || 'MAIN DIARY'"
+      />
+    </Transition>
     <ExPaywallOverlay :isOpen="showPaywall && !isTradeEntryOpen" @close="showPaywall = false" />
   </div>
 </template>
@@ -1029,11 +1048,9 @@ import { invoke } from '@tauri-apps/api/core'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useAppBootStore } from '~/features/store/useAppBoot'
-import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import ExTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTradeEntry.vue'
-import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
 import ExTradeEntryBottomBar from '~/widgets/genesis/ui/trade-entry/ExTradeEntryBottomBar.vue'
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -1043,14 +1060,22 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from '../common/ExPaywallOverlay.vue'
+import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
 import ExCalendarMode from '../diary/ExCalendarMode.vue'
 import ExEquityCurveMetricsPanel from './ExEquityCurveMetricsPanel.vue'
+import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
 import { useEquityCurveMetricsPanel } from '../../model/useEquityCurveMetricsPanel'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { SP500_BENCHMARK_RATE } from '~/shared/constants'
 import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/genesis/model/riskManagement'
 import { getTradeCashPnl, isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
+import {
+  isSyncableBrokerConnection,
+  syncBrokerConnectionTrades,
+  type StoredBrokerConnection
+} from '~/utils/brokerTradeSync'
+import { filterTradesBySelectedStrategyVersion } from '~/shared/utils/strategyVersionScope'
 
 const authStore = useAuthStore()
 const networkOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
@@ -1070,6 +1095,7 @@ interface StrategyBenchmarkMetrics {
 }
 
 const BENCHMARK_METRICS_CACHE_KEY = 'strategy_benchmark_metrics_v2'
+const BROKER_CONNECTIONS_STORAGE_KEY = 'broker_connections_v1'
 const benchmarkMetricsByStrategy = ref<Record<string, StrategyBenchmarkMetrics>>({})
 
 const themeStore = useThemeStore()
@@ -1111,6 +1137,11 @@ const gradflowColorAt = (position: number, alpha = 1) => {
 
   return `rgba(${mixed.r}, ${mixed.g}, ${mixed.b}, ${alpha})`
 }
+
+const strategyVersionSuffix = computed(() => {
+  const versionMatch = matrixState.selectedStrategyVersion.value?.label?.match(/(v\d+)/i)
+  return versionMatch?.[1] || ''
+})
 
 const renderContainer = ref<HTMLElement | null>(null)
 const { locale } = useI18n()
@@ -1245,21 +1276,11 @@ const studentTPDF = (x: number, mean: number, scale: number, nu: number): number
   return coef * Math.pow(factor, -(nu + 1) / 2);
 };
 
-const matrixNodes = ref<any[]>([])
-const matrixConnections = ref<any[]>([])
-const genesisTrades = useGenesisTrades()
-const genesisMatrix = useGenesisMatrixData()
+const matrixNodes = computed(() => matrixState.matrixPages.value.flatMap(page => page.nodes || []))
+const matrixConnections = computed(() => matrixState.matrixPages.value.flatMap(page => page.connections || []))
 
 const loadMatrixData = async () => {
-  try {
-    const data = await genesisMatrix.loadMatrix()
-    if (data && data.nodes) {
-      matrixNodes.value = data.nodes
-      matrixConnections.value = data.connections || []
-    }
-  } catch (err) {
-    console.error('Failed to load matrix data:', err)
-  }
+  await matrixState.ensureMatrixDataRestored()
 }
 
 watch([matrixNodes, () => tradeStore.isLoading], ([nodes, loading]) => {
@@ -1345,6 +1366,7 @@ const showRobustnessHistogram = ref(false)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
+const showBrokerConnectPanel = ref(false)
 const showToolsMenu = ref(false)
 
 const openSimulator = () => {
@@ -1398,6 +1420,14 @@ const getFilteredTrades = (sId: string = selectedStrategyId.value, ignoreWinrate
       )
     : tradeStore.getTradesForStrategy(sId) || []
     
+  if (sId !== 'MAIN_DIARY') {
+    baseTrades = filterTradesBySelectedStrategyVersion(
+      baseTrades,
+      matrixState.strategyVersions.value || [],
+      matrixState.selectedStrategyVersionId.value
+    )
+  }
+
   baseTrades = baseTrades.filter(isClosedTradeForMetrics)
 
   if (!ignoreWinrateFilter && selectedWinrateNodeId.value && sId === selectedStrategyId.value) {
@@ -2959,6 +2989,22 @@ const equityPoints3D = ref<CurvePoint[]>([])
 const benchmarkPoints3D = ref<CurvePoint[]>([])
 const riskFreePoints3D = ref<CurvePoint[]>([])
 const winratePoints3D = ref<CurvePoint[]>([])
+const isApiSyncing = ref(false)
+const apiSyncStatusMessage = ref('')
+
+const findAllActiveApiConnections = async () => {
+  const connections = await loadFromDisk<Record<string, StoredBrokerConnection>>(BROKER_CONNECTIONS_STORAGE_KEY)
+  if (!connections) return []
+
+  return Object.values(connections).filter((connection) => {
+    return isSyncableBrokerConnection(connection)
+  })
+}
+
+const apiSyncButtonTitle = computed(() => {
+  if (isApiSyncing.value) return isRu.value ? 'Синхронизация сделок...' : 'Syncing trades...'
+  return isRu.value ? 'Синхронизировать сделки из API' : 'Sync trades from API'
+})
 
 const displayBalance = computed(() => {
   if (showWinrateCurve.value) {
@@ -2970,6 +3016,44 @@ const displayBalance = computed(() => {
   const val = (lastPoint?.value ?? 0) * revealProgress.value
   return val.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 })
+
+const syncCurrentStrategyApi = async () => {
+  if (isApiSyncing.value) return
+
+  isApiSyncing.value = true
+  apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_STARTING' : 'API_SYNC_STARTING'
+
+  try {
+    const connections = await findAllActiveApiConnections()
+    if (connections.length === 0) {
+      apiSyncStatusMessage.value = isRu.value ? 'НЕТ_АКТИВНЫХ_API_КЛЮЧЕЙ' : 'NO_ACTIVE_API_CONNECTIONS'
+      return
+    }
+
+    apiSyncStatusMessage.value = isRu.value ? 'API_SYNC_IN_PROGRESS' : 'API_SYNC_IN_PROGRESS'
+    
+    let totalImported = 0
+    let totalDuplicates = 0
+    let sources: string[] = []
+    
+    for (const connection of connections) {
+      const targetId = connection.credentials?.targetStrategyId || 'MAIN_DIARY'
+      const result = await syncBrokerConnectionTrades(connection, targetId, tradeStore)
+      totalImported += result.importedCount
+      totalDuplicates += result.duplicateCount
+      sources.push(result.sourceLabel)
+    }
+    
+    initData()
+    apiSyncStatusMessage.value = totalImported > 0
+      ? `${sources.join(', ')}: +${totalImported}_TRADES`
+      : `${sources.join(', ')}: 0_NEW / ${totalDuplicates}_DUP`
+  } catch (error: any) {
+    apiSyncStatusMessage.value = error?.message || 'API_SYNC_FAILED'
+  } finally {
+    isApiSyncing.value = false
+  }
+}
 
 // --- THEME COLORS --- //
 const colors = ref({
@@ -3069,8 +3153,8 @@ const initData = () => {
       ? `${date.toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })} ${date.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', hour12: false })}`
       : 'DATE_UNKNOWN'
     
-    equityPoints3D.value.push({
-      x, y, z,
+    equityPoints3D.value.push({ 
+      x, y, z, 
       value: runningBalance,
       dateLabel,
       isProjection: !!trade.isProjection,
@@ -3264,6 +3348,13 @@ watch([() => props.trades, () => tradeStore.tradesByStrategy[selectedStrategyId.
   initData()
   await fetchRealtimeMetrics([strategyId])
   if (strategyId !== selectedStrategyId.value) return
+  initData()
+}, { deep: true })
+
+watch([
+  () => matrixState.selectedStrategyVersionId.value,
+  () => matrixState.strategyVersions.value
+], () => {
   initData()
 }, { deep: true })
 
@@ -4130,14 +4221,14 @@ const handleMouseDown = (e: MouseEvent) => {
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top
   currentMouseCanvasPos.value = { x, y }
+  curvePointerStart.value = { x: e.clientX, y: e.clientY }
+  hasDraggedCurve.value = false
 
   if (showMetricsPanel.value && metricsPanel.handleMetricMouseDown(e, () => { isPanning.value = false })) {
     return
   }
 
   isPanning.value = true; lastMousePos.value = { x: e.clientX, y: e.clientY }
-  curvePointerStart.value = { x: e.clientX, y: e.clientY }
-  hasDraggedCurve.value = false
 }
 
 const handleMouseMove = (e: MouseEvent) => {
@@ -4148,10 +4239,10 @@ const handleMouseMove = (e: MouseEvent) => {
   currentMouseCanvasPos.value = { x, y }
   
   if (isPanning.value) {
-    const dx = e.clientX - lastMousePos.value.x; const dy = e.clientY - lastMousePos.value.y
     if (Math.hypot(e.clientX - curvePointerStart.value.x, e.clientY - curvePointerStart.value.y) > 5) {
       hasDraggedCurve.value = true
     }
+    const dx = e.clientX - lastMousePos.value.x; const dy = e.clientY - lastMousePos.value.y
     if (e.shiftKey || showMetricsPanel.value) {
       viewOffset.value.x += dx; viewOffset.value.y += dy
     } else {
@@ -4378,20 +4469,19 @@ const handleMouseMove = (e: MouseEvent) => {
   }
 }
 
-const handleMouseUp = () => { 
+const handleMouseUp = () => {
   const clickedCurveIndex = !hasDraggedCurve.value ? hoveredCurveIndex.value : null
   if (metricsPanel.handleMetricMouseUp()) {
     isPanning.value = false
     hasDraggedCurve.value = false
     return
   }
-  isPanning.value = false 
+  isPanning.value = false
   openCurveTradeDetails(clickedCurveIndex)
   hasDraggedCurve.value = false
 }
 
 const handleMouseLeave = () => {
-  hasDraggedCurve.value = true
   handleMouseUp()
   hoveredDistributionTooltip.value = null
   hoveredCurveIndex.value = null
@@ -4433,6 +4523,7 @@ onMounted(() => {
   }, 50)
 
   const revealInitialFrame = () => {
+    if (!isInitializing.value) return
     initData()
     updateColors()
     update()
@@ -4442,12 +4533,15 @@ onMounted(() => {
     clearInterval(bootInterval)
   }
 
-  requestAnimationFrame(revealInitialFrame)
-
   const hydrateData = async () => {
-    await loadBenchmarkMetricsCache()
-    await tradeStore.init()
+    // The selected strategy version lives in genesis_matrix_v2.json. Hydrate
+    // the shared matrix state before revealing EquityCurve so the first
+    // visible frame already uses pages[].selectedStrategyVersionId.
     await loadMatrixData()
+    await tradeStore.init()
+    requestAnimationFrame(revealInitialFrame)
+
+    await loadBenchmarkMetricsCache()
 
     await metricsPanel.loadMetricsLayout()
 
@@ -4457,6 +4551,7 @@ onMounted(() => {
 
   void hydrateData().catch(err => {
     console.error('[ExEquityCurve3D] Failed to hydrate deferred data:', err)
+    requestAnimationFrame(revealInitialFrame)
   })
 })
 

@@ -1,4 +1,4 @@
-import { ref, computed, readonly } from 'vue'
+import { computed, readonly, ref } from 'vue'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import { useAppBootStore } from '~/features/store/useAppBoot'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
@@ -265,8 +265,8 @@ export function useGenesisMatrixData() {
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
-  // The demo deliberately does not expose strategies or versions, but every
-  // Genesis screen must still observe the same matrix JSON-backed state.
+  // `useMatrixState` is the only live matrix state.  This composable is a
+  // read-only projection for the rest of Genesis, not a second cache.
   const matrixData = computed<GenesisMatrixDataPayload>(() => {
     const pages = matrixState.matrixPages.value
     return {
@@ -282,8 +282,8 @@ export function useGenesisMatrixData() {
     isLoading.value = true
     error.value = null
     try {
-      // There is no per-component cache to invalidate: the matrix singleton
-      // always reflects the current JSON-backed state.
+      // `force` intentionally has no separate cache to invalidate: the
+      // matrix singleton always reflects the current JSON-backed state.
       void force
       await matrixState.ensureMatrixDataRestored()
     } catch (err: any) {

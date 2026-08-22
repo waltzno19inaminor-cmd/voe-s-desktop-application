@@ -15,18 +15,18 @@
             
             <!-- TOPBAR BROKER SELECTOR -->
             <div class="flex items-center justify-between border-b border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] px-8 py-4 shrink-0">
-              <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pr-4">
+              <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pr-4 pb-2">
                 <button v-for="broker in brokers"
                         :key="broker.id"
                         class="group flex items-center gap-3 px-5 py-2.5 border transition-colors shrink-0 relative"
                         :class="selectedBrokerId === broker.id
                           ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                          : 'border-black/10 bg-white/40 text-black/55 hover:border-black/30 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/45 dark:hover:border-white/30 dark:hover:text-white'"
+                          : 'border-black/10 bg-white/40 text-black/55 hover:border-black/10 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/45 dark:hover:border-white/10 dark:hover:text-white'"
                         @click="selectedBrokerId = broker.id">
-                  <div class="absolute -top-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'group-hover:opacity-50'"></div>
-                  <div class="absolute -bottom-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'group-hover:opacity-50'"></div>
-                  <div class="absolute -top-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'group-hover:opacity-50'"></div>
-                  <div class="absolute -bottom-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'group-hover:opacity-50'"></div>
+                  <div class="absolute -top-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
+                  <div class="absolute -bottom-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
+                  <div class="absolute -top-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
+                  <div class="absolute -bottom-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
                   
                   <img :src="`/brokers/${broker.logoId || broker.id}.svg`" class="w-5 h-5 object-contain transition-all"
                        :class="selectedBrokerId === broker.id ? 'grayscale-0 opacity-100' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'" :alt="broker.label" />
@@ -51,106 +51,359 @@
                   </div>
                 </div>
 
-                <div class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
-                  <p class="font-mono text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-60">
-                    {{ selectedBroker.description }}
-                  </p>
-                  <div v-if="selectedBroker.id === 'kraken'"
-                       class="mt-4 border border-red-500/20 bg-red-500/5 p-5 text-red-600 dark:text-red-400">
-                    <p class="font-mono text-[10px] font-black uppercase tracking-[0.14em] leading-relaxed">
-                      {{ isRu ? 'ВНИМАНИЕ: ПОДДЕРЖИВАЕТСЯ ТОЛЬКО KRAKEN FUTURES. СПОТ КЛЮЧИ НЕ ПОДДЕРЖИВАЮТСЯ.' : 'WARNING: ONLY KRAKEN FUTURES IS SUPPORTED. SPOT KEYS ARE NOT SUPPORTED.' }}
-                    </p>
-                  </div>
-                </div>
+                <!-- METATRADER 5 SETUP VIEW -->
+                <template v-if="selectedBroker.id === 'metatrader5'">
+                  <!-- MT5 GUIDE VIDEO: AUTOPLAY ONLY, WITHOUT CONTROLS -->
+                  <video
+                    ref="mt5VideoRef"
+                    class="mb-8 block h-[420px] min-h-[320px] w-full select-none object-contain pointer-events-none"
+                    src="/previews/metatrader-guilde.mp4"
+                    width="640"
+                    height="360"
+                    autoplay
+                    muted
+                    loop
+                    playsinline
+                    preload="auto"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    @contextmenu.prevent
+                  >
+                    <source src="/previews/metatrader-guilde.mp4" type="video/mp4" />
+                  </video>
 
-                <div class="grid grid-cols-1 gap-6 mb-8">
-                  <label v-for="field in selectedBroker.fields"
-                         :key="field.key"
-                         class="flex flex-col gap-3">
-                    <span class="font-mono text-[9px] font-black uppercase tracking-[0.22em] opacity-50">{{ field.label }}</span>
-                    <input v-model="formState[field.key]"
-                           :type="field.secret ? 'password' : 'text'"
-                           :placeholder="field.placeholder"
-                           class="h-14 border border-black/10 bg-white px-4 font-mono text-[12px] font-bold tracking-[0.1em] text-black outline-none transition-colors placeholder:text-black/20 focus:border-black/50 focus:bg-black/[0.02] dark:border-white/10 dark:bg-[#050505] dark:text-white dark:placeholder:text-white/20 dark:focus:border-white/50 dark:focus:bg-white/[0.02]" />
-                  </label>
-                </div>
+                  <!-- 1. AUTO-CONNECT ADVISOR SECTION WITH OS SELECTOR -->
+                  <div class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                      <div>
+                        <p class="font-mono text-[10px] font-black uppercase tracking-[0.24em] opacity-50">
+                          {{ isRu ? 'Автоматическое Подключение Советника' : 'Auto-Connect MT5 Advisor' }}
+                        </p>
+                        <p class="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] opacity-60">
+                          {{ isRu ? 'Выберите операционную систему и нажмите кнопку установки' : 'Select OS and click auto-connect' }}
+                        </p>
+                      </div>
 
-                <div v-if="showStrategyBinding"
-                     class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
-                  <div class="flex items-center justify-between gap-4 mb-5">
-                    <div>
-                      <p class="font-mono text-[10px] font-black uppercase tracking-[0.24em] opacity-50">{{ isRu ? 'Целевая Стратегия Импорта' : 'Import Target Strategy' }}</p>
-                      <p class="mt-2 font-mono text-[9px] font-bold uppercase tracking-[0.12em] opacity-60">
-                        {{ isRu ? 'Выберите, куда этот коннектор должен загружать историю торгов.' : 'Choose where this connector should load trading history.' }}
-                      </p>
+                      <!-- OS SELECTOR MENU -->
+                      <div class="flex items-center border border-black/20 dark:border-white/20 p-1 bg-white/50 dark:bg-black/50 font-mono text-[9px] font-black uppercase shrink-0">
+                        <button class="px-3 py-1.5 transition-colors cursor-pointer"
+                                :class="mt5OsSelection === 'mac'
+                                  ? 'bg-black text-white dark:bg-white dark:text-black font-black'
+                                  : 'opacity-50 hover:opacity-100'"
+                                @click="mt5OsSelection = 'mac'">
+                          macOS
+                        </button>
+                        <button class="px-3 py-1.5 transition-colors cursor-pointer"
+                                :class="mt5OsSelection === 'win'
+                                  ? 'bg-black text-white dark:bg-white dark:text-black font-black'
+                                  : 'opacity-50 hover:opacity-100'"
+                                @click="mt5OsSelection = 'win'">
+                          Windows
+                        </button>
+                      </div>
                     </div>
-                    <p class="font-mono text-[10px] font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 px-3 py-1 border nier-border-primary">
-                      {{ selectedImportStrategyName }}
+
+                    <!-- AUTO INSTALL ADVISOR BUTTON -->
+                    <button class="w-full border border-black/20 bg-white hover:bg-black/5 dark:border-white/20 dark:bg-[#080808] dark:hover:bg-white/5 px-4 py-3.5 font-mono text-[10px] font-black uppercase tracking-[0.18em] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                            :disabled="installState === 'loading'"
+                            @click="handleAutoInstallAdvisor">
+                      <span>{{ installState === 'loading'
+                        ? (isRu ? 'УСТАНОВКА СОВЕТНИКА...' : 'INSTALLING ADVISOR...')
+                        : (isRu ? 'ПОДКЛЮЧИТЬ СОВЕТНИК АВТОМАТИЧЕСКИ' : 'AUTO-CONNECT ADVISOR') }}</span>
+                    </button>
+
+                    <p class="mt-3 font-mono text-[9px] font-bold uppercase tracking-[0.12em] opacity-60 text-center">
+                      {{ isRu ? 'После успешного подключения следуйте инструкции из видео выше.' : 'After successful connection follow the instructions in the video above.' }}
                     </p>
+
+                    <!-- INSTALL STATUS MESSAGE & DOWNLOAD LINK -->
+                    <div v-if="installStatusMessage"
+                         class="mt-4 border px-4 py-3 font-mono text-[9px] font-bold uppercase leading-relaxed tracking-[0.12em] flex flex-col gap-2"
+                         :class="installStatusTone === 'success'
+                          ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'">
+                      <div>{{ installStatusMessage }}</div>
+
+                      <!-- DOWNLOAD TO DESKTOP BUTTON IF FAILED -->
+                      <button v-if="installStatusTone === 'error'"
+                              class="mt-1 w-full border border-rose-500/40 bg-rose-500/20 hover:bg-rose-500/30 px-3 py-2.5 text-[9px] font-mono font-black uppercase tracking-widest text-rose-700 dark:text-rose-300 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                              @click="handleDownloadAdvisorToDesktop">
+                        <span>{{ isRu ? 'СКАЧАТЬ СОВЕТНИК НА РАБОЧИЙ СТОЛ' : 'DOWNLOAD ADVISOR TO DESKTOP' }}</span>
+                      </button>
+                    </div>
                   </div>
 
-                  <div class="grid grid-cols-2 gap-3">
-                    <button v-for="strategy in tradeStore.strategies"
-                            :key="strategy.id"
-                            class="border px-4 py-4 text-left transition-colors"
-                            :class="importTargetStrategyId === strategy.id
-                              ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                              : 'border-black/10 bg-white/50 text-black/60 hover:border-black/40 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/60 dark:hover:border-white/40 dark:hover:text-white'"
-                            @click="setImportTargetStrategy(strategy.id)">
-                      <p class="font-mono text-[11px] font-black uppercase tracking-[0.14em]">{{ strategy.name }}</p>
+                  <!-- CLICKABLE TEXT: HOW TO INSTALL MANUALLY & DOWNLOAD BUTTON -->
+                  <div class="mb-4 flex items-center justify-between">
+                    <button @click="showManualGuide = !showManualGuide"
+                            class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white underline underline-offset-4 cursor-pointer transition-colors">
+                      {{ showManualGuide
+                        ? (isRu ? 'Скрыть инструкцию по ручной установке' : 'Hide manual setup guide')
+                        : (isRu ? 'Как установить вручную?' : 'How to install manually?') }}
+                    </button>
+                    <button @click="handleDownloadAdvisorToDesktop"
+                            class="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white underline underline-offset-4 cursor-pointer transition-colors">
+                      {{ isRu ? 'Скачать на рабочий стол' : 'Download to desktop' }}
                     </button>
                   </div>
-                </div>
 
-                <div class="border border-black/10 p-5 dark:border-white/10 mb-8 bg-white/40 dark:bg-black/40">
-                  <p class="font-mono text-[9px] font-black uppercase tracking-[0.28em] opacity-40 mb-5">{{ isRu ? 'Статус Подключения' : 'Connection Status' }}</p>
-                  <div class="grid grid-cols-3 gap-4">
-                    <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
-                      <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Сохранено Локально' : 'Saved Local' }}</p>
-                      <p class="mt-3 font-mono text-[14px] font-black uppercase"
-                         :class="savedCurrentConnection ? 'text-emerald-500' : 'opacity-30'">
-                        {{ savedCurrentConnection ? (isRu ? 'Да' : 'Yes') : (isRu ? 'Нет' : 'No') }}
+                  <!-- MANUAL INSTALLATION INSTRUCTION GUIDE -->
+                  <div v-if="showManualGuide"
+                       class="mb-8 border border-black/15 bg-black/[0.03] p-5 dark:border-white/15 dark:bg-white/[0.03] font-mono text-[10px] uppercase leading-relaxed tracking-[0.06em]">
+                    <h4 class="font-black text-[11px] tracking-[0.18em] mb-4 pb-2 border-b border-black/10 dark:border-white/10 text-emerald-600 dark:text-emerald-400">
+                      {{ isRu ? 'Инструкция по ручной установке советника' : 'Manual Advisor Setup Guide' }}
+                    </h4>
+
+                    <!-- MACOS GUIDE -->
+                    <div class="mb-5">
+                      <p class="font-black text-black dark:text-white mb-2 tracking-[0.14em]">
+                        [ macOS (Wine / CrossOver) ]
                       </p>
+                      <ol class="list-decimal list-inside space-y-1.5 opacity-80 pl-1">
+                        <li>{{ isRu ? 'Скачайте советник на Рабочий стол по кнопке выше.' : 'Download advisor to Desktop using the button above.' }}</li>
+                        <li>{{ isRu ? 'В MetaTrader 5 откройте: Файл → Открыть каталог данных.' : 'In MetaTrader 5 open: File → Open Data Folder.' }}</li>
+                        <li>{{ isRu ? 'Перейдите в папку MQL5 → Experts.' : 'Navigate to MQL5 → Experts folder.' }}</li>
+                        <li>{{ isRu ? 'Перетащите файл ExportTrades.ex5 в папку Experts.' : 'Copy ExportTrades.ex5 into the Experts folder.' }}</li>
+                        <li>{{ isRu ? 'В панели «Навигатор» нажмите ПКМ на «Советники» → Обновить.' : 'Right-click "Experts" in MT5 Navigator panel → Refresh.' }}</li>
+                        <li>{{ isRu ? 'Перетащите ExportTrades на график и включите «Алготрейдинг».' : 'Drag ExportTrades onto a chart and enable "Algo Trading".' }}</li>
+                      </ol>
                     </div>
-                    <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10 relative overflow-hidden">
-                      <div v-if="isSelectedBrokerActive" class="absolute inset-0 bg-emerald-500/5"></div>
-                      <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40 relative z-10">{{ isRu ? 'Статус' : 'Status' }}</p>
-                      <p class="mt-3 font-mono text-[14px] font-black uppercase relative z-10"
-                         :class="isSelectedBrokerActive ? 'text-emerald-500' : 'opacity-30'">
-                        {{ isSelectedBrokerActive ? (isRu ? 'Активен' : 'Active') : (isRu ? 'Оффлайн' : 'Offline') }}
+
+                    <!-- WINDOWS GUIDE -->
+                    <div>
+                      <p class="font-black text-black dark:text-white mb-2 tracking-[0.14em]">
+                        [ Windows ]
                       </p>
-                    </div>
-                    <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
-                      <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Режим' : 'Mode' }}</p>
-                      <p class="mt-3 font-mono text-[11px] font-black uppercase opacity-70">{{ connectionModeLabel }}</p>
+                      <ol class="list-decimal list-inside space-y-1.5 opacity-80 pl-1">
+                        <li>{{ isRu ? 'Скачайте советник на Рабочий стол по кнопке выше.' : 'Download advisor to Desktop using the button above.' }}</li>
+                        <li>{{ isRu ? 'В MetaTrader 5 откройте: Файл → Открыть каталог данных.' : 'In MetaTrader 5 open: File → Open Data Folder.' }}</li>
+                        <li>{{ isRu ? 'Перейдите в папку MQL5 → Experts.' : 'Navigate to MQL5 → Experts folder.' }}</li>
+                        <li>{{ isRu ? 'Вставьте файл ExportTrades.ex5 в эту папку.' : 'Paste ExportTrades.ex5 into this folder.' }}</li>
+                        <li>{{ isRu ? 'В панели Навигаторе нажмите ПКМ по «Советники» → Обновить.' : 'In Navigator right-click "Expert Advisors" → Refresh.' }}</li>
+                        <li>{{ isRu ? 'Перетащите ExportTrades на график и включите «Разрешить алготрейдинг».' : 'Drag ExportTrades onto chart and check "Allow Algo Trading".' }}</li>
+                      </ol>
                     </div>
                   </div>
-                </div>
 
-                <div v-if="statusMessage"
-                     class="mb-8 border px-5 py-4 font-mono text-[10px] font-bold uppercase leading-relaxed tracking-[0.14em]"
-                     :class="statusTone === 'success'
-                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : statusTone === 'error'
-                        ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                        : 'border-black/10 bg-black/[0.02] text-black/50 dark:border-white/10 dark:bg-white/[0.02] dark:text-white/50'">
-                  {{ statusMessage }}
-                </div>
+                  <!-- 2. CUSTOM DROPDOWN STRATEGY SELECTOR -->
+                  <div class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                      <div>
+                        <p class="font-mono text-[10px] font-black uppercase tracking-[0.24em] opacity-50">
+                          {{ isRu ? 'Целевая Стратегия Импорта' : 'Import Target Strategy' }}
+                        </p>
+                        <p class="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em] opacity-60">
+                          {{ isRu ? 'Выберите стратегию из выпадающего списка для импорта сделок' : 'Select a strategy from the dropdown' }}
+                        </p>
+                      </div>
+                    </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <button class="border border-black/10 bg-white dark:bg-[#050505] px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all hover:border-black hover:bg-black hover:text-white dark:border-white/10 dark:hover:border-white dark:hover:bg-white dark:hover:text-black shadow-sm"
-                          @click="saveCurrentConnection">
-                    {{ isRu ? 'Сохранить Ключи Локально' : 'Save Local Keys' }}
-                  </button>
-                  <button class="border px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all shadow-md"
-                          :class="primaryActionEnabled
-                            ? 'border-black bg-black text-white hover:bg-black/90 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90'
-                            : 'cursor-not-allowed border-black/10 text-black/25 dark:border-white/10 dark:text-white/25 shadow-none'"
-                          :disabled="!primaryActionEnabled || activationState === 'loading'"
-                          @click="handlePrimaryAction">
-                    {{ primaryActionLabel }}
-                  </button>
-                </div>
+                    <!-- CUSTOM DROPDOWN MENU -->
+                    <div class="relative w-full">
+                      <button @click="isStrategyDropdownOpen = !isStrategyDropdownOpen"
+                              class="w-full h-14 border border-black/20 bg-white px-5 flex items-center justify-between font-mono text-[11px] font-black uppercase tracking-[0.14em] text-black transition-all hover:border-black/50 dark:border-white/20 dark:bg-[#050505] dark:text-white dark:hover:border-white/50 cursor-pointer">
+                        <div class="flex items-center gap-3">
+                          <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4 text-emerald-500 dark:text-emerald-400 stroke-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                          <span>{{ selectedImportStrategyName }}</span>
+                        </div>
+                        <span class="font-mono text-[9px] opacity-60 transition-transform duration-200" :class="{ 'rotate-180': isStrategyDropdownOpen }">v</span>
+                      </button>
+
+                      <!-- DROPDOWN OPTIONS MENU -->
+                      <div v-if="isStrategyDropdownOpen"
+                           class="absolute left-0 right-0 top-full mt-2 z-[300] border border-black/20 bg-white shadow-2xl dark:border-white/20 dark:bg-[#0c0c0c] max-h-60 overflow-y-auto custom-scrollbar">
+                        <button v-for="strategy in tradeStore.strategies"
+                                :key="strategy.id"
+                                class="w-full px-5 py-3.5 text-left font-mono text-[11px] font-bold uppercase tracking-[0.14em] flex items-center gap-3 transition-colors border-b last:border-b-0 border-black/5 dark:border-white/5 text-black/80 hover:bg-black/5 dark:text-white/80 dark:hover:bg-white/5 cursor-pointer"
+                                @click="selectStrategyFromDropdown(strategy.id)">
+                          <div class="w-4 h-4 flex items-center justify-center shrink-0">
+                            <svg v-if="importTargetStrategyId === strategy.id"
+                                 class="w-4 h-4 text-emerald-500 dark:text-emerald-400 stroke-current"
+                                 viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor"
+                                 stroke-width="2.5"
+                                 stroke-linecap="round"
+                                 stroke-linejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                          </div>
+                          <span :class="{ 'font-black text-black dark:text-white': importTargetStrategyId === strategy.id }">{{ strategy.name }}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 3. CONNECTION STATUS BLOCK FOR MT5 -->
+                  <div class="border border-black/10 p-5 dark:border-white/10 mb-8 bg-white/40 dark:bg-black/40">
+                    <p class="font-mono text-[9px] font-black uppercase tracking-[0.28em] opacity-40 mb-5">{{ isRu ? 'Статус Подключения' : 'Connection Status' }}</p>
+                    <div class="grid grid-cols-3 gap-4">
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Сохранено Локально' : 'Saved Local' }}</p>
+                        <p class="mt-3 font-mono text-[14px] font-black uppercase"
+                           :class="savedCurrentConnection ? 'text-emerald-500' : 'opacity-30'">
+                          {{ savedCurrentConnection ? (isRu ? 'Да' : 'Yes') : (isRu ? 'Нет' : 'No') }}
+                        </p>
+                      </div>
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10 relative overflow-hidden">
+                        <div v-if="isSelectedBrokerActive" class="absolute inset-0 bg-emerald-500/5"></div>
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40 relative z-10">{{ isRu ? 'Статус' : 'Status' }}</p>
+                        <p class="mt-3 font-mono text-[14px] font-black uppercase relative z-10"
+                           :class="isSelectedBrokerActive ? 'text-emerald-500' : 'opacity-30'">
+                          {{ isSelectedBrokerActive ? (isRu ? 'Активен' : 'Active') : (isRu ? 'Оффлайн' : 'Offline') }}
+                        </p>
+                      </div>
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Режим' : 'Mode' }}</p>
+                        <p class="mt-3 font-mono text-[11px] font-black uppercase opacity-70">{{ connectionModeLabel }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 4. STATUS MESSAGE BANNER IF ANY -->
+                  <div v-if="statusMessage"
+                       class="mb-8 border px-5 py-4 font-mono text-[10px] font-bold uppercase leading-relaxed tracking-[0.14em]"
+                       :class="statusTone === 'success'
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : statusTone === 'error'
+                          ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          : 'border-black/10 bg-black/[0.02] text-black/50 dark:border-white/10 dark:bg-white/[0.02] dark:text-white/50'">
+                    {{ statusMessage }}
+                  </div>
+
+                  <!-- 5. SYNC AND ACTIVATE/DEACTIVATE BUTTONS GRID -->
+                  <div class="grid grid-cols-2 gap-4">
+                    <button class="border px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all shadow-md"
+                            :class="isSelectedBrokerActive
+                              ? 'border-black bg-black text-white hover:bg-black/90 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90 cursor-pointer'
+                              : 'cursor-not-allowed border-black/10 bg-black/5 text-black/30 dark:border-white/10 dark:bg-white/5 dark:text-white/30 shadow-none'"
+                            :disabled="!isSelectedBrokerActive || activationState === 'loading'"
+                            @click="handleMetaTrader5Import">
+                      {{ activationState === 'loading'
+                        ? (isRu ? 'СИНХРОНИЗИРОВАТЬ...' : 'SYNCING...')
+                        : (isRu ? 'СИНХРОНИЗИРОВАТЬ' : 'SYNC TRADES') }}
+                    </button>
+                    <button class="border px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all shadow-md cursor-pointer"
+                            :class="primaryActionEnabled
+                              ? 'border-black bg-black text-white hover:bg-black/90 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90'
+                              : 'cursor-not-allowed border-black/10 text-black/25 dark:border-white/10 dark:text-white/25 shadow-none'"
+                            :disabled="!primaryActionEnabled || activationState === 'loading'"
+                            @click="handlePrimaryAction">
+                      {{ primaryActionLabel }}
+                    </button>
+                  </div>
+                </template>
+
+                <!-- OTHER BROKERS SETUP VIEW (BINANCE, BYBIT, KRAKEN, IBKR) -->
+                <template v-else>
+                  <div class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <p class="font-mono text-[10px] font-bold uppercase leading-relaxed tracking-[0.12em] opacity-60">
+                      {{ selectedBroker.description }}
+                    </p>
+                    <div v-if="selectedBroker.id === 'kraken'"
+                         class="mt-4 border border-red-500/20 bg-red-500/5 p-5 text-red-600 dark:text-red-400">
+                      <p class="font-mono text-[10px] font-black uppercase tracking-[0.14em] leading-relaxed">
+                        {{ isRu ? 'ВНИМАНИЕ: ПОДДЕРЖИВАЕТСЯ ТОЛЬКО KRAKEN FUTURES. СПОТ КЛЮЧИ НЕ ПОДДЕРЖИВАЮТСЯ.' : 'WARNING: ONLY KRAKEN FUTURES IS SUPPORTED. SPOT KEYS ARE NOT SUPPORTED.' }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 gap-6 mb-8">
+                    <template v-for="field in selectedBroker.fields" :key="field.key">
+                      <label class="flex flex-col gap-3">
+                        <span class="font-mono text-[9px] font-black uppercase tracking-[0.22em] opacity-50">
+                          {{ field.label }}
+                          <span v-if="field.required === false" class="ml-2 opacity-50">[OPTIONAL]</span>
+                        </span>
+                        <input v-model="formState[field.key]"
+                               :type="field.secret ? 'password' : 'text'"
+                               :placeholder="field.placeholder"
+                               class="h-14 border border-black/10 bg-white px-4 font-mono text-[12px] font-bold tracking-[0.1em] text-black outline-none transition-colors placeholder:text-black/20 focus:border-black/50 focus:bg-black/[0.02] dark:border-white/10 dark:bg-[#050505] dark:text-white dark:placeholder:text-white/20 dark:focus:border-white/50 dark:focus:bg-white/[0.02]" />
+                      </label>
+                    </template>
+                  </div>
+
+                  <div v-if="showStrategyBinding"
+                       class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
+                    <div class="flex items-center justify-between gap-4 mb-5">
+                      <div>
+                        <p class="font-mono text-[10px] font-black uppercase tracking-[0.24em] opacity-50">{{ isRu ? 'Целевая Стратегия Импорта' : 'Import Target Strategy' }}</p>
+                        <p class="mt-2 font-mono text-[9px] font-bold uppercase tracking-[0.12em] opacity-60">
+                          {{ isRu ? 'Выберите, куда этот коннектор должен загружать историю торгов.' : 'Choose where this connector should load trading history.' }}
+                        </p>
+                      </div>
+                      <p class="font-mono text-[10px] font-black uppercase tracking-widest bg-black/5 dark:bg-white/5 px-3 py-1 border nier-border-primary">
+                        {{ selectedImportStrategyName }}
+                      </p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                      <button v-for="strategy in tradeStore.strategies"
+                              :key="strategy.id"
+                              class="border px-4 py-4 text-left transition-colors"
+                              :class="importTargetStrategyId === strategy.id
+                                ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
+                                : 'border-black/10 bg-white/50 text-black/60 hover:border-black/40 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/60 dark:hover:border-white/40 dark:hover:text-white'"
+                              @click="setImportTargetStrategy(strategy.id)">
+                        <p class="font-mono text-[11px] font-black uppercase tracking-[0.14em]">{{ strategy.name }}</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="border border-black/10 p-5 dark:border-white/10 mb-8 bg-white/40 dark:bg-black/40">
+                    <p class="font-mono text-[9px] font-black uppercase tracking-[0.28em] opacity-40 mb-5">{{ isRu ? 'Статус Подключения' : 'Connection Status' }}</p>
+                    <div class="grid grid-cols-3 gap-4">
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Сохранено Локально' : 'Saved Local' }}</p>
+                        <p class="mt-3 font-mono text-[14px] font-black uppercase"
+                           :class="savedCurrentConnection ? 'text-emerald-500' : 'opacity-30'">
+                          {{ savedCurrentConnection ? (isRu ? 'Да' : 'Yes') : (isRu ? 'Нет' : 'No') }}
+                        </p>
+                      </div>
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10 relative overflow-hidden">
+                        <div v-if="isSelectedBrokerActive" class="absolute inset-0 bg-emerald-500/5"></div>
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40 relative z-10">{{ isRu ? 'Статус' : 'Status' }}</p>
+                        <p class="mt-3 font-mono text-[14px] font-black uppercase relative z-10"
+                           :class="isSelectedBrokerActive ? 'text-emerald-500' : 'opacity-30'">
+                          {{ isSelectedBrokerActive ? (isRu ? 'Активен' : 'Active') : (isRu ? 'Оффлайн' : 'Offline') }}
+                        </p>
+                      </div>
+                      <div class="border border-black/10 bg-white dark:bg-[#050505] p-4 dark:border-white/10">
+                        <p class="font-mono text-[8px] font-black uppercase tracking-[0.2em] opacity-40">{{ isRu ? 'Режим' : 'Mode' }}</p>
+                        <p class="mt-3 font-mono text-[11px] font-black uppercase opacity-70">{{ connectionModeLabel }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div v-if="statusMessage"
+                       class="mb-8 border px-5 py-4 font-mono text-[10px] font-bold uppercase leading-relaxed tracking-[0.14em]"
+                       :class="statusTone === 'success'
+                        ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : statusTone === 'error'
+                          ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                          : 'border-black/10 bg-black/[0.02] text-black/50 dark:border-white/10 dark:bg-white/[0.02] dark:text-white/50'">
+                    {{ statusMessage }}
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-4">
+                    <button class="border border-black/10 bg-white dark:bg-[#050505] px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all hover:border-black hover:bg-black hover:text-white dark:border-white/10 dark:hover:border-white dark:hover:bg-white dark:hover:text-black shadow-sm"
+                            @click="saveCurrentConnection">
+                      {{ isRu ? 'Сохранить Ключи Локально' : 'Save Local Keys' }}
+                    </button>
+                    <button class="border px-4 py-4 font-mono text-[10px] font-black uppercase tracking-[0.22em] transition-all shadow-md"
+                            :class="primaryActionEnabled
+                              ? 'border-black bg-black text-white hover:bg-black/90 dark:border-white dark:bg-white dark:text-black dark:hover:bg-white/90'
+                              : 'cursor-not-allowed border-black/10 text-black/25 dark:border-white/10 dark:text-white/25 shadow-none'"
+                            :disabled="!primaryActionEnabled || activationState === 'loading'"
+                            @click="handlePrimaryAction">
+                      {{ primaryActionLabel }}
+                    </button>
+                  </div>
+                </template>
 
                 <div class="h-10 shrink-0"></div>
               </div>
@@ -191,16 +444,20 @@ import {
 } from '~/utils/kraken'
 import { resolveImportedAsset } from '~/utils/assetResolver'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
+import { syncBrokerConnectionTrades, type StoredBrokerConnection } from '~/utils/brokerTradeSync'
+import { testMt5Connection, mt5Request } from '~/utils/metatrader5'
 
-type BrokerId = 'binance' | 'bybit' | 'kraken' | 'interactive-brokers'
+type BrokerId = 'metatrader5' | 'binance' | 'bybit' | 'kraken' | 'interactive-brokers'
 type KrakenMarketMode = 'spot' | 'futures'
 type BrokerEnvironment = 'real' | 'demo'
+type Mt5ConnectionMode = 'local'
 
 interface BrokerField {
   key: string
   label: string
   placeholder: string
   secret?: boolean
+  required?: boolean
 }
 
 interface BrokerDefinition {
@@ -236,6 +493,22 @@ const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
 
 const brokers = computed<BrokerDefinition[]>(() => [
+  {
+    id: 'metatrader5',
+    label: 'MetaTrader 5',
+    assetClass: isRu.value ? 'Forex / CFD / Фьючерсы' : 'Forex / CFD / Futures',
+    description: isRu.value
+      ? 'Прямое подключение к терминалу MetaTrader 5 на Windows через Python. История сделок импортируется из торгового счёта.'
+      : 'Direct connection to MetaTrader 5 terminal on Windows through Python and import account trade history.',
+    mode: isRu.value ? 'Windows / Локальный' : 'Windows / Local',
+    canActivate: true,
+    fields: [
+      { key: 'path', label: isRu.value ? 'Путь к terminal64.exe' : 'Path to terminal64.exe', placeholder: 'C:\\Program Files\\MetaTrader 5\\terminal64.exe', required: false },
+      { key: 'login', label: isRu.value ? 'Номер счёта' : 'Account Login', placeholder: '12345678', required: false },
+      { key: 'password', label: isRu.value ? 'Пароль счёта' : 'Account Password', placeholder: 'MetaTrader account password', secret: true, required: false },
+      { key: 'server', label: isRu.value ? 'Торговый сервер' : 'Trading Server', placeholder: 'Broker-Server', required: false }
+    ]
+  },
   {
     id: 'binance',
     label: 'Binance',
@@ -286,7 +559,7 @@ const brokers = computed<BrokerDefinition[]>(() => [
   },
 ])
 
-const selectedBrokerId = ref<BrokerId>('binance')
+const selectedBrokerId = ref<BrokerId>('metatrader5')
 const connectionMap = ref<Record<string, SavedConnection>>({})
 const formState = reactive<Record<string, string>>({})
 const activationState = ref<'idle' | 'loading'>('idle')
@@ -295,6 +568,68 @@ const statusTone = ref<'neutral' | 'success' | 'error'>('neutral')
 const importTargetStrategyId = ref('MAIN_DIARY')
 const krakenMarketMode = ref<KrakenMarketMode>('futures')
 const brokerEnvironment = ref<BrokerEnvironment>('real')
+
+const mt5ConnectionMode = ref<Mt5ConnectionMode>('local')
+const isStrategyDropdownOpen = ref(false)
+const showManualGuide = ref(false)
+const mt5OsSelection = ref<'mac' | 'win'>('mac')
+const installState = ref<'idle' | 'loading'>('idle')
+const installStatusMessage = ref('')
+const installStatusTone = ref<'success' | 'error'>('success')
+const mt5VideoRef = ref<HTMLVideoElement | null>(null)
+
+onMounted(() => {
+  if (mt5VideoRef.value) {
+    mt5VideoRef.value.muted = true
+    mt5VideoRef.value.play().catch(() => {})
+  }
+})
+
+const selectStrategyFromDropdown = async (strategyId: string) => {
+  await setImportTargetStrategy(strategyId)
+  isStrategyDropdownOpen.value = false
+}
+
+const handleAutoInstallAdvisor = async () => {
+  installState.value = 'loading'
+  installStatusMessage.value = ''
+
+  try {
+    const response = await mt5Request<{ installed?: boolean; message?: string }>({
+      action: 'install_advisor' as any,
+      connection: { mode: 'local' },
+      params: { targetOs: mt5OsSelection.value }
+    })
+    installStatusTone.value = 'success'
+    installStatusMessage.value = response?.message || (isRu.value
+      ? 'Советник ExportTrades успешно установлен в MT5! Откройте MT5 и перетащите его из папки «Советники» на график.'
+      : 'ExportTrades advisor installed in MT5.')
+  } catch (err: any) {
+    installStatusTone.value = 'error'
+    installStatusMessage.value = err?.message || (isRu.value
+      ? 'Не удалось автоматически найти папку MT5 на этом ПК. Скачайте советник ниже.'
+      : 'Auto-installation failed. Download to Desktop below.')
+  } finally {
+    installState.value = 'idle'
+  }
+}
+
+const handleDownloadAdvisorToDesktop = async () => {
+  try {
+    const response = await mt5Request<{ downloaded?: boolean; message?: string }>({
+      action: 'download_desktop' as any,
+      connection: { mode: 'local' },
+      params: {}
+    })
+    installStatusTone.value = 'success'
+    installStatusMessage.value = response?.message || (isRu.value
+      ? 'Файлы советника ExportTrades скопированы на ваш Рабочий Стол (Desktop).'
+      : 'ExportTrades advisor files saved to Desktop.')
+  } catch (err: any) {
+    installStatusTone.value = 'error'
+    installStatusMessage.value = err?.message || (isRu.value ? 'Не удалось сохранить файлы на Рабочий Стол.' : 'Failed to save files to Desktop.')
+  }
+}
 
 const getStorageKeyForBrokerSelection = (brokerId: BrokerId) => {
   if (brokerId === 'kraken') {
@@ -364,6 +699,9 @@ const isKrakenSpotDemoSelected = computed(() => {
 })
 
 const connectionModeLabel = computed(() => {
+  if (selectedBroker.value.id === 'metatrader5') {
+    return isRu.value ? 'Авто-Экспорт (macOS/Win)' : 'Auto Export (macOS/Win)'
+  }
   if (!selectedBrokerSupportsEnvironment.value) return selectedBroker.value.mode
 
   const environmentLabel = brokerEnvironment.value === 'demo' ? 'Demo' : 'Real'
@@ -397,13 +735,25 @@ const isSelectedBrokerActive = computed(() => {
 })
 
 const showStrategyBinding = computed(() => {
-  return isSelectedBrokerActive.value
+  if (selectedBroker.value.id === 'interactive-brokers') return false
+  return selectedBroker.value.id === 'metatrader5' || isSelectedBrokerActive.value
 })
 
 const canActivateSelected = computed(() => {
-  return selectedBroker.value.canActivate
-    && !isKrakenSpotDemoSelected.value
-    && selectedBroker.value.fields.every(field => String(formState[field.key] || '').trim())
+  if (!selectedBroker.value.canActivate || isKrakenSpotDemoSelected.value) return false
+
+  if (selectedBroker.value.id === 'metatrader5') {
+    if (mt5ConnectionMode.value !== 'local') {
+      return Boolean(String(formState.bridgeHost || '').trim() && String(formState.bridgePort || '').trim())
+    }
+    const accountFields = ['login', 'password', 'server']
+    const hasAccountInput = accountFields.some(key => String(formState[key] || '').trim())
+    return !hasAccountInput || accountFields.every(key => String(formState[key] || '').trim())
+  }
+
+  return selectedBroker.value.fields
+    .filter(field => field.required !== false)
+    .every(field => String(formState[field.key] || '').trim())
 })
 
 const primaryActionEnabled = computed(() => {
@@ -413,10 +763,12 @@ const primaryActionEnabled = computed(() => {
 
 const primaryActionLabel = computed(() => {
   if (activationState.value === 'loading') {
-    return isSelectedBrokerActive.value ? 'Deactivating...' : 'Activating...'
+    return isSelectedBrokerActive.value
+      ? (isRu.value ? 'Деактивация...' : 'Deactivating...')
+      : (isRu.value ? 'Активация...' : 'Activating...')
   }
-  if (isSelectedBrokerActive.value) return 'Deactivate'
-  return 'Activate'
+  if (isSelectedBrokerActive.value) return isRu.value ? 'Деактивировать' : 'Deactivate'
+  return isRu.value ? 'Активировать' : 'Activate'
 })
 
 const getFormCredentials = () => {
@@ -428,6 +780,11 @@ const getSavedCredentialsForCurrentSelection = () => {
     ...getFormCredentials(),
     environment: brokerEnvironment.value,
     ...(selectedBroker.value.id === 'kraken' ? { market: krakenMarketMode.value } : {}),
+    ...(selectedBroker.value.id === 'metatrader5'
+      ? {
+          mode: 'local'
+        }
+      : {}),
     targetStrategyId: importTargetStrategyId.value
   } as Record<string, string>
 
@@ -479,6 +836,10 @@ const applySavedCredentialsToForm = () => {
   selectedBroker.value.fields.forEach((field) => {
     formState[field.key] = shouldUseSaved ? saved?.credentials?.[field.key] || '' : ''
   })
+
+  if (selectedBroker.value.id === 'metatrader5') {
+    mt5ConnectionMode.value = 'local'
+  }
 
   importTargetStrategyId.value = shouldUseSaved
     ? saved?.credentials?.targetStrategyId || props.strategyId || tradeStore.selectedStrategyId || 'MAIN_DIARY'
@@ -596,6 +957,40 @@ const handleManualSync = async () => {
   }
 }
 
+const handleMetaTrader5Import = async () => {
+  const saved = connectionMap.value.metatrader5
+  if (!saved || !saved.active) {
+    statusTone.value = 'error'
+    statusMessage.value = isRu.value
+      ? 'Подключение MetaTrader 5 не активировано. Нажмите «АКТИВИРОВАТЬ» перед синхронизацией.'
+      : 'MetaTrader 5 connection is not active. Click "ACTIVATE" before syncing.'
+    return
+  }
+
+  activationState.value = 'loading'
+  statusTone.value = 'neutral'
+  statusMessage.value = isRu.value ? 'Загрузка истории сделок из MetaTrader 5...' : 'Loading trade history from MetaTrader 5...'
+
+  try {
+    console.log('[MT5 Import] Requesting trade sync for strategy:', importTargetStrategyId.value)
+    const result = await syncBrokerConnectionTrades(
+      saved as StoredBrokerConnection,
+      importTargetStrategyId.value,
+      tradeStore
+    )
+    console.log('[MT5 Import] Sync completed with result:', result)
+    statusTone.value = result.importedCount > 0 ? 'success' : 'neutral'
+    statusMessage.value = isRu.value
+      ? `${result.sourceLabel}: добавлено ${result.importedCount}, дубликатов пропущено ${result.duplicateCount}. Проверено сделок: ${result.checkedCount}.`
+      : `${result.sourceLabel}: ${result.importedCount} imported, ${result.duplicateCount} duplicates skipped. Deals checked: ${result.checkedCount}.`
+  } catch (error: any) {
+    statusTone.value = 'error'
+    statusMessage.value = error?.message || (isRu.value ? 'Не удалось загрузить сделки MT5.' : 'MetaTrader 5 trade import failed.')
+  } finally {
+    activationState.value = 'idle'
+  }
+}
+
 const setImportTargetStrategy = async (strategyId: string) => {
   importTargetStrategyId.value = strategyId
 
@@ -611,8 +1006,12 @@ const setImportTargetStrategy = async (strategyId: string) => {
     updatedAt: new Date().toISOString()
   }
   await persistConnections()
-  statusTone.value = 'success'
-  statusMessage.value = `${selectedBroker.value.label} import target set to ${selectedImportStrategyName.value}.`
+}
+
+const setMt5ConnectionMode = (mode: Mt5ConnectionMode) => {
+  mt5ConnectionMode.value = mode
+  statusMessage.value = ''
+  statusTone.value = 'neutral'
 }
 
 const setKrakenMarketMode = (mode: KrakenMarketMode) => {
@@ -637,7 +1036,17 @@ const activateCurrentConnection = async () => {
   statusMessage.value = 'Activating connector...'
 
   try {
-    if (selectedBroker.value.id === 'binance') {
+    if (selectedBroker.value.id === 'metatrader5') {
+      const login = Number(formState.login)
+      await testMt5Connection({
+        mode: 'local',
+        path: formState.path || undefined,
+        login: Number.isFinite(login) ? login : undefined,
+        password: formState.password || undefined,
+        server: formState.server || undefined,
+        timeout: 60_000
+      })
+    } else if (selectedBroker.value.id === 'binance') {
       const credentials: BinanceCredentials = withBinanceEnvironment({
         apiKey: formState.apiKey || '',
         apiSecret: formState.apiSecret || ''

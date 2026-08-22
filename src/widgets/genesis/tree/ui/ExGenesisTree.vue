@@ -484,7 +484,7 @@ const closeSelectedTreeNode = () => {
   selectedTreeNodeKey.value = null
 }
 
-const { updateKey } = useMatrixState()
+const { strategyVersions, selectedStrategyVersionId, selectStrategyVersion, updateKey } = useMatrixState()
 
 const findCurrentTreeNode = (treeKey: string) => {
   for (const strategy of strategyNodePositions.value) {
@@ -507,7 +507,7 @@ const findCurrentTreeNode = (treeKey: string) => {
 }
 
 const treeRenderKey = ref(0)
-watch(updateKey, async () => {
+watch([selectedStrategyVersionId, updateKey, strategyVersions], async () => {
   await nextTick()
   treeRenderKey.value++
 
@@ -519,7 +519,29 @@ watch(updateKey, async () => {
   } else {
     closeSelectedTreeNode()
   }
+}, { deep: true })
+
+const currentVersionIndex = computed(() => {
+  const index = strategyVersions.value.findIndex(v => v.id === selectedStrategyVersionId.value)
+  return index === -1 ? Math.max(0, strategyVersions.value.length - 1) : index
 })
+
+const hasPrevVersion = computed(() => currentVersionIndex.value > 0)
+const hasNextVersion = computed(() => currentVersionIndex.value < strategyVersions.value.length - 1)
+
+const currentVersionLabel = computed(() => {
+  const v = strategyVersions.value[currentVersionIndex.value]
+  return v ? v.label : 'UNKNOWN'
+})
+
+const navigateVersion = (direction: 'prev' | 'next') => {
+  let nextIndex = direction === 'prev' ? currentVersionIndex.value - 1 : currentVersionIndex.value + 1
+  if (nextIndex < 0) nextIndex = 0
+  if (nextIndex >= strategyVersions.value.length) nextIndex = strategyVersions.value.length - 1
+
+  const v = strategyVersions.value[nextIndex]
+  if (v) selectStrategyVersion(v.id)
+}
 
 defineExpose({
   resetView,

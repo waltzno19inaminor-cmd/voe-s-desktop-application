@@ -43,10 +43,24 @@ export const useAppBootStore = defineStore('appBoot', () => {
       
       // Step 3: Disk - Genesis Matrix
       currentLog.value = 'Synchronizing Genesis Matrix...'
-      // The shared matrix state owns the single loaded copy. The demo only
-      // hides strategy/version controls; it does not use a separate dataset.
+      // Hydrate the shared Matrix singleton before any Genesis screen mounts.
+      // It is the only owner of the live genesis_matrix_v2.json state.
       const { useMatrixState } = await import('~/widgets/genesis/model/matrix/useMatrixState')
-      await useMatrixState().ensureMatrixDataRestored()
+      const matrixState = useMatrixState()
+      await matrixState.ensureMatrixDataRestored()
+
+      const flattenNodes = (nodes: any[] = []): any[] => nodes.flatMap(node => [
+        node,
+        ...flattenNodes(node.subGraph?.nodes || [])
+      ])
+      const matrixStrategies = matrixState.matrixPages.value
+        .flatMap(page => flattenNodes(page.nodes || []))
+        .filter(node => node.type === 'strategy' || node.type === 'system')
+        .map(node => ({
+          id: String(node.id),
+          name: String(node.params?.customName || node.label || node.id)
+        }))
+      await useStrategyTradesStore().syncStrategies(matrixStrategies)
       await delay(500)
       bootProgress.value = 95
       

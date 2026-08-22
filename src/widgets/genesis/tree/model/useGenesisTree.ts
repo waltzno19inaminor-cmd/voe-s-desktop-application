@@ -7,6 +7,11 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY, type GenesisEmotionItem } from '~/widgets/genesis/model/emotionLibrary'
 import { resolveRiskManagementForStrategy } from '~/widgets/genesis/model/riskManagement'
 import { useMatrixState } from '../../model/matrix/useMatrixState'
+import {
+  filterTradesBySelectedStrategyVersion,
+  getSelectedStrategyVersionIndex,
+  getTradeVersionTimestamp
+} from '~/shared/utils/strategyVersionScope'
 
 export interface GenesisTreeTradeSummary {
   id?: string
@@ -167,7 +172,7 @@ export const useGenesisTree = () => {
 
   const isMatrixLoading = ref(false)
 
-  const { nodes: activeNodes, connections: activeConnections, updateKey } = useMatrixState()
+  const { nodes: activeNodes, connections: activeConnections, strategyVersions, selectedStrategyVersionId } = useMatrixState()
 
   const selectedStrategyId = computed<string | null>({
     get: () => tradeStore.selectedStrategyId,
@@ -177,6 +182,27 @@ export const useGenesisTree = () => {
   })
 
   const isMainDiaryStrategy = computed(() => selectedStrategyId.value === 'MAIN_DIARY')
+
+  const selectedVersionSnapshot = computed(() => {
+    // Main Diary is the implicit current strategy and is never versioned.
+    // Do not apply matrix strategy versions to it, otherwise versions from
+    // another strategy can leak into the Genesis Tree.
+    if (isMainDiaryStrategy.value) {
+      return { nodes: activeNodes.value || [], connections: activeConnections.value || [] }
+    }
+
+    const versions = strategyVersions.value
+    if (!versions || versions.length === 0) {
+      // Fallback to activeNodes if there are no versions at all (e.g., brand new state)
+      return { nodes: activeNodes.value || [], connections: activeConnections.value || [] }
+    }
+
+    const selectedIndex = getSelectedStrategyVersionIndex(versions, selectedStrategyVersionId.value)
+
+    // Version Review is based on committed snapshots. Matrix Tree follows the
+    // same source and must not render a draft before Update Version is pressed.
+    return versions[selectedIndex]?.snapshot || { nodes: [], connections: [] }
+  })
 
   const matrixNodes = computed(() => {
     const allNodes: any[] = []
@@ -188,7 +214,7 @@ export const useGenesisTree = () => {
         }
       })
     }
-    flatten(activeNodes.value || [])
+    flatten(selectedVersionSnapshot.value.nodes || [])
     return allNodes
   })
 
@@ -202,12 +228,23 @@ export const useGenesisTree = () => {
         }
       })
     }
-    flatten(activeNodes.value || [], activeConnections.value || [])
+    flatten(selectedVersionSnapshot.value.nodes || [], selectedVersionSnapshot.value.connections || [])
     return allConns
   })
 
+  const getTradeTimestamp = (trade: any) => {
+    return getTradeVersionTimestamp(trade)
+  }
+
   const getTradesForStrategyInTime = (strategyId: string) => {
-    return tradeStore.getTradesForStrategy(strategyId)
+    const allTrades = tradeStore.getTradesForStrategy(strategyId)
+    if (strategyId === 'MAIN_DIARY') return allTrades
+
+    return filterTradesBySelectedStrategyVersion(
+      allTrades,
+      strategyVersions.value || [],
+      selectedStrategyVersionId.value
+    )
   }
 
   const allVisibleStrategyTrades = computed(() => {
@@ -522,7 +559,9 @@ export const useGenesisTree = () => {
   // --- OPTIMIZED ARCHITECTURE: SEPARATING LAYOUT FROM STATISTICS ---
 
   const treeStructure = computed(() => {
-    const _matrixTracker = updateKey.value
+    // Rebuild the complete selected snapshot. Version diffs belong to Version Review;
+    // the Matrix Tree must always represent every branch that exists in the version.
+    const _versionTracker = selectedStrategyVersionId.value
     
     const nodes = strategies.value.filter(s => s.id !== 'MAIN_DIARY')
     const horizontalGap = 92
@@ -652,7 +691,7 @@ export const useGenesisTree = () => {
     
     // Explicit dependencies for reactivity
     const _tradesTracker = tradeStore.strategies
-    const _matrixTracker = updateKey.value
+    const _versionTracker = selectedStrategyVersionId.value
     
     // Helper to calculate statistics quickly from a subset of trades
     const buildLabels = (subset: any[], totalTradesScope: any[]) => {

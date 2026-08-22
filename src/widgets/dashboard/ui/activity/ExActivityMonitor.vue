@@ -46,8 +46,7 @@
            :disabled="isSubmittingActivity || checkInUsedToday"
            :class="[
              '!bg-[#050505] !text-white !border-black',
-             checkInUsedToday && isDark ? '!bg-white !text-[#050505] !opacity-100' : '',
-             checkInUsedToday && !isDark ? '!bg-[#050505] !text-white !opacity-100' : ''
+             checkInUsedToday ? '!bg-white !text-black dark:!text-black [&_*]:!text-black [&_*]:dark:!text-black !border-black/30 !opacity-100' : ''
            ]"
         >
            {{ isSubmittingActivity ? t('activityMonitor.initializing') : (checkInUsedToday ? t('activityMonitor.sessionActive') : t('activityMonitor.initializeSession')) }}

@@ -28,6 +28,8 @@ export interface DiaryEntry {
     exit?: number;
     stopLoss?: number;
     takeProfit?: number;
+    sl?: number;
+    tp?: number;
     size?: number;
     sizeInCurrency?: number;
     currency?: string;

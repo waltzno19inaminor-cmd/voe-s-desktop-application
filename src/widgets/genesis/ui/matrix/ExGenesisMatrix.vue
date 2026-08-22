@@ -114,7 +114,16 @@
       <!-- VIEWPORT TELEMETRY -->
       <MatrixTelemetry :view-state="state.viewState.value" :is-scenario-context="!!state.isScenarioContext.value"
                        :is-dark="isDark"
+                       :can-create-strategy-version="canCreateStrategyVersion"
+                       :has-selected-strategy-version="!!state.selectedStrategyVersion.value"
+                       :has-strategy-version-changes="state.hasStrategyVersionChanges.value"
+                       :strategy-versions="state.strategyVersions.value"
+                       :git-panel-open="isGitPanelOpen"
                        @reset-view="canvas.resetView" @update-scale="(s) => state.viewState.value.scale = s"
+                       @strategy-version-create="state.createStrategyVersion"
+                       @strategy-version-update="state.updateSelectedStrategyVersion"
+                       @strategy-version-clear="clearStrategyVersionChanges"
+                       @git-panel-state="isGitPanelOpen = $event"
                        @close-context-menus="closeContextMenus" />
 
       <!-- OFFSCREEN STRATEGY INDICATORS -->
@@ -164,7 +173,7 @@
 
 
       <!-- COMMAND PANEL (HUD bottom) -->
-      <MatrixCommandPanel :state="state" :menu="menu" :audio="audio" :active-tab="activeTab" :is-dark="isDark"
+      <MatrixCommandPanel v-if="!isGitPanelOpen" :state="state" :menu="menu" :audio="audio" :active-tab="activeTab" :is-dark="isDark" 
                           :active-wire="canvas.activeWire.value"
                           :is-zone-tool-active="zoneTools.isZoneToolActive.value"
                           :selected-zone-type="zoneTools.selectedZoneType.value"
@@ -289,6 +298,7 @@ import { useMatrixZones } from '../../model/matrix/useMatrixZones'
 import { useMatrixUploads } from '../../model/matrix/useMatrixUploads'
 import { usePathMath } from '../../model/matrix/usePathMath'
 import { getMatrixStrategyName, isStrategyNode } from '../../model/matrix/useMatrixStrategies'
+import { useExGenesisMatrixUndo } from '../../model/matrix/useExGenesisMatrixUndo'
 import { collectMatrixImageUrls, preloadImageUrls } from '../../model/matrix/useMatrixImagePreload'
 import { useAppBootStore } from '~/features/store/useAppBoot'
 import { useGenesisMatrixData, useGenesisTrades } from '~/entities/genesis'
@@ -312,14 +322,33 @@ const boot = useMatrixBoot({ initiallyInitializing: shouldShowInitialMatrixBoot 
 const zoneTools = useMatrixZones(state)
 const uploads = useMatrixUploads(state)
 const pathMath = usePathMath(state)
+const undoManager = useExGenesisMatrixUndo()
+const isGitPanelOpen = ref(false)
 const activeFilePreviewNode = ref<any | null>(null)
 const { t } = useI18n()
+
+const clearStrategyVersionChanges = async () => {
+  await state.clearStrategyVersionChanges()
+  undoManager.resetSnapshot()
+}
 
 const getPageLabel = (page: any, index: number) => {
   const strategyNode = (page.nodes || []).find(isStrategyNode)
   const label = strategyNode ? getMatrixStrategyName(strategyNode) : page.name || `${t('matrix.strategyPage')} ${index + 1}`
   return String(label).replace(/_/g, ' ')
 }
+
+const canCreateStrategyVersion = computed(() => {
+  const nodes = state.nodes.value
+  const strategyCount = nodes.filter(isStrategyNode).length
+  const scenarioCount = nodes.filter(node => node.type === 'scenario').length
+  const conditionCount = nodes.filter(node => node.type === 'condition' || node.type === 'conditions').length
+  const canCreateSnapshot = state.strategyVersions.value.length === 0 || (
+    !!state.selectedStrategyVersion.value && state.hasStrategyVersionChanges.value
+  )
+
+  return strategyCount === 1 && scenarioCount >= 1 && conditionCount >= 1 && canCreateSnapshot
+})
 
 async function preloadRestoredMatrixImages() {
   const urls = collectMatrixImageUrls(state.matrixPages.value.flatMap((page: any) => page.nodes || []))
@@ -385,6 +414,7 @@ const focusNode = (id: string) => {
     state.viewState.value.panX = (rect.width / 2) - node.x
     state.viewState.value.panY = (rect.height / 2) - node.y
     state.lastSelectedId.value = null
+    isGitPanelOpen.value = false
   }
 }
 
@@ -492,6 +522,7 @@ function handleBoardContextMenu(e: MouseEvent) {
 function handleNodeDive(node: any) {
   const divableTypes = ['strategy', 'scenario', 'condition', 'instrument', 'indicator', 'pattern', 'smc']
   if (divableTypes.includes(node.type)) {
+    isGitPanelOpen.value = false
     state.activeMenuCategory.value = null
     state.pendingNodeConfig.value = null
     if (!node.subGraph) {

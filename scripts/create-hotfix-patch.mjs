@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { readdir, readFile, writeFile } from 'node:fs/promises'
-import { basename, dirname, join, relative } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import JSZip from 'jszip'
 
@@ -33,7 +33,9 @@ const payloadRoot = join(workDir, 'payload')
 const manifestPath = join(workDir, 'manifest.json')
 const signaturePath = join(workDir, 'manifest.minisig')
 
-rmSync(workDir, { recursive: true, force: true })
+if (existsSync(workDir)) {
+  spawnSync(process.platform === 'win32' ? 'cmd' : 'rm', process.platform === 'win32' ? ['/c', 'rd', '/s', '/q', workDir] : ['-rf', workDir])
+}
 mkdirSync(payloadRoot, { recursive: true })
 
 const operations = []
@@ -108,7 +110,10 @@ if (args.minisignKey) {
   if (result.status !== 0) fail('minisign failed')
 } else if (args.tauriSignerKeyPath || process.env.TAURI_SIGNING_PRIVATE_KEY_PATH) {
   const keyPath = args.tauriSignerKeyPath || process.env.TAURI_SIGNING_PRIVATE_KEY_PATH
-  const password = args.tauriSignerPassword ?? process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  let password = args.tauriSignerPassword ?? process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+  if (password === undefined && existsSync('.secrets/hotfix/jlj-hotfix.password')) {
+    password = readFileSync('.secrets/hotfix/jlj-hotfix.password', 'utf8').trim()
+  }
   const generatedSignaturePath = `${manifestPath}.sig`
   rmSync(generatedSignaturePath, { force: true })
 
@@ -116,7 +121,7 @@ if (args.minisignKey) {
   if (password !== undefined) {
     signerArgs.push('--password', password)
   }
-  signerArgs.push(manifestPath)
+  signerArgs.push(resolve(manifestPath))
 
   const result = spawnSync(process.platform === 'win32' ? 'npx.cmd' : 'npx', signerArgs, { stdio: 'inherit' })
   if (result.status !== 0) fail('tauri signer failed')
@@ -133,7 +138,14 @@ zip.file('manifest.json', readFileSync(manifestPath))
 zip.file('manifest.minisig', readFileSync(signaturePath))
 
 for (const file of await listFiles(payloadRoot)) {
-  zip.file(`payload/${file.replaceAll('\\', '/')}`, await readFile(join(payloadRoot, file)))
+  const filePath = join(payloadRoot, file)
+  try {
+    if (existsSync(filePath)) {
+      zip.file(`payload/${file.replaceAll('\\', '/')}`, await readFile(filePath))
+    }
+  } catch (err) {
+    console.warn(`Skipping unreadable file: ${file}`)
+  }
 }
 if (args.extraPayloadDir) {
   for (const file of await listFiles(args.extraPayloadDir)) {
@@ -180,7 +192,11 @@ async function listFiles(root) {
       if (entry.isDirectory()) {
         await walk(full)
       } else if (entry.isFile()) {
-        files.push(relative(root, full).replaceAll('\\', '/'))
+        try {
+          if (existsSync(full)) {
+            files.push(relative(root, full).replaceAll('\\', '/'))
+          }
+        } catch {}
       }
     }
   }

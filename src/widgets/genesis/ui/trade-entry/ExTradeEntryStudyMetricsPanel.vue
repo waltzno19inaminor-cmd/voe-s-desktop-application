@@ -3,6 +3,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
+import { buildGeneratedInTradeAnalysis as calculateGeneratedInTradeAnalysis } from '~/widgets/genesis/model/generatedInTradeAnalysis'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 
 const genesisTrades = useGenesisTrades()
@@ -1430,12 +1431,12 @@ const loadYahooMarketData = async (preferredSymbol = '') => {
   let lastError = null
 
   for (const symbol of candidates) {
-    try {
-      const marketData = {}
-      let hourlyPayload = null
-      let hourly = null
-      let hourlyTimeZone = 'UTC'
-      for (const timeframe of availableTimeframeOptions.value) {
+    const marketData = {}
+    let hourlyPayload = null
+    let hourly = null
+    let hourlyTimeZone = 'UTC'
+    for (const timeframe of availableTimeframeOptions.value) {
+      try {
         if (timeframe.id === '4h' || timeframe.id === '1h') {
           if (!hourly) {
             hourlyPayload = await fetchYahooChart(symbol, '60m', { includePrePost: !useRegularSession })
@@ -1452,21 +1453,40 @@ const loadYahooMarketData = async (preferredSymbol = '') => {
         }
         const candles = parseYahooChartCandles(await fetchYahooChart(symbol, timeframe.yahooInterval, { includePrePost: !useRegularSession }))
         marketData[timeframe.id] = adjustCandlesToStudyMetrics(filterCandlesToTradeWindow(candles, timeframe))
+      } catch (error) {
+        // Intraday history has provider-specific retention limits. A missing
+        // fine timeframe must not discard usable 1H/4H/D data for the trade.
+        lastError = error
+        console.warn(`[TradeStudyMetrics] ${symbol} ${timeframe.id} unavailable:`, error)
       }
+    }
 
-      if (Object.values(marketData).some(candles => candles?.length)) {
-        return {
-          provider: 'YAHOO',
-          symbol,
-          candlesByTimeframe: marketData
-        }
+    if (Object.values(marketData).some(candles => candles?.length)) {
+      return {
+        provider: 'YAHOO',
+        symbol,
+        candlesByTimeframe: marketData
       }
-    } catch (error) {
-      lastError = error
     }
   }
 
   throw lastError || new Error('No Yahoo market data candidates matched')
+}
+
+const loadAvailableTimeframes = async (loadTimeframe) => {
+  const results = await Promise.allSettled(
+    availableTimeframeOptions.value.map(async timeframe => [timeframe.id, await loadTimeframe(timeframe)])
+  )
+  const candlesByTimeframe = Object.fromEntries(
+    results
+      .filter(result => result.status === 'fulfilled')
+      .map(result => result.value)
+  )
+  const lastError = [...results]
+    .reverse()
+    .find(result => result.status === 'rejected')?.reason
+
+  return { candlesByTimeframe, lastError }
 }
 
 const loadBinanceMarketData = async (preferredSymbol = '') => {
@@ -1475,7 +1495,7 @@ const loadBinanceMarketData = async (preferredSymbol = '') => {
   const requestRange = getMarketRequestRange()
   if (!requestRange) throw new Error('Invalid trade time range')
 
-  const timeframeEntries = await Promise.all(availableTimeframeOptions.value.map(async timeframe => {
+  const { candlesByTimeframe, lastError } = await loadAvailableTimeframes(async timeframe => {
     const params = new URLSearchParams({
       symbol,
       interval: timeframe.binanceInterval,
@@ -1484,13 +1504,16 @@ const loadBinanceMarketData = async (preferredSymbol = '') => {
       limit: String(getTimeframeLimit(timeframe))
     })
     const rows = await fetchJsonWithFallback(`/api/v3/klines?${params.toString()}`)
-    return [timeframe.id, adjustCandlesToStudyMetrics(filterCandlesToTradeWindow(parseKlineCandles(rows), timeframe))]
-  }))
+    return adjustCandlesToStudyMetrics(filterCandlesToTradeWindow(parseKlineCandles(rows), timeframe))
+  })
+  if (!Object.values(candlesByTimeframe).some(candles => candles?.length)) {
+    throw lastError || new Error(`No Binance candles for ${symbol}`)
+  }
 
   return {
     provider: 'BINANCE',
     symbol,
-    candlesByTimeframe: Object.fromEntries(timeframeEntries)
+    candlesByTimeframe
   }
 }
 
@@ -1518,22 +1541,18 @@ const loadBybitMarketData = async (preferredAsset = null) => {
   let lastError = null
 
   for (const { category, symbol } of candidateMarkets) {
-    try {
-      const timeframeEntries = await Promise.all(availableTimeframeOptions.value.map(async timeframe => {
-        const candles = await fetchBybitKlines({ category, symbol, timeframe })
-        return [timeframe.id, adjustCandlesToStudyMetrics(filterCandlesToTradeWindow(candles, timeframe))]
-      }))
-      const candlesByTimeframe = Object.fromEntries(timeframeEntries)
-      if (Object.values(candlesByTimeframe).some(candles => candles?.length)) {
-        return {
-          provider: `BYBIT_${String(category).toUpperCase()}`,
-          symbol,
-          candlesByTimeframe
-        }
+    const { candlesByTimeframe, lastError: timeframeError } = await loadAvailableTimeframes(async timeframe => {
+      const candles = await fetchBybitKlines({ category, symbol, timeframe })
+      return adjustCandlesToStudyMetrics(filterCandlesToTradeWindow(candles, timeframe))
+    })
+    if (Object.values(candlesByTimeframe).some(candles => candles?.length)) {
+      return {
+        provider: `BYBIT_${String(category).toUpperCase()}`,
+        symbol,
+        candlesByTimeframe
       }
-    } catch (error) {
-      lastError = error
     }
+    lastError = timeframeError || lastError
   }
 
   throw lastError || new Error('No Bybit market data candidates matched')
@@ -1556,22 +1575,18 @@ const loadKrakenMarketData = async (preferredSymbol = '') => {
   let lastError = null
 
   for (const pair of candidates) {
-    try {
-      const timeframeEntries = await Promise.all(availableTimeframeOptions.value.map(async timeframe => {
-        const candles = await fetchKrakenOhlc({ pair, timeframe })
-        return [timeframe.id, adjustCandlesToStudyMetrics(candles)]
-      }))
-      const candlesByTimeframe = Object.fromEntries(timeframeEntries)
-      if (Object.values(candlesByTimeframe).some(candles => candles?.length)) {
-        return {
-          provider: 'KRAKEN',
-          symbol: pair,
-          candlesByTimeframe
-        }
+    const { candlesByTimeframe, lastError: timeframeError } = await loadAvailableTimeframes(async timeframe => {
+      const candles = await fetchKrakenOhlc({ pair, timeframe })
+      return adjustCandlesToStudyMetrics(candles)
+    })
+    if (Object.values(candlesByTimeframe).some(candles => candles?.length)) {
+      return {
+        provider: 'KRAKEN',
+        symbol: pair,
+        candlesByTimeframe
       }
-    } catch (error) {
-      lastError = error
     }
+    lastError = timeframeError || lastError
   }
 
   throw lastError || new Error('No Kraken market data candidates matched')
@@ -1656,27 +1671,6 @@ const selectFirstGeneratedTimeframe = (candlesByTimeframe) => {
   if (generatedIds.length) activeGeneratedTimeframe.value = generatedIds[0]
 }
 
-const parsePositiveMetric = (value) => {
-  const numeric = Number(value)
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : Number.NaN
-}
-
-const IN_TRADE_NOISE_PCT = 0.5
-const IN_TRADE_SESSION_DAY_SECONDS = {
-  stock: 8 * 3600,
-  forex: 24 * 3600,
-  crypto: 24 * 3600,
-  xstock: 24 * 3600,
-  metal: 23 * 3600,
-  commodity: 23 * 3600,
-  index: 23 * 3600,
-  unknown: 24 * 3600
-}
-
-const getInTradeSessionDaySeconds = () => {
-  return IN_TRADE_SESSION_DAY_SECONDS[getSelectedAssetKind()] || IN_TRADE_SESSION_DAY_SECONDS.unknown
-}
-
 const getGeneratedAnalysisDirection = () => {
   const raw = String(side?.value || '').toUpperCase()
   if (raw.includes('SHORT')) return 'SHORT'
@@ -1684,263 +1678,16 @@ const getGeneratedAnalysisDirection = () => {
   return null
 }
 
-const getGeneratedAnalysisCandles = (candlesByTimeframe) => {
-  const finest = [...timeframeOptions]
-    .reverse()
-    .find(timeframe => candlesByTimeframe?.[timeframe.id]?.length)
-  return {
-    timeframe: finest || null,
-    candles: finest ? candlesByTimeframe[finest.id] : []
-  }
-}
-
-const getGeneratedAnalysisCandleWindow = (candles, index, timeframe) => {
-  const current = Number(candles[index]?.time)
-  const next = Number(candles[index + 1]?.time)
-  const nominalStepSeconds = ((timeframe?.durationMs || MINUTE_MS) / 1000)
-  const range = tradeTimeRange.value
-  if (Number.isFinite(current) && range) {
-    const candleStart = current
-    const candleEnd = current + (nominalStepSeconds * 1000)
-    const overlapStart = Math.max(candleStart, range.start)
-    const overlapEnd = Math.min(candleEnd, range.end)
-    return overlapEnd > overlapStart ? { start: overlapStart, end: overlapEnd } : null
-  }
-  if (Number.isFinite(current) && Number.isFinite(next) && next > current) {
-    return { start: current, end: current + Math.min(next - current, nominalStepSeconds * 1000) }
-  }
-  const previous = Number(candles[index - 1]?.time)
-  if (Number.isFinite(current) && Number.isFinite(previous) && current > previous) {
-    return { start: current, end: current + Math.min(current - previous, nominalStepSeconds * 1000) }
-  }
-  return Number.isFinite(current) ? { start: current, end: current + (nominalStepSeconds * 1000) } : null
-}
-
-const getBodyAwareExtremePrices = (candles, entryPrice) => {
-  const confirmedHighs = []
-  const confirmedLows = []
-  let countedIndex = 0
-
-  candles.forEach(candle => {
-    const open = Number(candle.open)
-    const close = Number(candle.close)
-    const high = Number(candle.high)
-    const low = Number(candle.low)
-    if (![open, close, high, low].every(Number.isFinite)) return
-
-    const isFirstCountedCandle = countedIndex === 0
-    countedIndex += 1
-
-    if (isFirstCountedCandle) {
-      if (close >= open) confirmedHighs.push(high)
-      if (close <= open) confirmedLows.push(low)
-      return
-    }
-
-    const crossesEntry = low < entryPrice && high > entryPrice
-    const entirelyAboveEntry = low >= entryPrice
-    const entirelyBelowEntry = high <= entryPrice
-
-    if (entirelyAboveEntry || (crossesEntry && close >= open)) {
-      confirmedHighs.push(high)
-    }
-    if (entirelyBelowEntry || (crossesEntry && close <= open)) {
-      confirmedLows.push(low)
-    }
-  })
-
-  return {
-    maxPrice: confirmedHighs.length ? Math.max(...confirmedHighs) : entryPrice,
-    minPrice: confirmedLows.length ? Math.min(...confirmedLows) : entryPrice
-  }
-}
-
-const classifyGeneratedPathShape = ({ states, firstImpulse, maePct, mfePct, captureRatio }) => {
-  const flips = states.reduce((count, state, index) => {
-    if (!index || state === 'noise' || states[index - 1] === 'noise') return count
-    return state !== states[index - 1] ? count + 1 : count
-  }, 0)
-
-  if (flips >= 3) return 'CHOPPY_PATH'
-  if (Math.abs(maePct) < IN_TRADE_NOISE_PCT && mfePct < IN_TRADE_NOISE_PCT) return 'NOISE_RANGE'
-  if (firstImpulse === 'LOSS' && mfePct >= IN_TRADE_NOISE_PCT) return 'ADVERSE_THEN_RECOVERY'
-  if (firstImpulse === 'PROFIT' && Math.abs(maePct) >= IN_TRADE_NOISE_PCT) return 'FAVORABLE_THEN_PULLBACK'
-  if (mfePct >= IN_TRADE_NOISE_PCT && Number.isFinite(captureRatio) && captureRatio >= 65) return 'CLEAN_TREND_CAPTURE'
-  if (mfePct >= IN_TRADE_NOISE_PCT && Number.isFinite(captureRatio) && captureRatio < 35) return 'LATE_EXIT_AFTER_MFE'
-  return firstImpulse === 'PROFIT' ? 'FAVORABLE_FIRST' : 'ADVERSE_FIRST'
-}
-
-const classifyGeneratedCandleState = (candle, direction, entryPrice, lossLimit, profitLimit) => {
-  const open = Number(candle.open)
-  const close = Number(candle.close)
-  const high = Number(candle.high)
-  const low = Number(candle.low)
-  if (![open, close, high, low].every(Number.isFinite)) return 'noise'
-
-  const isBullish = close >= open
-  const isBearish = close <= open
-  const isLong = direction === 'LONG'
-  const isLoss = isLong
-    ? low <= lossLimit && (high <= entryPrice || close <= entryPrice || isBearish)
-    : high >= lossLimit && (low >= entryPrice || close >= entryPrice || isBullish)
-  const isProfit = isLong
-    ? high >= profitLimit && (low >= entryPrice || close >= entryPrice || isBullish)
-    : low <= profitLimit && (high <= entryPrice || close <= entryPrice || isBearish)
-
-  if (isLoss && isProfit) {
-    if (isLong) return close >= entryPrice || isBullish ? 'profit' : 'loss'
-    return close <= entryPrice || isBearish ? 'profit' : 'loss'
-  }
-  if (isLoss) return 'loss'
-  if (isProfit) return 'profit'
-  return 'noise'
-}
-
-const summarizePathCleanliness = (states) => {
-  const validStates = states.filter(Boolean)
-  const stateCount = validStates.length
-  if (!stateCount) return { score: Number.NaN, flips: Number.NaN, noiseSharePct: Number.NaN }
-
-  let flips = 0
-  let previousMeaningful = ''
-  let meaningfulCount = 0
-  let noiseCount = 0
-
-  validStates.forEach((state) => {
-    if (state === 'noise') {
-      noiseCount += 1
-      return
-    }
-    meaningfulCount += 1
-    if (previousMeaningful && previousMeaningful !== state) flips += 1
-    previousMeaningful = state
-  })
-
-  const noiseSharePct = (noiseCount / stateCount) * 100
-  const score = meaningfulCount
-    ? Math.round(Math.min(100, Math.max(0, 100 - (flips * 22) - (noiseSharePct * 0.25))))
-    : 0
-
-  return { score, flips, noiseSharePct }
-}
-
 const buildGeneratedInTradeAnalysis = (candlesByTimeframe) => {
-  const entryPrice = parsePositiveMetric(entryMethodEnabled?.value ? averageEntry?.value : entry?.value)
-  const exitPrice = parsePositiveMetric(isClosed?.value && exitMethodEnabled?.value ? averageExit?.value : exit?.value)
-  const direction = getGeneratedAnalysisDirection()
-  const { timeframe, candles } = getGeneratedAnalysisCandles(candlesByTimeframe)
-
-  if (!Number.isFinite(entryPrice) || !direction || !candles.length) return null
-
-  const highs = candles.map(candle => Number(candle.high)).filter(Number.isFinite)
-  const lows = candles.map(candle => Number(candle.low)).filter(Number.isFinite)
-  if (!highs.length || !lows.length) return null
-
-  const { maxPrice, minPrice } = getBodyAwareExtremePrices(candles, entryPrice)
-  const lossLimit = direction === 'LONG'
-    ? entryPrice * (1 - (IN_TRADE_NOISE_PCT / 100))
-    : entryPrice * (1 + (IN_TRADE_NOISE_PCT / 100))
-  const profitLimit = direction === 'LONG'
-    ? entryPrice * (1 + (IN_TRADE_NOISE_PCT / 100))
-    : entryPrice * (1 - (IN_TRADE_NOISE_PCT / 100))
-
-  let meaningfulLossSeconds = 0
-  let meaningfulProfitSeconds = 0
-  let meaningfulLossStartTime = null
-  let meaningfulLossEndTime = null
-  let meaningfulProfitStartTime = null
-  let meaningfulProfitEndTime = null
-  let firstImpulse = null
-  const states = []
-  const pathSegments = []
-
-  candles.forEach((candle, index) => {
-    const state = classifyGeneratedCandleState(candle, direction, entryPrice, lossLimit, profitLimit)
-    const isLoss = state === 'loss'
-    const isProfit = state === 'profit'
-    const window = getGeneratedAnalysisCandleWindow(candles, index, timeframe)
-    const stepSeconds = window ? Math.max(0, (window.end - window.start) / 1000) : 0
-
-    if (isLoss) {
-      meaningfulLossSeconds += stepSeconds
-      if (window) {
-        meaningfulLossStartTime = meaningfulLossStartTime ?? window.start
-        meaningfulLossEndTime = window.end
-      }
-    }
-    if (isProfit) {
-      meaningfulProfitSeconds += stepSeconds
-      if (window) {
-        meaningfulProfitStartTime = meaningfulProfitStartTime ?? window.start
-        meaningfulProfitEndTime = window.end
-      }
-    }
-    if (!firstImpulse && (isLoss || isProfit)) firstImpulse = isLoss ? 'LOSS' : 'PROFIT'
-    states.push(state)
-    if (window) {
-      const previous = pathSegments[pathSegments.length - 1]
-      if (previous?.state === state && window.start <= previous.end + 1) {
-        previous.end = window.end
-      } else {
-        pathSegments.push({ state, start: window.start, end: window.end })
-      }
-    }
+  const range = tradeTimeRange.value
+  return calculateGeneratedInTradeAnalysis(candlesByTimeframe, {
+    direction: getGeneratedAnalysisDirection(),
+    entry: entryMethodEnabled?.value ? averageEntry?.value : entry?.value,
+    exit: isClosed?.value && exitMethodEnabled?.value ? averageExit?.value : exit?.value,
+    startTime: range?.start,
+    endTime: range?.end,
+    assetKind: getSelectedAssetKind()
   })
-
-  const rawMaePct = direction === 'LONG'
-    ? ((minPrice - entryPrice) / entryPrice) * 100
-    : ((entryPrice - maxPrice) / entryPrice) * 100
-  const rawMfePct = direction === 'LONG'
-    ? ((maxPrice - entryPrice) / entryPrice) * 100
-    : ((entryPrice - minPrice) / entryPrice) * 100
-  const maePct = rawMaePct <= -IN_TRADE_NOISE_PCT ? rawMaePct : 0
-  const mfePct = rawMfePct >= IN_TRADE_NOISE_PCT ? rawMfePct : 0
-  const maxFavorableMove = direction === 'LONG' ? maxPrice - entryPrice : entryPrice - minPrice
-  const realizedMove = Number.isFinite(exitPrice)
-    ? (direction === 'LONG' ? exitPrice - entryPrice : entryPrice - exitPrice)
-    : Number.NaN
-  const captureRatio = maxFavorableMove > 0 && Number.isFinite(realizedMove)
-    ? (realizedMove / maxFavorableMove) * 100
-    : Number.NaN
-  const pathCleanliness = summarizePathCleanliness(states)
-  const firstMeaningfulSegment = pathSegments.find(segment => segment.state === 'loss' || segment.state === 'profit')
-  const entryHeatEndTime = firstMeaningfulSegment?.state === 'loss' ? firstMeaningfulSegment.start : null
-  const entryHeatSeconds = entryHeatEndTime !== null && tradeTimeRange.value
-    ? Math.max(0, (entryHeatEndTime - tradeTimeRange.value.start) / 1000)
-    : Number.NaN
-  const adverseBeforeProfit = meaningfulProfitStartTime !== null
-    ? Boolean(meaningfulLossStartTime !== null && meaningfulLossStartTime < meaningfulProfitStartTime)
-    : null
-
-  return {
-    source: 'generated',
-    timeframe: timeframe?.id || '',
-    noisePct: IN_TRADE_NOISE_PCT,
-    sessionDaySeconds: getInTradeSessionDaySeconds(),
-    direction,
-    entry: entryPrice,
-    exit: Number.isFinite(exitPrice) ? exitPrice : null,
-    maxPrice,
-    minPrice,
-    meaningfulLossSeconds,
-    meaningfulProfitSeconds,
-    meaningfulLossStartTime,
-    meaningfulLossEndTime,
-    meaningfulProfitStartTime,
-    meaningfulProfitEndTime,
-    firstImpulseDirection: firstImpulse,
-    entryHeatSeconds: Number.isFinite(entryHeatSeconds) ? entryHeatSeconds : null,
-    entryHeatEndTime,
-    adverseBeforeProfit,
-    pathCleanlinessScore: Number.isFinite(pathCleanliness.score) ? pathCleanliness.score : null,
-    pathFlipCount: Number.isFinite(pathCleanliness.flips) ? pathCleanliness.flips : null,
-    pathNoiseSharePct: Number.isFinite(pathCleanliness.noiseSharePct) ? pathCleanliness.noiseSharePct : null,
-    pathSegments,
-    maxMeaningfulDrawdownPct: maePct,
-    maxFavorableExcursionPct: mfePct,
-    profitCaptureRatio: Number.isFinite(captureRatio) ? captureRatio : null,
-    pricePathShape: classifyGeneratedPathShape({ states, firstImpulse, maePct, mfePct, captureRatio })
-  }
 }
 
 const normalizeStoredCandle = (candle) => {
@@ -2003,17 +1750,6 @@ const getStoredGeneratedMarketData = () => {
   return candidates.find(candidate => candidate && typeof candidate === 'object') || null
 }
 
-const getStoredGeneratedInTradeAnalysis = () => {
-  const candidates = [
-    tradeStudyMetrics.value?.generatedInTradeAnalysis,
-    initialTrade?.tradeStudyMetrics?.generatedInTradeAnalysis,
-    initialTrade?.studyMetrics?.generatedInTradeAnalysis,
-    initialTrade?.generatedInTradeAnalysis
-  ]
-
-  return candidates.find(candidate => candidate && typeof candidate === 'object') || null
-}
-
 const hydrateGeneratedChartFromMetrics = () => {
   if (generatedChartClearedManually.value) return false
 
@@ -2041,7 +1777,9 @@ const hydrateGeneratedChartFromMetrics = () => {
     candlesByTimeframe: normalizedCandles,
     activeTimeframe: activeGeneratedTimeframe.value
   }
-  tradeStudyMetrics.value.generatedInTradeAnalysis = getStoredGeneratedInTradeAnalysis() || buildGeneratedInTradeAnalysis(normalizedCandles)
+  // Stored analysis is a derived cache and may belong to older trade inputs.
+  // Always rebuild it from the saved OHLC snapshot and the current trade.
+  tradeStudyMetrics.value.generatedInTradeAnalysis = buildGeneratedInTradeAnalysis(normalizedCandles)
   return true
 }
 
@@ -2588,6 +2326,26 @@ watch(availableTimeframeOptions, () => {
   if (props.readOnly) return
   reconcileGeneratedMarketDataWithDuration()
 }, { immediate: true })
+
+watch(
+  [
+    () => side?.value,
+    () => entry?.value,
+    () => exit?.value,
+    () => averageEntry?.value,
+    () => averageExit?.value,
+    () => entryMethodEnabled?.value,
+    () => exitMethodEnabled?.value,
+    () => isClosed?.value,
+    () => openDate?.value,
+    () => exitDate?.value
+  ],
+  () => {
+    const normalizedCandles = normalizeCandlesByTimeframe(generatedMarketData.value)
+    if (!Object.keys(normalizedCandles).length) return
+    tradeStudyMetrics.value.generatedInTradeAnalysis = buildGeneratedInTradeAnalysis(normalizedCandles)
+  }
+)
 
 watch(
   () => tradeStudyMetrics.value?.generatedMarketData,

@@ -179,7 +179,7 @@ export interface MetricComputationResult {
 }
 
 /**
- * Standard interface for individual metric module files.
+ * Standard interface for individual metric module files in `analytics/metrics/`.
  */
 export interface MetricEngine<TTrade = any, TContext = any> {
   key: string;

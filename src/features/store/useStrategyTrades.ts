@@ -19,11 +19,8 @@ export interface StrategyTradesData {
 const LIVERMORE_BTC_SEED_PREFIX = 'livermore-btc-seed-'
 const LIVERMORE_NFLXX_SCENARIO_PREFIX = 'livermore-nflxx-scenario-'
 const LIVERMORE_NFLXX_SCENARIO_TRADE_COUNT = 15
-const MAIN_DIARY_STRATEGY: StrategyProfile = {
-  id: 'MAIN_DIARY',
-  name: 'Main Diary',
-  createdAt: new Date().toISOString()
-}
+const LIVERMORE_RANDOM_TRADE_PREFIX = 'livermore-random-'
+const LIVERMORE_RANDOM_TRADE_COUNT = 30
 
 function isLivermoreStrategyName(name?: string) {
   return String(name || '').toLowerCase().includes('livermore')
@@ -51,6 +48,90 @@ function shiftDate(value: unknown, days: number) {
   const date = new Date(value as string | number | Date)
   if (Number.isNaN(date.getTime())) return value
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+function createLivermoreRandomTrades(strategyId: string): DiaryEntry[] {
+  const assets = [
+    ['AAPL', 215], ['MSFT', 480], ['NVDA', 182], ['AMZN', 228], ['META', 780],
+    ['TSLA', 420], ['JPM', 330], ['XOM', 118], ['CAT', 450], ['GE', 315]
+  ] as const
+  const scenarios = ['PIVOTAL POINT', 'SECONDARY REACTION', 'LINE OF LEAST RESISTANCE', 'BREAKOUT CONFIRMATION']
+  const conditions = ['HIGHER VOLUME', 'TREND ALIGNMENT', 'PRICE HOLDS LEVEL', 'FAILED RETEST']
+  const emotions = ['Patience', 'Discipline', 'Confidence', 'Focus']
+  const random = (min: number, max: number) => min + Math.random() * (max - min)
+  const round = (value: number, digits = 2) => Number(value.toFixed(digits))
+
+  return Array.from({ length: LIVERMORE_RANDOM_TRADE_COUNT }, (_, index) => {
+    const [asset, basePrice] = assets[Math.floor(Math.random() * assets.length)]
+    const side: 'Long' | 'Short' = Math.random() < 0.58 ? 'Long' : 'Short'
+    const entry = round(basePrice * random(0.88, 1.12))
+    const isWinner = Math.random() < 0.6
+    const change = random(isWinner ? 0.012 : -0.075, isWinner ? 0.095 : -0.012)
+    const exit = round(entry * (side === 'Long' ? 1 + change : 1 - change))
+    const stopDistance = random(0.018, 0.052)
+    const targetDistance = random(0.045, 0.13)
+    const stopLoss = round(entry * (side === 'Long' ? 1 - stopDistance : 1 + stopDistance))
+    const takeProfit = round(entry * (side === 'Long' ? 1 + targetDistance : 1 - targetDistance))
+    const size = Math.floor(random(4, 26))
+    const profitInCurrency = round((side === 'Long' ? exit - entry : entry - exit) * size)
+    const openDate = new Date(Date.UTC(2026, 5, 1 + index * 2, 13 + (index % 5), (index * 11) % 60))
+    const exitDate = new Date(openDate.getTime() + Math.floor(random(4, 60)) * 60 * 60 * 1000)
+    const id = `${LIVERMORE_RANDOM_TRADE_PREFIX}${String(index + 1).padStart(2, '0')}`
+    const scenario = scenarios[index % scenarios.length]
+    const condition = conditions[index % conditions.length]
+    const conditionEntry = {
+      id: `livermore-condition-${index % conditions.length}`,
+      info: {
+        name: condition,
+        description: 'Randomly generated market condition',
+        priority: 'REQUIRED'
+      }
+    }
+
+    return {
+      id,
+      asset,
+      side,
+      entry,
+      exit,
+      size,
+      executions: [
+        { id: `${id}-entry`, type: 'entry', side, price: entry, size, date: openDate, label: 'SINGLE' },
+        { id: `${id}-exit`, type: 'exit', side: 'Close', price: exit, size, date: exitDate, label: 'SINGLE' }
+      ],
+      stopLoss,
+      takeProfit,
+      isClosed: true,
+      status: 'closed',
+      timeZone: 'UTC',
+      date: openDate,
+      dateExit: exitDate,
+      profitInCurrency,
+      assetType: 'Stocks',
+      strategyId,
+      entryMethodType: 'SINGLE',
+      exitMethodType: 'SINGLE',
+      riskReward: round(targetDistance / stopDistance),
+      entryFee: 0,
+      exitFee: 0,
+      feeType: '$',
+      emotions: [emotions[index % emotions.length]],
+      boardScenarioEntry: {
+        id: `livermore-scenario-${index % scenarios.length}`,
+        info: {
+          name: scenario,
+          description: 'Randomly generated Livermore-style historical trade',
+          conditions: [conditionEntry]
+        }
+      },
+      boardScenarioExit: null,
+      boardRequiredConditionsEntry: [conditionEntry],
+      boardRequiredConditionsExit: [],
+      images: [],
+      notes: 'Randomly generated trade for LIVERMORE’S.',
+      notesList: []
+    }
+  })
 }
 
 function createLivermoreBtcSeedTrades(strategyId: string): DiaryEntry[] {
@@ -150,7 +231,9 @@ function createLivermoreBtcSeedTrades(strategyId: string): DiaryEntry[] {
 }
 
 export const useStrategyTradesStore = defineStore('strategyTrades', () => {
-  const strategies = ref<StrategyProfile[]>([{ ...MAIN_DIARY_STRATEGY }])
+  const strategies = ref<StrategyProfile[]>([
+    { id: 'MAIN_DIARY', name: 'Main Diary', createdAt: new Date().toISOString() }
+  ])
   const tradesByStrategy = ref<Record<string, DiaryEntry[]>>({
     'MAIN_DIARY': []
   })
@@ -164,57 +247,6 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
   const isLoading = ref(true)
   const isInitialized = ref(false)
   let initPromise: Promise<void> | null = null
-
-  const _hiddenStrategies = ref<StrategyProfile[]>([])
-  const _hiddenTradesByStrategy = ref<Record<string, DiaryEntry[]>>({})
-  const _hiddenInitialDeposits = ref<Record<string, number>>({})
-  const _hiddenHiddenTradeIds = ref<Record<string, string[]>>({})
-
-  function enforceDemoMainDiaryOnly() {
-    // The demo only displays MAIN_DIARY, but it must preserve every other
-    // JSON record exactly as loaded. Merge with the previous hidden snapshot
-    // before rebuilding it: syncStrategies can temporarily expose a hidden
-    // strategy as an empty live bucket during app boot.
-    const preservedStrategies = [
-      ..._hiddenStrategies.value,
-      ...strategies.value
-    ].filter((strategy, index, list) => (
-      strategy.id !== 'MAIN_DIARY' && list.findIndex(item => item.id === strategy.id) === index
-    ))
-    const preservedTrades = { ..._hiddenTradesByStrategy.value }
-    Object.entries(tradesByStrategy.value).forEach(([strategyId, trades]) => {
-      if (strategyId === 'MAIN_DIARY' || !preservedTrades[strategyId] || trades.length > 0) {
-        preservedTrades[strategyId] = trades
-      }
-    })
-    const preservedDeposits = { ..._hiddenInitialDeposits.value }
-    Object.entries(initialDepositsByStrategy.value).forEach(([strategyId, deposit]) => {
-      if (strategyId !== 'MAIN_DIARY') preservedDeposits[strategyId] = deposit
-    })
-    const preservedHiddenIds = { ..._hiddenHiddenTradeIds.value }
-    Object.entries(hiddenTradeIdsByStrategy.value).forEach(([strategyId, tradeIds]) => {
-      if (strategyId !== 'MAIN_DIARY') preservedHiddenIds[strategyId] = tradeIds
-    })
-
-    _hiddenStrategies.value = []
-    _hiddenTradesByStrategy.value = {}
-    _hiddenInitialDeposits.value = {}
-    _hiddenHiddenTradeIds.value = {}
-
-    const mainDiaryTrades = tradesByStrategy.value['MAIN_DIARY'] || []
-
-    _hiddenStrategies.value = preservedStrategies
-    _hiddenTradesByStrategy.value = preservedTrades
-    _hiddenInitialDeposits.value = preservedDeposits
-    _hiddenHiddenTradeIds.value = preservedHiddenIds
-
-    const mainDiaryInitialDeposit = initialDepositsByStrategy.value['MAIN_DIARY'] ?? 1000
-    strategies.value = [{ ...MAIN_DIARY_STRATEGY }]
-    tradesByStrategy.value = { 'MAIN_DIARY': mainDiaryTrades }
-    initialDepositsByStrategy.value = { 'MAIN_DIARY': mainDiaryInitialDeposit }
-    hiddenTradeIdsByStrategy.value = { 'MAIN_DIARY': hiddenTradeIdsByStrategy.value['MAIN_DIARY'] || [] }
-    selectedStrategyId.value = 'MAIN_DIARY'
-  }
 
   async function init(force = false) {
     if (isInitialized.value && !force) return
@@ -263,9 +295,8 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
         }
       }
 
-      enforceDemoMainDiaryOnly()
-      // Demo data is read exactly as it exists in strategy_trades_v1.json.
-      // Strategies remain intentionally hidden in the demo UI, not deleted.
+      // Trades are read exactly as they exist in strategy_trades_v1.json.
+      // This store never creates, removes, or rewrites records during startup.
     } finally {
       isInitialized.value = true
       isLoading.value = false
@@ -282,58 +313,13 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
 
   async function save() {
     const data: StrategyTradesData = {
-      strategies: [...strategies.value, ..._hiddenStrategies.value],
-      tradesByStrategy: { ...tradesByStrategy.value, ..._hiddenTradesByStrategy.value },
-      initialDepositsByStrategy: { ...initialDepositsByStrategy.value, ..._hiddenInitialDeposits.value },
-      hiddenTradeIdsByStrategy: { ...hiddenTradeIdsByStrategy.value, ..._hiddenHiddenTradeIds.value }
+      strategies: strategies.value,
+      tradesByStrategy: tradesByStrategy.value,
+      initialDepositsByStrategy: initialDepositsByStrategy.value,
+      hiddenTradeIdsByStrategy: hiddenTradeIdsByStrategy.value
     }
-    // saveToDisk writes this file and its backup in one storage operation.
+    // saveToDisk writes this file and its backup atomically.
     await saveToDisk('strategy_trades_v1', data)
-  }
-
-  function ensureLivermoreNflxxScenarioTrades() {
-    const livermoreStrategy = strategies.value.find(strategy => isLivermoreStrategyName(strategy.name))
-    if (!livermoreStrategy) return false
-
-    const trades = tradesByStrategy.value[livermoreStrategy.id] || []
-    const sourceTrade = trades.find(trade => isNflxxTrade(trade) && hasScenario(trade))
-    if (!sourceTrade) return false
-
-    const generatedTrades = trades.filter(trade => String(trade.id || '').startsWith(LIVERMORE_NFLXX_SCENARIO_PREFIX))
-    const missingCount = Math.max(0, LIVERMORE_NFLXX_SCENARIO_TRADE_COUNT - generatedTrades.length)
-    if (missingCount === 0) return false
-
-    const existingIds = new Set(generatedTrades.map(trade => trade.id))
-    const newTrades: DiaryEntry[] = []
-
-    for (let index = 1; index <= LIVERMORE_NFLXX_SCENARIO_TRADE_COUNT && newTrades.length < missingCount; index += 1) {
-      const id = `${LIVERMORE_NFLXX_SCENARIO_PREFIX}${String(index).padStart(2, '0')}`
-      if (existingIds.has(id)) continue
-
-      const copiedTrade = cloneTrade(sourceTrade)
-      copiedTrade.id = id
-      copiedTrade.strategyId = livermoreStrategy.id
-      copiedTrade.date = shiftDate(sourceTrade.date, index) as DiaryEntry['date']
-      if (sourceTrade.dateExit) {
-        copiedTrade.dateExit = shiftDate(sourceTrade.dateExit, index) as DiaryEntry['dateExit']
-      }
-      newTrades.push(copiedTrade)
-    }
-
-    if (!newTrades.length) return false
-
-    tradesByStrategy.value[livermoreStrategy.id] = [...trades, ...newTrades]
-    if (!hiddenTradeIdsByStrategy.value[livermoreStrategy.id]) {
-      hiddenTradeIdsByStrategy.value[livermoreStrategy.id] = []
-    }
-
-    const scenarioName = sourceTrade.boardScenarioEntry?.info?.name ||
-      sourceTrade.boardScenarioExit?.info?.name ||
-      sourceTrade.boardScenarioEntryId ||
-      sourceTrade.boardScenarioExitId ||
-      'unknown'
-    console.info(`[StrategyTrades] Added ${newTrades.length} NFLXX trades to ${livermoreStrategy.name} with scenario ${scenarioName}.`)
-    return true
   }
 
   function getTradesForStrategy(strategyId: string) {
@@ -392,8 +378,8 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
           name: ms.name,
           createdAt: new Date().toISOString()
         })
-        tradesByStrategy.value[ms.id] = _hiddenTradesByStrategy.value[ms.id] || []
-        hiddenTradeIdsByStrategy.value[ms.id] = _hiddenHiddenTradeIds.value[ms.id] || []
+        tradesByStrategy.value[ms.id] = []
+        hiddenTradeIdsByStrategy.value[ms.id] = []
         changed = true
       } else if (existing.name !== ms.name) {
         existing.name = ms.name
@@ -416,21 +402,7 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
       changed = true
     }
 
-    enforceDemoMainDiaryOnly()
     if (changed) await save()
-  }
-
-  function removeSyntheticSeedTrades() {
-    let changed = false
-    Object.entries(tradesByStrategy.value).forEach(([strategyId, trades]) => {
-      const filteredTrades = (trades || []).filter(trade => !String(trade?.id || '').startsWith(LIVERMORE_BTC_SEED_PREFIX))
-      if (filteredTrades.length !== (trades || []).length) {
-        tradesByStrategy.value[strategyId] = filteredTrades
-        changed = true
-      }
-    })
-
-    return changed
   }
 
   async function removeTrade(strategyId: string, tradeId: string) {

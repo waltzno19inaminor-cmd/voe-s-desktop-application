@@ -24,6 +24,7 @@ import {
 } from '~/utils/binance'
 import { resolveImportedAsset } from '~/utils/assetResolver'
 import { getIbkrFlexStatement } from '~/utils/interactiveBrokers'
+import { mt5Request, type Mt5Connection } from '~/utils/metatrader5'
 
 
 export interface StoredBrokerConnection {
@@ -54,10 +55,10 @@ export interface BrokerSyncResult {
   sourceLabel: string
 }
 
-type ImportedTrade = DiaryEntry & { sourceExternalId: string; sourcePlatform: string }
+type ImportedTrade = DiaryEntry & { sourceExternalId: string; sourcePlatform: string; source?: string }
 
 export const isSyncableBrokerConnection = (connection?: StoredBrokerConnection | null) => {
-  return Boolean(connection?.active && ['bybit', 'kraken', 'kraken-spot', 'kraken-futures', 'binance', 'interactive-brokers'].includes(connection.brokerId))
+  return Boolean(connection?.active && ['metatrader5', 'bybit', 'kraken', 'kraken-spot', 'kraken-futures', 'binance', 'interactive-brokers'].includes(connection.brokerId))
 }
 
 export const syncBrokerConnectionTrades = async (
@@ -65,6 +66,10 @@ export const syncBrokerConnectionTrades = async (
   strategyId: string,
   tradeStore: BrokerTradeStorePort
 ): Promise<BrokerSyncResult> => {
+  if (connection.brokerId === 'metatrader5') {
+    return syncMetaTrader5(connection, strategyId, tradeStore)
+  }
+
   if (connection.brokerId === 'binance') {
     return syncBinance(connection, strategyId, tradeStore)
   }
@@ -88,6 +93,175 @@ export const syncBrokerConnectionTrades = async (
   }
 
   throw new Error('This connector does not support direct trade sync yet.')
+}
+
+const mt5ConnectionFromStored = (connection: StoredBrokerConnection): Mt5Connection => {
+  const login = Number(connection.credentials.login)
+
+  return {
+    mode: 'local',
+    path: connection.credentials.path || undefined,
+    login: Number.isFinite(login) ? login : undefined,
+    password: connection.credentials.password || undefined,
+    server: connection.credentials.server || undefined,
+    timeout: 60_000
+  }
+}
+
+const mt5DealTime = (deal: Record<string, any>) => {
+  const milliseconds = Number(deal.time_msc)
+  if (Number.isFinite(milliseconds) && milliseconds > 0) return new Date(milliseconds)
+
+  const seconds = Number(deal.time)
+  return new Date(Number.isFinite(seconds) ? seconds * 1000 : 0)
+}
+
+const mt5DealEntry = (deal: Record<string, any>) => Number(deal.entry)
+
+const mt5WeightedPrice = (deals: Record<string, any>[]) => {
+  const weightedVolume = deals.reduce((sum, deal) => sum + Math.abs(Number(deal.volume) || 0), 0)
+  if (weightedVolume <= 0) return 0
+
+  return deals.reduce(
+    (sum, deal) => sum + (Math.abs(Number(deal.volume) || 0) * (Number(deal.price) || 0)),
+    0
+  ) / weightedVolume
+}
+
+const mt5Fees = (deals: Record<string, any>[]) => deals.reduce((sum, deal) => {
+  const commission = Math.abs(Number(deal.commission) || 0)
+  const fee = Math.abs(Number(deal.fee) || 0)
+  return sum + commission + fee
+}, 0)
+
+const mt5StopLoss = (deals: Record<string, any>[]): number | undefined => {
+  for (const deal of deals) {
+    const sl = Number(deal.sl ?? deal.stopLoss ?? deal.stop_loss ?? deal.order_sl ?? 0)
+    if (Number.isFinite(sl) && sl > 0) return sl
+  }
+  return undefined
+}
+
+const mt5TakeProfit = (deals: Record<string, any>[]): number | undefined => {
+  for (const deal of deals) {
+    const tp = Number(deal.tp ?? deal.takeProfit ?? deal.take_profit ?? deal.order_tp ?? 0)
+    if (Number.isFinite(tp) && tp > 0) return tp
+  }
+  return undefined
+}
+
+const buildMetaTrader5RoundTrips = (deals: Record<string, any>[]) => {
+  const byPosition = new Map<string, Record<string, any>[]>()
+
+  deals.forEach((deal) => {
+    const positionId = String(deal.position_id ?? deal.positionId ?? '')
+    const symbol = String(deal.symbol || '').trim()
+    if (!positionId || !symbol) return
+
+    const positionDeals = byPosition.get(positionId) || []
+    positionDeals.push(deal)
+    byPosition.set(positionId, positionDeals)
+  })
+
+  const roundTrips: ImportedTrade[] = []
+
+  byPosition.forEach((positionDeals, positionId) => {
+    const ordered = [...positionDeals].sort((left, right) => mt5DealTime(left).getTime() - mt5DealTime(right).getTime())
+    const entryDeals = ordered.filter(deal => mt5DealEntry(deal) === 0)
+    const exitDeals = ordered.filter(deal => [1, 3].includes(mt5DealEntry(deal)))
+    if (!entryDeals.length || !exitDeals.length) return
+
+    const entryDeal = entryDeals[0]!
+    const entryType = Number(entryDeal.type)
+    const side: 'Long' | 'Short' = entryType === 1 ? 'Short' : 'Long'
+    const lastExit = exitDeals[exitDeals.length - 1]!
+    const exitVolume = exitDeals.reduce((sum, deal) => sum + Math.abs(Number(deal.volume) || 0), 0)
+    const profit = ordered.reduce((sum, deal) => {
+      return sum
+        + (Number(deal.profit) || 0)
+        + (Number(deal.swap) || 0)
+        + (Number(deal.commission) || 0)
+        + (Number(deal.fee) || 0)
+    }, 0)
+    const symbol = String(entryDeal.symbol || lastExit.symbol || '').toUpperCase()
+    const resolvedAsset = resolveImportedAsset(symbol, 'forex-broker')
+    const sourceExternalId = `position:${positionId}`
+
+    const rawStopLoss = mt5StopLoss(ordered)
+    const rawTakeProfit = mt5TakeProfit(ordered)
+    const stopLossVal = rawStopLoss && rawStopLoss > 0 ? rawStopLoss : undefined
+    const takeProfitVal = rawTakeProfit && rawTakeProfit > 0 ? rawTakeProfit : undefined
+
+    roundTrips.push({
+      id: `mt5-${positionId}`,
+      date: mt5DealTime(entryDeals[0]!),
+      dateExit: mt5DealTime(lastExit),
+      asset: resolvedAsset.symbol,
+      side,
+      entry: mt5WeightedPrice(entryDeals),
+      exit: mt5WeightedPrice(exitDeals),
+      stopLoss: stopLossVal,
+      takeProfit: takeProfitVal,
+      sl: stopLossVal,
+      tp: takeProfitVal,
+      size: exitVolume,
+      currency: 'USD',
+      assetType: resolvedAsset.assetType,
+      assetIcon: resolvedAsset.assetIcon,
+      entryFee: mt5Fees(entryDeals),
+      exitFee: mt5Fees(exitDeals),
+      feeType: '$',
+      profitInCurrency: profit,
+      result: profit,
+      isClosed: true,
+      status: 'closed',
+      source: 'metatrader5',
+      sourceExternalId,
+      sourcePlatform: 'MetaTrader 5',
+      notes: `Imported from MetaTrader 5 position ${positionId}. Deals: ${ordered.length}.`
+    })
+  })
+
+  return roundTrips
+}
+
+const syncMetaTrader5 = async (
+  connection: StoredBrokerConnection,
+  strategyId: string,
+  tradeStore: BrokerTradeStorePort
+): Promise<BrokerSyncResult> => {
+  if (!connection.active) {
+    throw new Error('MetaTrader 5 connection is deactivated.')
+  }
+
+  console.log('==================================================')
+  console.log('[MT5 SYNC STARTED] Target Strategy:', strategyId)
+
+  const deals = await mt5Request<Record<string, any>[]>({
+    action: 'history_deals_get',
+    connection: mt5ConnectionFromStored(connection),
+    params: {
+      dateFrom: '1970-01-01T00:00:00.000Z',
+      dateTo: new Date().toISOString()
+    }
+  })
+
+  console.log('[MT5 RAW DEALS FROM SERVICE]:', deals)
+  console.log('[MT5 RAW DEALS FORMATTED]:', JSON.stringify(deals, null, 2))
+
+  const roundTrips = buildMetaTrader5RoundTrips(Array.isArray(deals) ? deals : [])
+
+  console.log('[MT5 CONVERTED ROUNDTRIPS (DiaryEntry[])]:', roundTrips)
+  console.log('[MT5 CONVERTED ROUNDTRIPS FORMATTED]:', JSON.stringify(roundTrips, null, 2))
+  console.log('==================================================')
+
+  const result = await importDedupedTrades(roundTrips, strategyId, tradeStore)
+
+  return {
+    ...result,
+    checkedCount: Array.isArray(deals) ? deals.length : 0,
+    sourceLabel: 'MetaTrader 5'
+  }
 }
 
 const syncBybit = async (

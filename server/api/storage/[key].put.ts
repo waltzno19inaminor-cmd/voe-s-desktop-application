@@ -24,6 +24,8 @@ export default defineEventHandler(async (event) => {
   }
 
   await mkdir(directory, { recursive: true })
+  // A unique name prevents concurrent saves of the same JSON file from
+  // overwriting each other's temporary file before the atomic rename.
   const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`
   await writeFile(temporaryPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8')
   await rename(temporaryPath, filePath)

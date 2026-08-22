@@ -37,6 +37,16 @@
              <path d="M4 7h16M4 12h16M4 17h16" />
            </svg>
        </ExGenesisHudButton>
+       <div v-if="canCreateStrategyVersion || (hasSelectedStrategyVersion && hasStrategyVersionChanges)" class="mx-1 h-px w-7 bg-white/15"></div>
+       <ExGenesisHudButton v-if="canCreateStrategyVersion" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-create')">
+           <Icon name="lucide:bookmark-plus" class="w-4 h-4" />
+       </ExGenesisHudButton>
+       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-update')">
+           <Icon name="lucide:refresh-cw" class="w-4 h-4" />
+       </ExGenesisHudButton>
+       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="$emit('strategy-version-clear')">
+           <Icon name="lucide:undo-2" class="w-4 h-4" />
+       </ExGenesisHudButton>
      </ExGenesisHudPanel>
   </div>
 
@@ -48,9 +58,9 @@
         @click.self="closeToolsMenu"
         class="tools-menu-overlay fixed inset-0 z-[10005] flex items-center justify-center p-12 backdrop-blur-md"
       >
-        <div class="relative w-full max-w-[96px]">
+        <div class="relative w-full max-w-xl">
           <ExPanel class="tools-menu-panel w-full" noPadding variant="light" :show-corners="true">
-            <div class="grid grid-cols-1 gap-0 p-4 [&>button]:!h-14">
+            <div class="grid grid-cols-2 gap-0 p-4 [&>button]:!h-14">
               <button
                 type="button"
                 class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
@@ -62,6 +72,23 @@
                 </svg>
                 <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                   {{ t('matrix.manual') }}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
+                @click="openVersionReviewFromMenu"
+              >
+                <Icon name="lucide:history" class="h-6 w-6" />
+                <span
+                  v-if="strategyVersions.length"
+                  class="absolute right-1/2 top-1/2 flex h-4 min-w-4 translate-x-5 -translate-y-5 items-center justify-center bg-white px-1 font-mono text-[7px] leading-none text-black"
+                >
+                  {{ strategyVersions.length }}
+                </span>
+                <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
+                  {{ t('matrix.versionReview') }}
                 </span>
               </button>
             </div>
@@ -141,6 +168,13 @@
       </div>
     </Transition>
   </Teleport>
+
+  <ExMatrixGitPanel :is-open="gitPanelOpen" @close="setGitPanelOpen(false)" />
+  <ExMatrixVersionReview
+    :is-open="isVersionReviewOpen"
+    :versions="strategyVersions"
+    @close="isVersionReviewOpen = false"
+  />
 </template>
 
 <script setup lang="ts">
@@ -150,16 +184,28 @@ import ExPanel from '@/shared/ui/ExPanel.vue'
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
 import ExGenesisHudButton from '../common/ExGenesisHudButton.vue'
 import ExGenesisHudFlyout from '../common/ExGenesisHudFlyout.vue'
+import ExMatrixGitPanel from './ExMatrixGitPanel.vue'
+import ExMatrixVersionReview from './ExMatrixVersionReview.vue'
+import type { MatrixStrategyVersion } from '../../model/matrix/useMatrixState'
 
 const props = defineProps<{
   viewState: { scale: number }
   isScenarioContext: boolean
   isDark?: boolean
+  canCreateStrategyVersion?: boolean
+  hasSelectedStrategyVersion?: boolean
+  hasStrategyVersionChanges?: boolean
+  strategyVersions?: MatrixStrategyVersion[]
+  gitPanelOpen: boolean
 }>()
 
 const emit = defineEmits([
   'reset-view',
   'update-scale',
+  'git-panel-state',
+  'strategy-version-create',
+  'strategy-version-update',
+  'strategy-version-clear',
   'close-context-menus'
 ])
 
@@ -167,26 +213,49 @@ const { locale, t } = useI18n()
 
 const isToolsMenuOpen = ref(false)
 const isManualOpen = ref(false)
+const isVersionReviewOpen = ref(false)
 const activeManualSection = ref(0)
 const matrixScaleOptions = [25, 50, 75, 100, 150, 200]
+
+const strategyVersions = computed(() => props.strategyVersions || [])
 
 function matrixToolLabel(key: string) {
   const keys: Record<string, string> = {
     reset: 'matrix.resetView',
-    manual: 'matrix.manual'
+    versionReview: 'matrix.versionReview',
+    manual: 'matrix.manual',
+    createVersion: 'matrix.createVersion',
+    updateVersion: 'matrix.updateVersion',
+    clearChanges: 'matrix.clearChanges'
   }
   return t(keys[key] || key)
+}
+
+function setGitPanelOpen(value: boolean) {
+  emit('git-panel-state', value)
+}
+
+function openVersionReview() {
+  isToolsMenuOpen.value = false
+  emit('close-context-menus')
+  isManualOpen.value = false
+  setGitPanelOpen(false)
+  isVersionReviewOpen.value = true
 }
 
 function openManual() {
   isToolsMenuOpen.value = false
   emit('close-context-menus')
+  isVersionReviewOpen.value = false
+  setGitPanelOpen(false)
   isManualOpen.value = true
 }
 
 function toggleToolsMenu() {
   emit('close-context-menus')
   isManualOpen.value = false
+  isVersionReviewOpen.value = false
+  setGitPanelOpen(false)
   isToolsMenuOpen.value = !isToolsMenuOpen.value
 }
 
@@ -197,6 +266,11 @@ function closeToolsMenu() {
 function openManualFromMenu() {
   closeToolsMenu()
   openManual()
+}
+
+function openVersionReviewFromMenu() {
+  closeToolsMenu()
+  openVersionReview()
 }
 
 const manualSectionsEn = [

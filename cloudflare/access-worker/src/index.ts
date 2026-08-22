@@ -181,6 +181,12 @@ export default {
         return jsonResponse(await decryptRotationBatch(env, batch))
       }
 
+      if (request.method === 'POST' && url.pathname === '/v1/admin/cleanup-expired') {
+        await requireAdminToken(request, env)
+        const result = await deactivateExpiredUserAccessStates(env)
+        return jsonResponse(result)
+      }
+
       const disableMatch = url.pathname.match(/^\/v1\/admin\/keys\/([^/]+)\/disable$/)
       if (request.method === 'POST' && disableMatch) {
         await requireAdminToken(request, env)
@@ -201,9 +207,19 @@ export default {
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     try {
-      await createRotationBatch(env, getRotationStartForSchedule(new Date(controller.scheduledTime)))
+      const deactivationResult = await deactivateExpiredUserAccessStates(env)
+      console.log('[Access] Daily expired access deactivation result:', deactivationResult)
     } catch (error) {
-      console.error('[Access] Rotation batch creation failed.', error)
+      console.error('[Access] Daily expired access deactivation failed.', error)
+    }
+
+    const scheduledDate = new Date(controller.scheduledTime)
+    if (scheduledDate.getUTCDate() === 1 && ROTATION_MONTHS.includes(scheduledDate.getUTCMonth() + 1)) {
+      try {
+        await createRotationBatch(env, getRotationStartForSchedule(scheduledDate))
+      } catch (error) {
+        console.error('[Access] Rotation batch creation failed.', error)
+      }
     }
   }
 }
@@ -441,10 +457,13 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
   if (!entry) throw new Error('Unable to create Patreon access key.')
   const encrypted = await encryptRotationKeys(env, [{ id: entry.id, key: entry.key }])
 
+  const PATREON_KEY_DURATION_DAYS = 90
+  const expiresAt = new Date(Date.now() + PATREON_KEY_DURATION_DAYS * 24 * 60 * 60 * 1000)
+
   const keyInput: CreateKeysInput = {
     count: 1,
     maxRedemptions: 1,
-    expiresAt: null,
+    expiresAt,
     label: PATREON_KEY_LABEL
   }
 
@@ -516,10 +535,10 @@ async function sendPatreonAccessEmail(env: Env, input: {
     '',
     `Thank you for supporting ${brandName} on Patreon.`,
     '',
-    'Your one-time app activation key:',
+    'Your 3-month app activation key:',
     input.key,
     '',
-    'This key can be activated once inside the app.',
+    'This key grants 3 months of full access inside the app.',
     `You can download the full version here: ${downloadUrl}`,
     '',
     brandName
@@ -528,11 +547,11 @@ async function sendPatreonAccessEmail(env: Env, input: {
     <div style="font-family:Inter,Arial,sans-serif;line-height:1.55;color:#111827">
       <p>Hello ${escapeHtml(displayName)},</p>
       <p>Thank you for supporting <strong>${brandName}</strong> on Patreon.</p>
-      <p>Your one-time app activation key:</p>
+      <p>Your 3-month app activation key:</p>
       <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;letter-spacing:0.08em;font-weight:800;padding:14px 16px;border:1px solid #d1d5db;background:#f9fafb">
         ${escapeHtml(input.key)}
       </p>
-      <p>This key can be activated once inside the app.</p>
+      <p>This key grants 3 months of full access inside the app.</p>
       <p>You can download the full version here:</p>
       <p>
         <a href="${downloadUrl}" style="color:#111827;font-weight:800;text-decoration:underline">
@@ -667,7 +686,8 @@ function createUserAccessStateWrite(env: Env, userId: string, accessKey: AccessK
       fields: encodeFields({
         isActivated: true,
         grant: accessKey.grant,
-        activatedKeyId: accessKey.id
+        activatedKeyId: accessKey.id,
+        expiresAt: accessKey.expiresAtMs ? new Date(accessKey.expiresAtMs) : null
       })
     },
     updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }]
@@ -859,6 +879,63 @@ async function disableAccessKey(env: Env, keyId: string) {
   }])
 }
 
+async function deactivateExpiredUserAccessStates(env: Env): Promise<{ checked: number; deactivated: number }> {
+  const token = await getGoogleAccessToken(env)
+  const response = await fetch(`${firestoreBaseUrl(env)}/documents:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'access', allDescendants: true }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'isActivated' },
+            op: 'EQUAL',
+            value: { booleanValue: true }
+          }
+        },
+        limit: 1000
+      }
+    })
+  })
+
+  if (!response.ok) {
+    throw new Error(`Firestore query for active user access states failed: ${response.status}`)
+  }
+
+  const documents = parseFirestoreQueryResponse(await response.text())
+  const now = Date.now()
+  const expiredDocs: FirestoreDocument[] = []
+
+  for (const document of documents) {
+    const expiresAtMs = toMillis(document.data.expiresAt)
+    if (expiresAtMs && expiresAtMs <= now) {
+      expiredDocs.push(document)
+    }
+  }
+
+  if (expiredDocs.length === 0) {
+    return { checked: documents.length, deactivated: 0 }
+  }
+
+  const writes: FirestoreWrite[] = expiredDocs.map((doc) => ({
+    update: {
+      name: doc.name,
+      fields: encodeFields({
+        isActivated: false,
+        grant: doc.data.grant || ACCESS_GRANT,
+        activatedKeyId: doc.data.activatedKeyId || null,
+        expiresAt: doc.data.expiresAt || null
+      })
+    },
+    updateMask: { fieldPaths: ['isActivated'] },
+    updateTransforms: [{ fieldPath: 'deactivatedAt', setToServerValue: 'REQUEST_TIME' }]
+  }))
+
+  await commitFirestoreWrites(env, writes)
+  return { checked: documents.length, deactivated: expiredDocs.length }
+}
+
 function parseCreateKeysInput(input: Record<string, unknown>): CreateKeysInput {
   const count = Number(input.count)
   if (!Number.isInteger(count) || count < 1 || count > MAX_KEYS_PER_REQUEST) {
@@ -877,10 +954,20 @@ function parseCreateKeysInput(input: Record<string, unknown>): CreateKeysInput {
     throw new AccessWorkerError('maxRedemptions must be a positive integer.', 400)
   }
 
-  const rawExpiresAt = input.expiresAt
-  const expiresAt = rawExpiresAt == null || rawExpiresAt === ''
-    ? null
-    : new Date(String(rawExpiresAt))
+  const rawDurationDays = input.durationDays ?? input.validityDays
+  let expiresAt: Date | null = null
+  if (rawDurationDays != null && rawDurationDays !== '') {
+    const days = Number(rawDurationDays)
+    if (!Number.isInteger(days) || days < 1 || days > 3650) {
+      throw new AccessWorkerError('durationDays must be an integer from 1 to 3650.', 400)
+    }
+    expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+  } else {
+    const rawExpiresAt = input.expiresAt
+    expiresAt = rawExpiresAt == null || rawExpiresAt === ''
+      ? null
+      : new Date(String(rawExpiresAt))
+  }
   if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now())) {
     throw new AccessWorkerError('expiresAt must be a future ISO date.', 400)
   }

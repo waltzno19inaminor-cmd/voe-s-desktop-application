@@ -33,9 +33,13 @@ dist/
 .output/
 .DS_Store
 .env
+__pycache__/
+*.pyc
 
 # Signing keys and hotfix build scratch
 *.key
 *.minisig
 .hotfix-work/
 dist/hotfix/
+target/
+**/target/
