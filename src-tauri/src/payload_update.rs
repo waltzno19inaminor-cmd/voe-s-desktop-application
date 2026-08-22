@@ -76,7 +76,7 @@ pub fn payload_update_clear(app: AppHandle) -> Result<(), String> {
     let patches = patches_root(&app)?;
     let active_web = active_web_dir_from_root(&patches);
     if active_web.exists() {
-        fs::remove_dir_all(&active_web).map_err(|err| format!("remove active payload: {err}"))?;
+        safe_remove_dir_all(&active_web).map_err(|err| format!("remove active payload: {err}"))?;
     }
     for path in [
         root.join(PAYLOAD_STATE_FILE),
@@ -188,7 +188,7 @@ async fn install_payload_manifest<R: Runtime>(
         sanitize_version_for_path(&manifest.version)
     ));
     if staging.exists() {
-        fs::remove_dir_all(&staging).map_err(|err| format!("remove old payload staging: {err}"))?;
+        safe_remove_dir_all(&staging).map_err(|err| format!("remove old payload staging: {err}"))?;
     }
     fs::create_dir_all(&staging).map_err(|err| format!("create payload staging: {err}"))?;
 
@@ -354,7 +354,7 @@ pub struct PayloadProgressEvent {
     }
 
     if active_web.exists() {
-        fs::remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
+        safe_remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
     }
     fs::rename(&staging, &active_web).map_err(|err| format!("activate payload: {err}"))?;
 
@@ -621,4 +621,24 @@ fn current_timestamp() -> String {
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
     format!("{seconds}")
+}
+
+fn safe_remove_dir_all(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+    if let Err(err) = fs::remove_dir_all(path) {
+        #[cfg(not(target_os = "windows"))]
+        {
+            let status = std::process::Command::new("rm")
+                .arg("-rf")
+                .arg(path)
+                .status();
+            if status.map(|s| s.success()).unwrap_or(false) && !path.exists() {
+                return Ok(());
+            }
+        }
+        return Err(format!("{err}"));
+    }
+    Ok(())
 }
