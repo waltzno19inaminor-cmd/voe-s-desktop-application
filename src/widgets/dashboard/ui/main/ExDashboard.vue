@@ -320,7 +320,7 @@ const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const appVersion = computed(() => String(tauriConfig.version || pkg.version || '1.0.82'))
+const appVersion = computed(() => String(tauriConfig.version || pkg.version || '1.0.83'))
 
 const dashboardGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
