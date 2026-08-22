@@ -523,7 +523,21 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
         : `Release version is built for platform ${manifest.platform}`
     }
 
-    if (manifest.version !== activeVersion || !isSuitable) {
+    const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
+      const normalize = (v: string) => v.replace(/^v/, '').trim()
+      const rParts = normalize(remoteVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
+      const cParts = normalize(currentVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
+      const len = Math.max(rParts.length, cParts.length)
+      for (let i = 0; i < len; i++) {
+        const r = rParts[i] || 0
+        const c = cParts[i] || 0
+        if (r > c) return true
+        if (r < c) return false
+      }
+      return false
+    }
+
+    if (isVersionNewer(manifest.version, activeVersion) || !isSuitable) {
       return {
         type: 'payload',
         version: manifest.version,
