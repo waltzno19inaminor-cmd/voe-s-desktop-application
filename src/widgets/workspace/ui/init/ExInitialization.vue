@@ -99,28 +99,34 @@
           </button>
         </div>
 
-        <!-- ── UPDATE CHECK: runs before login / register is shown ── -->
+        <!-- ── UPDATE CHECK / INSTALLING PROGRESS ── -->
         <div v-else-if="phase === 'update'" key="update-check" class="w-full flex flex-col items-center space-y-6">
           <div class="w-full flex flex-col space-y-3">
             <div class="flex justify-between items-end">
-              <span class="text-[9px] font-mono uppercase tracking-widest text-black" style="opacity: 0.4;">
+              <span class="text-[9px] font-mono uppercase tracking-widest text-black/60">
                 {{ updateTitle }}
               </span>
-              <span class="text-[9px] font-mono font-black text-black">{{ Math.floor(updateProgress) }}%</span>
+              <span class="text-[10px] font-mono font-black text-black">{{ Math.floor(updateProgress) }}%</span>
             </div>
-            <div class="h-px w-full relative overflow-hidden" style="background: #000; opacity: 0.1;">
+            
+            <div class="h-2 w-full relative overflow-hidden rounded-full border border-black/15 bg-black/10">
               <div
-                class="absolute top-0 left-0 h-full transition-all duration-200"
-                style="background: #000; opacity: 1;"
+                class="absolute top-0 left-0 h-full bg-black transition-all duration-300 rounded-full"
                 :style="{ width: `${updateProgress}%` }"
               ></div>
-              <div class="absolute inset-y-0 left-0 w-8 blur-sm animate-scan" style="background: #000; opacity: 0.4;"></div>
+              <div class="absolute inset-y-0 left-0 w-12 bg-white/40 blur-sm animate-scan"></div>
+            </div>
+
+            <!-- Download Speed & Remaining MB Subtext -->
+            <div v-if="downloadSpeedText || remainingSizeText" class="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest text-black/60 pt-1">
+              <span>{{ downloadSpeedText }}</span>
+              <span>{{ remainingSizeText }}</span>
             </div>
           </div>
 
           <div class="h-8 overflow-hidden relative w-full">
             <Transition name="log-slide" mode="out-in">
-              <p :key="updateLog" class="text-center lowercase italic text-[10px] font-mono text-black" style="opacity: 0.2;">
+              <p :key="updateLog" class="text-center lowercase italic text-[10px] font-mono text-black/70">
                 {{ updateLog }}
               </p>
             </Transition>
@@ -300,7 +306,9 @@ import { useRuntimeConfig } from '#imports'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
+import pkg from '../../../../../package.json'
 import { useI18n } from '~/shared/i18n/useI18n'
+import ExPanel from '~/shared/ui/ExPanel.vue'
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -335,9 +343,7 @@ interface AvailableUpdate {
   reason?: string
 }
 
-const pendingUpdate = ref<AvailableUpdate | null>(null)
-
-const appVersion = String(tauriConfig.version || '0.0.0')
+const appVersion = String(tauriConfig.version || pkg.version || '1.0.6')
 
 const initializationGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
@@ -418,6 +424,8 @@ const updateTitle = ref('ПРОВЕРКА_ОБНОВЛЕНИЙ')
 const updateLog = ref('проверка доступных обновлений')
 let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 
+const pendingUpdate = ref<AvailableUpdate | null>(null)
+
 const clearUpdateProgressTimer = () => {
   if (!updateProgressTimer) return
   clearInterval(updateProgressTimer)
@@ -483,12 +491,19 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
 
 const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate | null> => {
   try {
-    const res = await fetch(manifestUrl)
-    if (!res.ok) return null
-    const manifest = await res.json()
+    const { invoke } = await import('@tauri-apps/api/core')
+    let manifest: any = null
+
+    try {
+      manifest = await invoke('payload_update_fetch_manifest', { manifestUrl })
+    } catch (invokeErr) {
+      const res = await fetch(manifestUrl)
+      if (!res.ok) return null
+      manifest = await res.json()
+    }
+
     if (!manifest || !manifest.version) return null
 
-    const { invoke } = await import('@tauri-apps/api/core')
     const localState = await invoke<{ version?: string | null; active: boolean }>('payload_update_get_state').catch(() => null)
 
     const activeVersion = localState?.active ? (localState.version || appVersion) : appVersion
@@ -508,7 +523,21 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
         : `Release version is built for platform ${manifest.platform}`
     }
 
-    if (manifest.version !== activeVersion || !isSuitable) {
+    const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
+      const normalize = (v: string) => v.replace(/^v/, '').trim()
+      const rParts = normalize(remoteVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
+      const cParts = normalize(currentVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
+      const len = Math.max(rParts.length, cParts.length)
+      for (let i = 0; i < len; i++) {
+        const r = rParts[i] || 0
+        const c = cParts[i] || 0
+        if (r > c) return true
+        if (r < c) return false
+      }
+      return false
+    }
+
+    if (isVersionNewer(manifest.version, activeVersion) || !isSuitable) {
       return {
         type: 'payload',
         version: manifest.version,
@@ -554,31 +583,68 @@ const performNativeInstall = async (update: any) => {
   }, 450)
 }
 
+const downloadSpeedText = ref('')
+const remainingSizeText = ref('')
+
 const performPayloadInstall = async (manifestUrl: string) => {
-  updateProgressTimer = setInterval(() => {
-    updateProgress.value = Math.min(82, updateProgress.value + Math.max(1, Math.round((82 - updateProgress.value) * 0.08)))
-    if (updateProgress.value >= 38) {
-      setUpdateCopy('ПРОВЕРКА_ФАЙЛОВ', 'сверка файлов с манифестом релиза')
-    }
-  }, 260)
+  setUpdateCopy('ПОДГОТОВКА_К_ЗАГРУЗКЕ', 'инициализация потока скачивания')
+  updateProgress.value = 5
 
   const { invoke } = await import('@tauri-apps/api/core')
-  const result = await invoke<PayloadInstallResult>('payload_update_install_from_feed', {
-    manifestUrl,
-  })
+  const { listen } = await import('@tauri-apps/api/event')
 
-  clearUpdateProgressTimer()
-  if (result.downloadedFiles > 0 && result.state.active) {
-    updateProgress.value = 100
-    setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', 'обновление установлено. перезапуск')
-    const { relaunch } = await import('@tauri-apps/plugin-process')
-    setTimeout(() => {
-      void relaunch()
-    }, 450)
-    return
+  let unlistenProgress: (() => void) | null = null
+
+  try {
+    unlistenProgress = await listen<any>('payload-download-progress', (event) => {
+      const data = event.payload
+      if (!data) return
+
+      if (data.stage === 'downloading') {
+        const speedMB = (data.speedBytesPerSec / (1024 * 1024)).toFixed(1)
+        const remainingMB = (data.remainingBytes / (1024 * 1024)).toFixed(1)
+        const downloadedMB = (data.downloadedBytes / (1024 * 1024)).toFixed(1)
+        const totalMB = (data.totalBytes / (1024 * 1024)).toFixed(1)
+
+        downloadSpeedText.value = locale.value === 'ru' ? `СКОРОСТЬ: ${speedMB} МБ/с` : `SPEED: ${speedMB} MB/s`
+        remainingSizeText.value = locale.value === 'ru'
+          ? `ОСТАЛОСЬ: ${remainingMB} МБ (${downloadedMB}/${totalMB} МБ)`
+          : `REMAINING: ${remainingMB} MB (${downloadedMB}/${totalMB} MB)`
+
+        updateProgress.value = Math.min(90, Math.max(5, Math.round(data.percentage)))
+        setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', locale.value === 'ru' ? 'скачивание пакета ресурсов' : 'downloading update payload')
+      } else if (data.stage === 'extracting' || data.stage === 'verifying') {
+        downloadSpeedText.value = ''
+        remainingSizeText.value = ''
+        updateProgress.value = 95
+        setUpdateCopy('РАСПАКОВКА_И_ПРОВЕРКА', locale.value === 'ru' ? 'установка и проверка целостности файлов' : 'unpacking and verifying files')
+      }
+    })
+
+    const result = await invoke<PayloadInstallResult>('payload_update_install_from_feed', {
+      manifestUrl,
+    })
+
+    if (unlistenProgress) unlistenProgress()
+
+    if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
+      updateProgress.value = 100
+      downloadSpeedText.value = ''
+      remainingSizeText.value = ''
+      setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. перезапуск' : 'update installed. restarting')
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      setTimeout(() => {
+        void relaunch()
+      }, 450)
+      return
+    }
+  } catch (err) {
+    if (unlistenProgress) unlistenProgress()
+    downloadSpeedText.value = ''
+    remainingSizeText.value = ''
+    console.warn('[Updater] Installation failed:', err)
+    throw err
   }
-
-  await runArtificialUpdateProgress()
 }
 
 const confirmAndInstallUpdate = async () => {
