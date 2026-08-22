@@ -1,10 +1,11 @@
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use walkdir::WalkDir;
 
 use crate::patch::{
@@ -192,6 +193,17 @@ async fn install_payload_manifest<R: Runtime>(
     }
     fs::create_dir_all(&staging).map_err(|err| format!("create payload staging: {err}"))?;
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PayloadProgressEvent {
+    pub stage: String,
+    pub downloaded_bytes: u64,
+    pub total_bytes: u64,
+    pub speed_bytes_per_sec: f64,
+    pub remaining_bytes: u64,
+    pub percentage: f64,
+}
+
     let mut downloaded_files = 0;
     let mut reused_files = 0;
     let mut zip_extracted = false;
@@ -199,8 +211,56 @@ async fn install_payload_manifest<R: Runtime>(
     if let Some(zip_url) = base_url.join("payload.zip").ok() {
         if let Ok(res) = reqwest::get(zip_url).await {
             if res.status().is_success() {
-                if let Ok(bytes) = res.bytes().await {
-                    let cursor = std::io::Cursor::new(bytes);
+                let total_bytes = res.content_length().unwrap_or(0);
+                let mut stream = res.bytes_stream();
+                let mut zip_bytes = Vec::with_capacity(total_bytes as usize);
+                let mut downloaded_bytes: u64 = 0;
+                let start_time = std::time::Instant::now();
+                let mut last_emit = std::time::Instant::now();
+
+                while let Some(chunk_result) = stream.next().await {
+                    let chunk = match chunk_result {
+                        Ok(c) => c,
+                        Err(_) => break,
+                    };
+                    downloaded_bytes += chunk.len() as u64;
+                    zip_bytes.extend_from_slice(&chunk);
+
+                    let elapsed = start_time.elapsed().as_secs_f64();
+                    if last_emit.elapsed().as_millis() >= 100 || downloaded_bytes == total_bytes {
+                        last_emit = std::time::Instant::now();
+                        let speed = if elapsed > 0.0 { downloaded_bytes as f64 / elapsed } else { 0.0 };
+                        let remaining = if total_bytes > downloaded_bytes { total_bytes - downloaded_bytes } else { 0 };
+                        let percentage = if total_bytes > 0 { (downloaded_bytes as f64 / total_bytes as f64) * 100.0 } else { 0.0 };
+
+                        let _ = app.emit(
+                            "payload-download-progress",
+                            PayloadProgressEvent {
+                                stage: "downloading".to_string(),
+                                downloaded_bytes,
+                                total_bytes,
+                                speed_bytes_per_sec: speed,
+                                remaining_bytes: remaining,
+                                percentage,
+                            },
+                        );
+                    }
+                }
+
+                if zip_bytes.len() as u64 == downloaded_bytes && downloaded_bytes > 0 {
+                    let _ = app.emit(
+                        "payload-download-progress",
+                        PayloadProgressEvent {
+                            stage: "extracting".to_string(),
+                            downloaded_bytes: total_bytes,
+                            total_bytes,
+                            speed_bytes_per_sec: 0.0,
+                            remaining_bytes: 0,
+                            percentage: 95.0,
+                        },
+                    );
+
+                    let cursor = std::io::Cursor::new(zip_bytes);
                     if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
                         for i in 0..archive.len() {
                             if let Ok(mut file) = archive.by_index(i) {

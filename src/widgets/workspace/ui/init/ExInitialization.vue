@@ -116,6 +116,12 @@
               ></div>
               <div class="absolute inset-y-0 left-0 w-8 blur-sm animate-scan" style="background: #000; opacity: 0.4;"></div>
             </div>
+
+            <!-- Download Speed & Remaining MB Subtext -->
+            <div v-if="downloadSpeedText || remainingSizeText" class="flex justify-between items-center text-[8px] font-mono uppercase tracking-widest text-black/60 pt-1">
+              <span>{{ downloadSpeedText }}</span>
+              <span>{{ remainingSizeText }}</span>
+            </div>
           </div>
 
           <div class="h-8 overflow-hidden relative w-full">
@@ -563,31 +569,68 @@ const performNativeInstall = async (update: any) => {
   }, 450)
 }
 
+const downloadSpeedText = ref('')
+const remainingSizeText = ref('')
+
 const performPayloadInstall = async (manifestUrl: string) => {
-  updateProgressTimer = setInterval(() => {
-    updateProgress.value = Math.min(82, updateProgress.value + Math.max(1, Math.round((82 - updateProgress.value) * 0.08)))
-    if (updateProgress.value >= 38) {
-      setUpdateCopy('ПРОВЕРКА_ФАЙЛОВ', 'сверка файлов с манифестом релиза')
-    }
-  }, 260)
+  setUpdateCopy('ПОДГОТОВКА_К_ЗАГРУЗКЕ', 'инициализация потока скачивания')
+  updateProgress.value = 5
 
   const { invoke } = await import('@tauri-apps/api/core')
-  const result = await invoke<PayloadInstallResult>('payload_update_install_from_feed', {
-    manifestUrl,
-  })
+  const { listen } = await import('@tauri-apps/api/event')
 
-  clearUpdateProgressTimer()
-  if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
-    updateProgress.value = 100
-    setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', 'обновление установлено. перезапуск')
-    const { relaunch } = await import('@tauri-apps/plugin-process')
-    setTimeout(() => {
-      void relaunch()
-    }, 450)
-    return
+  let unlistenProgress: (() => void) | null = null
+
+  try {
+    unlistenProgress = await listen<any>('payload-download-progress', (event) => {
+      const data = event.payload
+      if (!data) return
+
+      if (data.stage === 'downloading') {
+        const speedMB = (data.speedBytesPerSec / (1024 * 1024)).toFixed(1)
+        const remainingMB = (data.remainingBytes / (1024 * 1024)).toFixed(1)
+        const downloadedMB = (data.downloadedBytes / (1024 * 1024)).toFixed(1)
+        const totalMB = (data.totalBytes / (1024 * 1024)).toFixed(1)
+
+        downloadSpeedText.value = locale.value === 'ru' ? `СКОРОСТЬ: ${speedMB} МБ/с` : `SPEED: ${speedMB} MB/s`
+        remainingSizeText.value = locale.value === 'ru'
+          ? `ОСТАЛОСЬ: ${remainingMB} МБ (${downloadedMB}/${totalMB} МБ)`
+          : `REMAINING: ${remainingMB} MB (${downloadedMB}/${totalMB} MB)`
+
+        updateProgress.value = Math.min(90, Math.max(5, Math.round(data.percentage)))
+        setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', locale.value === 'ru' ? 'скачивание пакета ресурсов' : 'downloading update payload')
+      } else if (data.stage === 'extracting' || data.stage === 'verifying') {
+        downloadSpeedText.value = ''
+        remainingSizeText.value = ''
+        updateProgress.value = 95
+        setUpdateCopy('РАСПАКОВКА_И_ПРОВЕРКА', locale.value === 'ru' ? 'установка и проверка целостности файлов' : 'unpacking and verifying files')
+      }
+    })
+
+    const result = await invoke<PayloadInstallResult>('payload_update_install_from_feed', {
+      manifestUrl,
+    })
+
+    if (unlistenProgress) unlistenProgress()
+
+    if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
+      updateProgress.value = 100
+      downloadSpeedText.value = ''
+      remainingSizeText.value = ''
+      setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. перезапуск' : 'update installed. restarting')
+      const { relaunch } = await import('@tauri-apps/plugin-process')
+      setTimeout(() => {
+        void relaunch()
+      }, 450)
+      return
+    }
+  } catch (err) {
+    if (unlistenProgress) unlistenProgress()
+    downloadSpeedText.value = ''
+    remainingSizeText.value = ''
+    console.warn('[Updater] Installation failed:', err)
+    throw err
   }
-
-  await runArtificialUpdateProgress()
 }
 
 const confirmAndInstallUpdate = async () => {
