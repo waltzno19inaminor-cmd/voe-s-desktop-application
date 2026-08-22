@@ -351,8 +351,13 @@
                             </svg>
                          </div>
                          <div class="flex flex-col space-y-2">
-                            <span class="text-[14px] font-mono font-black tracking-widest nier-text-primary uppercase">Critical_System_Alert</span>
-                            <p class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
+                            <span class="text-[14px] font-mono font-black tracking-widest nier-text-primary uppercase">{{ isRu ? 'КРИТИЧЕСКОЕ_СИСТЕМНОЕ_ПРЕДУПРЕЖДЕНИЕ' : 'Critical_System_Alert' }}</span>
+                            <p v-if="isRu" class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
+                               Вы собираетесь безвозвратно удалить все записи сделок, связанные со стратегией <span class="text-red-500 font-bold">[{{ selectedStrategy?.name }}]</span>. 
+                               <br><br>
+                               Эта операция обнулит текущее состояние и является <span class="text-red-500 font-black">необратимой</span>.
+                            </p>
+                            <p v-else class="text-[11px] font-mono text-black/60 dark:text-white/60 leading-relaxed uppercase tracking-widest">
                                You are about to permanently erase all trade records associated with <span class="text-red-500 font-bold">[{{ selectedStrategy?.name }}]</span>. 
                                <br><br>
                                This operation will reify an empty state and is <span class="text-red-500 font-black">irreversible</span>.
