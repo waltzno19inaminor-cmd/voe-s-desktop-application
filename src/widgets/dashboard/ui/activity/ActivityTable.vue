@@ -84,7 +84,7 @@
             class="relative z-10 overflow-hidden h-14 min-w-44 px-8 rounded-full transition-all duration-500 transform active:scale-95 disabled:opacity-50"
             :class="[
               checkInUsedToday 
-                ? 'nier-bg-inverted text-white dark:text-[#050505] shadow-lg shadow-black/10 dark:shadow-white/5' 
+                ? 'bg-white !text-black dark:!text-black [&_*]:!text-black [&_*]:dark:!text-black border border-black/20 shadow-lg shadow-black/10' 
                 : 'bg-transparent border border-black/20 dark:border-white/20 text-[#050505] dark:text-white hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-[#050505] hover:border-transparent'
             ]"
           >
