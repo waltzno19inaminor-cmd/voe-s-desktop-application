@@ -622,7 +622,12 @@
                             <p class="text-[11px] font-mono text-nier-text-light/60 dark:text-nier-text-dark/60 leading-relaxed uppercase tracking-widest">
                                {{ t('matrix.purgeWarning') }}
                                <br><br>
-                               This action is <span class="text-red-500 font-black">{{ t('matrix.irreversible') }}</span>.
+                               <template v-if="locale === 'ru'">
+                                  <span class="text-red-500 font-black">{{ t('matrix.irreversible') }}</span>.
+                               </template>
+                               <template v-else>
+                                  This action is <span class="text-red-500 font-black">{{ t('matrix.irreversible') }}</span>.
+                               </template>
                             </p>
                          </div>
                       </div>
