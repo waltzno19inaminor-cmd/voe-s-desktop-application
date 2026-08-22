@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
-import { dirname, join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const RELEASE_CHANNELS = {
@@ -49,23 +49,61 @@ const manifest = {
 mkdirSync(dirname(args.out), { recursive: true })
 writeFileSync(args.out, `${JSON.stringify(manifest, null, 2)}\n`)
 writeSignature(args.out)
-createPayloadZip(args.dir, dirname(args.out))
+createPayloadZip(args.dir, dirname(args.out), files)
 
 console.log(`Created ${args.out}`)
 if (existsSync(`${args.out}.minisig`)) console.log(`Signature: ${args.out}.minisig`)
-const zipPath = join(dirname(args.out), 'payload.zip')
+const zipPath = resolve(dirname(args.out), 'payload.zip')
 if (existsSync(zipPath)) console.log(`Archive: ${zipPath}`)
+const patchPath = resolve(dirname(args.out), 'patch.zip')
+if (existsSync(patchPath)) console.log(`Patch Archive: ${patchPath}`)
 console.log(`Files: ${files.length}`)
 
-function createPayloadZip(sourceDir, targetDir) {
-  const targetZip = join(targetDir, 'payload.zip')
+function createPayloadZip(sourceDir, targetDir, currentFiles) {
+  const targetZip = resolve(targetDir, 'payload.zip')
+  const patchZip = resolve(targetDir, 'patch.zip')
+
+  // Persist manifest to .payload-history folder
+  const historyDir = resolve(process.cwd(), '.payload-history')
+  mkdirSync(historyDir, { recursive: true })
+  const currentManifestFile = join(historyDir, `${args.version}.json`)
+  writeFileSync(currentManifestFile, JSON.stringify(manifest, null, 2))
+
+  let changedFiles = currentFiles
   try {
-    const res = spawnSync('zip', ['-q', '-r', targetZip, '.'], { cwd: sourceDir })
-    if (res.status === 0) return
-  } catch {}
+    const historyFiles = readdirSync(historyDir)
+      .filter(f => f.endsWith('.json') && f !== `${args.version}.json`)
+      .sort()
+    const prevFile = historyFiles[historyFiles.length - 1]
+    if (prevFile) {
+      const prevManifest = JSON.parse(readFileSync(join(historyDir, prevFile), 'utf8'))
+      const prevMap = new Map(prevManifest.files.map(f => [f.path, f.sha256]))
+      changedFiles = currentFiles.filter(f => !prevMap.has(f.path) || prevMap.get(f.path) !== f.sha256)
+      console.log(`Differential Analysis: ${changedFiles.length} files changed out of ${currentFiles.length}`)
+    }
+  } catch (err) {
+    console.warn('Failed to compare previous version manifest:', err)
+  }
+
   try {
-    const res = spawnSync('powershell', ['-Command', `Compress-Archive -Path "${sourceDir}\\*" -DestinationPath "${targetZip}" -Force`], { stdio: 'ignore' })
-  } catch {}
+    const res1 = spawnSync('zip', ['-q', '-r', targetZip, '.', '-x', 'payload/*', '-x', './payload/*'], { cwd: sourceDir })
+    if (res1.error) console.error('Full payload zip error:', res1.error)
+  } catch (err) {
+    console.error('Full payload zip failed:', err)
+  }
+
+  if (changedFiles.length > 0) {
+    const changedPaths = changedFiles.map(f => f.path)
+    const listFilePath = join(targetDir, '.changed_files_list.txt')
+    writeFileSync(listFilePath, changedPaths.join('\n'))
+    try {
+      const inputBuffer = readFileSync(listFilePath)
+      const res2 = spawnSync('zip', ['-q', patchZip, '-@'], { cwd: sourceDir, input: inputBuffer })
+      if (res2.error) console.error('Patch zip error:', res2.error)
+    } catch (err) {
+      console.error('Patch zip failed:', err)
+    }
+  }
 }
 
 function parseArgs(argv) {
@@ -94,7 +132,7 @@ async function listFiles(root) {
   async function walk(dir) {
     const entries = await readdir(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.name === '.DS_Store' || entry.name === 'Thumbs.db' || entry.name.startsWith('._') || entry.name === '__MACOSX') {
+      if (entry.name === '.DS_Store' || entry.name === 'Thumbs.db' || entry.name.startsWith('._') || entry.name === '__MACOSX' || entry.name === 'payload') {
         continue
       }
       const full = join(dir, entry.name)
