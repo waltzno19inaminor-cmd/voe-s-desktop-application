@@ -319,7 +319,18 @@ const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
-const appVersion = String(tauriConfig.version || '0.0.0')
+const payloadVersion = ref<string | null>(null)
+const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.0.5'))
+
+onMounted(async () => {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core')
+    const state = await invoke<any>('payload_update_get_state').catch(() => null)
+    if (state?.active && state?.version) {
+      payloadVersion.value = state.version
+    }
+  } catch {}
+})
 
 const dashboardGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
