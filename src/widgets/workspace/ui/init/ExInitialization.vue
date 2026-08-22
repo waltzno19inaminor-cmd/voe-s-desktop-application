@@ -80,8 +80,21 @@
 
       <!-- ── PHASE SWITCHER ── -->
       <Transition name="step-fade" mode="out-in">
+        <!-- ── UPDATE INSTALLED (Restart Required) ── -->
+        <div v-if="isUpdateInstalled" key="update-installed" class="w-full max-w-xs flex flex-col items-center space-y-3 my-2">
+          <button
+            @click="forceRelaunchApp"
+            class="w-full py-3.5 font-mono text-[10px] tracking-[0.3em] uppercase font-black transition-all hover:opacity-90 flex items-center justify-center space-x-2 bg-white !text-black shadow-lg animate-pulse"
+          >
+            <span>{{ locale === 'ru' ? 'ПЕРЕЗАПУСТИТЬ ПРИЛОЖЕНИЕ' : 'RESTART APPLICATION' }}</span>
+          </button>
+          <p class="text-[8px] font-mono lowercase italic text-black/60 text-center">
+            {{ locale === 'ru' ? 'обновление успешно установлено. нажмите для перезапуска' : 'update successfully installed. click to restart' }}
+          </p>
+        </div>
+
         <!-- ── UPDATE CONFIRMATION CARD (when update is found) ── -->
-        <div v-if="phase === 'update' && pendingUpdate" key="update-confirmation" class="w-full max-w-xs flex flex-col items-center space-y-3 my-2">
+        <div v-else-if="phase === 'update' && pendingUpdate" key="update-confirmation" class="w-full max-w-xs flex flex-col items-center space-y-3 my-2">
           <!-- Install Button (Full Width) -->
           <button
             @click="confirmAndInstallUpdate"
@@ -425,6 +438,35 @@ const updateLog = ref('проверка доступных обновлений'
 let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 
 const pendingUpdate = ref<AvailableUpdate | null>(null)
+const isUpdateInstalled = ref(false)
+const isRelaunching = ref(false)
+
+const forceRelaunchApp = async () => {
+  if (isRelaunching.value) return
+  isRelaunching.value = true
+  setUpdateCopy('ПЕРЕЗАПУСК', locale.value === 'ru' ? 'выполняется перезапуск приложения...' : 'restarting application...')
+
+  try {
+    const { relaunch } = await import('@tauri-apps/plugin-process')
+    await relaunch()
+  } catch (err) {
+    console.warn('[Updater] Relaunch plugin call failed:', err)
+  }
+
+  // Fallback 1: reload location after 400ms if process relaunch didn't exit app
+  setTimeout(() => {
+    if (typeof window !== 'undefined') {
+      window.location.reload()
+    }
+  }, 400)
+
+  // Fallback 2: hard redirect after 800ms
+  setTimeout(() => {
+    if (typeof window !== 'undefined') {
+      window.location.href = window.location.href
+    }
+  }, 800)
+}
 
 const clearUpdateProgressTimer = () => {
   if (!updateProgressTimer) return
@@ -438,6 +480,7 @@ const setUpdateCopy = (title: string, message: string) => {
 }
 
 const finishUpdatePhase = () => {
+  if (isUpdateInstalled.value) return
   clearUpdateProgressTimer()
   updateProgress.value = 100
   setTimeout(() => {
@@ -576,10 +619,12 @@ const performNativeInstall = async (update: any) => {
 
   clearUpdateProgressTimer()
   updateProgress.value = 100
-  setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', 'обновление установлено. перезапуск')
-  const { relaunch } = await import('@tauri-apps/plugin-process')
+  downloadSpeedText.value = ''
+  remainingSizeText.value = ''
+  isUpdateInstalled.value = true
+  setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. требуется перезапуск' : 'update installed. restart required')
   setTimeout(() => {
-    void relaunch()
+    void forceRelaunchApp()
   }, 450)
 }
 
@@ -631,10 +676,10 @@ const performPayloadInstall = async (manifestUrl: string) => {
       updateProgress.value = 100
       downloadSpeedText.value = ''
       remainingSizeText.value = ''
-      setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. перезапуск' : 'update installed. restarting')
-      const { relaunch } = await import('@tauri-apps/plugin-process')
+      isUpdateInstalled.value = true
+      setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. требуется перезапуск' : 'update installed. restart required')
       setTimeout(() => {
-        void relaunch()
+        void forceRelaunchApp()
       }, 450)
       return
     }
