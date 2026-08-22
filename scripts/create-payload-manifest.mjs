@@ -49,10 +49,24 @@ const manifest = {
 mkdirSync(dirname(args.out), { recursive: true })
 writeFileSync(args.out, `${JSON.stringify(manifest, null, 2)}\n`)
 writeSignature(args.out)
+createPayloadZip(args.dir, dirname(args.out))
 
 console.log(`Created ${args.out}`)
 if (existsSync(`${args.out}.minisig`)) console.log(`Signature: ${args.out}.minisig`)
+const zipPath = join(dirname(args.out), 'payload.zip')
+if (existsSync(zipPath)) console.log(`Archive: ${zipPath}`)
 console.log(`Files: ${files.length}`)
+
+function createPayloadZip(sourceDir, targetDir) {
+  const targetZip = join(targetDir, 'payload.zip')
+  try {
+    const res = spawnSync('zip', ['-q', '-r', targetZip, '.'], { cwd: sourceDir })
+    if (res.status === 0) return
+  } catch {}
+  try {
+    const res = spawnSync('powershell', ['-Command', `Compress-Archive -Path "${sourceDir}\\*" -DestinationPath "${targetZip}" -Force`], { stdio: 'ignore' })
+  } catch {}
+}
 
 function parseArgs(argv) {
   const out = {}

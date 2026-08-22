@@ -194,34 +194,71 @@ async fn install_payload_manifest<R: Runtime>(
 
     let mut downloaded_files = 0;
     let mut reused_files = 0;
-    for file in &manifest.files {
-        let relative = sanitize_relative_path(&file.path)?;
-        let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256)?;
-        let bytes = match bytes {
-            Some(bytes) => {
-                reused_files += 1;
-                bytes
+    let mut zip_extracted = false;
+
+    if let Some(zip_url) = base_url.join("payload.zip").ok() {
+        if let Ok(res) = reqwest::get(zip_url).await {
+            if res.status().is_success() {
+                if let Ok(bytes) = res.bytes().await {
+                    let cursor = std::io::Cursor::new(bytes);
+                    if let Ok(mut archive) = zip::ZipArchive::new(cursor) {
+                        for i in 0..archive.len() {
+                            if let Ok(mut file) = archive.by_index(i) {
+                                let outpath = match file.enclosed_name() {
+                                    Some(path) => staging.join(path),
+                                    None => continue,
+                                };
+                                if file.is_dir() {
+                                    let _ = fs::create_dir_all(&outpath);
+                                } else {
+                                    if let Some(p) = outpath.parent() {
+                                        let _ = fs::create_dir_all(p);
+                                    }
+                                    if let Ok(mut outfile) = fs::File::create(&outpath) {
+                                        let _ = std::io::copy(&mut file, &mut outfile);
+                                    }
+                                }
+                            }
+                        }
+                        if verify_payload_tree(&staging, &manifest).is_ok() {
+                            zip_extracted = true;
+                            downloaded_files = manifest.files.len();
+                        }
+                    }
+                }
             }
-            None => {
-                downloaded_files += 1;
-                download_payload_file(file, &base_url).await?
-            }
-        };
-        if bytes.len() as u64 != file.size {
-            return Err(format!("payload size mismatch for {}", file.path));
         }
-        let actual = sha256_bytes_hex(&bytes);
-        if !hash_eq(&file.sha256, &actual) {
-            return Err(format!("payload hash mismatch for {}", file.path));
-        }
-        let target = staging.join(relative);
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent).map_err(|err| format!("create payload dir: {err}"))?;
-        }
-        fs::write(&target, bytes).map_err(|err| format!("write {}: {err}", target.display()))?;
     }
 
-    verify_payload_tree(&staging, &manifest)?;
+    if !zip_extracted {
+        for file in &manifest.files {
+            let relative = sanitize_relative_path(&file.path)?;
+            let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256)?;
+            let bytes = match bytes {
+                Some(bytes) => {
+                    reused_files += 1;
+                    bytes
+                }
+                None => {
+                    downloaded_files += 1;
+                    download_payload_file(file, &base_url).await?
+                }
+            };
+            if bytes.len() as u64 != file.size {
+                return Err(format!("payload size mismatch for {}", file.path));
+            }
+            let actual = sha256_bytes_hex(&bytes);
+            if !hash_eq(&file.sha256, &actual) {
+                return Err(format!("payload hash mismatch for {}", file.path));
+            }
+            let target = staging.join(relative);
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(|err| format!("create payload dir: {err}"))?;
+            }
+            fs::write(&target, bytes).map_err(|err| format!("write {}: {err}", target.display()))?;
+        }
+        verify_payload_tree(&staging, &manifest)?;
+    }
 
     if active_web.exists() {
         fs::remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
