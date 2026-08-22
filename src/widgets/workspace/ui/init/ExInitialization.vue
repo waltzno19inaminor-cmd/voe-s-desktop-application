@@ -356,7 +356,9 @@ interface AvailableUpdate {
   reason?: string
 }
 
-const appVersion = String(tauriConfig.version || pkg.version || '1.0.6')
+const baseVersion = String(tauriConfig.version || pkg.version || '1.0.85')
+const activePayloadVersion = ref<string | null>(null)
+const appVersion = computed(() => activePayloadVersion.value || baseVersion)
 
 const initializationGradflowConfig = {
   color1: { r: 2, g: 145, b: 135 },
@@ -549,7 +551,10 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
 
     const localState = await invoke<{ version?: string | null; active: boolean }>('payload_update_get_state').catch(() => null)
 
-    const activeVersion = localState?.active ? (localState.version || appVersion) : appVersion
+    if (localState?.active && localState?.version) {
+      activePayloadVersion.value = localState.version
+    }
+    const activeVersion = activePayloadVersion.value || baseVersion
 
     let isSuitable = true
     let reason = ''
