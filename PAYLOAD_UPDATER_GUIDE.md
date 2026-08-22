@@ -1,4 +1,4 @@
-# 📖 Руководство по системе авто-обновлений (Payload & Hotfix Updater)
+# 📖 Руководство по системе авто-обновлений (Payload Updater)
 
 Данный документ подробно описывает устройство, архитектуру и пошаговый процесс генерации обновлений для приложения **J.L.JÖRMUNGANDR** (Tauri + Nuxt).
 
@@ -6,14 +6,9 @@
 
 ## 🏗️ 1. Архитектура системы обновлений
 
-Приложение использует **двухуровневую систему авто-обновлений**:
-
-1. **Payload Updater (Инкрементальный веб-апдейтер)**:
-   - Позволяет мгновенно обновлять веб-интерфейс (`.output/public`), компоненты, стили и аналитику без необходимости переустановки бинарного файла приложения на ПК пользователя.
-   - Скачивает дифференциальный архив `patch.zip` (обычно около **1 МБ**), сверяет SHA256 каждого файла с `payload-manifest.json` и активирует их на лету.
-
-2. **Native Updater (Tauri Plugin Updater)**:
-   - Обновляет бинарное исполняемое ядро Rust/Tauri при изменении нативных системных библиотек.
+Приложение использует **Payload Updater (Инкрементальный веб-апдейтер)**:
+- Позволяет мгновенно обновлять веб-интерфейс (`.output/public`), компоненты, стили и аналитику без необходимости переустановки бинарного файла приложения на ПК пользователя.
+- Скачивает дифференциальный архив `patch.zip` (около **1 МБ**), сверяет SHA256 каждого файла с `payload-manifest.json` и активирует их на лету.
 
 ---
 
@@ -21,11 +16,10 @@
 
 ### Скрипты сборки и подписи:
 - `scripts/create-payload-manifest.mjs` — анализирует дифференциальные изменения между текущей сборкой и прошлыми версиями (`.payload-history`), генерирует `payload-manifest.json`, архивы `payload.zip` / `patch.zip` и подписывает манифест ключом.
-- `scripts/create-hotfix-patch.mjs` — создает бинарный пакет патча `JLJ-<version>.jljpatch` с цифровой подписью.
-- `.secrets/hotfix/jlj-hotfix.key` и `jlj-hotfix.password` — локальный закрытый ключ подписи Tauri Signer и пароль к нему (автоматически считываются скриптами).
+- `.secrets/hotfix/jlj-hotfix.key` и `jlj-hotfix.password` — локальный закрытый ключ подписи Tauri Signer и пароль к нему (автоматически считываются скриптом).
 
 ### Клиентский движок приложения:
-- `src-tauri/src/payload_update.rs` — модуль Rust, отвечающий за безопастную загрузку, сверку хэшей, установку и очистку временных папок обновлений.
+- `src-tauri/src/payload_update.rs` — модуль Rust, отвечающий за безопасную загрузку, сверку хэшей, установку и очистку временных папок обновлений.
 - `src/widgets/workspace/ui/init/ExInitialization.vue` — интерфейс стартового экрана: проверка доступных версий, отображение карточки обновления, процент шкалы и скорость скачивания (в МБ/с).
 
 ---
@@ -35,13 +29,13 @@
 При работе с системой обновлений соблюдаются 3 фундаментальных правила:
 
 ### 1. Фильтрация архивов от рекурсивной упаковки
-В скриптах `create-payload-manifest.mjs` и `create-hotfix-patch.mjs` в функции `listFiles` установлен обязательный фильтр:
+В скрипте `create-payload-manifest.mjs` в функции `listFiles` установлен обязательный фильтр:
 ```javascript
 if (entry.name.endsWith('.zip') || entry.name.endsWith('.jljpatch') || entry.name === 'payload' || entry.name === 'dist') {
   continue;
 }
 ```
-*Зачем это нужно:* Без этого фильтра старые `.zip` и `.jljpatch` архивы попадали внутрь новых архивов, из-за чего раздували объем патчей с 1 МБ до 200+ МБ.
+*Зачем это нужно:* Без этого фильтра старые архивы попадали внутрь новых `.zip` архивов, раздувая их объем с 1 МБ до 200+ МБ.
 
 ### 2. Права доступа на macOS/Unix (`Permission denied` / `os error 66`)
 В `payload_update.rs` реализованы:
@@ -80,7 +74,7 @@ git push cmd release
 npm run build
 ```
 
-### Шаг 3: Сгенерируйте манифест и подпись версии
+### Шаг 3: Сгенерируйте манифест и файлы обновления
 ```bash
 npm run payload:manifest -- \
   --channel release \
@@ -92,27 +86,13 @@ npm run payload:manifest -- \
   --out dist/payload/1.0.84/payload-manifest.json
 ```
 
-### Шаг 4: Сформируйте патч-пакет
-```bash
-npm run hotfix:package -- \
-  --channel release \
-  --base-version 1.0.8 \
-  --patch-id 1.0.84 \
-  --to-patch-level 1.0.84 \
-  --platform macos-universal,windows-x64 \
-  --fixed-dir .output/public \
-  --tauri-signer-key-path .secrets/hotfix/jlj-hotfix.key \
-  --out dist/JLJ-1.0.84.jljpatch
-```
-
-### Шаг 5: Опубликуйте файлы на GitHub Releases
+### Шаг 4: Опубликуйте файлы на GitHub Releases
 Перейдите на GitHub в тег/релиз канала `release` и прикрепите созданные файлы из папки `dist/payload/1.0.84/`:
-- `patch.zip` *(~1 МБ)*
-- `payload-manifest.json`
-- `payload-manifest.json.sig`
-- `payload-manifest.json.minisig`
-- `payload.zip`
-- `JLJ-1.0.84.jljpatch`
+- `patch.zip` *(~1 МБ — дифференциальный патч)*
+- `payload-manifest.json` *(основной манифест)*
+- `payload-manifest.json.sig` *(подпись)*
+- `payload-manifest.json.minisig` *(подпись Minisig)*
+- `payload.zip` *(полный архив)*
 
 ---
 *Документ создан для быстрого обращения и гарантии стабильности будущего процесса обновлений.*
