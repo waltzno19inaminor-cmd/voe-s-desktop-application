@@ -297,7 +297,7 @@ pub struct PayloadProgressEvent {
                                 let relative = sanitize_relative_path(&file.path)?;
                                 let target = staging.join(&relative);
                                 if !target.exists() {
-                                    if let Ok(Some(bytes)) = reusable_file_bytes(&app, &active_web, &relative, &file.sha256) {
+                                    if let Ok(Some(bytes)) = reusable_file_bytes(&app, &active_web, &relative, &file.sha256, file.size) {
                                         if let Some(parent) = target.parent() {
                                             let _ = fs::create_dir_all(parent);
                                         }
@@ -326,7 +326,7 @@ pub struct PayloadProgressEvent {
     if !zip_extracted {
         for file in &manifest.files {
             let relative = sanitize_relative_path(&file.path)?;
-            let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256)?;
+            let bytes = reusable_file_bytes(&app, &active_web, &relative, &file.sha256, file.size)?;
             let bytes = match bytes {
                 Some(bytes) => {
                     reused_files += 1;
@@ -454,9 +454,17 @@ fn reusable_file_bytes<R: Runtime>(
     active_web: &Path,
     relative: &Path,
     expected_sha256: &str,
+    expected_size: u64,
 ) -> Result<Option<Vec<u8>>, String> {
     let active = active_web.join(relative);
     if active.exists() {
+        if let Ok(meta) = fs::metadata(&active) {
+            if meta.len() == expected_size {
+                return fs::read(&active)
+                    .map(Some)
+                    .map_err(|err| format!("read reusable active file: {err}"));
+            }
+        }
         let actual = sha256_file_hex(&active)?;
         if hash_eq(expected_sha256, &actual) {
             return fs::read(&active)
@@ -468,6 +476,9 @@ fn reusable_file_bytes<R: Runtime>(
     let asset_path = relative.to_string_lossy().replace('\\', "/");
     if let Some(asset) = app.asset_resolver().get(asset_path) {
         let bytes = asset.bytes.to_vec();
+        if bytes.len() as u64 == expected_size {
+            return Ok(Some(bytes));
+        }
         let actual = sha256_bytes_hex(&bytes);
         if hash_eq(expected_sha256, &actual) {
             return Ok(Some(bytes));
