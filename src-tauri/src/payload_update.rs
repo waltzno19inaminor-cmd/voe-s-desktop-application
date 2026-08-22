@@ -287,6 +287,11 @@ pub struct PayloadProgressEvent {
                                     }
                                     if let Ok(mut outfile) = fs::File::create(&outpath) {
                                         let _ = std::io::copy(&mut file, &mut outfile);
+                                        #[cfg(unix)]
+                                        {
+                                            use std::os::unix::fs::PermissionsExt;
+                                            let _ = fs::set_permissions(&outpath, fs::Permissions::from_mode(0o755));
+                                        }
                                     }
                                 }
                             }
@@ -630,9 +635,12 @@ fn safe_remove_dir_all(path: &Path) -> Result<(), String> {
     if let Err(err) = fs::remove_dir_all(path) {
         #[cfg(not(target_os = "windows"))]
         {
+            let path_str = path.to_string_lossy();
+            let _ = std::process::Command::new("chmod")
+                .args(["-R", "u+w", &path_str])
+                .status();
             let status = std::process::Command::new("rm")
-                .arg("-rf")
-                .arg(path)
+                .args(["-rf", &path_str])
                 .status();
             if status.map(|s| s.success()).unwrap_or(false) && !path.exists() {
                 return Ok(());
