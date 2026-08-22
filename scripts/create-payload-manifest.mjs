@@ -132,7 +132,7 @@ async function listFiles(root) {
   async function walk(dir) {
     const entries = await readdir(dir, { withFileTypes: true })
     for (const entry of entries) {
-      if (entry.name === '.DS_Store' || entry.name === 'Thumbs.db' || entry.name.startsWith('._') || entry.name === '__MACOSX' || entry.name === 'payload') {
+      if (entry.name === '.DS_Store' || entry.name === 'Thumbs.db' || entry.name.startsWith('._') || entry.name === '__MACOSX' || entry.name === 'payload' || entry.name === 'dist' || entry.name.endsWith('.zip') || entry.name.endsWith('.jljpatch')) {
         continue
       }
       const full = join(dir, entry.name)

@@ -3,7 +3,7 @@
   "appIdentifier": "com.voe.app",
   "version": "1.0.83",
   "platform": "macos-universal",
-  "baseUrl": "https://github.com/jorudr/JLJ/releases/download/v1.0.83/",
+  "baseUrl": "https://github.com/jorudr/JLJ/releases/download/release/",
   "files": [
     {
       "path": "1024-mac.icns",
