@@ -306,7 +306,7 @@ import ExProfileOverlay from '~/widgets/profile/ui/ExProfileOverlay.vue'
 import ExActivityMonitor from '~/widgets/dashboard/ui/activity/ExActivityMonitor.vue'
 import ExForum from '~/widgets/exforum/ui/ExForum.vue'
 import ExTournamentView from '~/widgets/tournament/ui/ExTournamentView.vue'
-import { initTournamentListener } from '~/widgets/tournament/model/useTournament'
+import { initTournamentListener, terminateTournamentListeners } from '~/widgets/tournament/model/useTournament'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 
 const props = withDefaults(defineProps<{
@@ -445,6 +445,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
   if (unsubUpdate) unsubUpdate()
+  terminateTournamentListeners()
 })
 
 const displayName = computed(() => {

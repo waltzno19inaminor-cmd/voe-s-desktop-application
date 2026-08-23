@@ -2394,6 +2394,10 @@ onBeforeUnmount(() => {
   resizeObserver?.disconnect?.()
   window.removeEventListener('resize', drawChart)
   stopApiCooldownTimer()
+  if (chartCanvas.value) {
+    chartCanvas.value.width = 0
+    chartCanvas.value.height = 0
+  }
 })
 </script>
 

@@ -1,9 +1,39 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager};
+
+pub struct Mt5ProcessState(pub Arc<Mutex<HashSet<u32>>>);
+
+impl Default for Mt5ProcessState {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(HashSet::new())))
+    }
+}
+
+pub fn terminate_all_processes(state: &Mt5ProcessState) {
+    let pids = state
+        .0
+        .lock()
+        .map(|mut pids| pids.drain().collect::<Vec<_>>())
+        .unwrap_or_default();
+
+    for pid in pids {
+        #[cfg(target_os = "windows")]
+        let _ = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .status();
+
+        #[cfg(not(target_os = "windows"))]
+        let _ = Command::new("kill")
+            .args(["-TERM", &pid.to_string()])
+            .status();
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,7 +90,12 @@ fn python_executable(request: &Mt5Request) -> String {
         })
 }
 
-fn run_bridge(script: PathBuf, python: String, request: Mt5Request) -> Result<Value, String> {
+fn run_bridge(
+    script: PathBuf,
+    python: String,
+    request: Mt5Request,
+    processes: Arc<Mutex<HashSet<u32>>>,
+) -> Result<Value, String> {
     let payload = serde_json::to_vec(&request)
         .map_err(|error| format!("Could not serialize MetaTrader 5 request: {error}"))?;
 
@@ -76,16 +111,30 @@ fn run_bridge(script: PathBuf, python: String, request: Mt5Request) -> Result<Va
             )
         })?;
 
-    child
-        .stdin
-        .take()
-        .ok_or_else(|| "Could not open Python bridge stdin".to_string())?
-        .write_all(&payload)
-        .map_err(|error| format!("Could not send request to MetaTrader 5 bridge: {error}"))?;
+    let pid = child.id();
+    if let Ok(mut active) = processes.lock() {
+        active.insert(pid);
+    }
 
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("MetaTrader 5 Python bridge failed: {error}"))?;
+    let write_result = match child.stdin.take() {
+        Some(mut stdin) => stdin
+            .write_all(&payload)
+            .map_err(|error| error.to_string()),
+        None => Err("Could not open Python bridge stdin".to_string()),
+    };
+    if let Err(error) = write_result {
+        let _ = child.kill();
+        if let Ok(mut active) = processes.lock() {
+            active.remove(&pid);
+        }
+        return Err(format!("Could not send request to MetaTrader 5 bridge: {error}"));
+    }
+
+    let output = child.wait_with_output();
+    if let Ok(mut active) = processes.lock() {
+        active.remove(&pid);
+    }
+    let output = output.map_err(|error| format!("MetaTrader 5 Python bridge failed: {error}"))?;
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let response: Value = serde_json::from_str(stdout.trim()).map_err(|error| {
@@ -109,11 +158,16 @@ fn run_bridge(script: PathBuf, python: String, request: Mt5Request) -> Result<Va
 }
 
 #[tauri::command(rename_all = "camelCase")]
-pub async fn mt5_request(app: AppHandle, request: Mt5Request) -> Result<Value, String> {
+pub async fn mt5_request(
+    app: AppHandle,
+    state: tauri::State<'_, Mt5ProcessState>,
+    request: Mt5Request,
+) -> Result<Value, String> {
     let script = script_path(&app)?;
     let python = python_executable(&request);
 
-    tauri::async_runtime::spawn_blocking(move || run_bridge(script, python, request))
+    let processes = state.0.clone();
+    tauri::async_runtime::spawn_blocking(move || run_bridge(script, python, request, processes))
         .await
         .map_err(|error| format!("MetaTrader 5 bridge task failed: {error}"))?
 }

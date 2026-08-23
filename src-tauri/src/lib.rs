@@ -1,4 +1,4 @@
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 mod audio_recorder;
 mod benchmark;
@@ -15,8 +15,9 @@ pub fn run() {
     let builder = tauri::Builder::default();
     let builder = patch::register_patch_protocol(builder);
 
-    builder
+    let app = builder
         .manage(audio_recorder::NativeAudioRecorder::default())
+        .manage(metatrader5::Mt5ProcessState::default())
         .manage(benchmark::BenchmarkState::default())
         .invoke_handler(tauri::generate_handler![
             audio_recorder::native_audio_start,
@@ -63,6 +64,14 @@ pub fn run() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building Tauri application");
+
+    app.run(|app, event| {
+            if matches!(event, tauri::RunEvent::Exit) {
+                if let Some(state) = app.try_state::<metatrader5::Mt5ProcessState>() {
+                    metatrader5::terminate_all_processes(&state);
+                }
+            }
+        });
 }

@@ -91,6 +91,93 @@ def require_result(mt5: Any, result: Any, operation: str) -> Any:
     return result
 
 
+def _number(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def summarize_mt5_positions(mt5: Any, raw_deals: Any, params: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return one compact record per closed position instead of raw MT5 deals."""
+
+    deals = serialize(require_result(mt5, raw_deals, "history_deals_get"))
+    if not isinstance(deals, list):
+        return []
+
+    date_from = parse_datetime(parameter(params, "dateFrom", "date_from")) if parameter(params, "dateFrom", "date_from") else None
+    date_to = parse_datetime(parameter(params, "dateTo", "date_to")) if parameter(params, "dateTo", "date_to") else None
+    raw_orders = mt5.history_orders_get(date_from=date_from, date_to=date_to) if date_from and date_to else mt5.history_orders_get()
+    orders = serialize(raw_orders) if raw_orders else []
+    orders_by_ticket: dict[str, dict[str, Any]] = {}
+    orders_by_position: dict[str, list[dict[str, Any]]] = {}
+    for order in orders if isinstance(orders, list) else []:
+        if not isinstance(order, dict):
+            continue
+        ticket = str(order.get("ticket") or "")
+        position = str(order.get("position_id") or order.get("position") or "")
+        if ticket:
+            orders_by_ticket[ticket] = order
+        if position:
+            orders_by_position.setdefault(position, []).append(order)
+
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for deal in deals:
+        if not isinstance(deal, dict):
+            continue
+        position_id = str(deal.get("position_id") or deal.get("positionId") or "")
+        if position_id and deal.get("symbol"):
+            grouped.setdefault(position_id, []).append(deal)
+
+    summaries: list[dict[str, Any]] = []
+    for position_id, position_deals in grouped.items():
+        ordered = sorted(position_deals, key=lambda deal: _number(deal.get("time_msc") or deal.get("time")))
+        entries = [deal for deal in ordered if int(_number(deal.get("entry"))) == 0]
+        exits = [deal for deal in ordered if int(_number(deal.get("entry"))) in (1, 3)]
+        if not entries or not exits:
+            continue
+
+        def weighted(items: list[dict[str, Any]]) -> float:
+            volume = sum(abs(_number(item.get("volume"))) for item in items)
+            return sum(abs(_number(item.get("volume"))) * _number(item.get("price")) for item in items) / volume if volume else 0
+
+        sl = 0.0
+        tp = 0.0
+        for deal in ordered:
+            sl = sl or _number(deal.get("sl") or deal.get("stopLoss") or deal.get("stop_loss"))
+            tp = tp or _number(deal.get("tp") or deal.get("takeProfit") or deal.get("take_profit"))
+            order = orders_by_ticket.get(str(deal.get("order") or ""), {})
+            sl = sl or _number(order.get("sl"))
+            tp = tp or _number(order.get("tp"))
+        for order in orders_by_position.get(position_id, []):
+            sl = sl or _number(order.get("sl"))
+            tp = tp or _number(order.get("tp"))
+
+        entry = entries[0]
+        last_exit = exits[-1]
+        summaries.append({
+            "position_id": position_id,
+            "symbol": str(entry.get("symbol") or last_exit.get("symbol") or ""),
+            "side": "Short" if int(_number(entry.get("type"))) == 1 else "Long",
+            "entry_time": entry.get("time"),
+            "entry_time_msc": entry.get("time_msc"),
+            "exit_time": last_exit.get("time"),
+            "exit_time_msc": last_exit.get("time_msc"),
+            "entry_price": weighted(entries),
+            "exit_price": weighted(exits),
+            "entry_volume": sum(abs(_number(item.get("volume"))) for item in entries),
+            "exit_volume": sum(abs(_number(item.get("volume"))) for item in exits),
+            "entry_fee": sum(abs(_number(item.get("commission"))) + abs(_number(item.get("fee"))) for item in entries),
+            "exit_fee": sum(abs(_number(item.get("commission"))) + abs(_number(item.get("fee"))) for item in exits),
+            "profit": sum(_number(item.get("profit")) + _number(item.get("swap")) + _number(item.get("commission")) + _number(item.get("fee")) for item in ordered),
+            "sl": sl or None,
+            "tp": tp or None,
+            "deal_count": len(ordered),
+        })
+
+    return summaries
+
+
 def connection_options(connection: dict[str, Any]) -> dict[str, Any]:
     options: dict[str, Any] = {}
     path = parameter(connection, "path")
@@ -234,6 +321,8 @@ def query(mt5: Any, action: str, params: dict[str, Any]) -> Any:
                 date_from=parse_datetime(parameter(params, "dateFrom", "date_from")),
                 date_to=parse_datetime(parameter(params, "dateTo", "date_to")),
             )
+        if action == "history_deals_get" and parameter(params, "summary") == "positions":
+            return summarize_mt5_positions(mt5, result, params)
         serialized_res = serialize(require_result(mt5, result, action))
 
         if action == "history_deals_get" and isinstance(serialized_res, list):
