@@ -58,6 +58,7 @@
                     ref="mt5VideoRef"
                     class="mb-8 block h-[420px] min-h-[320px] w-full select-none object-contain pointer-events-none"
                     :src="mt5VideoSrc || undefined"
+                    poster="/previews/metatrader-guilde-poster.jpg"
                     width="640"
                     height="360"
                     autoplay
