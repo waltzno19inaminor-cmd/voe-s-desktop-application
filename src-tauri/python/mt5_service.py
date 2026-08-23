@@ -331,14 +331,25 @@ def find_mac_wine_trade_files():
 
 def get_advisor_source_files() -> list[tuple[str, str]]:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = "/Users/evanvosh/Documents/app1.1"
-    
     local_files = ["ExportTrades.mq5", "ExportTrades.ex5"]
     source_files = []
-    
+
+    # In development the files live in the repository root. In a packaged
+    # Tauri app the bundled resources are next to (or above) this script, so
+    # never depend on the developer's absolute project path.
+    resource_dirs = [
+        os.environ.get("MT5_ADVISOR_DIR", ""),
+        script_dir,
+        os.path.dirname(script_dir),
+        os.path.dirname(os.path.dirname(script_dir)),
+        os.getcwd(),
+    ]
+
     for fname in local_files:
         candidates = []
-        for d in [project_root, script_dir, os.getcwd()]:
+        for d in resource_dirs:
+            if not d:
+                continue
             candidate = os.path.join(d, fname)
             if os.path.isfile(candidate):
                 candidates.append(candidate)

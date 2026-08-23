@@ -57,20 +57,18 @@
                   <video
                     ref="mt5VideoRef"
                     class="mb-8 block h-[420px] min-h-[320px] w-full select-none object-contain pointer-events-none"
-                    src="/previews/metatrader-guilde.mp4"
+                    :src="mt5VideoSrc || undefined"
                     width="640"
                     height="360"
                     autoplay
                     muted
                     loop
                     playsinline
-                    preload="auto"
+                    preload="metadata"
                     tabindex="-1"
                     aria-hidden="true"
                     @contextmenu.prevent
-                  >
-                    <source src="/previews/metatrader-guilde.mp4" type="video/mp4" />
-                  </video>
+                  ></video>
 
                   <!-- 1. AUTO-CONNECT ADVISOR SECTION WITH OS SELECTOR -->
                   <div class="mb-8 border border-black/10 bg-black/[0.02] p-5 dark:border-white/10 dark:bg-white/[0.02]">
@@ -416,7 +414,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import type { DiaryEntry } from '~/entities/diary/model/diary.types'
@@ -577,13 +575,51 @@ const installState = ref<'idle' | 'loading'>('idle')
 const installStatusMessage = ref('')
 const installStatusTone = ref<'success' | 'error'>('success')
 const mt5VideoRef = ref<HTMLVideoElement | null>(null)
+const mt5VideoSrc = ref<string | null>(null)
+let mt5VideoIdleHandle: number | null = null
+
+const startMt5VideoWhenIdle = () => {
+  if (mt5VideoSrc.value) return
+
+  const load = () => {
+    mt5VideoIdleHandle = null
+    mt5VideoSrc.value = '/previews/metatrader-guilde.mp4'
+    nextTick(() => {
+      mt5VideoRef.value?.play().catch(() => {})
+    })
+  }
+
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    mt5VideoIdleHandle = window.requestIdleCallback(load, { timeout: 1200 })
+  } else {
+    mt5VideoIdleHandle = window.setTimeout(load, 350)
+  }
+}
+
+const stopMt5Video = () => {
+  if (mt5VideoIdleHandle !== null) {
+    if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+      window.cancelIdleCallback(mt5VideoIdleHandle)
+    } else {
+      window.clearTimeout(mt5VideoIdleHandle)
+    }
+    mt5VideoIdleHandle = null
+  }
+
+  const video = mt5VideoRef.value
+  if (video) {
+    video.pause()
+    video.removeAttribute('src')
+    video.load()
+  }
+  mt5VideoSrc.value = null
+}
 
 onMounted(() => {
-  if (mt5VideoRef.value) {
-    mt5VideoRef.value.muted = true
-    mt5VideoRef.value.play().catch(() => {})
-  }
+  startMt5VideoWhenIdle()
 })
+
+onBeforeUnmount(stopMt5Video)
 
 const selectStrategyFromDropdown = async (strategyId: string) => {
   await setImportTargetStrategy(strategyId)
@@ -1800,10 +1836,16 @@ const deactivateCurrentConnection = async () => {
     activationState.value = 'idle'
   }
 }
-watch(selectedBrokerId, () => {
+watch(selectedBrokerId, (brokerId) => {
   statusMessage.value = ''
   statusTone.value = 'neutral'
   resetFormForBroker()
+
+  if (brokerId === 'metatrader5') {
+    startMt5VideoWhenIdle()
+  } else {
+    stopMt5Video()
+  }
 })
 
 onMounted(async () => {

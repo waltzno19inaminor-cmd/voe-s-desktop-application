@@ -32,7 +32,8 @@
   "bundle": {
     "active": true,
     "resources": [
-      "python/mt5_service.py"
+      "python/mt5_service.py",
+      "../ExportTrades.ex5"
     ],
     "targets": "all",
     "publisher": "VOSHE COMPANY DOO",
