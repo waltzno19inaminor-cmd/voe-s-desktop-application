@@ -73,13 +73,28 @@ function createPayloadZip(sourceDir, targetDir, currentFiles) {
   try {
     const historyFiles = readdirSync(historyDir)
       .filter(f => f.endsWith('.json') && f !== `${args.version}.json`)
-      .sort()
-    const prevFile = historyFiles[historyFiles.length - 1]
-    if (prevFile) {
-      const prevManifest = JSON.parse(readFileSync(join(historyDir, prevFile), 'utf8'))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+
+    let baseFile = null
+    if (args.fromVersion) {
+      const targetName = args.fromVersion.endsWith('.json') ? args.fromVersion : `${args.fromVersion}.json`
+      if (historyFiles.includes(targetName)) {
+        baseFile = targetName
+      } else {
+        console.warn(`Specified --from-version file "${targetName}" not found in .payload-history, falling back to earliest version.`)
+      }
+    }
+
+    if (!baseFile && historyFiles.length > 0) {
+      // Default to the earliest version in history for cumulative patch compatibility
+      baseFile = historyFiles[0]
+    }
+
+    if (baseFile) {
+      const prevManifest = JSON.parse(readFileSync(join(historyDir, baseFile), 'utf8'))
       const prevMap = new Map(prevManifest.files.map(f => [f.path, f.sha256]))
       changedFiles = currentFiles.filter(f => !prevMap.has(f.path) || prevMap.get(f.path) !== f.sha256)
-      console.log(`Differential Analysis: ${changedFiles.length} files changed out of ${currentFiles.length}`)
+      console.log(`Differential Analysis (compared with ${baseFile}): ${changedFiles.length} files changed out of ${currentFiles.length}`)
     }
   } catch (err) {
     console.warn('Failed to compare previous version manifest:', err)
