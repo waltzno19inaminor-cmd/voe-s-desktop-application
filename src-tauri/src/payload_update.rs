@@ -207,9 +207,20 @@ pub struct PayloadProgressEvent {
     let mut reused_files = 0;
     let mut zip_extracted = false;
 
-    let is_patch = if let Some(patch_url) = base_url.join("patch.zip").ok() {
-        if let Ok(res) = reqwest::get(patch_url).await {
-            res.status().is_success()
+    // A differential archive is useful only when there is a complete active
+    // payload to supply unchanged files. The first payload update over a native
+    // installation must start from the full archive.
+    let has_active_payload = read_payload_state_from_root(&payload_root)?
+        .map(|state| state.active)
+        .unwrap_or(false)
+        && active_web.join("index.html").exists();
+    let is_patch = if has_active_payload {
+        if let Some(patch_url) = base_url.join("patch.zip").ok() {
+            if let Ok(res) = reqwest::get(patch_url).await {
+                res.status().is_success()
+            } else {
+                false
+            }
         } else {
             false
         }
@@ -297,31 +308,67 @@ pub struct PayloadProgressEvent {
                             }
                         }
 
-                        if is_patch {
-                            for file in &manifest.files {
-                                let relative = sanitize_relative_path(&file.path)?;
-                                let target = staging.join(&relative);
-                                if !target.exists() {
-                                    if let Ok(Some(bytes)) = reusable_file_bytes(&app, &active_web, &relative, &file.sha256, file.size) {
-                                        if let Some(parent) = target.parent() {
-                                            let _ = fs::create_dir_all(parent);
-                                        }
-                                        if fs::write(&target, bytes).is_ok() {
-                                            reused_files += 1;
-                                        }
-                                    }
-                                } else {
-                                    downloaded_files += 1;
-                                }
+                        // A patch archive can legitimately omit unchanged files, and even a
+                        // full archive must not be trusted solely because it contains index.html.
+                        // Complete the staging tree from the previous payload, bundled assets,
+                        // or individual downloads, then verify every file before activation.
+                        for file in &manifest.files {
+                            let relative = sanitize_relative_path(&file.path)?;
+                            let target = staging.join(&relative);
+                            let staged_is_valid = if target.exists() {
+                                let size_matches = fs::metadata(&target)
+                                    .map(|meta| meta.len() == file.size)
+                                    .unwrap_or(false);
+                                size_matches
+                                    && sha256_file_hex(&target)
+                                        .map(|actual| hash_eq(&file.sha256, &actual))
+                                        .unwrap_or(false)
+                            } else {
+                                false
+                            };
+
+                            if staged_is_valid {
+                                downloaded_files += 1;
+                                continue;
                             }
+
+                            if target.exists() {
+                                fs::remove_file(&target)
+                                    .map_err(|err| format!("remove invalid staged file {}: {err}", target.display()))?;
+                            }
+
+                            let bytes = match reusable_file_bytes(
+                                &app,
+                                &active_web,
+                                &relative,
+                                &file.sha256,
+                                file.size,
+                            )? {
+                                Some(bytes) => {
+                                    reused_files += 1;
+                                    bytes
+                                }
+                                None => {
+                                    downloaded_files += 1;
+                                    download_payload_file(file, &base_url).await?
+                                }
+                            };
+
+                            if bytes.len() as u64 != file.size
+                                || !hash_eq(&file.sha256, &sha256_bytes_hex(&bytes))
+                            {
+                                return Err(format!("payload hash or size mismatch for {}", file.path));
+                            }
+                            if let Some(parent) = target.parent() {
+                                fs::create_dir_all(parent)
+                                    .map_err(|err| format!("create payload dir: {err}"))?;
+                            }
+                            fs::write(&target, bytes)
+                                .map_err(|err| format!("write {}: {err}", target.display()))?;
                         }
 
-                        if staging.join("index.html").exists() {
-                            zip_extracted = true;
-                            if !is_patch {
-                                downloaded_files = manifest.files.len();
-                            }
-                        }
+                        verify_payload_tree(&staging, &manifest)?;
+                        zip_extracted = true;
                     }
                 }
             }
@@ -463,15 +510,10 @@ fn reusable_file_bytes<R: Runtime>(
 ) -> Result<Option<Vec<u8>>, String> {
     let active = active_web.join(relative);
     if active.exists() {
-        if let Ok(meta) = fs::metadata(&active) {
-            if meta.len() == expected_size {
-                return fs::read(&active)
-                    .map(Some)
-                    .map_err(|err| format!("read reusable active file: {err}"));
-            }
-        }
-        let actual = sha256_file_hex(&active)?;
-        if hash_eq(expected_sha256, &actual) {
+        let size_matches = fs::metadata(&active)
+            .map(|meta| meta.len() == expected_size)
+            .unwrap_or(false);
+        if size_matches && hash_eq(expected_sha256, &sha256_file_hex(&active)?) {
             return fs::read(&active)
                 .map(Some)
                 .map_err(|err| format!("read reusable active file: {err}"));
@@ -481,11 +523,8 @@ fn reusable_file_bytes<R: Runtime>(
     let asset_path = relative.to_string_lossy().replace('\\', "/");
     if let Some(asset) = app.asset_resolver().get(asset_path) {
         let bytes = asset.bytes.to_vec();
-        if bytes.len() as u64 == expected_size {
-            return Ok(Some(bytes));
-        }
         let actual = sha256_bytes_hex(&bytes);
-        if hash_eq(expected_sha256, &actual) {
+        if bytes.len() as u64 == expected_size && hash_eq(expected_sha256, &actual) {
             return Ok(Some(bytes));
         }
     }

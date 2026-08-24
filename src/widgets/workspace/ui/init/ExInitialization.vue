@@ -890,7 +890,7 @@ const doGoogleLogin = async () => {
     if (isTauri) {
       // Tauri: deep-link PKCE flow
       const { open } = await import('@tauri-apps/plugin-shell')
-      const { onOpenUrl } = await import('@tauri-apps/plugin-deep-link')
+      const { getCurrent, onOpenUrl } = await import('@tauri-apps/plugin-deep-link')
       const clientId = '79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22.apps.googleusercontent.com'
       const reversedClientId = 'com.googleusercontent.apps.79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22'
       const redirectUri = `${reversedClientId}:/oauth2callback`
@@ -900,7 +900,8 @@ const doGoogleLogin = async () => {
       const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
       const codeVerifier = rand(128)
       const codeChallenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier)))
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256`
+      const oauthState = rand(48)
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${encodeURIComponent(scope)}&code_challenge=${codeChallenge}&code_challenge_method=S256&state=${encodeURIComponent(oauthState)}`
 
       const code = await new Promise<string>((resolve, reject) => {
         let settled = false
@@ -935,9 +936,15 @@ const doGoogleLogin = async () => {
             const parsedUrl = new URL(url)
             const error = parsedUrl.searchParams.get('error')
             const authorizationCode = parsedUrl.searchParams.get('code')
+            const returnedState = parsedUrl.searchParams.get('state')
 
             if (error) {
               fail(new Error(`Google Error: ${error}`))
+              return
+            }
+
+            if (returnedState !== oauthState) {
+              fail(new Error('Google login callback state mismatch.'))
               return
             }
 
@@ -963,6 +970,12 @@ const doGoogleLogin = async () => {
             if (settled) unlisten()
             else cleanupCallbacks.push(unlisten)
           })
+          .catch(fail)
+
+        // Handles Windows cold starts where the callback URL was supplied as
+        // the process argument before the JavaScript listener was attached.
+        getCurrent()
+          .then((urls) => urls?.forEach(parseDeepLinkUrl))
           .catch(fail)
 
         import('@tauri-apps/api/event')
