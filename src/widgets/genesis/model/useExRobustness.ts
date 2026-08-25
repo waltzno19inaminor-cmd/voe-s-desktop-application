@@ -2,6 +2,7 @@ import { computed, type Ref } from 'vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
+import { buildRobustnessTests } from './robustnessTests'
 
 export function useExRobustness(
   diagnosticStats: Ref<any>,
@@ -12,6 +13,11 @@ export function useExRobustness(
   const themeStore = useThemeStore()
   const { locale } = useI18n()
   const copy = (en: string, ru: string) => locale.value === 'ru' ? ru : en
+  const robustnessTests = computed(() => buildRobustnessTests({
+    trades: getFilteredTrades(),
+    pnls: Array.isArray(diagnosticStats.value?.pnls) ? diagnosticStats.value.pnls : [],
+    getTradePnl
+  }))
   const modelLabel = (model?: string) => model === "Student's t"
     ? copy('Large-trade model', 'Модель крупных сделок')
     : copy('Normal-like', 'Похоже на стабильную модель')
@@ -516,6 +522,7 @@ export function useExRobustness(
   })
 
   return {
+    robustnessTests,
     robustnessExplanation,
     robustnessExplanationVariables,
     robustnessDistributionFits,
