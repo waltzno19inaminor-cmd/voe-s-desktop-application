@@ -33,7 +33,8 @@
     "active": true,
     "resources": [
       "python/mt5_service.py",
-      "../ExportTrades.ex5"
+      "resources/mt5/ExportTrades.ex5",
+      "resources/mt5/ExportTrades.mq5"
     ],
     "targets": "all",
     "publisher": "VOSHE COMPANY DOO",

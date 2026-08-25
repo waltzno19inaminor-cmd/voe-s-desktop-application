@@ -423,14 +423,14 @@ def get_advisor_source_files() -> list[tuple[str, str]]:
     local_files = ["ExportTrades.mq5", "ExportTrades.ex5"]
     source_files = []
 
-    # In development the files live in the repository root. In a packaged
-    # Tauri app the bundled resources are next to (or above) this script, so
-    # never depend on the developer's absolute project path.
+    # In development and packaged builds the advisor lives in the dedicated
+    # Tauri resource directory. Keep the legacy nearby locations as fallbacks
+    # for older application bundles.
     resource_dirs = [
         os.environ.get("MT5_ADVISOR_DIR", ""),
+        os.path.join(os.path.dirname(script_dir), "resources", "mt5"),
         script_dir,
         os.path.dirname(script_dir),
-        os.path.dirname(os.path.dirname(script_dir)),
         os.getcwd(),
     ]
 

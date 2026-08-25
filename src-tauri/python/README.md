@@ -65,3 +65,7 @@ The bridge accepts JSON on stdin and returns one JSON object on stdout. It
 supports connection/account/terminal information, symbols, ticks, rates,
 positions, orders, history, margin/profit calculation, `order_check`, and the
 explicit `order_send` operation.
+
+The bundled `ExportTrades` advisor source and binary are stored in
+`src-tauri/resources/mt5/`. Keep both paths listed in `tauri.conf.json` so the
+bridge can install or export the advisor in packaged builds.
