@@ -219,17 +219,11 @@
           <div v-if="showDistribution3D" class="flex flex-col space-y-4">
             <div class="flex flex-col">
               <span class="text-4xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm uppercase">
-                {{ showQQPlot ? 'QQ PLOT' : (showRobustnessHistogram ? 'PNL HIST' : (showRobustnessTDist ? 'STUDENT T FIT' : 'NORMAL FIT')) }}
+                {{ showQQPlot ? 'QQ PLOT' : (showRobustnessKde ? 'EMPIRICAL PNL DENSITY' : 'PNL DISTRIBUTION') }}
               </span>
               <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-                {{ showQQPlot ? 'QQ DISTRIBUTION' : (showRobustnessHistogram ? 'OBSERVED PNL FREQUENCY' : 'THEORETICAL FIT TO OBSERVED PNL') }}
+                {{ showQQPlot ? 'QQ DISTRIBUTION' : (showRobustnessKde ? 'KDE FROM OBSERVED PNL' : 'OBSERVED PNL FREQUENCY') }}
               </span>
-              <button v-if="!showQQPlot && !showRobustnessExplanations"
-                      @click="toggleRobustnessHistogram"
-                      class="mt-4 pointer-events-auto self-start px-4 py-2 border font-mono text-[8px] tracking-[0.35em] uppercase transition-all duration-300"
-                      :class="showRobustnessHistogram ? 'nier-bg-inverted text-white dark:!text-black border-black dark:border-white shadow-[0_8px_24px_rgba(0,0,0,0.18)]' : 'nier-text-primary nier-border-primary opacity-50 hover:opacity-100 hover:border-black/30 dark:hover:border-white/30 hover:bg-black/5 dark:hover:bg-white/5'">
-                {{ showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]' }}
-              </button>
             </div>
           </div>
           <div v-else class="flex flex-col">
@@ -799,39 +793,25 @@
 
         <!-- ROBUSTNESS CONTROLS: SHOWN ONLY AFTER DIAGNOSTICS IS OPEN -->
         <template v-if="showDistribution3D">
-          <!-- NORMAL DISTRIBUTION -->
+          <!-- EMPIRICAL KDE -->
           <button
-            @click="toggleRobustnessMode('normal')"
-            :aria-label="isRu ? 'Нормальная модель' : 'Normal fit'"
+            @click="setRobustnessMode('kde')"
+            :aria-label="isRu ? 'Эмпирическая плотность PnL' : 'Empirical PnL density'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
-            :class="showRobustnessNormalDist ? 'border-white/30 bg-white/10 text-white' : ''"
+            :class="showRobustnessKde ? 'border-white/30 bg-white/10 text-white' : ''"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5">
-              <path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="h-5 w-5">
+              <path d="M3 18C6 18 6.5 14 9 14C11.5 14 11 6 14 6C17 6 17 15 21 17"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessNormalDist ? '[ СКРЫТЬ_НОРМАЛЬНУЮ_МОДЕЛЬ ]' : '[ ПОКАЗАТЬ_НОРМАЛЬНУЮ_МОДЕЛЬ ]') : (showRobustnessNormalDist ? '[ HIDE_NORMAL_FIT ]' : '[ SHOW_NORMAL_FIT ]') }}
+              {{ isRu ? '[ ЭМПИРИЧЕСКАЯ_ПЛОТНОСТЬ_PNL ]' : '[ EMPIRICAL_PNL_DENSITY ]' }}
             </span>
           </button>
 
-          <!-- STUDENT T DISTRIBUTION -->
-          <button
-            @click="toggleRobustnessMode('studentT')"
-            :aria-label="isRu ? 'Модель Стьюдента' : 'Student t fit'"
-            class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
-            :class="showRobustnessTDist ? 'border-white/30 bg-white/10 text-white' : ''"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5">
-              <path d="M4 16c2-6 4-10 8-10s6 4 8 10"/>
-            </svg>
-            <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessTDist ? '[ СКРЫТЬ_МОДЕЛЬ_СТЬЮДЕНТА ]' : '[ ПОКАЗАТЬ_МОДЕЛЬ_СТЬЮДЕНТА ]') : (showRobustnessTDist ? '[ HIDE_STUDENT_T_FIT ]' : '[ SHOW_STUDENT_T_FIT ]') }}
-            </span>
-          </button>
-          <!-- PNL HISTOGRAM -->
+          <!-- OBSERVED PNL DISTRIBUTION -->
           <button
             @click="toggleRobustnessHistogram"
-            :aria-label="isRu ? 'Гистограмма PnL' : 'PnL histogram'"
+            :aria-label="isRu ? 'Реальное распределение PnL' : 'Observed PnL distribution'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showRobustnessHistogram ? 'border-white/30 bg-white/10 text-white' : ''"
           >
@@ -842,7 +822,7 @@
               <rect x="15" y="10" width="2.5" height="9"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessHistogram ? '[ ПОКАЗАТЬ_ПОДОГНАННЫЙ_PDF ]' : '[ ПОКАЗАТЬ_ГИСТОГРАММУ_PNL ]') : (showRobustnessHistogram ? '[ VIEW_FITTED_PDF ]' : '[ VIEW_PNL_HISTOGRAM ]') }}
+              {{ isRu ? '[ РЕАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ_PNL ]' : '[ OBSERVED_PNL_DISTRIBUTION ]' }}
             </span>
           </button>
 
@@ -1360,9 +1340,9 @@ const showDistribution3D = ref(false)
 const showBenchmarkCurves = ref(false)
 const showQQPlot = ref(false)
 const showRobustnessExplanations = ref(false)
-const showRobustnessNormalDist = ref(true)
-const showRobustnessTDist = ref(false)
+const showRobustnessNormalDist = ref(false)
 const showRobustnessHistogram = ref(false)
+const showRobustnessKde = ref(true)
 const showRobustnessWarning = ref(false)
 const showSimulator = ref(false)
 const showPaywall = ref(false)
@@ -1561,28 +1541,25 @@ const hasEnoughTradesForDiagnostics = computed(() => diagnosticStats.value.pnls.
 
 const robustnessWarningTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
-type RobustnessMode = 'normal' | 'studentT' | 'histogram' | 'qq' | 'explanations'
+type RobustnessMode = 'kde' | 'histogram' | 'qq' | 'explanations'
 
 const setRobustnessMode = (mode: RobustnessMode | null) => {
-  showRobustnessNormalDist.value = mode === 'normal'
-  showRobustnessTDist.value = mode === 'studentT'
+  showRobustnessKde.value = mode === 'kde'
   showRobustnessHistogram.value = mode === 'histogram'
   showQQPlot.value = mode === 'qq'
   showRobustnessExplanations.value = mode === 'explanations'
 }
 
 const toggleRobustnessMode = (mode: RobustnessMode) => {
-  const isActive = mode === 'normal'
-    ? showRobustnessNormalDist.value
-    : mode === 'studentT'
-      ? showRobustnessTDist.value
-      : mode === 'histogram'
-        ? showRobustnessHistogram.value
-        : mode === 'qq'
-          ? showQQPlot.value
-          : showRobustnessExplanations.value
+  const isActive = mode === 'kde'
+    ? showRobustnessKde.value
+    : mode === 'histogram'
+      ? showRobustnessHistogram.value
+    : mode === 'qq'
+      ? showQQPlot.value
+      : showRobustnessExplanations.value
 
-  setRobustnessMode(isActive ? null : mode)
+  setRobustnessMode(isActive ? 'kde' : mode)
 }
 
 const handleRobustnessDiagnosticsClick = () => {
@@ -1601,12 +1578,12 @@ const handleRobustnessDiagnosticsClick = () => {
   showMetricsPanel.value = false
 
   if (shouldOpenDiagnostics) {
-    setRobustnessMode('normal')
+    setRobustnessMode('kde')
   }
 }
 
 const toggleRobustnessHistogram = () => {
-  toggleRobustnessMode('histogram')
+  setRobustnessMode('histogram')
 }
 
 const metricsPanel = useEquityCurveMetricsPanel()
@@ -2801,37 +2778,57 @@ const diagnosticStats = computed(() => {
 
 const distributionPoints3D = computed(() => {
   const pnls = diagnosticStats.value.pnls;
-  if (pnls.length < 2) return { normalCurve: [], tCurve: [] };
+  if (pnls.length < 2) return { normalCurve: [], kdeCurve: [] };
 
   const stats = diagnosticStats.value;
 
   const normalCurve: Point3D[] = [];
-  const tCurve: Point3D[] = [];
+  const kdeCurve: Point3D[] = [];
 
   let maxDensity = 0.0001;
-  const densityPoints: { x: number; valNormal: number; valT: number }[] = [];
-  const pointsCount = Math.max(stats.normalCurve.length, stats.tCurve.length) - 1;
+  const densityPoints: { x: number; valNormal: number }[] = [];
+  const pointsCount = stats.normalCurve.length - 1;
 
   for (let i = 0; i <= pointsCount; i++) {
     const xCoord = -200 + (i / Math.max(1, pointsCount)) * 400;
     const valNormal = stats.normalCurve[i]?.y ?? 0;
-    const valT = stats.tCurve[i]?.y ?? 0;
     
     if (valNormal > maxDensity) maxDensity = valNormal;
-    if (valT > maxDensity) maxDensity = valT;
     
-    densityPoints.push({ x: xCoord, valNormal, valT });
+    densityPoints.push({ x: xCoord, valNormal });
   }
 
   densityPoints.forEach(pv => {
     const yNormal = 80 - (pv.valNormal / maxDensity) * 140;
-    const yT = 80 - (pv.valT / maxDensity) * 140;
     
     normalCurve.push({ x: pv.x, y: yNormal, z: 0 });
-    tCurve.push({ x: pv.x, y: yT, z: 0 });
   });
 
-  return { normalCurve, tCurve };
+  const domain = stats.curveDomain;
+  const domainRange = Math.max(1e-9, domain.max - domain.min);
+  const sortedPnls = [...pnls].sort((a, b) => a - b);
+  const sampleStd = Math.max(0, Number(stats.std) || 0);
+  const robustScale = stats.iqr > 0 ? Math.min(sampleStd || Infinity, stats.iqr / 1.34) : sampleStd;
+  const bandwidth = Math.max(domainRange / 200, 0.9 * (robustScale || domainRange / 6) * Math.pow(pnls.length, -0.2));
+  const invKernelScale = 1 / (pnls.length * bandwidth * Math.sqrt(2 * Math.PI));
+  const kdeSamples: Array<{ x: number; density: number }> = [];
+  let maxKdeDensity = 1e-12;
+
+  for (let index = 0; index <= 120; index++) {
+    const value = domain.min + (index / 120) * domainRange;
+    const density = sortedPnls.reduce((sum, pnl) => {
+      const z = (value - pnl) / bandwidth;
+      return sum + Math.exp(-0.5 * z * z);
+    }, 0) * invKernelScale;
+    maxKdeDensity = Math.max(maxKdeDensity, density);
+    kdeSamples.push({ x: -200 + (index / 120) * 400, density });
+  }
+
+  kdeSamples.forEach(sample => {
+    kdeCurve.push({ x: sample.x, y: 80 - (sample.density / maxKdeDensity) * 140, z: 0 });
+  });
+
+  return { normalCurve, kdeCurve };
 });
 
 // --- 3D MATH TYPES --- //
@@ -3548,7 +3545,46 @@ const update = () => {
       // --- DRAW 3D DISTRIBUTION LINES --- //
       const curves = distributionPoints3D.value;
       if (curves.normalCurve.length > 0) {
-        if (showRobustnessHistogram.value) {
+        if (showRobustnessKde.value) {
+          const transformedKde = curves.kdeCurve.map(v => {
+            let p = rotateY(v, currentRotation.value.y)
+            p = rotateX(p, currentRotation.value.x)
+            p.x *= scale; p.y *= scale; p.z *= scale
+            return project(p, w, h)
+          })
+          const transformedBaseline = curves.kdeCurve.map(v => ({ x: v.x, y: 80, z: 0 })).map(v => {
+            let p = rotateY(v, currentRotation.value.y)
+            p = rotateX(p, currentRotation.value.x)
+            p.x *= scale; p.y *= scale; p.z *= scale
+            return project(p, w, h)
+          })
+
+          if (transformedKde.length > 1) {
+            ctx.save()
+            const gradient = ctx.createLinearGradient(0, Math.min(...transformedKde.map(p => p.y)), 0, Math.max(...transformedBaseline.map(p => p.y)))
+            gradient.addColorStop(0, gradflowColorAt(0.76 - gradflowCurvePhase(), 0.46))
+            gradient.addColorStop(0.72, gradflowColorAt(0.94 - gradflowCurvePhase(), 0.18))
+            gradient.addColorStop(1, gradflowColorAt(0.12 - gradflowCurvePhase(), 0.02))
+            ctx.fillStyle = gradient
+            ctx.beginPath()
+            transformedKde.forEach((point, index) => index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y))
+            for (let index = transformedBaseline.length - 1; index >= 0; index--) {
+              ctx.lineTo(transformedBaseline[index]!.x, transformedBaseline[index]!.y)
+            }
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.lineWidth = 3
+            ctx.strokeStyle = themeText
+            ctx.globalAlpha = 0.95
+            ctx.shadowColor = themeText
+            ctx.shadowBlur = 8
+            ctx.beginPath()
+            transformedKde.forEach((point, index) => index === 0 ? ctx.moveTo(point.x, point.y) : ctx.lineTo(point.x, point.y))
+            ctx.stroke()
+            ctx.restore()
+          }
+        } else if (showRobustnessHistogram.value) {
           // --- DRAW 3D REAL PNL HISTOGRAM --- //
           const pnlBins = stats.bins || [];
           if (pnlBins.length > 0) {
@@ -3738,55 +3774,6 @@ const update = () => {
             return project(p, w, h)
           })
 
-          const transformedT = curves.tCurve.map(v => {
-            let p = rotateY(v, currentRotation.value.y)
-            p = rotateX(p, currentRotation.value.x)
-            p.x *= scale; p.y *= scale; p.z *= scale
-            return project(p, w, h)
-          })
-
-          // Draw the fitted Student's t density.
-          if (showRobustnessTDist.value && transformedT.length > 0) {
-            const baseline3D = curves.tCurve.map(v => ({ x: v.x, y: 80, z: 0 }))
-            const transformedBaseline = baseline3D.map(v => {
-              let p = rotateY(v, currentRotation.value.y)
-              p = rotateX(p, currentRotation.value.x)
-              p.x *= scale; p.y *= scale; p.z *= scale
-              return project(p, w, h)
-            })
-
-            let minY = Infinity
-            transformedT.forEach(p => {
-              if (p.y < minY) minY = p.y
-            })
-            let maxY = -Infinity
-            transformedBaseline.forEach(p => {
-              if (p.y > maxY) maxY = p.y
-            })
-
-            if (minY < maxY) {
-              ctx.save()
-              const grad = ctx.createLinearGradient(0, minY, 0, maxY)
-              grad.addColorStop(0, gradflowColorAt(0.34 - gradflowCurvePhase(), 0.58))
-              grad.addColorStop(0.72, gradflowColorAt(0.52 - gradflowCurvePhase(), 0.22))
-              grad.addColorStop(1, gradflowColorAt(0.70 - gradflowCurvePhase(), 0.0))
-              ctx.fillStyle = grad
-              ctx.beginPath()
-              ctx.moveTo(transformedT[0]!.x, transformedT[0]!.y)
-              transformedT.forEach((p, idx) => {
-                if (idx > 0) ctx.lineTo(p.x, p.y)
-              })
-              // Draw baseline in reverse to close shape
-              ctx.lineTo(transformedBaseline[transformedBaseline.length - 1]!.x, transformedBaseline[transformedBaseline.length - 1]!.y)
-              for (let i = transformedBaseline.length - 1; i >= 0; i--) {
-                ctx.lineTo(transformedBaseline[i]!.x, transformedBaseline[i]!.y)
-              }
-              ctx.closePath()
-              ctx.fill()
-              ctx.restore()
-            }
-          }
-
           // Draw the fitted Normal density.
           if (showRobustnessNormalDist.value && transformedNormal.length > 0) {
             const baseline3D = curves.normalCurve.map(v => ({ x: v.x, y: 80, z: 0 }))
@@ -3847,20 +3834,6 @@ const update = () => {
             ctx.restore()
           }
 
-          // Draw the fitted Student's t curve (solid).
-          if (showRobustnessTDist.value) {
-            ctx.lineWidth = 3
-            ctx.strokeStyle = themeText
-            ctx.shadowBlur = 15
-            ctx.shadowColor = themeText
-            ctx.beginPath()
-            transformedT.forEach((p, idx) => {
-              if (idx === 0) ctx.moveTo(p.x, p.y)
-              else ctx.lineTo(p.x, p.y)
-            })
-            ctx.stroke()
-            ctx.shadowBlur = 0
-          }
         }
       }
     } else {
@@ -4348,8 +4321,6 @@ const handleMouseMove = (e: MouseEvent) => {
         const stats = diagnosticStats.value
         const curves = distributionPoints3D.value
         const normalStd = stats.normalParams?.std || 1
-        const tScale = stats.tParams?.scale || normalStd
-        const tNu = stats.tParams?.nu || 30
         const curveDomain = stats.curveDomain || { min: stats.mean - 3 * normalStd, max: stats.mean + 3 * normalStd }
         const curveRange = Math.max(1, curveDomain.max - curveDomain.min)
         let nearestCurveTooltip: DistributionTooltip | null = null
@@ -4366,17 +4337,6 @@ const handleMouseMove = (e: MouseEvent) => {
             density: (returnValue: number) => normalPDF(returnValue, stats.normalParams?.mean ?? stats.mean, normalStd)
           })
         }
-        if (showRobustnessTDist.value) {
-          curveModels.push({
-            label: 'STUDENT T FIT',
-            model: "Student's t fitted to observed PnL",
-            points: curves.tCurve,
-            aic: Number(stats.tParams?.aic ?? 0),
-            bic: Number(stats.tParams?.bic ?? 0),
-            density: (returnValue: number) => studentTPDF(returnValue, stats.tParams?.mean ?? stats.mean, tScale, tNu)
-          })
-        }
-
         curveModels.forEach(modelConfig => {
           if (modelConfig.points.length < 2) return
 

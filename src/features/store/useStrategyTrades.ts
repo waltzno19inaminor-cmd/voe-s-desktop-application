@@ -21,6 +21,7 @@ const LIVERMORE_NFLXX_SCENARIO_PREFIX = 'livermore-nflxx-scenario-'
 const LIVERMORE_NFLXX_SCENARIO_TRADE_COUNT = 15
 const LIVERMORE_RANDOM_TRADE_PREFIX = 'livermore-random-'
 const LIVERMORE_RANDOM_TRADE_COUNT = 30
+const MAIN_DIARY_RANDOM_TRADE_COUNT = 25
 
 function isLivermoreStrategyName(name?: string) {
   return String(name || '').toLowerCase().includes('livermore')
@@ -134,6 +135,16 @@ function createLivermoreRandomTrades(strategyId: string): DiaryEntry[] {
   })
 }
 
+function createMainDiaryRandomTrades(): DiaryEntry[] {
+  return createLivermoreRandomTrades('MAIN_DIARY')
+    .slice(0, MAIN_DIARY_RANDOM_TRADE_COUNT)
+    .map((trade, index) => ({
+      ...trade,
+      id: `main-diary-random-${String(index + 1).padStart(2, '0')}`,
+      notes: 'Randomly generated Main Diary trade.'
+    }))
+}
+
 function createLivermoreBtcSeedTrades(strategyId: string): DiaryEntry[] {
   const setups = [
     [68420, 69780, 67180, 71300, 0.18, 244.8, 7, 'Long'],
@@ -235,7 +246,7 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
     { id: 'MAIN_DIARY', name: 'Main Diary', createdAt: new Date().toISOString() }
   ])
   const tradesByStrategy = ref<Record<string, DiaryEntry[]>>({
-    'MAIN_DIARY': []
+    'MAIN_DIARY': createMainDiaryRandomTrades()
   })
   const initialDepositsByStrategy = ref<Record<string, number>>({
     'MAIN_DIARY': 1000
@@ -288,15 +299,16 @@ export const useStrategyTradesStore = defineStore('strategyTrades', () => {
           strategies.value.unshift({ id: 'MAIN_DIARY', name: 'Main Diary', createdAt: new Date().toISOString() })
         }
         if (!tradesByStrategy.value['MAIN_DIARY']) {
-          tradesByStrategy.value['MAIN_DIARY'] = []
+          tradesByStrategy.value['MAIN_DIARY'] = createMainDiaryRandomTrades()
+        } else if (tradesByStrategy.value['MAIN_DIARY'].length === 0) {
+          tradesByStrategy.value['MAIN_DIARY'] = createMainDiaryRandomTrades()
         }
         if (!hiddenTradeIdsByStrategy.value['MAIN_DIARY']) {
           hiddenTradeIdsByStrategy.value['MAIN_DIARY'] = []
         }
       }
 
-      // Trades are read exactly as they exist in strategy_trades_v1.json.
-      // This store never creates, removes, or rewrites records during startup.
+      // Seed an empty Main Diary with randomized sample trades.
     } finally {
       isInitialized.value = true
       isLoading.value = false
