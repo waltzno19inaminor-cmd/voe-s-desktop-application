@@ -19,8 +19,11 @@ const getTradePnlFn = (trade: any) => getTradeCashPnl(trade, strategyMetrics.val
 const {
   robustnessExplanationVariables,
   robustnessDistributionFits,
+  robustnessDistributionComparison,
   robustnessNormalityTests,
+  robustnessHypothesisSummary,
   robustnessBootstrapSummary,
+  robustnessBootstrapInterpretation,
   robustnessUiLayerSummary
 } = useExRobustness(diagnosticStats, strategyMetrics, getFilteredTradesFn, getTradePnlFn)
 
@@ -67,27 +70,37 @@ function diagnosticText(key: string) {
               <span class="font-bold text-sm">{{ item.val }}</span>
             </div>
           </div>
+          <p class="opacity-55 leading-relaxed normal-case tracking-normal">{{ robustnessBootstrapInterpretation }}</p>
         </section>
 
         <!-- DISTRIBUTION FITS -->
         <section>
           <h2 class="text-[9px] tracking-[0.4em] opacity-40 mb-8 pb-3 border-b nier-border-primary">{{ diagnosticText('distributionFits') }}</h2>
           <div class="flex flex-col border-t border-l border-r nier-border-primary overflow-x-auto">
-            <div v-for="fit in robustnessDistributionFits" :key="fit.name" 
-                 class="grid min-w-[34rem] grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-3 py-3 border-b"
+            <div v-for="fit in robustnessDistributionFits" :key="fit.name"
+                 class="min-w-[34rem] border-b"
                  :class="fit.isBest ? 'border-black/40 bg-black/5 dark:border-white/40 dark:bg-white/5' : fit.isReferenceOnly ? 'nier-border-primary bg-black/[0.02] dark:bg-white/[0.02]' : 'nier-border-primary'">
-              <div class="font-bold flex items-center gap-2 text-[10px]">
-                <span class="w-1.5 h-1.5 rounded-full" :class="fit.isBest ? 'nier-bg-inverted' : 'opacity-0'"></span>
-                {{ fit.name }}
+              <div class="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-3 px-3 py-3">
+                <div class="font-bold flex items-center gap-2 text-[10px]">
+                  <span class="w-1.5 h-1.5 rounded-full" :class="fit.isBest ? 'nier-bg-inverted' : 'opacity-0'"></span>
+                  {{ fit.name }}
+                </div>
+                <div class="nier-text-primary text-right whitespace-nowrap text-[9px]"><span class="opacity-80">AIC:</span> <span class="ml-1 font-black">{{ fit.aic }}</span></div>
+                <div class="nier-text-primary text-right whitespace-nowrap text-[9px]"><span class="opacity-80">BIC:</span> <span class="ml-1 font-black">{{ fit.bic }}</span></div>
+                <div class="justify-self-end whitespace-nowrap px-1.5 py-0.5 text-[8px] leading-none border font-bold"
+                     :class="fit.isBest ? 'border-black bg-black text-white dark:border-white' : fit.isReferenceOnly ? 'nier-border-primary nier-text-primary' : 'border-red-500/70 bg-red-500/10 text-red-600 dark:border-red-400 dark:text-red-400'">
+                  {{ fit.isBest ? diagnosticText('optimalFit') : fit.isReferenceOnly ? diagnosticText('referenceFit') : diagnosticText('suboptimal') }}
+                </div>
               </div>
-              <div class="nier-text-primary text-right whitespace-nowrap text-[9px]"><span class="opacity-80">AIC:</span> <span class="ml-1 font-black">{{ fit.aic }}</span></div>
-              <div class="nier-text-primary text-right whitespace-nowrap text-[9px]"><span class="opacity-80">BIC:</span> <span class="ml-1 font-black">{{ fit.bic }}</span></div>
-              <div class="justify-self-end whitespace-nowrap px-1.5 py-0.5 text-[8px] leading-none border font-bold"
-                   :class="fit.isBest ? 'border-black bg-black text-white dark:border-white' : fit.isReferenceOnly ? 'nier-border-primary nier-text-primary' : 'border-red-500/70 bg-red-500/10 text-red-600 dark:border-red-400 dark:text-red-400'">
-                {{ fit.isBest ? diagnosticText('optimalFit') : fit.isReferenceOnly ? diagnosticText('referenceFit') : diagnosticText('suboptimal') }}
+              <div v-if="fit.params.length" class="grid grid-cols-2 gap-x-8 gap-y-2 border-t border-black/5 px-5 py-3 dark:border-white/5">
+                <div v-for="param in fit.params" :key="param.name" class="flex justify-between gap-4 text-[9px]">
+                  <span class="opacity-45">{{ param.name }}</span>
+                  <span class="font-bold">{{ param.val }}</span>
+                </div>
               </div>
             </div>
           </div>
+          <p class="mt-6 opacity-55 leading-relaxed normal-case tracking-normal">{{ robustnessDistributionComparison }}</p>
         </section>
 
         <!-- NORMALITY TESTS -->
@@ -105,6 +118,7 @@ function diagnosticText(key: string) {
               <p class="opacity-50 pl-[11.5rem] leading-relaxed">{{ test.note }}</p>
             </div>
           </div>
+          <p class="opacity-55 leading-relaxed normal-case tracking-normal">{{ robustnessHypothesisSummary }}</p>
         </section>
 
         <!-- ROLLING LAYER -->

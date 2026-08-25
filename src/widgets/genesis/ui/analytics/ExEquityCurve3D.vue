@@ -219,10 +219,10 @@
           <div v-if="showDistribution3D" class="flex flex-col space-y-4">
             <div class="flex flex-col">
               <span class="text-4xl font-mono nier-text-primary tracking-tighter font-bold drop-shadow-sm uppercase">
-                {{ showQQPlot ? 'QQ PLOT' : (showRobustnessHistogram ? 'PNL HIST' : 'NORMAL FIT') }}
+                {{ showQQPlot ? 'QQ PLOT' : (showRobustnessHistogram ? 'PNL HIST' : (showRobustnessTDist ? 'STUDENT T FIT' : 'NORMAL FIT')) }}
               </span>
               <span class="text-[9px] font-mono tracking-[0.4em] uppercase opacity-30 mt-2 nier-text-primary">
-                {{ showQQPlot ? 'QQ DISTRIBUTION' : 'ROBUSTNESS FITTING VERDICT' }}
+                {{ showQQPlot ? 'QQ DISTRIBUTION' : (showRobustnessHistogram ? 'OBSERVED PNL FREQUENCY' : 'THEORETICAL FIT TO OBSERVED PNL') }}
               </span>
               <button v-if="!showQQPlot && !showRobustnessExplanations"
                       @click="toggleRobustnessHistogram"
@@ -802,7 +802,7 @@
           <!-- NORMAL DISTRIBUTION -->
           <button
             @click="toggleRobustnessMode('normal')"
-            :aria-label="isRu ? 'Нормальное распределение' : 'Normal distribution'"
+            :aria-label="isRu ? 'Нормальная модель' : 'Normal fit'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showRobustnessNormalDist ? 'border-white/30 bg-white/10 text-white' : ''"
           >
@@ -810,14 +810,14 @@
               <path d="M4 16c2-4 4-8 8-8s6 4 8 8" stroke-dasharray="3,3"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessNormalDist ? '[ СКРЫТЬ_НОРМАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ ]' : '[ ПОКАЗАТЬ_НОРМАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ ]') : (showRobustnessNormalDist ? '[ HIDE_NORMAL_DIST ]' : '[ SHOW_NORMAL_DIST ]') }}
+              {{ isRu ? (showRobustnessNormalDist ? '[ СКРЫТЬ_НОРМАЛЬНУЮ_МОДЕЛЬ ]' : '[ ПОКАЗАТЬ_НОРМАЛЬНУЮ_МОДЕЛЬ ]') : (showRobustnessNormalDist ? '[ HIDE_NORMAL_FIT ]' : '[ SHOW_NORMAL_FIT ]') }}
             </span>
           </button>
 
           <!-- STUDENT T DISTRIBUTION -->
           <button
             @click="toggleRobustnessMode('studentT')"
-            :aria-label="isRu ? 'Распределение Стьюдента' : 'Student t distribution'"
+            :aria-label="isRu ? 'Модель Стьюдента' : 'Student t fit'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showRobustnessTDist ? 'border-white/30 bg-white/10 text-white' : ''"
           >
@@ -825,7 +825,7 @@
               <path d="M4 16c2-6 4-10 8-10s6 4 8 10"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessTDist ? '[ СКРЫТЬ_РАСПРЕДЕЛЕНИЕ_СТЬЮДЕНТА ]' : '[ ПОКАЗАТЬ_РАСПРЕДЕЛЕНИЕ_СТЬЮДЕНТА ]') : (showRobustnessTDist ? '[ HIDE_STUDENT_T_DIST ]' : '[ SHOW_STUDENT_T_DIST ]') }}
+              {{ isRu ? (showRobustnessTDist ? '[ СКРЫТЬ_МОДЕЛЬ_СТЬЮДЕНТА ]' : '[ ПОКАЗАТЬ_МОДЕЛЬ_СТЬЮДЕНТА ]') : (showRobustnessTDist ? '[ HIDE_STUDENT_T_FIT ]' : '[ SHOW_STUDENT_T_FIT ]') }}
             </span>
           </button>
           <!-- PNL HISTOGRAM -->
@@ -2540,6 +2540,8 @@ const diagnosticStats = computed(() => {
       tCurve: [],
       curveDomain: { min: 0, max: 0 },
       qqPoints: [],
+      qqCorrelation: 0,
+      qqRmseSigma: 0,
       bootstrapCI: { lower: 0, upper: 0, mean: 0, stdErr: 0, distribution: [] },
       minPnl: 0,
       maxPnl: 0,
@@ -2558,21 +2560,25 @@ const diagnosticStats = computed(() => {
   }
 
   const mean = pnls.reduce((a, b) => a + b, 0) / N;
-  const variance = N > 1 ? pnls.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0) / (N - 1) : 0;
+  const squaredDeviationSum = pnls.reduce((sum, x) => sum + Math.pow(x - mean, 2), 0);
+  const variance = N > 1 ? squaredDeviationSum / (N - 1) : 0;
   const std = Math.sqrt(variance);
+  const momentStd = N > 0 ? Math.sqrt(squaredDeviationSum / N) : 0;
 
   let skewSum = 0;
   let kurtSum = 0;
-  if (std > 0 && N > 2) {
+  if (momentStd > 0 && N > 2) {
     pnls.forEach(x => {
-      skewSum += Math.pow((x - mean) / std, 3);
-      kurtSum += Math.pow((x - mean) / std, 4);
+      skewSum += Math.pow((x - mean) / momentStd, 3);
+      kurtSum += Math.pow((x - mean) / momentStd, 4);
     });
   }
   const skewness = N > 2 ? skewSum / N : 0;
   const kurtosis = N > 3 ? (kurtSum / N) - 3 : 0;
 
-  const normalStd = std > 0 ? std : 1.0;
+  const sortedPnls = [...pnls].sort((a, b) => a - b);
+  const sampleMedian = median(sortedPnls);
+  const normalStd = Math.max(momentStd, 1e-9);
   let normalLogL = 0;
   pnls.forEach(x => {
     normalLogL += Math.log(Math.max(1e-15, normalPDF(x, mean, normalStd)));
@@ -2580,15 +2586,35 @@ const diagnosticStats = computed(() => {
   const normalAIC = 2 * 2 - 2 * normalLogL;
   const normalBIC = 2 * Math.log(N) - 2 * normalLogL;
 
+  const absoluteDeviations = sortedPnls.map(value => Math.abs(value - sampleMedian)).sort((a, b) => a - b);
+  const medianAbsoluteDeviation = median(absoluteDeviations);
+  const robustScale = medianAbsoluteDeviation > 0 ? medianAbsoluteDeviation / 0.67448975 : normalStd;
+  const nuCandidates = [2.1, 2.5, 3, 4, 5, 7, 10, 15, 20, 30, 50, 100];
+  const locationCandidates = Math.abs(sampleMedian - mean) > 1e-9 ? [mean, sampleMedian] : [mean];
+  let tMean = mean;
   let tNu = 30;
   let tScale = normalStd;
-  if (kurtosis > 0.01) {
-    tNu = Math.min(100, Math.max(4.01, 4 + 6 / kurtosis));
-    tScale = normalStd * Math.sqrt((tNu - 2) / tNu);
-  }
-  let tLogL = 0;
-  pnls.forEach(x => {
-    tLogL += Math.log(Math.max(1e-15, studentTPDF(x, mean, tScale, tNu)));
+  let tLogL = Number.NEGATIVE_INFINITY;
+
+  nuCandidates.forEach(nu => {
+    const varianceMatchedScale = normalStd * Math.sqrt(Math.max(1e-9, (nu - 2) / nu));
+    const baseScales = [varianceMatchedScale, robustScale];
+    locationCandidates.forEach(location => {
+      baseScales.forEach(baseScale => {
+        ;[0.7, 0.85, 1, 1.15, 1.3].forEach(multiplier => {
+          const scale = Math.max(1e-9, baseScale * multiplier);
+          const logL = pnls.reduce((sum, x) => (
+            sum + Math.log(Math.max(1e-15, studentTPDF(x, location, scale, nu)))
+          ), 0);
+          if (logL > tLogL) {
+            tLogL = logL;
+            tMean = location;
+            tScale = scale;
+            tNu = nu;
+          }
+        });
+      });
+    });
   });
   const tAIC = 2 * 3 - 2 * tLogL;
   const tBIC = 3 * Math.log(N) - 2 * tLogL;
@@ -2598,7 +2624,6 @@ const diagnosticStats = computed(() => {
     preferredModel = "Student's t";
   }
 
-  const sortedPnls = [...pnls].sort((a, b) => a - b);
   const minP = sortedPnls[0] ?? 0;
   const maxP = sortedPnls[sortedPnls.length - 1] ?? 0;
   const q1 = percentile(sortedPnls, 0.25);
@@ -2635,24 +2660,10 @@ const diagnosticStats = computed(() => {
   });
 
   pnls.forEach(x => {
-    let placed = false;
-    for (let i = 0; i < numBins; i++) {
-      const bin = bins[i];
-      if (bin && x >= bin.x0 && x <= bin.x1) {
-        bin.count++;
-        placed = true;
-        break;
-      }
-    }
-    if (!placed && bins.length > 0) {
-      if (x < minP) {
-        const firstBin = bins[0];
-        if (firstBin) firstBin.count++;
-      } else {
-        const lastBin = bins[bins.length - 1];
-        if (lastBin) lastBin.count++;
-      }
-    }
+    const rawIndex = range > 0 ? Math.floor((x - minP) / binWidth) : 0;
+    const binIndex = Math.max(0, Math.min(numBins - 1, rawIndex));
+    const bin = bins[binIndex];
+    if (bin) bin.count++;
   });
 
   bins.forEach(b => {
@@ -2667,12 +2678,13 @@ const diagnosticStats = computed(() => {
   const curveMax = domainBaseMax + domainPadding;
   const curveStep = (curveMax - curveMin) / curvePointsCount;
 
+  // These are theoretical PDFs fitted to the real closed-trade PnL sample.
   const normalCurve: { x: number; y: number }[] = [];
   const tCurve: { x: number; y: number }[] = [];
   for (let i = 0; i <= curvePointsCount; i++) {
     const x = curveMin + i * curveStep;
     normalCurve.push({ x, y: normalPDF(x, mean, normalStd) });
-    tCurve.push({ x, y: studentTPDF(x, mean, tScale, tNu) });
+    tCurve.push({ x, y: studentTPDF(x, tMean, tScale, tNu) });
   }
 
   const qqPoints = sortedPnls.map((x, idx) => {
@@ -2685,6 +2697,18 @@ const diagnosticStats = computed(() => {
       actual: x
     };
   });
+  const qqActualMean = mean;
+  const qqTheoreticalMean = qqPoints.reduce((sum, point) => sum + point.theoretical, 0) / N;
+  const qqCovariance = qqPoints.reduce((sum, point) => (
+    sum + (point.actual - qqActualMean) * (point.theoretical - qqTheoreticalMean)
+  ), 0);
+  const qqActualSquares = qqPoints.reduce((sum, point) => sum + Math.pow(point.actual - qqActualMean, 2), 0);
+  const qqTheoreticalSquares = qqPoints.reduce((sum, point) => sum + Math.pow(point.theoretical - qqTheoreticalMean, 2), 0);
+  const qqCorrelationDenominator = Math.sqrt(qqActualSquares * qqTheoreticalSquares);
+  const qqCorrelation = qqCorrelationDenominator > 0 ? qqCovariance / qqCorrelationDenominator : 0;
+  const qqRmseSigma = normalStd > 0
+    ? Math.sqrt(qqPoints.reduce((sum, point) => sum + Math.pow(point.actual - point.theoretical, 2), 0) / N) / normalStd
+    : 0;
 
   const bootstrapSims = 500;
   const bsMeans: number[] = [];
@@ -2743,13 +2767,15 @@ const diagnosticStats = computed(() => {
     skewness,
     kurtosis,
     normalParams: { mean, std: normalStd, logL: normalLogL, aic: normalAIC, bic: normalBIC },
-    tParams: { mean, scale: tScale, nu: tNu, logL: tLogL, aic: tAIC, bic: tBIC },
+    tParams: { mean: tMean, scale: tScale, nu: tNu, logL: tLogL, aic: tAIC, bic: tBIC },
     preferredModel,
     bins,
     normalCurve,
     tCurve,
     curveDomain: { min: curveMin, max: curveMax },
     qqPoints,
+    qqCorrelation,
+    qqRmseSigma,
     bootstrapCI: {
       lower: bsLower,
       upper: bsUpper,
@@ -2778,36 +2804,26 @@ const distributionPoints3D = computed(() => {
   if (pnls.length < 2) return { normalCurve: [], tCurve: [] };
 
   const stats = diagnosticStats.value;
-  const mean = stats.mean;
-  const normalStd = stats.normalParams.std;
-  const tScale = stats.tParams.scale;
-  const tNu = stats.tParams.nu;
-  const curveDomain = stats.curveDomain || { min: mean - 3 * normalStd, max: mean + 3 * normalStd };
-  const curveRange = Math.max(1, curveDomain.max - curveDomain.min);
 
-  const pointsCount = 100;
-  const step = 400 / pointsCount;
-  
   const normalCurve: Point3D[] = [];
   const tCurve: Point3D[] = [];
 
   let maxDensity = 0.0001;
-  const pdfVals: { x: number; valNormal: number; valT: number }[] = [];
+  const densityPoints: { x: number; valNormal: number; valT: number }[] = [];
+  const pointsCount = Math.max(stats.normalCurve.length, stats.tCurve.length) - 1;
 
   for (let i = 0; i <= pointsCount; i++) {
-    const xCoord = -200 + i * step;
-    const returnVal = curveDomain.min + (i / pointsCount) * curveRange;
-    
-    const valNormal = normalPDF(returnVal, mean, normalStd);
-    const valT = studentTPDF(returnVal, mean, tScale, tNu);
+    const xCoord = -200 + (i / Math.max(1, pointsCount)) * 400;
+    const valNormal = stats.normalCurve[i]?.y ?? 0;
+    const valT = stats.tCurve[i]?.y ?? 0;
     
     if (valNormal > maxDensity) maxDensity = valNormal;
     if (valT > maxDensity) maxDensity = valT;
     
-    pdfVals.push({ x: xCoord, valNormal, valT });
+    densityPoints.push({ x: xCoord, valNormal, valT });
   }
 
-  pdfVals.forEach(pv => {
+  densityPoints.forEach(pv => {
     const yNormal = 80 - (pv.valNormal / maxDensity) * 140;
     const yT = 80 - (pv.valT / maxDensity) * 140;
     
@@ -2817,37 +2833,6 @@ const distributionPoints3D = computed(() => {
 
   return { normalCurve, tCurve };
 });
-
-const generateSVGPath = (curve: { x: number; y: number }[], maxDensity: number, minX: number, maxX: number): string => {
-  if (maxX <= minX || maxDensity <= 0) return '';
-  const points = curve.map(pt => {
-    const px = 500 * (pt.x - minX) / (maxX - minX);
-    const py = 180 - 160 * (pt.y / maxDensity);
-    return `${px.toFixed(1)},${py.toFixed(1)}`;
-  });
-  return `M ${points.join(' L ')}`;
-};
-
-const computeQQPlotPositions = (qqPoints: { theoretical: number; actual: number }[]) => {
-  if (qqPoints.length === 0) return [];
-  const actuals = qqPoints.map(p => p.actual);
-  const theoreticals = qqPoints.map(p => p.theoretical);
-  const minAct = Math.min(...actuals);
-  const maxAct = Math.max(...actuals);
-  const minTheo = Math.min(...theoreticals);
-  const maxTheo = Math.max(...theoreticals);
-
-  const rangeAct = maxAct - minAct || 1.0;
-  const rangeTheo = maxTheo - minTheo || 1.0;
-
-  return qqPoints.map(pt => {
-    const x = 20 + 460 * (pt.theoretical - minTheo) / rangeTheo;
-    const y = 180 - 160 * (pt.actual - minAct) / rangeAct;
-    return { x, y };
-  });
-};
-
-
 
 // --- 3D MATH TYPES --- //
 import ExRobustnessDiagnostic from './ExRobustnessDiagnostic.vue'
@@ -2908,11 +2893,12 @@ const hoveredQQPoint = computed(() => {
   const minA = Math.min(...actuals)
   const maxA = Math.max(...actuals)
 
-  const rangeT = maxT - minT || 1
-  const rangeA = maxA - minA || 1
+  const sharedMin = Math.min(minT, minA)
+  const sharedMax = Math.max(maxT, maxA)
+  const sharedRange = sharedMax - sharedMin || 1
 
-  const pctX = (ptData.theoretical - minT) / rangeT
-  const pctY = (ptData.actual - minA) / rangeA
+  const pctX = (ptData.theoretical - sharedMin) / sharedRange
+  const pctY = (ptData.actual - sharedMin) / sharedRange
   const scale = viewScale.value
   const canvas = canvasRef.value
   if (!canvas) return null
@@ -3570,28 +3556,19 @@ const update = () => {
             const lastBin = pnlBins[pnlBins.length - 1];
             if (!firstBin || !lastBin) return;
             const maxCount = Math.max(...pnlBins.map((b: any) => b.count), 1);
-            const lowerVal = stats.mean - stats.std;
-            const upperVal = stats.mean + stats.std;
-            const activeHistogramColor = 'rgba(239, 68, 68, 1)';
-
-            // Find scale bounds for X mapping based on bins
-            const minXVal = firstBin.x0;
-            const maxXVal = lastBin.x1;
-            const rangeXVal = maxXVal - minXVal || 1;
 
             // Draw individual 3D columns for the bins
             const binWidth3D = 350 / pnlBins.length;
             const gap = 2; // gap between bars
-            const mutedStroke = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.24)' : 'rgba(0, 0, 0, 0.18)';
-            const mutedFront = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.045)';
-            const mutedTop = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.13)' : 'rgba(0, 0, 0, 0.065)';
-            const mutedSide = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.055)';
-            const mutedBack = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.035)';
-            const mutedBottom = themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(0, 0, 0, 0.03)';
 
             pnlBins.forEach((bin: any, idx: number) => {
-              const centerVal = (bin.x0 + bin.x1) / 2;
-              const isInsideCI = centerVal >= lowerVal && centerVal <= upperVal;
+              const isLossBin = bin.x1 <= 0;
+              const isProfitBin = bin.x0 >= 0;
+              const histogramColor = isLossBin
+                ? { stroke: 'rgba(239, 68, 68, 1)', front: 'rgba(239, 68, 68, 0.32)', top: 'rgba(239, 68, 68, 0.48)', side: 'rgba(239, 68, 68, 0.4)', back: 'rgba(239, 68, 68, 0.16)', bottom: 'rgba(239, 68, 68, 0.13)' }
+                : isProfitBin
+                  ? { stroke: 'rgba(34, 197, 94, 1)', front: 'rgba(34, 197, 94, 0.28)', top: 'rgba(34, 197, 94, 0.44)', side: 'rgba(34, 197, 94, 0.36)', back: 'rgba(34, 197, 94, 0.14)', bottom: 'rgba(34, 197, 94, 0.11)' }
+                  : { stroke: themeStore.settings.isDark ? 'rgba(255, 255, 255, 0.42)' : 'rgba(0, 0, 0, 0.34)', front: 'rgba(148, 163, 184, 0.22)', top: 'rgba(148, 163, 184, 0.34)', side: 'rgba(148, 163, 184, 0.28)', back: 'rgba(148, 163, 184, 0.12)', bottom: 'rgba(148, 163, 184, 0.1)' };
 
               const binX = -175 + idx * binWidth3D + binWidth3D / 2;
               const barHeight = (bin.count / maxCount) * 110;
@@ -3621,12 +3598,12 @@ const update = () => {
 
               if (pts.length >= 8 && pts[0] && pts[1] && pts[2] && pts[3] && pts[4] && pts[5] && pts[6] && pts[7]) {
                 ctx.save();
-                const activeStroke = isInsideCI ? activeHistogramColor : mutedStroke;
-                const frontFill = isInsideCI ? 'rgba(239, 68, 68, 0.32)' : mutedFront;
-                const topFill = isInsideCI ? 'rgba(239, 68, 68, 0.48)' : mutedTop;
-                const sideFill = isInsideCI ? 'rgba(239, 68, 68, 0.4)' : mutedSide;
-                const backFill = isInsideCI ? 'rgba(239, 68, 68, 0.16)' : mutedBack;
-                const bottomFill = isInsideCI ? 'rgba(239, 68, 68, 0.13)' : mutedBottom;
+                const activeStroke = histogramColor.stroke;
+                const frontFill = histogramColor.front;
+                const topFill = histogramColor.top;
+                const sideFill = histogramColor.side;
+                const backFill = histogramColor.back;
+                const bottomFill = histogramColor.bottom;
 
                 const avgDepth = (indexes: number[]) => indexes.reduce((sum, pointIndex) => sum + (pts[pointIndex]?.depth ?? 0), 0) / indexes.length;
                 const drawFace = (indexes: number[], fillStyle: string, strokeStyle: string) => {
@@ -3692,13 +3669,13 @@ const update = () => {
             const maxT = Math.max(...theoreticals);
             const minA = Math.min(...actuals);
             const maxA = Math.max(...actuals);
-
-            const rangeT = maxT - minT || 1;
-            const rangeA = maxA - minA || 1;
+            const sharedMin = Math.min(minT, minA);
+            const sharedMax = Math.max(maxT, maxA);
+            const sharedRange = sharedMax - sharedMin || 1;
 
             const qqPoints3D = qq.map((pt: any) => {
-              const pctX = (pt.theoretical - minT) / rangeT;
-              const pctY = (pt.actual - minA) / rangeA;
+              const pctX = (pt.theoretical - sharedMin) / sharedRange;
+              const pctY = (pt.actual - sharedMin) / sharedRange;
               return {
                 x: -200 + pctX * 400,
                 y: 80 - pctY * 140,
@@ -3768,7 +3745,7 @@ const update = () => {
             return project(p, w, h)
           })
 
-          // Draw white area under Student's t curve
+          // Draw the fitted Student's t density.
           if (showRobustnessTDist.value && transformedT.length > 0) {
             const baseline3D = curves.tCurve.map(v => ({ x: v.x, y: 80, z: 0 }))
             const transformedBaseline = baseline3D.map(v => {
@@ -3810,7 +3787,7 @@ const update = () => {
             }
           }
 
-          // Draw a subtle area under the Normal distribution curve.
+          // Draw the fitted Normal density.
           if (showRobustnessNormalDist.value && transformedNormal.length > 0) {
             const baseline3D = curves.normalCurve.map(v => ({ x: v.x, y: 80, z: 0 }))
             const transformedBaseline = baseline3D.map(v => {
@@ -3851,7 +3828,7 @@ const update = () => {
             }
           }
 
-          // Draw Normal theoretical curve (dashed, lower opacity)
+          // Draw the fitted Normal curve (dashed).
           if (showRobustnessNormalDist.value) {
             ctx.save()
             ctx.lineWidth = 2.75
@@ -3870,7 +3847,7 @@ const update = () => {
             ctx.restore()
           }
 
-          // Draw Student's t curve (solid, bold, glowing pure line)
+          // Draw the fitted Student's t curve (solid).
           if (showRobustnessTDist.value) {
             ctx.lineWidth = 3
             ctx.strokeStyle = themeText
@@ -4266,12 +4243,13 @@ const handleMouseMove = (e: MouseEvent) => {
           const minA = Math.min(...actuals)
           const maxA = Math.max(...actuals)
 
-          const rangeT = maxT - minT || 1
-          const rangeA = maxA - minA || 1
+          const sharedMin = Math.min(minT, minA)
+          const sharedMax = Math.max(maxT, maxA)
+          const sharedRange = sharedMax - sharedMin || 1
 
           qq.forEach((pt: any, idx: number) => {
-            const pctX = (pt.theoretical - minT) / rangeT
-            const pctY = (pt.actual - minA) / rangeA
+            const pctX = (pt.theoretical - sharedMin) / sharedRange
+            const pctY = (pt.actual - sharedMin) / sharedRange
             const v3d = {
               x: -200 + pctX * 400,
               y: 80 - pctY * 140,
@@ -4381,7 +4359,7 @@ const handleMouseMove = (e: MouseEvent) => {
         if (showRobustnessNormalDist.value) {
           curveModels.push({
             label: 'NORMAL FIT',
-            model: 'Normal distribution',
+            model: 'Normal distribution fitted to observed PnL',
             points: curves.normalCurve,
             aic: Number(stats.normalParams?.aic ?? 0),
             bic: Number(stats.normalParams?.bic ?? 0),
@@ -4391,7 +4369,7 @@ const handleMouseMove = (e: MouseEvent) => {
         if (showRobustnessTDist.value) {
           curveModels.push({
             label: 'STUDENT T FIT',
-            model: "Student's t distribution",
+            model: "Student's t fitted to observed PnL",
             points: curves.tCurve,
             aic: Number(stats.tParams?.aic ?? 0),
             bic: Number(stats.tParams?.bic ?? 0),

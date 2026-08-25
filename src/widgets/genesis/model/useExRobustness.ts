@@ -173,7 +173,7 @@ export function useExRobustness(
         params: [
           { name: copy('Mean', 'Среднее'), val: `$${stats.tParams.mean.toFixed(2)}` },
           { name: copy('Typical Swing Size', 'Типичный размер колебания'), val: `$${stats.tParams.scale.toFixed(2)}` },
-          { name: copy('Large Trade Sensitivity', 'Чувствительность к крупным сделкам'), val: stats.tParams.nu.toFixed(2) },
+          { name: copy('Degrees of Freedom (ν)', 'Степени свободы (ν)'), val: stats.tParams.nu.toFixed(2) },
           { name: copy('Log Likelihood', 'Качество совпадения'), val: stats.tParams.logL.toFixed(2) }
         ]
       },
@@ -248,7 +248,7 @@ export function useExRobustness(
     const jbPass = jarqueBera < 5.99
     const skewPass = Math.abs(stats.skewness) < 0.5
     const kurtPass = Math.abs(stats.kurtosis) < 1.5
-    const qqPass = stats.qqPoints && stats.qqPoints.length > 0 && Math.abs(stats.skewness) < 0.75 && stats.kurtosis < 2
+    const qqPass = stats.qqPoints && stats.qqPoints.length > 0 && stats.qqCorrelation >= 0.98 && stats.qqRmseSigma <= 0.25
     const outlierPass = (stats.tailOutlierCount || 0) === 0 && (stats.largestTailSigma || 0) < 3
     const riskPass = (stats.stopLossCoveragePct || 0) >= 90
 
@@ -286,10 +286,10 @@ export function useExRobustness(
       {
         id: 'curve-alignment',
         name: copy('QQ-Plot Alignment Check', 'Проверка формы кривой сделок'),
-        result: qqPass ? copy('ALIGNED', 'СОВПАДАЕТ') : copy('TAIL_DEVIATION', 'ЕСТЬ_ОТКЛОНЕНИЕ'),
+        result: `${stats.qqCorrelation.toFixed(3)} / ${stats.qqRmseSigma.toFixed(2)}σ ${qqPass ? copy('ALIGNED', 'СОВПАДАЕТ') : copy('TAIL_DEVIATION', 'ЕСТЬ_ОТКЛОНЕНИЕ')}`,
         note: copy(
-          'Checks whether real trades follow the expected curve or bend away at the largest wins and losses.',
-          'Проверяет, следуют ли реальные сделки ожидаемой кривой или сильно отклоняются на крупнейших прибылях и убытках.'
+          'Reports QQ correlation and normalized fit error between real PnL quantiles and the fitted Normal model.',
+          'Показывает QQ-корреляцию и нормированную ошибку между реальными квантилями PnL и подогнанной Normal-моделью.'
         ),
         pass: qqPass
       },
