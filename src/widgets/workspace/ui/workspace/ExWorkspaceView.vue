@@ -6,7 +6,7 @@
        <ExInitialization v-if="showInitialization" @initiate="handleInitializationComplete" />
     </Transition>
 
-    <Transition name="page-reify" mode="out-in">
+    <Transition name="access-reify" mode="out-in">
       <ExAccessGate
         v-if="showAccessGate"
         key="access-gate"
@@ -704,6 +704,20 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(20px);
   filter: blur(10px);
+}
+
+/*
+ * Keep the access gate free of transform/filter during its transition.
+ * Either property turns its fixed Gradflow child into a main-relative layer,
+ * temporarily clipping the background below the custom titlebar.
+ */
+.access-reify-enter-active,
+.access-reify-leave-active {
+  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.access-reify-enter-from,
+.access-reify-leave-to {
+  opacity: 0;
 }
 
 .fade-enter-active,
