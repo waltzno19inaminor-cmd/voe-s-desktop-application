@@ -32,6 +32,8 @@ export type EquityStabilityMapModel = {
   extremes: EquityMapMarker[]
 }
 
+import { detectRealDrawdownPeriods } from './drawdownPeriods'
+
 const finite = (value: unknown): number | null => {
   const parsed = typeof value === 'string' ? Number.parseFloat(value) : Number(value)
   return Number.isFinite(parsed) ? parsed : null
@@ -82,23 +84,17 @@ export const buildEquityStabilityMap = (
     return { id: `period-${index + 1}`, kind: 'period', startIndex, endIndex }
   }).filter(zone => zone.startIndex <= zone.endIndex)
 
-  const drawdowns: EquityMapZone[] = []
-  let drawdownStart: number | null = null
-  points.forEach((point, index) => {
-    if (point.drawdown > 0 && drawdownStart === null) drawdownStart = index
-    const endsDrawdown = drawdownStart !== null && (point.drawdown === 0 || index === points.length - 1)
-    if (endsDrawdown) {
-      const endIndex = point.drawdown === 0 ? index : index
-      drawdowns.push({
-        id: `drawdown-${drawdowns.length + 1}`,
-        kind: 'drawdown',
-        startIndex: drawdownStart,
-        endIndex,
-        value: Math.max(...points.slice(drawdownStart, endIndex + 1).map(item => item.drawdown))
-      })
-      drawdownStart = null
-    }
-  })
+  const drawdowns: EquityMapZone[] = detectRealDrawdownPeriods(points).map(period => ({
+    id: period.id,
+    kind: 'drawdown',
+    // Include the preceding high-water point so the painted span starts at
+    // the actual peak from which the decline begins.
+    startIndex: Math.max(0, period.startIndex - 1),
+    // Render only the peak-to-trough decline. The recovery remains part of
+    // the analytical period, but should not be painted as a falling zone.
+    endIndex: period.bottomIndex,
+    value: period.depth
+  }))
 
   const extremes: EquityMapMarker[] = []
   if (points.length >= 8) {
@@ -110,4 +106,3 @@ export const buildEquityStabilityMap = (
 
   return { points, periods, drawdowns, extremes }
 }
-
