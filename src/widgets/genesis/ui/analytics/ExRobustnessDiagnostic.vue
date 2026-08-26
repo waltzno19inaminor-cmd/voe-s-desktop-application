@@ -4,6 +4,7 @@ import { useExRobustness } from '../../model/useExRobustness'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import ExRobustnessTestCard from './ExRobustnessTestCard.vue'
+import ExRobustnessEquityMap from './robustnessEquityMap/ExRobustnessEquityMap.vue'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -40,10 +41,15 @@ const copy = (en: string, ru: string) => locale.value === 'ru' ? ru : en
         </p>
       </div>
 
+      <ExRobustnessEquityMap
+        class="mb-5"
+        :trades="filteredTrades"
+        :get-trade-pnl="getTradePnlFn"
+      />
+
       <div class="grid grid-cols-1 gap-5 text-[11px] uppercase tracking-widest lg:grid-cols-2">
         <ExRobustnessTestCard v-for="test in robustnessTests" :key="test.id" :test="test" />
       </div>
     </div>
   </div>
 </template>
-
