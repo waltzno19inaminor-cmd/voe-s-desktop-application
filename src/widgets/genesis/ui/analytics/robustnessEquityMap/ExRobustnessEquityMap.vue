@@ -4,13 +4,18 @@ import { buildEquityStabilityMap, type EquityStabilityMapModel } from './equityS
 import { useI18n } from '~/shared/i18n/useI18n'
 
 const props = defineProps<{
+  model: EquityStabilityMapModel
   trades: Record<string, any>[]
   getTradePnl: (trade: Record<string, any>) => number
 }>()
 
+const emit = defineEmits<{
+  (event: 'select-period', periodId: string): void
+}>()
+
 const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
-const model = computed<EquityStabilityMapModel>(() => buildEquityStabilityMap(props.trades, props.getTradePnl))
+const model = computed<EquityStabilityMapModel>(() => props.model ?? buildEquityStabilityMap(props.trades, props.getTradePnl))
 const hoveredIndex = ref<number | null>(null)
 
 const width = 1000
@@ -46,6 +51,50 @@ const zeroY = computed(() => yFor(0))
 const zoneStyle = (startIndex: number, endIndex: number) => ({
   x: Math.max(padding.left, Math.min(width - padding.right, xFor(startIndex))),
   width: Math.max(4, Math.min(width - padding.right, xFor(endIndex)) - Math.max(padding.left, Math.min(width - padding.right, xFor(startIndex))))
+})
+
+const periodStyle = (startIndex: number, endIndex: number) => {
+  const x = Math.max(padding.left, Math.min(width - padding.right, xFor(startIndex)))
+  const end = Math.min(width - padding.right, endIndex >= points.value.length - 1 ? width - padding.right : xFor(endIndex))
+  return { x, width: Math.max(0, end - x) }
+}
+
+const growthPeriodZones = computed(() => {
+  const drawdownRanges = model.value.drawdowns
+    .map(zone => ({ start: zone.startIndex, end: zone.endIndex }))
+    .sort((a, b) => a.start - b.start)
+
+  return model.value.periods.flatMap((period, periodIndex) => {
+    const periodStart = period.startIndex
+    const periodEnd = Math.min(points.value.length - 1, period.endIndex + 1)
+    let cursor = periodStart
+    const zones: Array<{ id: string; startIndex: number; endIndex: number }> = []
+
+    drawdownRanges.forEach((drawdown, drawdownIndex) => {
+      const overlapStart = Math.max(periodStart, drawdown.start)
+      const overlapEnd = Math.min(periodEnd, drawdown.end)
+      if (overlapStart > overlapEnd) return
+
+      if (cursor < overlapStart) {
+        zones.push({
+          id: `growth-period-${periodIndex + 1}-${drawdownIndex + 1}-${cursor}`,
+          startIndex: cursor,
+          endIndex: overlapStart
+        })
+      }
+      cursor = Math.max(cursor, overlapEnd)
+    })
+
+    if (cursor < periodEnd) {
+      zones.push({
+        id: `growth-period-${periodIndex + 1}-end-${cursor}`,
+        startIndex: cursor,
+        endIndex: periodEnd
+      })
+    }
+
+    return zones
+  })
 })
 
 const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
@@ -84,11 +133,18 @@ const pointerIndex = (event: MouseEvent) => {
 const handlePointerMove = (event: MouseEvent) => {
   hoveredIndex.value = pointerIndex(event)
 }
+
+const handleClick = (event: MouseEvent) => {
+  const index = pointerIndex(event)
+  if (index === null) return
+  const period = model.value.periods.find(zone => index >= zone.startIndex && index <= zone.endIndex)
+  if (period) emit('select-period', period.id)
+}
 </script>
 
 <template>
   <div class="relative mt-0 w-full overflow-hidden bg-black text-white">
-      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[28rem] w-full" role="img" :aria-label="label('Observed equity curve', 'Наблюдаемая equity curve')" @mousemove="handlePointerMove" @mouseleave="hoveredIndex = null">
+      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[28rem] w-full" role="img" :aria-label="label('Observed equity curve', 'Наблюдаемая equity curve')" @mousemove="handlePointerMove" @mouseleave="hoveredIndex = null" @click="handleClick">
         <defs>
           <clipPath id="equity-plot-clip">
             <rect :x="padding.left" :y="padding.top" :width="plotWidth" :height="plotHeight" />
@@ -96,6 +152,7 @@ const handlePointerMove = (event: MouseEvent) => {
         </defs>
 
         <g clip-path="url(#equity-plot-clip)">
+          <rect v-for="(zone, index) in growthPeriodZones" :key="zone.id" :x="periodStyle(zone.startIndex, zone.endIndex).x" :y="padding.top" :width="periodStyle(zone.startIndex, zone.endIndex).width" :height="plotHeight" :fill="index % 2 === 0 ? '#38bdf8' : '#818cf8'" fill-opacity="0.045" />
           <rect v-for="zone in model.drawdowns" :key="zone.id" :x="zoneStyle(zone.startIndex, zone.endIndex).x" :y="padding.top" :width="zoneStyle(zone.startIndex, zone.endIndex).width" :height="plotHeight" fill="#fb7185" fill-opacity="0.11" />
         </g>
 

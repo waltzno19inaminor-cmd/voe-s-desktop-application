@@ -46,19 +46,24 @@ const timestampOf = (trade: EquityMapTrade): number => {
   return Number.isFinite(timestamp) ? timestamp : Number.NaN
 }
 
+export const orderEquityMapTrades = (
+  trades: EquityMapTrade[],
+  getTradePnl: (trade: EquityMapTrade) => number
+) => trades
+  .map((trade, sourceIndex) => ({ trade, sourceIndex, timestamp: timestampOf(trade), pnl: finite(getTradePnl(trade)) }))
+  .filter((item): item is typeof item & { pnl: number } => item.pnl !== null)
+  .sort((a, b) => {
+    if (Number.isFinite(a.timestamp) && Number.isFinite(b.timestamp)) return a.timestamp - b.timestamp
+    if (Number.isFinite(a.timestamp)) return -1
+    if (Number.isFinite(b.timestamp)) return 1
+    return a.sourceIndex - b.sourceIndex
+  })
+
 export const buildEquityStabilityMap = (
   trades: EquityMapTrade[],
   getTradePnl: (trade: EquityMapTrade) => number
 ): EquityStabilityMapModel => {
-  const ordered = trades
-    .map((trade, sourceIndex) => ({ trade, sourceIndex, timestamp: timestampOf(trade), pnl: finite(getTradePnl(trade)) }))
-    .filter(item => item.pnl !== null)
-    .sort((a, b) => {
-      if (Number.isFinite(a.timestamp) && Number.isFinite(b.timestamp)) return a.timestamp - b.timestamp
-      if (Number.isFinite(a.timestamp)) return -1
-      if (Number.isFinite(b.timestamp)) return 1
-      return a.sourceIndex - b.sourceIndex
-    })
+  const ordered = orderEquityMapTrades(trades, getTradePnl)
 
   let equity = 0
   let highWater = 0
