@@ -55,6 +55,7 @@
         :diagnostic-stats="diagnosticStats"
         :strategy-metrics="strategyMetrics"
         :filtered-trades="getFilteredTrades()"
+        :strategy-name="selectedStrategy?.name || selectedStrategyId"
       />
     </Transition>
     <!-- TOP-CENTER WARNING BANNER (teleported to body) -->
