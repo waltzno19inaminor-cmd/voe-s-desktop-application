@@ -3,8 +3,9 @@ import { computed, toRefs } from 'vue'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import ExRobustnessEquityMap from './robustnessEquityMap/ExRobustnessEquityMap.vue'
 import { buildEquityStabilityMap } from './robustnessEquityMap/equityStabilityMap'
-import ExStrategyReportCover from './ExStrategyReportCover.vue'
-import ExStrategyReportTableOfContents from './ExStrategyReportTableOfContents.vue'
+import ExStrategyReportCover from './strategyReport/components/core/ExStrategyReportCover.vue'
+import ExStrategyReportTableOfContents from './strategyReport/components/core/ExStrategyReportTableOfContents.vue'
+import ExStrategyReportProfitsLossesSection from './strategyReport/components/core/ExStrategyReportProfitsLossesSection.vue'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -22,12 +23,14 @@ const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value,
 <template>
   <div class="absolute inset-0 z-30 overflow-hidden bg-transparent">
     <div class="h-full w-full px-[12vw]">
-      <div class="h-full min-h-screen w-full overflow-y-auto bg-black">
+      <div class="mt-[4vh] h-[calc(100%_-_4vh)] min-h-0 w-full overflow-y-auto bg-black">
         <ExStrategyReportCover
           :strategy-name="strategyName"
         />
 
         <ExStrategyReportTableOfContents />
+
+        <ExStrategyReportProfitsLossesSection />
 
         <ExRobustnessEquityMap
           v-if="false"

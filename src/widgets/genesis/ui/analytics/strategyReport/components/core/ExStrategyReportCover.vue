@@ -26,9 +26,7 @@ const reportDate = (() => {
 
 <template>
   <section id="report-cover" class="relative flex min-h-[calc(100vh-2rem)] flex-col justify-between overflow-hidden bg-black px-[clamp(1.5rem,7vw,8rem)] py-10 text-white sm:py-14">
-    <div class="text-[9px] uppercase tracking-[0.18em] text-white/40">
-      J.L. JÖRMUNGANDR
-    </div>
+    <div class="text-[9px] uppercase tracking-[0.18em] text-white/40">J.L. JÖRMUNGANDR</div>
 
     <div class="relative mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center py-20">
       <div class="mb-8 font-serif text-[13px] font-normal uppercase tracking-[0.24em] text-white/75">{{ label('Personal report', 'Персональный отчёт') }}</div>
@@ -38,19 +36,17 @@ const reportDate = (() => {
       <div class="mt-8 max-w-2xl text-base font-medium uppercase tracking-[0.2em] text-white/70 sm:text-xl">
         {{ label('Strategy performance analysis', 'Анализ результатов стратегии') }}
       </div>
-      <div class="mt-5 max-w-3xl text-base font-light leading-relaxed text-white/55 sm:text-lg">
-        {{ displayStrategyName }}
+      <div class="mt-5 max-w-3xl text-base font-light leading-relaxed text-white/55 sm:text-lg">{{ displayStrategyName }}</div>
+    </div>
+
+    <div class="absolute bottom-20 right-[clamp(1.5rem,7vw,8rem)] flex items-end gap-4 text-right">
+      <img src="/assets/signature-dark.svg" alt="" aria-hidden="true" class="h-14 w-24 object-contain opacity-85 sm:h-16 sm:w-28" />
+      <div>
+        <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">{{ label('Author', 'Автор') }}</div>
+        <div class="mt-2 text-lg font-normal text-white sm:text-xl">{{ displayUserName }}</div>
       </div>
-
     </div>
 
-    <div class="absolute bottom-20 right-[clamp(1.5rem,7vw,8rem)] text-right">
-      <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">{{ label('Author', 'Автор') }}</div>
-      <div class="mt-2 text-lg font-normal text-white sm:text-xl">{{ displayUserName }}</div>
-    </div>
-
-    <div class="absolute inset-x-0 bottom-8 text-center font-serif text-[13px] font-normal tracking-[0.18em] text-white/80">
-      {{ reportDate }}
-    </div>
+    <div class="absolute inset-x-0 bottom-8 text-center font-serif text-[13px] font-normal tracking-[0.18em] text-white/80">{{ reportDate }}</div>
   </section>
 </template>
