@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { buildCapitalGrowthRate } from '../analytics/capitalGrowthRate'
 
@@ -42,8 +42,23 @@ const yFor = (value: number) => padding.top + (1 - (value - minValue.value) / Ma
 const zeroY = computed(() => yFor(0))
 const rollingPath = computed(() => points.value.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index).toFixed(2)} ${yFor(point.rollingRatePct).toFixed(2)}`).join(' '))
 const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
+const hoveredIndex = ref<number | null>(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+const hoveredPoint = computed(() => hoveredIndex.value === null ? null : points.value[hoveredIndex.value] ?? null)
 const averageRate = computed(() => points.value.length
   ? points.value.reduce((sum, point) => sum + point.tradeRatePct, 0) / points.value.length
+  : 0)
+const maxGrowthRate = computed(() => points.value.length
+  ? Math.max(...points.value.map(point => point.tradeRatePct))
+  : 0)
+const minGrowthRate = computed(() => points.value.length
+  ? Math.min(...points.value.map(point => point.tradeRatePct))
+  : 0)
+const startingCapital = computed(() => Number.isFinite(props.initialCapital) && Math.abs(props.initialCapital as number) > 1e-9
+  ? Math.abs(props.initialCapital as number)
+  : 1000)
+const totalCapitalGrowth = computed(() => points.value.length
+  ? ((points.value[points.value.length - 1].equity - startingCapital.value) / startingCapital.value) * 100
   : 0)
 
 const yTicks = computed(() => {
@@ -75,6 +90,47 @@ const xTicks = computed(() => {
     return { index, label: String(index + 1) }
   })
 })
+
+const chartPointFromEvent = (event: MouseEvent) => {
+  const svg = event.currentTarget as SVGSVGElement
+  const screenMatrix = svg.getScreenCTM()
+
+  if (screenMatrix) {
+    const svgPoint = svg.createSVGPoint()
+    svgPoint.x = event.clientX
+    svgPoint.y = event.clientY
+    const localPoint = svgPoint.matrixTransform(screenMatrix.inverse())
+    return { x: localPoint.x, y: localPoint.y }
+  }
+
+  const rect = svg.getBoundingClientRect()
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * width,
+    y: ((event.clientY - rect.top) / rect.height) * height
+  }
+}
+
+const handleChartPointerMove = (event: MouseEvent) => {
+  if (!points.value.length) return
+
+  const localPoint = chartPointFromEvent(event)
+  if (localPoint.x < padding.left || localPoint.x > width - padding.right || localPoint.y < padding.top || localPoint.y > height - padding.bottom) {
+    hoveredIndex.value = null
+    return
+  }
+
+  const nearest = points.value.reduce<{ index: number; distance: number } | null>((candidate, point, index) => {
+    const distance = Math.abs(xFor(index) - localPoint.x)
+    return !candidate || distance < candidate.distance ? { index, distance } : candidate
+  }, null)
+
+  hoveredIndex.value = nearest?.index ?? null
+  tooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+
+const clearChartHover = () => {
+  hoveredIndex.value = null
+}
 </script>
 
 <template>
@@ -87,15 +143,35 @@ const xTicks = computed(() => {
     </div>
 
     <div v-if="points.length" class="mt-8 bg-white/[0.025] p-3 sm:p-5">
-      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[26rem] w-full" role="img" :aria-label="label('Capital change by trade', 'Изменение капитала по сделкам')">
+      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[26rem] w-full" role="img" :aria-label="label('Capital change by trade', 'Изменение капитала по сделкам')" @mousemove="handleChartPointerMove" @mouseleave="clearChartHover">
         <line :x1="padding.left" :x2="width - padding.right" :y1="zeroY" :y2="zeroY" stroke="white" stroke-opacity="0.35" stroke-dasharray="4 5" />
         <rect v-for="point in points" :key="point.index" :x="xFor(point.index) - barWidth / 2" :y="point.tradeRatePct >= 0 ? yFor(point.tradeRatePct) : zeroY" :width="barWidth" :height="Math.abs(yFor(point.tradeRatePct) - zeroY)" :fill="point.tradeRatePct >= 0 ? '#d1d5db' : '#737373'" fill-opacity="0.72" />
         <path :d="rollingPath" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+
+        <g v-if="hoveredPoint">
+          <line :x1="xFor(hoveredPoint.index)" :x2="xFor(hoveredPoint.index)" :y1="padding.top" :y2="height - padding.bottom" stroke="white" stroke-opacity="0.35" stroke-dasharray="3 4" />
+          <circle :cx="xFor(hoveredPoint.index)" :cy="yFor(hoveredPoint.tradeRatePct)" r="4" fill="white" stroke="black" stroke-width="1.5" />
+          <circle :cx="xFor(hoveredPoint.index)" :cy="yFor(hoveredPoint.rollingRatePct)" r="4" fill="black" stroke="white" stroke-width="1.5" />
+        </g>
 
         <text v-for="tick in yTicks" :key="`y-${tick}`" :x="padding.left - 12" :y="yFor(tick) + 5" text-anchor="end" fill="white" fill-opacity="0.88" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600">{{ formatted(tick) }}</text>
         <text v-for="tick in xTicks" :key="`x-${tick.index}`" :x="xFor(tick.index)" :y="height - padding.bottom + 30" :text-anchor="tick.index === 0 ? 'start' : tick.index === points.length - 1 ? 'end' : 'middle'" fill="white" fill-opacity="0.88" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600">{{ tick.label }}</text>
         <text :x="padding.left - 72" :y="padding.top + plotHeight / 2 + 5" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">%</text>
       </svg>
+
+      <Teleport to="body">
+        <div v-if="hoveredPoint" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y - 14}px` }" role="tooltip">
+          <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredPoint.asset }}</div>
+          <div class="flex min-w-[190px] items-center justify-between gap-5">
+            <span class="font-semibold text-white/85">{{ label('Change', 'Изменение') }}</span>
+            <span class="font-bold text-white">{{ formatted(hoveredPoint.tradeRatePct) }}%</span>
+          </div>
+          <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5">
+            <span class="font-semibold text-white/85">{{ label('Average', 'Среднее') }}</span>
+            <span class="font-bold text-white">{{ formatted(hoveredPoint.rollingRatePct) }}%</span>
+          </div>
+        </div>
+      </Teleport>
 
       <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[9px] uppercase tracking-[0.14em] text-white/60">
         <span class="inline-flex items-center gap-2"><i class="h-0.5 w-4 bg-white/90"></i>{{ label('Average change', 'Среднее изменение') }}</span>
@@ -104,7 +180,7 @@ const xTicks = computed(() => {
     <div v-if="points.length" class="mt-10">
       <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('Details', 'Подробности') }}</div>
       <div class="mt-2 font-serif text-sm text-white/70 sm:text-base">
-        {{ label('The average growth rate for the period was', 'Средний темп роста за период составил') }} {{ formatted(averageRate) }}%.
+        {{ label('Average growth rate', 'Средний темп роста') }} — <span class="font-mono font-semibold text-white">{{ formatted(averageRate) }}%</span>; {{ label('maximum and minimum growth rates', 'максимальный и минимальный темпы роста') }} — <span class="font-mono font-semibold text-white">{{ formatted(maxGrowthRate) }}%</span> {{ label('and', 'и') }} <span class="font-mono font-semibold text-white">{{ formatted(minGrowthRate) }}%</span> {{ label('respectively', 'соответственно') }}; {{ label('overall capital growth', 'итоговый прирост капитала') }} — <span class="font-mono font-semibold text-white">{{ formatted(totalCapitalGrowth) }}%</span>.
       </div>
     </div>
     <div v-else class="mt-8 font-serif text-base text-white/55">{{ label('No trade data available.', 'Нет данных по сделкам.') }}</div>

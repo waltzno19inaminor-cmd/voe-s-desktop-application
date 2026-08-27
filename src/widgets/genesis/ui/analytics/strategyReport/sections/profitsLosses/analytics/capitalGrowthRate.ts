@@ -2,6 +2,7 @@ import { orderEquityMapTrades, type EquityMapTrade } from '../../../../robustnes
 
 export type CapitalGrowthRatePoint = {
   index: number
+  asset: string
   tradeRatePct: number
   rollingRatePct: number
   pnl: number
@@ -14,6 +15,18 @@ export type CapitalGrowthRateModel = {
 }
 
 const safeCapital = (value: number) => Number.isFinite(value) && Math.abs(value) > 1e-9 ? Math.abs(value) : 1000
+
+const resolveAsset = (trade: EquityMapTrade): string => {
+  const value = trade?.asset ?? trade?.symbol ?? trade?.ticker ?? trade?.label
+    ?? trade?.trade?.asset ?? trade?.trade?.symbol ?? trade?.trade?.ticker ?? trade?.trade?.label
+  const asset = String(value ?? 'UNKNOWN')
+    .split('[')[0]!
+    .split('|')[0]!
+    .trim()
+    .toUpperCase()
+
+  return asset || 'UNKNOWN'
+}
 
 export const buildCapitalGrowthRate = (
   trades: EquityMapTrade[],
@@ -33,7 +46,7 @@ export const buildCapitalGrowthRate = (
     tradeRates.push(tradeRatePct)
     const recentRates = tradeRates.slice(-window)
     const rollingRatePct = recentRates.reduce((sum, value) => sum + value, 0) / recentRates.length
-    return { index, tradeRatePct, rollingRatePct, pnl: item.pnl, equity }
+    return { index, asset: resolveAsset(item.trade), tradeRatePct, rollingRatePct, pnl: item.pnl, equity }
   })
 
   return { points, rollingWindow: window }
