@@ -87,6 +87,31 @@ const startingCapital = computed(() => Number.isFinite(props.initialCapital) && 
 const totalCapitalGrowth = computed(() => points.value.length
   ? ((points.value[points.value.length - 1].equity - startingCapital.value) / startingCapital.value) * 100
   : 0)
+const profitLossChartWidth = 1000
+const profitLossChartHeight = 300
+const profitLossPadding = { top: 44, right: 96, bottom: 28, left: 12 }
+const profitLossPlotWidth = profitLossChartWidth - profitLossPadding.left - profitLossPadding.right
+const profitLossPlotHeight = profitLossChartHeight - profitLossPadding.top - profitLossPadding.bottom
+const grossProfit = computed(() => points.value.reduce((sum, point) => sum + (point.pnl > 0 ? point.pnl : 0), 0))
+const grossLoss = computed(() => points.value.reduce((sum, point) => sum + (point.pnl < 0 ? point.pnl : 0), 0))
+const netProfit = computed(() => points.value.reduce((sum, point) => sum + point.pnl, 0))
+const profitLossItems = computed(() => [
+  { key: 'gross-profit', label: label('Gross Profit', 'Gross Profit'), value: grossProfit.value, color: '#f8fafc' },
+  { key: 'gross-loss', label: label('Gross Loss', 'Gross Loss'), value: grossLoss.value, color: '#64748b' },
+  { key: 'net-profit', label: label('Net Profit', 'Net Profit'), value: netProfit.value, color: '#cbd5e1' }
+])
+const profitLossMaxAbs = computed(() => Math.max(1, ...profitLossItems.value.map(item => Math.abs(item.value))) * 1.1)
+const profitLossBaselineX = computed(() => profitLossPadding.left)
+const profitLossXFor = (value: number) => profitLossBaselineX.value + (Math.abs(value) / profitLossMaxAbs.value) * profitLossPlotWidth
+const profitLossRowHeight = profitLossPlotHeight / 3
+const profitLossBarHeight = 38
+const profitLossYFor = (index: number) => profitLossPadding.top + index * profitLossRowHeight + (profitLossRowHeight - profitLossBarHeight) / 2
+const profitLossLabelX = (value: number) => (profitLossBaselineX.value + profitLossXFor(value)) / 2
+const moneyFormatted = (value: number) => {
+  if (!Number.isFinite(value)) return '—'
+  const sign = value > 0 ? '+' : value < 0 ? '-' : ''
+  return `${sign}$${Math.abs(value).toFixed(2)}`
+}
 
 const yTicks = computed(() => {
   const min = minValue.value
@@ -238,6 +263,22 @@ const clearChartHover = () => {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+    <div v-if="points.length" class="mt-12">
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('III · Profit structure', 'III · Структура прибыли') }}</div>
+      <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('Realized gross profit, gross loss and net profit.', 'Валовая прибыль, валовой убыток и чистая прибыль.') }}</div>
+      <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+        <svg :viewBox="`0 0 ${profitLossChartWidth} ${profitLossChartHeight}`" class="h-[18rem] w-full" role="img" :aria-label="label('Gross profit, gross loss and net profit', 'Валовая прибыль, валовой убыток и чистая прибыль')">
+          <line :x1="profitLossBaselineX" :x2="profitLossBaselineX" :y1="profitLossPadding.top - 8" :y2="profitLossChartHeight - profitLossPadding.bottom + 2" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
+          <g v-for="(item, index) in profitLossItems" :key="item.key">
+            <line :x1="profitLossBaselineX" :x2="profitLossChartWidth - profitLossPadding.right" :y1="profitLossYFor(index) + profitLossBarHeight / 2" :y2="profitLossYFor(index) + profitLossBarHeight / 2" stroke="white" stroke-opacity="0.06" />
+            <text :x="profitLossLabelX(item.value)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
+            <rect :x="profitLossBaselineX" :y="profitLossYFor(index)" :width="profitLossXFor(item.value) - profitLossBaselineX" :height="profitLossBarHeight" :fill="item.color" fill-opacity="0.78" />
+            <text :x="profitLossXFor(item.value) + 10" :y="profitLossYFor(index) + profitLossBarHeight / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ moneyFormatted(item.value) }}</text>
+          </g>
+          <text :x="profitLossBaselineX" :y="profitLossChartHeight - 5" text-anchor="middle" fill="white" fill-opacity="0.55" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">0</text>
+        </svg>
       </div>
     </div>
     <div v-if="!points.length" class="mt-8 font-serif text-base text-white/55">{{ label('No trade data available.', 'Нет данных по сделкам.') }}</div>
