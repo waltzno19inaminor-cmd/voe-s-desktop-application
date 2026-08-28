@@ -20,6 +20,7 @@ export type CapitalGrowthRateGroup = {
   trades: number
   frequency: number
   winRate: number | null
+  pnl: number
   averageRate: number
   maxRate: number
   minRate: number
@@ -205,6 +206,7 @@ const finalizeGroups = (
     trades: group.rates.length,
     frequency: totalTrades ? group.rates.length / totalTrades * 100 : 0,
     winRate: group.rates.length ? group.wins / group.rates.length * 100 : null,
+    pnl: group.pnl,
     averageRate: group.rates.reduce((sum, value) => sum + value, 0) / group.rates.length,
     maxRate: Math.max(...group.rates),
     minRate: Math.min(...group.rates),
