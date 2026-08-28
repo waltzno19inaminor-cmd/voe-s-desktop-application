@@ -17,6 +17,7 @@ const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
 const model = computed<EquityStabilityMapModel>(() => props.model ?? buildEquityStabilityMap(props.trades, props.getTradePnl))
 const hoveredIndex = ref<number | null>(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
 
 const width = 1000
 const height = 460
@@ -25,6 +26,10 @@ const plotWidth = width - padding.left - padding.right
 const plotHeight = height - padding.top - padding.bottom
 
 const points = computed(() => model.value.points)
+const hoveredDrawdown = computed(() => {
+  if (hoveredIndex.value === null) return null
+  return model.value.drawdowns.find(zone => hoveredIndex.value! >= zone.startIndex && hoveredIndex.value! <= zone.endIndex) ?? null
+})
 const values = computed(() => points.value.flatMap(point => [point.equity, point.highWater, 0]))
 const minValue = computed(() => {
   if (!values.value.length) return -1
@@ -99,6 +104,30 @@ const growthPeriodZones = computed(() => {
 
 const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
 const label = (en: string, ru: string) => isRu.value ? ru : en
+const moneyFormatted = (value: number) => Number.isFinite(value) ? `-$${Math.abs(value).toFixed(2)}` : '—'
+const percentFormatted = (value: number) => Number.isFinite(value) ? `-${Math.abs(value).toFixed(2)}%` : '—'
+const timestampInMilliseconds = (value: number) => Math.abs(value) < 1e12 ? value * 1000 : value
+const drawdownDuration = (zone: typeof model.value.drawdowns[number]) => {
+  const start = points.value[zone.startIndex]?.timestamp
+  const endIndex = zone.recoveryIndex ?? points.value.length - 1
+  const end = points.value[endIndex]?.timestamp
+  if (Number.isFinite(start) && Number.isFinite(end)) {
+    const totalMinutes = Math.max(0, Math.round((timestampInMilliseconds(end) - timestampInMilliseconds(start)) / 60000))
+    const days = Math.floor(totalMinutes / 1440)
+    const hours = Math.floor((totalMinutes % 1440) / 60)
+    const minutes = totalMinutes % 60
+    if (days > 0) return `${days} ${label('d', 'д')} ${hours} ${label('h', 'ч')}`
+    if (hours > 0) return `${hours} ${label('h', 'ч')} ${minutes} ${label('m', 'мин')}`
+    return `${minutes} ${label('m', 'мин')}`
+  }
+  return zone.durationTrades
+    ? `${zone.durationTrades} ${label('trades', 'сделок')}`
+    : '—'
+}
+const drawdownPercent = (zone: typeof model.value.drawdowns[number]) => {
+  const trough = points.value[zone.endIndex]
+  return trough?.highWater > 0 ? (zone.value ?? 0) / trough.highWater * 100 : 0
+}
 
 const pointerIndex = (event: MouseEvent) => {
   if (!points.value.length) return null
@@ -132,6 +161,11 @@ const pointerIndex = (event: MouseEvent) => {
 
 const handlePointerMove = (event: MouseEvent) => {
   hoveredIndex.value = pointerIndex(event)
+  tooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+
+const clearHover = () => {
+  hoveredIndex.value = null
 }
 
 const handleClick = (event: MouseEvent) => {
@@ -144,7 +178,7 @@ const handleClick = (event: MouseEvent) => {
 
 <template>
   <div class="relative mt-0 w-full overflow-hidden bg-black text-white">
-      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[28rem] w-full" role="img" :aria-label="label('Observed equity curve', 'Наблюдаемая equity curve')" @mousemove="handlePointerMove" @mouseleave="hoveredIndex = null" @click="handleClick">
+      <svg :viewBox="`0 0 ${width} ${height}`" class="h-[28rem] w-full" role="img" :aria-label="label('Observed equity curve', 'Наблюдаемая equity curve')" @mousemove="handlePointerMove" @mouseleave="clearHover" @click="handleClick">
         <defs>
           <clipPath id="equity-plot-clip">
             <rect :x="padding.left" :y="padding.top" :width="plotWidth" :height="plotHeight" />
@@ -179,6 +213,14 @@ const handleClick = (event: MouseEvent) => {
         <text :x="padding.left - 8" :y="height - padding.bottom" text-anchor="end" fill="white" fill-opacity="0.45" font-size="9">{{ formatted(minValue) }}</text>
         <text :x="padding.left - 26" :y="padding.top - 8" fill="white" fill-opacity="0.45" font-size="9">Y</text>
       </svg>
+
+      <Teleport to="body">
+        <div v-if="hoveredDrawdown" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${tooltipPosition.x}px`, top: `${tooltipPosition.y - 14}px` }" role="tooltip">
+          <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ label('Drawdown', 'Просадка') }}</div>
+          <div class="flex min-w-[220px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Depth', 'Сила') }}</span><span class="font-bold text-white">{{ percentFormatted(drawdownPercent(hoveredDrawdown)) }} · {{ moneyFormatted(hoveredDrawdown.value ?? 0) }}</span></div>
+          <div class="mt-1 flex min-w-[220px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Time in drawdown', 'Время в просадке') }}</span><span class="font-bold text-white">{{ drawdownDuration(hoveredDrawdown) }}</span></div>
+        </div>
+      </Teleport>
 
     </div>
 </template>

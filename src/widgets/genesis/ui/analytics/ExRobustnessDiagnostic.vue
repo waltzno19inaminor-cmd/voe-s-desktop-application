@@ -9,6 +9,7 @@ import ExProfitsLossesSection from './strategyReport/sections/profitsLosses/ExPr
 import ExTradeResultsDistributionSection from './strategyReport/sections/tradeDistribution/ExTradeResultsDistributionSection.vue'
 import ExRiskExecutionSection from './strategyReport/sections/riskExecution/ExRiskExecutionSection.vue'
 import ExScenariosConditionsSection from './strategyReport/sections/scenariosConditions/ExScenariosConditionsSection.vue'
+import ExDrawdownsSection from './strategyReport/sections/drawdowns/ExDrawdownsSection.vue'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -20,7 +21,7 @@ const props = defineProps<{
 const { strategyMetrics, filteredTrades, strategyName } = toRefs(props)
 
 const getTradePnlFn = (trade: any) => getTradeCashPnl(trade, strategyMetrics.value?.initialDeposit || 1000)
-const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value, getTradePnlFn))
+const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value, getTradePnlFn, strategyMetrics.value?.initialDeposit || 1000))
 </script>
 
 <template>
@@ -55,6 +56,12 @@ const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value,
           :trades="filteredTrades"
           :get-trade-pnl="getTradePnlFn"
           :initial-capital="strategyMetrics?.initialDeposit || 1000"
+        />
+
+        <ExDrawdownsSection
+          :model="equityModel"
+          :trades="filteredTrades"
+          :get-trade-pnl="getTradePnlFn"
         />
 
         <ExRobustnessEquityMap

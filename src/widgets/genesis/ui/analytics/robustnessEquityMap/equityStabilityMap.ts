@@ -16,6 +16,9 @@ export type EquityMapZone = {
   startIndex: number
   endIndex: number
   value?: number
+  recoveryIndex?: number
+  durationTrades?: number
+  recoveryState?: 'recovered' | 'open'
 }
 
 export type EquityMapMarker = {
@@ -61,12 +64,14 @@ export const orderEquityMapTrades = (
 
 export const buildEquityStabilityMap = (
   trades: EquityMapTrade[],
-  getTradePnl: (trade: EquityMapTrade) => number
+  getTradePnl: (trade: EquityMapTrade) => number,
+  initialCapital = 0
 ): EquityStabilityMapModel => {
   const ordered = orderEquityMapTrades(trades, getTradePnl)
 
-  let equity = 0
-  let highWater = 0
+  const startingCapital = Number.isFinite(initialCapital) ? initialCapital : 0
+  let equity = startingCapital
+  let highWater = startingCapital
   const points: EquityMapPoint[] = ordered.map((item, index) => {
     equity += item.pnl ?? 0
     highWater = Math.max(highWater, equity)
@@ -98,7 +103,10 @@ export const buildEquityStabilityMap = (
     // Render only the peak-to-trough decline. The recovery remains part of
     // the analytical period, but should not be painted as a falling zone.
     endIndex: period.bottomIndex,
-    value: period.depth
+    value: period.depth,
+    recoveryIndex: period.recoveryIndex,
+    durationTrades: period.durationTrades,
+    recoveryState: period.recoveryState
   }))
 
   const extremes: EquityMapMarker[] = []
