@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
-import { buildCapitalAssetPerformance, buildCapitalSidePerformance, buildCapitalGrowthBreakdown, buildCapitalGrowthRate, type CapitalAssetPerformance } from '../analytics/capitalGrowthRate'
+import { buildCapitalAssetPerformance, buildCapitalSidePerformance, buildCapitalGrowthRate, type CapitalAssetPerformance } from '../analytics/capitalGrowthRate'
 
 const props = defineProps<{
   trades: Record<string, any>[]
@@ -13,7 +13,6 @@ const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
 const label = (en: string, ru: string) => isRu.value ? ru : en
 const model = computed(() => buildCapitalGrowthRate(props.trades, props.getTradePnl, props.initialCapital || 1000))
-const breakdown = computed(() => buildCapitalGrowthBreakdown(props.trades, props.getTradePnl, props.initialCapital || 1000))
 const sidePerformance = computed(() => buildCapitalSidePerformance(props.trades, props.getTradePnl, props.initialCapital || 1000))
 const assetPerformance = computed(() => buildCapitalAssetPerformance(props.trades, props.getTradePnl, props.initialCapital || 1000))
 
@@ -63,31 +62,6 @@ const totalCapitalGrowth = computed(() => points.value.length
 const pnlValues = computed(() => props.trades
   .map(trade => Number(props.getTradePnl(trade)))
   .filter(value => Number.isFinite(value)))
-const breakdownRows = computed(() => [
-  ...breakdown.value.scenarios.map(item => ({ ...item, kind: 'scenario' as const })),
-  ...breakdown.value.conditions.map(item => ({ ...item, kind: 'condition' as const }))
-])
-const formattedGroupName = (name: string) => {
-  const normalized = name.trim().toLocaleLowerCase()
-  return normalized ? `${normalized.charAt(0).toLocaleUpperCase()}${normalized.slice(1)}` : name
-}
-const breakdownRowKey = (item: { id: string; kind: 'scenario' | 'condition' }) => `${item.kind}-${item.id}`
-const bestBreakdownRowKey = computed(() => {
-  if (breakdownRows.value.length < 2) return null
-  const best = breakdownRows.value.reduce((current, item) => item.averageRate > current.averageRate ? item : current)
-  return breakdownRowKey(best)
-})
-const worstBreakdownRowKey = computed(() => {
-  if (breakdownRows.value.length < 2) return null
-  const worst = breakdownRows.value.reduce((current, item) => item.averageRate < current.averageRate ? item : current)
-  return breakdownRowKey(worst)
-})
-const breakdownRowClass = (item: { id: string; kind: 'scenario' | 'condition' }) => {
-  const key = breakdownRowKey(item)
-  if (key === bestBreakdownRowKey.value) return 'bg-white/[0.14] hover:bg-white/[0.18]'
-  if (key === worstBreakdownRowKey.value) return 'bg-white/[0.06] hover:bg-white/[0.1]'
-  return 'hover:bg-white/[0.04]'
-}
 const profitLossChartWidth = 1000
 const profitLossChartHeight = 300
 const profitLossPadding = { top: 44, right: 96, bottom: 28, left: 12 }
@@ -342,37 +316,8 @@ const clearChartHover = () => {
         </div>
       </div>
     </div>
-    <div v-if="breakdownRows.length" class="mt-12">
-      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('IV · Growth rates by scenario and condition usage', 'IV · Темпы роста по использованию сценариев и условий') }}</div>
-      <div class="mt-5 overflow-x-auto border border-white/10 bg-white/[0.025]">
-        <table class="w-full min-w-[760px] border-collapse font-mono text-[11px]">
-          <thead class="border-b border-white/10 text-[10px] uppercase tracking-[0.12em] text-white/70">
-            <tr>
-              <th class="px-4 py-3 text-left font-semibold">{{ label('Name', 'Название') }}</th>
-              <th class="px-2 py-3 text-center font-semibold">{{ label('Type', 'Тип') }}</th>
-              <th class="px-2 py-3 text-center font-semibold">{{ label('Freq.', 'Частота') }}</th>
-              <th class="px-2 py-3 text-center font-semibold">{{ label('Avg.', 'Сред.') }}</th>
-              <th class="px-2 py-3 text-center font-semibold">{{ label('Max', 'Макс.') }}</th>
-              <th class="px-2 py-3 text-center font-semibold">{{ label('Min', 'Мин.') }}</th>
-              <th class="px-4 py-3 text-center font-semibold">{{ label('Impact', 'Вклад') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in breakdownRows" :key="`${item.kind}-${item.id}`" class="border-b border-white/5 last:border-0" :class="breakdownRowClass(item)">
-              <td class="max-w-[220px] truncate px-4 py-4 text-left font-sans text-[12px] normal-case text-white/90" :title="formattedGroupName(item.name)">{{ formattedGroupName(item.name) }}</td>
-              <td class="px-2 py-4 text-center text-[10px] tracking-[0.08em] text-white/70">{{ item.kind === 'scenario' ? label('Scen.', 'Сцен.') : label('Cond.', 'Усл.') }}</td>
-              <td class="px-2 py-4 text-center text-white/85">{{ formattedFrequency(item.frequency) }}</td>
-              <td class="px-2 py-4 text-center font-semibold text-white">{{ formatted(item.averageRate) }}%</td>
-              <td class="px-2 py-4 text-center font-semibold text-white">{{ formatted(item.maxRate) }}%</td>
-              <td class="px-2 py-4 text-center font-semibold text-white">{{ formatted(item.minRate) }}%</td>
-              <td class="px-4 py-4 text-center font-semibold text-white">{{ formatted(item.contribution) }}%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
     <div v-if="assetHeatmapBlocks.length" class="mt-12">
-      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('V · Heatmap of the 10 most frequent assets', 'V · Тепловая карта 10 наиболее частых активов') }}</div>
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('IV · Heatmap of the 10 most frequent assets', 'IV · Тепловая карта 10 наиболее частых активов') }}</div>
       <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The map shows the 10 assets used most often in trades; tile size shows frequency, while grayscale shows the relative net result.', 'Карта показывает 10 активов, которые чаще всего использовались в сделках: размер плитки — частоту, оттенок серого — относительный чистый результат.') }}</div>
       <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
         <svg :viewBox="`0 0 ${assetHeatmapWidth} ${assetHeatmapHeight}`" class="h-[22rem] w-full" preserveAspectRatio="none" role="img" :aria-label="label('Asset heatmap by net result', 'Тепловая карта активов по чистому результату')">

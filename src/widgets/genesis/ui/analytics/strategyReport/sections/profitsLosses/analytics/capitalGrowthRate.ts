@@ -19,6 +19,7 @@ export type CapitalGrowthRateGroup = {
   name: string
   trades: number
   frequency: number
+  winRate: number | null
   averageRate: number
   maxRate: number
   minRate: number
@@ -194,7 +195,7 @@ export const buildCapitalAssetPerformance = (
 }
 
 const finalizeGroups = (
-  groups: Map<string, { name: string; rates: number[]; pnl: number }>,
+  groups: Map<string, { name: string; rates: number[]; pnl: number; wins: number }>,
   totalTrades: number,
   initialCapital: number
 ): CapitalGrowthRateGroup[] => [...groups.entries()]
@@ -203,6 +204,7 @@ const finalizeGroups = (
     name: group.name,
     trades: group.rates.length,
     frequency: totalTrades ? group.rates.length / totalTrades * 100 : 0,
+    winRate: group.rates.length ? group.wins / group.rates.length * 100 : null,
     averageRate: group.rates.reduce((sum, value) => sum + value, 0) / group.rates.length,
     maxRate: Math.max(...group.rates),
     minRate: Math.min(...group.rates),
@@ -218,20 +220,21 @@ export const buildCapitalGrowthBreakdown = (
   const ordered = orderEquityMapTrades(trades, getTradePnl)
   const capital = safeCapital(initialCapital)
   let equity = capital
-  const scenarios = new Map<string, { name: string; rates: number[]; pnl: number }>()
-  const conditions = new Map<string, { name: string; rates: number[]; pnl: number }>()
+  const scenarios = new Map<string, { name: string; rates: number[]; pnl: number; wins: number }>()
+  const conditions = new Map<string, { name: string; rates: number[]; pnl: number; wins: number }>()
 
   ordered.forEach(item => {
     const rate = item.pnl / safeCapital(equity) * 100
     equity += item.pnl
 
     const addToGroups = (
-      groups: Map<string, { name: string; rates: number[]; pnl: number }>,
+      groups: Map<string, { name: string; rates: number[]; pnl: number; wins: number }>,
       values: Array<{ id: string; name: string }>
     ) => values.forEach(({ id, name }) => {
-      const group = groups.get(id) ?? { name, rates: [], pnl: 0 }
+      const group = groups.get(id) ?? { name, rates: [], pnl: 0, wins: 0 }
       group.rates.push(rate)
       group.pnl += item.pnl
+      group.wins += item.pnl > 0 ? 1 : 0
       groups.set(id, group)
     })
 
