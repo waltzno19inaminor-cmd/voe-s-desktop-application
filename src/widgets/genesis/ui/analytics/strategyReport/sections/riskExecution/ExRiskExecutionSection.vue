@@ -53,7 +53,7 @@ const riskBreachCount = computed(() => {
     (Number.isFinite(item.realizedLoss) && item.realizedLoss > configuredRiskBudget.value!)
   )).length
 })
-const hasRiskData = computed(() => plannedRiskValues.value.length > 0 || realizedLossValues.value.length > 0 || configuredRiskBudget.value !== null)
+const hasRiskData = computed(() => props.trades.length > 0 || plannedRiskValues.value.length > 0 || realizedLossValues.value.length > 0 || configuredRiskBudget.value !== null)
 const riskChartWidth = 1000
 const riskChartHeight = 340
 const riskPadding = { left: 64, right: 96 }
@@ -230,6 +230,103 @@ const handleRiskRewardPointerMove = (event: MouseEvent) => {
 const clearRiskRewardHover = () => {
   hoveredRiskRewardIndex.value = null
 }
+
+const positionSizeFor = (trade: Record<string, any>) => {
+  const normalized = normalizeTrade(trade)
+  const directSize = Number(normalized.sizeInCurrency ?? normalized.positionSizeDollars ?? normalized.positionValue)
+  if (Number.isFinite(directSize) && directSize > 0) return directSize
+  const size = Number(normalized.size)
+  const entry = Number(normalized.entry)
+  return Number.isFinite(size) && size > 0 && Number.isFinite(entry) && entry > 0 ? size * entry : null
+}
+const positionTimePoints = computed(() => props.trades.map((trade, index) => ({
+  index,
+  asset: riskRewardPoints.value[index]?.asset ?? 'UNKNOWN',
+  positionSize: positionSizeFor(trade)
+})))
+const positionSizeValues = computed(() => positionTimePoints.value
+  .map(point => point.positionSize)
+  .filter((value): value is number => Number.isFinite(value)))
+const positionSizeDomain = computed(() => {
+  const max = Math.max(1, ...positionSizeValues.value)
+  return { min: 0, max: max * 1.1 }
+})
+const positionTimeChartWidth = 1000
+const positionTimeChartHeight = 320
+const positionTimePadding = { top: 32, right: 70, bottom: 42, left: 132 }
+const positionTimePlotLeft = positionTimePadding.left
+const positionTimePlotRight = positionTimeChartWidth - positionTimePadding.right
+const positionTimePlotWidth = positionTimePlotRight - positionTimePlotLeft
+const positionTimePlotHeight = positionTimeChartHeight - positionTimePadding.top - positionTimePadding.bottom
+const positionTimeXFor = (index: number) => positionTimePoints.value.length <= 1
+  ? positionTimePlotLeft + positionTimePlotWidth / 2
+  : positionTimePlotLeft + (index / (positionTimePoints.value.length - 1)) * positionTimePlotWidth
+const positionSizeYFor = (value: number) => positionTimePadding.top
+  + (1 - (value - positionSizeDomain.value.min) / Math.max(1e-9, positionSizeDomain.value.max - positionSizeDomain.value.min)) * positionTimePlotHeight
+const positionTimeBarWidth = computed(() => positionTimePoints.value.length
+  ? Math.max(4, Math.min(22, positionTimePlotWidth / positionTimePoints.value.length * 0.76))
+  : 0)
+const positionSizeBarX = (index: number) => positionTimeXFor(index) - positionTimeBarWidth.value / 2
+const positionTimeTicksFor = (domain: { min: number; max: number }) => {
+  const range = Math.max(domain.max - domain.min, 1e-9)
+  const rawStep = range / 6
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep))
+  const normalizedStep = rawStep / magnitude
+  const stepFactor = normalizedStep <= 1 ? 1 : normalizedStep <= 2 ? 2 : normalizedStep <= 5 ? 5 : 10
+  const step = stepFactor * magnitude
+  const ticks: number[] = []
+  for (let value = domain.min; value <= domain.max + step * 0.001; value += step) ticks.push(Number(value.toFixed(8)))
+  return ticks.length >= 2 ? ticks : [domain.min, domain.max]
+}
+const positionSizeTicks = computed(() => positionTimeTicksFor(positionSizeDomain.value))
+const positionTimeXTicks = computed(() => {
+  const count = Math.min(6, positionTimePoints.value.length)
+  if (!count) return []
+  if (count === 1) return [{ index: 0, label: '1' }]
+  return Array.from({ length: count }, (_, tickIndex) => {
+    const index = Math.round((tickIndex / (count - 1)) * (positionTimePoints.value.length - 1))
+    return { index, label: String(index + 1) }
+  })
+})
+const positionSizeFormatted = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : `$${value.toFixed(2)}`
+const hoveredPositionTimeIndex = ref<number | null>(null)
+const positionTimeTooltipPosition = ref({ x: 0, y: 0 })
+const hoveredPositionTimePoint = computed(() => hoveredPositionTimeIndex.value === null
+  ? null
+  : positionTimePoints.value[hoveredPositionTimeIndex.value] ?? null)
+const positionTimePointFromEvent = (event: MouseEvent) => {
+  const svg = event.currentTarget as SVGSVGElement
+  const screenMatrix = svg.getScreenCTM()
+  if (screenMatrix) {
+    const svgPoint = svg.createSVGPoint()
+    svgPoint.x = event.clientX
+    svgPoint.y = event.clientY
+    const localPoint = svgPoint.matrixTransform(screenMatrix.inverse())
+    return { x: localPoint.x, y: localPoint.y }
+  }
+  const rect = svg.getBoundingClientRect()
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * positionTimeChartWidth,
+    y: ((event.clientY - rect.top) / rect.height) * positionTimeChartHeight
+  }
+}
+const handlePositionTimePointerMove = (event: MouseEvent) => {
+  if (!positionTimePoints.value.length) return
+  const localPoint = positionTimePointFromEvent(event)
+  if (localPoint.x < positionTimePlotLeft || localPoint.x > positionTimePlotRight || localPoint.y < positionTimePadding.top || localPoint.y > positionTimeChartHeight - positionTimePadding.bottom) {
+    hoveredPositionTimeIndex.value = null
+    return
+  }
+  const nearest = positionTimePoints.value.reduce<{ index: number; distance: number } | null>((candidate, point) => {
+    const distance = Math.abs(positionTimeXFor(point.index) - localPoint.x)
+    return !candidate || distance < candidate.distance ? { index: point.index, distance } : candidate
+  }, null)
+  hoveredPositionTimeIndex.value = nearest?.index ?? null
+  positionTimeTooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+const clearPositionTimeHover = () => {
+  hoveredPositionTimeIndex.value = null
+}
 </script>
 
 <template>
@@ -303,6 +400,35 @@ const clearRiskRewardHover = () => {
                 <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Дата закрытия' : 'Close date' }}</span><span class="font-bold text-white">{{ hoveredRiskRewardPoint.closeDate }}</span></div>
                 <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">Risk/Reward</span><span class="font-bold text-white">{{ hoveredRiskRewardPoint.riskReward === null ? (isRu ? 'Нет стоп-лосса' : 'No stop-loss') : riskRewardFormatted(hoveredRiskRewardPoint.riskReward) }}</span></div>
                 <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">SMA ({{ riskRewardSmaWindow }})</span><span class="font-bold text-white">{{ riskRewardFormatted(hoveredRiskRewardSma) }}</span></div>
+              </div>
+            </Teleport>
+          </div>
+        </div>
+
+        <div v-if="positionTimePoints.length" class="mt-14">
+          <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'III · Размер позиции' : 'III · Position size' }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Столбцы показывают размер позиции в долларах по каждой сделке.' : 'Bars show the position size in dollars for each trade.' }}</div>
+          <div class="mt-8 bg-white/[0.025] p-3 sm:p-5">
+            <svg :viewBox="`0 0 ${positionTimeChartWidth} ${positionTimeChartHeight}`" class="h-[20rem] w-full" role="img" :aria-label="isRu ? 'Размер позиции по сделкам' : 'Position size by trade'" @mousemove="handlePositionTimePointerMove" @mouseleave="clearPositionTimeHover">
+              <line :x1="positionTimePlotLeft" :x2="positionTimePlotRight" :y1="positionSizeYFor(0)" :y2="positionSizeYFor(0)" stroke="white" stroke-opacity="0.4" stroke-dasharray="4 5" />
+              <line v-for="tick in positionSizeTicks" :key="`position-y-grid-${tick}`" :x1="positionTimePlotLeft" :x2="positionTimePlotRight" :y1="positionSizeYFor(tick)" :y2="positionSizeYFor(tick)" stroke="white" stroke-opacity="0.06" />
+              <g v-for="point in positionTimePoints" :key="`position-time-point-${point.index}`">
+                <rect v-if="point.positionSize !== null" :x="positionSizeBarX(point.index)" :y="positionSizeYFor(point.positionSize)" :width="positionTimeBarWidth" :height="positionSizeYFor(0) - positionSizeYFor(point.positionSize)" fill="white" fill-opacity="0.82" />
+              </g>
+              <g v-if="hoveredPositionTimePoint">
+                <line :x1="positionTimeXFor(hoveredPositionTimePoint.index)" :x2="positionTimeXFor(hoveredPositionTimePoint.index)" :y1="positionTimePadding.top" :y2="positionTimeChartHeight - positionTimePadding.bottom" stroke="white" stroke-opacity="0.35" stroke-dasharray="3 4" />
+                <rect v-if="hoveredPositionTimePoint.positionSize !== null" :x="positionSizeBarX(hoveredPositionTimePoint.index)" :y="positionSizeYFor(hoveredPositionTimePoint.positionSize)" :width="positionTimeBarWidth" :height="positionSizeYFor(0) - positionSizeYFor(hoveredPositionTimePoint.positionSize)" fill="white" stroke="black" stroke-width="1.5" />
+              </g>
+              <text v-for="tick in positionSizeTicks" :key="`position-y-label-${tick}`" :x="positionTimePlotLeft - 32" :y="positionSizeYFor(tick) + 5" text-anchor="end" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ positionSizeFormatted(tick) }}</text>
+              <text v-for="tick in positionTimeXTicks" :key="`position-time-x-${tick.index}`" :x="positionTimeXFor(tick.index)" :y="positionTimeChartHeight - 10" :text-anchor="tick.index === 0 ? 'start' : tick.index === positionTimePoints.length - 1 ? 'end' : 'middle'" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ tick.label }}</text>
+            </svg>
+            <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+              <span class="inline-flex items-center gap-2"><i class="h-3 w-2 bg-white"></i>{{ isRu ? 'Размер позиции' : 'Position size' }}</span>
+            </div>
+            <Teleport to="body">
+              <div v-if="hoveredPositionTimePoint" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${positionTimeTooltipPosition.x}px`, top: `${positionTimeTooltipPosition.y - 14}px` }" role="tooltip">
+                <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredPositionTimePoint.asset }}</div>
+                <div class="flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Размер позиции' : 'Position size' }}</span><span class="font-bold text-white">{{ positionSizeFormatted(hoveredPositionTimePoint.positionSize) }}</span></div>
               </div>
             </Teleport>
           </div>
