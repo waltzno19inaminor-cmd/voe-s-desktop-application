@@ -247,6 +247,28 @@ const positionTimePoints = computed(() => props.trades.map((trade, index) => ({
 const positionSizeValues = computed(() => positionTimePoints.value
   .map(point => point.positionSize)
   .filter((value): value is number => Number.isFinite(value)))
+const positionSizeResultPercentFor = (trade: Record<string, any>, positionSize: number | null) => {
+  const pnl = Number(props.getTradePnl(trade))
+  return positionSize !== null && positionSize > 0 && Number.isFinite(pnl)
+    ? (pnl / positionSize) * 100
+    : null
+}
+const positionSizeDetails = computed(() => {
+  const points = positionTimePoints.value
+    .map(point => ({
+      ...point,
+      resultPercent: positionSizeResultPercentFor(props.trades[point.index]!, point.positionSize)
+    }))
+    .filter(point => point.positionSize !== null)
+  if (!points.length) return { average: null, largest: null, smallest: null }
+  const average = points.reduce((sum, point) => sum + point.positionSize!, 0) / points.length
+  const largest = points.reduce((current, point) => point.positionSize! > current.positionSize! ? point : current)
+const smallest = points.reduce((current, point) => point.positionSize! < current.positionSize! ? point : current)
+  return { average, largest, smallest }
+})
+const positionResultPercentFormatted = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
+  ? '—'
+  : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 const positionSizeDomain = computed(() => {
   const max = Math.max(1, ...positionSizeValues.value)
   return { min: 0, max: max * 1.1 }
@@ -431,6 +453,12 @@ const clearPositionTimeHover = () => {
                 <div class="flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Размер позиции' : 'Position size' }}</span><span class="font-bold text-white">{{ positionSizeFormatted(hoveredPositionTimePoint.positionSize) }}</span></div>
               </div>
             </Teleport>
+          </div>
+          <div v-if="positionSizeDetails.average !== null" class="mt-8">
+            <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'Подробности' : 'Details' }}</div>
+            <div class="mt-2 font-serif text-sm text-white/70 sm:text-base">
+              {{ isRu ? 'Средний размер позиции' : 'Average position size' }} — <span class="font-mono font-semibold text-white">{{ positionSizeFormatted(positionSizeDetails.average) }}</span>; {{ isRu ? 'результат по самой большой позиции' : 'result on the largest position' }} ({{ positionSizeFormatted(positionSizeDetails.largest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ positionResultPercentFormatted(positionSizeDetails.largest?.resultPercent) }}</span>; {{ isRu ? 'по самой маленькой' : 'on the smallest' }} ({{ positionSizeFormatted(positionSizeDetails.smallest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ positionResultPercentFormatted(positionSizeDetails.smallest?.resultPercent) }}</span>.
+            </div>
           </div>
         </div>
 
