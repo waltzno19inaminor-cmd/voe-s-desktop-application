@@ -116,6 +116,7 @@ const resultPercentFor = (trade: Record<string, any>) => {
 const tradeDetailsFor = (point: typeof points.value[number]) => {
   const trade = normalizeTrade(point.trade)
   return {
+    number: point.index + 1,
     asset: resolveAsset(trade),
     direction: resolveSide(trade),
     entryDate: formatDate(firstValue(trade, ['dateEntry', 'date', 'entryTime', 'openDate', 'createdAt'])),
@@ -132,7 +133,7 @@ const tradeDetailsFor = (point: typeof points.value[number]) => {
   }
 }
 
-type DrawdownTrade = ReturnType<typeof tradeDetailsFor>
+type DrawdownTrade = ReturnType<typeof tradeDetailsFor> & { isWorst: boolean }
 
 type DrawdownInsight = {
   id: string
@@ -145,12 +146,16 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
   const startIndex = Math.min(zone.startIndex + (zone.endIndex > zone.startIndex ? 1 : 0), zone.endIndex)
   const drawdownTrades = points.value.slice(startIndex, zone.endIndex + 1)
   const trough = points.value[zone.endIndex]
+  const losingTrades = drawdownTrades.filter(point => point.pnl < 0).map(tradeDetailsFor)
+  const worstTradeIndex = losingTrades.reduce((worstIndex, trade, tradeIndex) => (
+    worstIndex === -1 || trade.pnl < losingTrades[worstIndex]!.pnl ? tradeIndex : worstIndex
+  ), -1)
 
   return {
     id: zone.id,
     number: index + 1,
     depthPercent: trough?.highWater > 0 ? (zone.value ?? 0) / trough.highWater * 100 : 0,
-    losingTrades: drawdownTrades.filter(point => point.pnl < 0).map(tradeDetailsFor)
+    losingTrades: losingTrades.map((trade, tradeIndex) => ({ ...trade, isWorst: tradeIndex === worstTradeIndex }))
   }
 }))
 </script>
@@ -186,9 +191,9 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
                 <div class="font-mono text-sm font-semibold text-white">{{ formatPercent(insight.depthPercent) }}</div>
               </div>
 
-              <div class="mt-4 font-serif text-[12px] uppercase tracking-[0.16em] text-white/65">{{ label('Losing trades in this drawdown', 'Убыточные сделки в этой просадке') }}</div>
+              <div class="mt-4 font-serif text-[12px] uppercase tracking-[0.16em] text-white/65">{{ label('Losing trades', 'Убыточные сделки') }}</div>
               <div v-if="insight.losingTrades.length" class="mt-3 space-y-4">
-                <div v-for="trade in insight.losingTrades" :key="`${insight.id}-trade-${trade.number}`" class="border-t border-white/10 pt-4 first:border-t-0 first:pt-0">
+                <div v-for="trade in insight.losingTrades" :key="`${insight.id}-trade-${trade.number}`" class="border-t border-white/10 pt-4 first:border-t-0 first:pt-0" :class="trade.isWorst ? 'border-white/35 bg-white/[0.07] px-3 py-3 ring-1 ring-white/15' : ''">
                   <div class="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
                     <div class="font-mono text-sm font-semibold text-white">{{ trade.asset }} · {{ trade.direction === 'long' ? label('Long', 'Лонг') : trade.direction === 'short' ? label('Short', 'Шорт') : '—' }}</div>
                     <div class="font-mono text-sm font-semibold text-white">{{ formatLoss(trade.pnl) }} <span class="text-white/60">({{ formatTradePercent(trade.pnlPercent) }})</span></div>
