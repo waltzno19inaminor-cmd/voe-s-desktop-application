@@ -30,6 +30,14 @@ export type CapitalGrowthRateBreakdown = {
   conditions: CapitalGrowthRateGroup[]
 }
 
+export type CapitalSidePerformance = {
+  side: 'long' | 'short'
+  trades: number
+  distribution: number
+  winRate: number | null
+  returnRate: number
+}
+
 const safeCapital = (value: number) => Number.isFinite(value) && Math.abs(value) > 1e-9 ? Math.abs(value) : 1000
 
 const resolveAsset = (trade: EquityMapTrade): string => {
@@ -73,6 +81,51 @@ const conditionValues = (trade: EquityMapTrade) => {
   if (Array.isArray(trade?.boardScenarioEntry?.info?.conditions)) values.push(...trade.boardScenarioEntry.info.conditions)
   if (Array.isArray(trade?.boardScenarioExit?.info?.conditions)) values.push(...trade.boardScenarioExit.info.conditions)
   return uniqueNamedValues(values)
+}
+
+const resolveSide = (trade: EquityMapTrade): 'long' | 'short' | null => {
+  const value = trade?.side ?? trade?.direction ?? trade?.positionSide
+    ?? trade?.trade?.side ?? trade?.trade?.direction ?? trade?.trade?.positionSide
+  const side = String(value ?? '').trim().toLowerCase()
+  if (side.includes('short') || side.includes('sell')) return 'short'
+  if (side.includes('long') || side.includes('buy')) return 'long'
+  return null
+}
+
+export const buildCapitalSidePerformance = (
+  trades: EquityMapTrade[],
+  getTradePnl: (trade: EquityMapTrade) => number,
+  initialCapital = 1000
+): CapitalSidePerformance[] => {
+  const ordered = orderEquityMapTrades(trades, getTradePnl)
+  const capital = safeCapital(initialCapital)
+  const groups = new Map<'long' | 'short', { trades: number; wins: number; pnl: number }>([
+    ['long', { trades: 0, wins: 0, pnl: 0 }],
+    ['short', { trades: 0, wins: 0, pnl: 0 }]
+  ])
+
+  ordered.forEach(item => {
+    const side = resolveSide(item.trade)
+    if (!side) return
+    const group = groups.get(side)!
+    group.trades += 1
+    group.wins += item.pnl > 0 ? 1 : 0
+    group.pnl += item.pnl
+  })
+
+  const classifiedTrades = [...groups.values()].reduce((sum, group) => sum + group.trades, 0)
+  if (!classifiedTrades) return []
+
+  return (['long', 'short'] as const).map(side => {
+    const group = groups.get(side)!
+    return {
+      side,
+      trades: group.trades,
+      distribution: group.trades / classifiedTrades * 100,
+      winRate: group.trades ? group.wins / group.trades * 100 : null,
+      returnRate: group.pnl / capital * 100
+    }
+  })
 }
 
 const finalizeGroups = (

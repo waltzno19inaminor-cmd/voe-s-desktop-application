@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
-import { buildCapitalGrowthBreakdown, buildCapitalGrowthRate } from '../analytics/capitalGrowthRate'
+import { buildCapitalSidePerformance, buildCapitalGrowthBreakdown, buildCapitalGrowthRate } from '../analytics/capitalGrowthRate'
 
 const props = defineProps<{
   trades: Record<string, any>[]
@@ -14,6 +14,7 @@ const isRu = computed(() => locale.value === 'ru')
 const label = (en: string, ru: string) => isRu.value ? ru : en
 const model = computed(() => buildCapitalGrowthRate(props.trades, props.getTradePnl, props.initialCapital || 1000))
 const breakdown = computed(() => buildCapitalGrowthBreakdown(props.trades, props.getTradePnl, props.initialCapital || 1000))
+const sidePerformance = computed(() => buildCapitalSidePerformance(props.trades, props.getTradePnl, props.initialCapital || 1000))
 
 const width = 1000
 const height = 460
@@ -44,6 +45,7 @@ const zeroY = computed(() => yFor(0))
 const rollingPath = computed(() => points.value.map((point, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index).toFixed(2)} ${yFor(point.rollingRatePct).toFixed(2)}`).join(' '))
 const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
 const formattedFrequency = (value: number) => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—'
+const formattedSignedPercent = (value: number) => Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%` : '—'
 const breakdownRows = computed(() => [
   ...breakdown.value.scenarios.map(item => ({ ...item, kind: 'scenario' as const })),
   ...breakdown.value.conditions.map(item => ({ ...item, kind: 'condition' as const }))
@@ -236,8 +238,43 @@ const clearChartHover = () => {
         {{ label('Average growth rate', 'Средний темп роста') }} — <span class="font-mono font-semibold text-white">{{ formatted(averageRate) }}%</span>; {{ label('maximum and minimum growth rates', 'максимальный и минимальный темпы роста') }} — <span class="font-mono font-semibold text-white">{{ formatted(maxGrowthRate) }}%</span> {{ label('and', 'и') }} <span class="font-mono font-semibold text-white">{{ formatted(minGrowthRate) }}%</span> {{ label('respectively', 'соответственно') }}; {{ label('overall capital growth', 'итоговый прирост капитала') }} — <span class="font-mono font-semibold text-white">{{ formatted(totalCapitalGrowth) }}%</span>.
       </div>
     </div>
+    <div v-if="points.length" class="mt-12">
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Profit structure', 'II · Структура прибыли') }}</div>
+      <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('Realized gross profit, gross loss and net profit.', 'Валовая прибыль, валовой убыток и чистая прибыль.') }}</div>
+      <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+        <svg :viewBox="`0 0 ${profitLossChartWidth} ${profitLossChartHeight}`" class="h-[18rem] w-full" role="img" :aria-label="label('Gross profit, gross loss and net profit', 'Валовая прибыль, валовой убыток и чистая прибыль')">
+          <line :x1="profitLossBaselineX" :x2="profitLossBaselineX" :y1="profitLossPadding.top - 8" :y2="profitLossChartHeight - profitLossPadding.bottom + 2" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
+          <g v-for="(item, index) in profitLossItems" :key="item.key">
+            <line :x1="profitLossBaselineX" :x2="profitLossChartWidth - profitLossPadding.right" :y1="profitLossYFor(index) + profitLossBarHeight / 2" :y2="profitLossYFor(index) + profitLossBarHeight / 2" stroke="white" stroke-opacity="0.06" />
+            <text :x="profitLossLabelX(item.value)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
+            <rect :x="profitLossBaselineX" :y="profitLossYFor(index)" :width="profitLossXFor(item.value) - profitLossBaselineX" :height="profitLossBarHeight" :fill="item.color" fill-opacity="0.78" />
+            <text :x="profitLossXFor(item.value) + 10" :y="profitLossYFor(index) + profitLossBarHeight / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ moneyFormatted(item.value) }}</text>
+          </g>
+          <text :x="profitLossBaselineX" :y="profitLossChartHeight - 5" text-anchor="middle" fill="white" fill-opacity="0.55" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">0</text>
+        </svg>
+      </div>
+    </div>
+    <div v-if="sidePerformance.length" class="mt-12">
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('III · Long / Short distribution', 'III · Распределение Long / Short') }}</div>
+      <div class="mt-5 space-y-3">
+        <div v-for="side in sidePerformance" :key="side.side" class="border border-white/10 bg-white/[0.025] px-3 py-3 sm:px-5">
+          <div class="flex items-center gap-3 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-white">
+            <span class="w-14 shrink-0">{{ side.side }}</span>
+            <div class="h-2 min-w-0 flex-1 bg-white/10">
+              <div class="h-full bg-white/75" :style="{ width: `${side.distribution}%` }"></div>
+            </div>
+            <span class="w-24 shrink-0 text-right">{{ formattedFrequency(side.distribution) }} {{ label('trades', 'сделок') }}</span>
+          </div>
+          <div class="mt-2 pl-14 font-mono text-[10px] font-semibold text-white/80">
+            {{ label('Win Rate', 'Win Rate') }} <span class="text-white">{{ side.winRate === null ? '—' : formatted(side.winRate) }}{{ side.winRate === null ? '' : '%' }}</span>
+            <span class="mx-2 text-white/40">·</span>
+            {{ label('Return', 'Доходность') }} <span class="text-white">{{ formattedSignedPercent(side.returnRate) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div v-if="breakdownRows.length" class="mt-12">
-      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Growth rates by scenario and condition usage', 'II · Темпы роста по использованию сценариев и условий') }}</div>
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('IV · Growth rates by scenario and condition usage', 'IV · Темпы роста по использованию сценариев и условий') }}</div>
       <div class="mt-5 overflow-x-auto border border-white/10 bg-white/[0.025]">
         <table class="w-full min-w-[760px] border-collapse font-mono text-[11px]">
           <thead class="border-b border-white/10 text-[10px] uppercase tracking-[0.12em] text-white/70">
@@ -263,22 +300,6 @@ const clearChartHover = () => {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-    <div v-if="points.length" class="mt-12">
-      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('III · Profit structure', 'III · Структура прибыли') }}</div>
-      <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('Realized gross profit, gross loss and net profit.', 'Валовая прибыль, валовой убыток и чистая прибыль.') }}</div>
-      <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
-        <svg :viewBox="`0 0 ${profitLossChartWidth} ${profitLossChartHeight}`" class="h-[18rem] w-full" role="img" :aria-label="label('Gross profit, gross loss and net profit', 'Валовая прибыль, валовой убыток и чистая прибыль')">
-          <line :x1="profitLossBaselineX" :x2="profitLossBaselineX" :y1="profitLossPadding.top - 8" :y2="profitLossChartHeight - profitLossPadding.bottom + 2" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
-          <g v-for="(item, index) in profitLossItems" :key="item.key">
-            <line :x1="profitLossBaselineX" :x2="profitLossChartWidth - profitLossPadding.right" :y1="profitLossYFor(index) + profitLossBarHeight / 2" :y2="profitLossYFor(index) + profitLossBarHeight / 2" stroke="white" stroke-opacity="0.06" />
-            <text :x="profitLossLabelX(item.value)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
-            <rect :x="profitLossBaselineX" :y="profitLossYFor(index)" :width="profitLossXFor(item.value) - profitLossBaselineX" :height="profitLossBarHeight" :fill="item.color" fill-opacity="0.78" />
-            <text :x="profitLossXFor(item.value) + 10" :y="profitLossYFor(index) + profitLossBarHeight / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ moneyFormatted(item.value) }}</text>
-          </g>
-          <text :x="profitLossBaselineX" :y="profitLossChartHeight - 5" text-anchor="middle" fill="white" fill-opacity="0.55" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">0</text>
-        </svg>
       </div>
     </div>
     <div v-if="!points.length" class="mt-8 font-serif text-base text-white/55">{{ label('No trade data available.', 'Нет данных по сделкам.') }}</div>
