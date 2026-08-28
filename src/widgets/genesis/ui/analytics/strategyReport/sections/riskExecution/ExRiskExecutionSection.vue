@@ -376,8 +376,28 @@ const durationProfitBucketLabel = (index: number, count: number) => {
   if (count === 2) return index === 0 ? (isRu.value ? 'Короткие' : 'Short') : (isRu.value ? 'Длинные' : 'Long')
   return index === 0 ? (isRu.value ? 'Короткие' : 'Short') : index === 1 ? (isRu.value ? 'Средние' : 'Medium') : (isRu.value ? 'Длинные' : 'Long')
 }
+const durationProfitMostlySimilar = computed(() => {
+  const durations = durationProfitTradePoints.value.map(point => point.durationHours!).filter(Number.isFinite)
+  if (durations.length < 2) return true
+  const medianDuration = medianOf(durations)
+  const tolerance = Math.max(1, medianDuration * 0.1)
+  const similarCount = durations.filter(value => Math.abs(value - medianDuration) <= tolerance).length
+  return similarCount / durations.length >= 0.75
+})
 const durationProfitBuckets = computed(() => {
   const points = [...durationProfitTradePoints.value].sort((left, right) => left.durationHours! - right.durationHours!)
+  if (!points.length) return []
+  if (durationProfitMostlySimilar.value) {
+    const durations = points.map(point => point.durationHours!)
+    return [{
+      index: 0,
+      label: isRu.value ? 'Почти одинаковые' : 'Mostly similar',
+      minHours: Math.min(...durations),
+      maxHours: Math.max(...durations),
+      medianResult: medianOf(points.map(point => point.resultPercent!)),
+      count: points.length
+    }]
+  }
   const bucketCount = Math.min(3, points.length)
   return Array.from({ length: bucketCount }, (_, index) => {
     const start = Math.floor(index * points.length / bucketCount)
@@ -551,7 +571,7 @@ const clearDurationProfitHover = () => {
 
         <div v-if="durationProfitBuckets.length" class="mt-14">
           <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'IV · Прибыльность по длительности позиции' : 'IV · Profitability by holding time' }}</div>
-          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Сделки разделены на короткие, средние и длинные по длительности; высота столбца показывает медианный результат от капитала.' : 'Trades are grouped into short, medium and long holding times; bar height shows the median capital return.' }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ durationProfitMostlySimilar ? (isRu ? 'Длительности сделок почти одинаковы, поэтому они объединены в одну группу; высота столбца показывает медианный результат от капитала.' : 'Trade durations are mostly similar, so they are shown as one group; bar height shows the median capital return.') : (isRu ? 'Сделки разделены на короткие, средние и длинные по длительности; высота столбца показывает медианный результат от капитала.' : 'Trades are grouped into short, medium and long holding times; bar height shows the median capital return.') }}</div>
           <div class="mt-8 bg-white/[0.025] p-3 sm:p-5">
             <svg :viewBox="`0 0 ${durationProfitChartWidth} ${durationProfitChartHeight}`" class="h-[20rem] w-full" role="img" :aria-label="isRu ? 'Прибыльность по длительности позиции' : 'Profitability by holding time'" @mouseleave="clearDurationProfitHover">
               <line :x1="durationProfitPlotLeft" :x2="durationProfitPlotRight" :y1="durationProfitZeroY" :y2="durationProfitZeroY" stroke="white" stroke-opacity="0.4" stroke-dasharray="4 5" />
