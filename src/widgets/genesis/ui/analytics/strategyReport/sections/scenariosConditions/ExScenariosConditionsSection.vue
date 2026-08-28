@@ -25,6 +25,7 @@ type FrequencyPieSlice = {
   id: string
   name: string
   trades: number
+  pnl: number
   share: number
   offset: number
   color: string
@@ -48,6 +49,7 @@ const buildFrequencyPie = (groups: CapitalGrowthRateGroup[], key: FrequencyPie['
         id: item.id,
         name: item.name,
         trades: item.trades,
+        pnl: item.pnl,
         share,
         offset,
         color: frequencyPieColors[index % frequencyPieColors.length]!
@@ -119,7 +121,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
         <div class="mt-8 grid gap-8 sm:grid-cols-2">
           <div v-for="pie in frequencyPies" :key="pie.key" class="min-w-0">
             <div class="font-serif text-[12px] uppercase tracking-[0.18em] text-white/75">{{ pie.title }}</div>
-            <div v-if="pie.slices.length" class="mt-4">
+            <div v-if="pie.slices.length" class="mt-4" @mouseleave="clearFrequencyPieHover">
               <svg :viewBox="`0 0 ${frequencyPieChartSize} ${frequencyPieChartSize}`" class="mx-auto h-[18rem] w-full sm:h-[22rem]" :aria-label="pie.title" role="img" @mouseleave="clearFrequencyPieHover">
                 <circle :cx="frequencyPieCenter" :cy="frequencyPieCenter" :r="frequencyPieRadius" fill="none" stroke="white" stroke-opacity="0.08" stroke-width="38" />
                 <circle
@@ -138,6 +140,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
                   transform="rotate(-90 140 140)"
                   @mouseenter="handleFrequencyPieHover($event, pie, slice)"
                   @mousemove="handleFrequencyPieHover($event, pie, slice)"
+                  @mouseleave="clearFrequencyPieHover"
                 />
               </svg>
               <div class="mx-auto mt-4 max-w-md space-y-2">
@@ -155,6 +158,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
             <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredFrequencyPieSlice.name }}</div>
             <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ hoveredFrequencyPieSlice.pieTitle }}</span><span class="font-bold text-white">{{ hoveredFrequencyPieSlice.trades }}</span></div>
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Share of trades', 'Доля сделок') }}</span><span class="font-bold text-white">{{ formatted(hoveredFrequencyPieSlice.share) }}%</span></div>
+            <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Total profit', 'Итоговая прибыль') }}</span><span class="font-bold text-white">{{ formattedMoney(hoveredFrequencyPieSlice.pnl) }}</span></div>
           </div>
         </Teleport>
       </div>
