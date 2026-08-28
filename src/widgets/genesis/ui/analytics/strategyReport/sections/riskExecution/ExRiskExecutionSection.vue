@@ -55,7 +55,7 @@ const riskBreachCount = computed(() => {
 })
 const hasRiskData = computed(() => plannedRiskValues.value.length > 0 || realizedLossValues.value.length > 0 || configuredRiskBudget.value !== null)
 const riskChartWidth = 1000
-const riskChartHeight = 250
+const riskChartHeight = 340
 const riskPadding = { left: 64, right: 96 }
 const riskPlotWidth = riskChartWidth - riskPadding.left - riskPadding.right
 const riskScaleMax = computed(() => Math.max(1, averagePlannedRisk.value, averageRealizedLoss.value, configuredRiskBudget.value || 0) * 1.15)
@@ -94,6 +94,14 @@ const riskRewardPoints = computed(() => props.trades.map((trade, index) => {
     : '—'
   return { index, asset, direction, closeDate, riskReward }
 }))
+const profitableRiskRewardValues = computed(() => riskRewardPoints.value
+  .map(point => point.riskReward)
+  .filter((value): value is number => Number.isFinite(value) && value > 0))
+const averageProfitableRiskReward = computed(() => profitableRiskRewardValues.value.length
+  ? profitableRiskRewardValues.value.reduce((sum, value) => sum + value, 0) / profitableRiskRewardValues.value.length
+  : 0)
+const riskRewardAuditScaleMax = computed(() => Math.max(1, averageProfitableRiskReward.value) * 1.15)
+const riskRewardAuditBarWidth = (value: number) => value / riskRewardAuditScaleMax.value * riskPlotWidth
 const riskRewardValues = computed(() => riskRewardPoints.value
   .map(point => point.riskReward)
   .filter((value): value is number => Number.isFinite(value)))
@@ -130,6 +138,32 @@ const riskRewardPath = computed(() => {
   })
   return path.trim()
 })
+const riskRewardSmaWindow = 10
+const riskRewardSmaPoints = computed(() => {
+  const validValues: number[] = []
+  return riskRewardPoints.value.map(point => {
+    if (point.riskReward === null) return { ...point, sma: null as number | null }
+    validValues.push(point.riskReward)
+    const recentValues = validValues.slice(-riskRewardSmaWindow)
+    return {
+      ...point,
+      sma: recentValues.reduce((sum, value) => sum + value, 0) / recentValues.length
+    }
+  })
+})
+const riskRewardSmaPath = computed(() => {
+  let path = ''
+  let segmentOpen = false
+  riskRewardSmaPoints.value.forEach(point => {
+    if (point.sma === null) {
+      segmentOpen = false
+      return
+    }
+    path += `${segmentOpen ? 'L' : 'M'} ${riskRewardXFor(point.index).toFixed(2)} ${riskRewardYFor(point.sma).toFixed(2)} `
+    segmentOpen = true
+  })
+  return path.trim()
+})
 const riskRewardTicks = computed(() => {
   const min = riskRewardDomain.value.min
   const max = riskRewardDomain.value.max
@@ -158,6 +192,9 @@ const riskRewardTooltipPosition = ref({ x: 0, y: 0 })
 const hoveredRiskRewardPoint = computed(() => hoveredRiskRewardIndex.value === null
   ? null
   : riskRewardPoints.value[hoveredRiskRewardIndex.value] ?? null)
+const hoveredRiskRewardSma = computed(() => hoveredRiskRewardIndex.value === null
+  ? null
+  : riskRewardSmaPoints.value[hoveredRiskRewardIndex.value]?.sma ?? null)
 const riskRewardFormatted = (value: number | null) => value === null || !Number.isFinite(value) ? '—' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}R`
 const riskRewardAxisFormatted = (value: number) => Number.isFinite(value) ? `${value > 0 ? '+' : ''}${value.toFixed(2)}` : '—'
 const riskRewardPointFromEvent = (event: MouseEvent) => {
@@ -206,11 +243,11 @@ const clearRiskRewardHover = () => {
 
       <div v-if="hasRiskData" class="mt-12">
         <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'I · Аудит риска' : 'I · Risk audit' }}</div>
-        <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Средний плановый риск по стоп-лоссу и средний фактический убыток на одной шкале.' : 'Average planned stop-loss risk and average realized loss on one scale.' }}</div>
+        <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Средний риск по стоп-лоссу, средний фактический убыток и средний Risk / Reward по прибыльным сделкам.' : 'Average stop-loss risk, average realized loss and average Risk / Reward on profitable trades.' }}</div>
         <div class="mt-8 bg-white/[0.025] p-3 sm:p-5">
           <svg :viewBox="`0 0 ${riskChartWidth} ${riskChartHeight}`" class="h-[16rem] w-full" role="img" :aria-label="isRu ? 'Сравнение планового риска и фактического убытка' : 'Planned risk compared with realized loss'">
-            <line :x1="riskBaselineX" :x2="riskBaselineX" y1="28" y2="216" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
-            <line v-if="riskBudgetX !== null" :x1="riskBudgetX" :x2="riskBudgetX" y1="22" y2="216" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 5" />
+            <line :x1="riskBaselineX" :x2="riskBaselineX" y1="28" y2="306" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
+            <line v-if="riskBudgetX !== null" :x1="riskBudgetX" :x2="riskBudgetX" y1="22" y2="306" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 5" />
             <text v-if="riskBudgetX !== null" :x="riskBudgetX" y="14" text-anchor="middle" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatMoney(configuredRiskBudget || 0) }}</text>
 
             <text :x="riskBaselineX + riskBarWidth(averagePlannedRisk) / 2" y="48" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск по стоп-лоссу (средний)' : 'Stop-loss risk (average)' }}</text>
@@ -221,7 +258,11 @@ const clearRiskRewardHover = () => {
             <rect :x="riskBaselineX" y="138" :width="riskBarWidth(averageRealizedLoss)" height="42" fill="#64748b" fill-opacity="0.88" />
             <text :x="riskBaselineX + riskBarWidth(averageRealizedLoss) + 10" y="165" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageRealizedLoss ? formatMoney(averageRealizedLoss) : '—' }}</text>
 
-            <text :x="riskBaselineX" y="238" text-anchor="middle" fill="white" fill-opacity="0.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">$0</text>
+            <text :x="riskBaselineX + riskRewardAuditBarWidth(averageProfitableRiskReward) / 2" y="208" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск / Награда по прибыльным сделкам (средний)' : 'Risk / Reward on profitable trades (average)' }}</text>
+            <rect :x="riskBaselineX" y="218" :width="riskRewardAuditBarWidth(averageProfitableRiskReward)" height="42" fill="#94a3b8" fill-opacity="0.88" />
+            <text :x="riskBaselineX + riskRewardAuditBarWidth(averageProfitableRiskReward) + 10" y="245" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageProfitableRiskReward ? `+${averageProfitableRiskReward.toFixed(2)}R` : '—' }}</text>
+
+            <text :x="riskBaselineX" y="328" text-anchor="middle" fill="white" fill-opacity="0.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">$0 / 0R</text>
           </svg>
         </div>
         <div class="mt-3 font-serif text-sm text-white/70 sm:text-base">
@@ -238,16 +279,22 @@ const clearRiskRewardHover = () => {
               <line :x1="riskRewardPlotLeft" :x2="riskRewardChartWidth - riskRewardPadding.right" :y1="riskRewardZeroY" :y2="riskRewardZeroY" stroke="white" stroke-opacity="0.4" stroke-dasharray="4 5" />
               <line v-for="tick in riskRewardTicks" :key="`rr-y-${tick}`" :x1="riskRewardPlotLeft" :x2="riskRewardChartWidth - riskRewardPadding.right" :y1="riskRewardYFor(tick)" :y2="riskRewardYFor(tick)" stroke="white" stroke-opacity="0.06" />
               <path :d="riskRewardPath" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              <path :d="riskRewardSmaPath" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-dasharray="7 5" stroke-linecap="round" stroke-linejoin="round" />
               <g v-for="point in riskRewardPoints" :key="`rr-point-${point.index}`">
                 <circle v-if="point.riskReward !== null" :cx="riskRewardXFor(point.index)" :cy="riskRewardYFor(point.riskReward)" r="3.5" fill="white" stroke="#0b0b0b" stroke-width="1.5" />
               </g>
               <g v-if="hoveredRiskRewardPoint">
                 <line :x1="riskRewardXFor(hoveredRiskRewardPoint.index)" :x2="riskRewardXFor(hoveredRiskRewardPoint.index)" :y1="riskRewardPadding.top" :y2="riskRewardChartHeight - riskRewardPadding.bottom" stroke="white" stroke-opacity="0.35" stroke-dasharray="3 4" />
                 <circle v-if="hoveredRiskRewardPoint.riskReward !== null" :cx="riskRewardXFor(hoveredRiskRewardPoint.index)" :cy="riskRewardYFor(hoveredRiskRewardPoint.riskReward)" r="5" fill="white" stroke="black" stroke-width="1.5" />
+                <circle v-if="hoveredRiskRewardSma !== null" :cx="riskRewardXFor(hoveredRiskRewardPoint.index)" :cy="riskRewardYFor(hoveredRiskRewardSma)" r="5" fill="#94a3b8" stroke="black" stroke-width="1.5" />
               </g>
               <text v-for="tick in riskRewardTicks" :key="`rr-label-${tick}`" :x="riskRewardAxisLabelX" :y="riskRewardYFor(tick) + 5" text-anchor="end" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ riskRewardAxisFormatted(tick) }}</text>
               <text v-for="tick in riskRewardXTicks" :key="`rr-x-${tick.index}`" :x="riskRewardXFor(tick.index)" :y="riskRewardChartHeight - 10" :text-anchor="tick.index === 0 ? 'start' : tick.index === riskRewardPoints.length - 1 ? 'end' : 'middle'" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ tick.label }}</text>
               </svg>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white/70">
+              <span class="inline-flex items-center gap-2"><i class="h-0.5 w-4 bg-white"></i>{{ isRu ? 'Risk Reward' : 'Risk Reward' }}</span>
+              <span class="inline-flex items-center gap-2"><i class="h-0.5 w-4 bg-slate-400"></i>{{ `SMA (${riskRewardSmaWindow})` }}</span>
             </div>
             <Teleport to="body">
               <div v-if="hoveredRiskRewardPoint" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${riskRewardTooltipPosition.x}px`, top: `${riskRewardTooltipPosition.y - 14}px` }" role="tooltip">
@@ -255,10 +302,12 @@ const clearRiskRewardHover = () => {
                 <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Направление' : 'Direction' }}</span><span class="font-bold text-white">{{ hoveredRiskRewardPoint.direction }}</span></div>
                 <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Дата закрытия' : 'Close date' }}</span><span class="font-bold text-white">{{ hoveredRiskRewardPoint.closeDate }}</span></div>
                 <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">Risk/Reward</span><span class="font-bold text-white">{{ hoveredRiskRewardPoint.riskReward === null ? (isRu ? 'Нет стоп-лосса' : 'No stop-loss') : riskRewardFormatted(hoveredRiskRewardPoint.riskReward) }}</span></div>
+                <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">SMA ({{ riskRewardSmaWindow }})</span><span class="font-bold text-white">{{ riskRewardFormatted(hoveredRiskRewardSma) }}</span></div>
               </div>
             </Teleport>
           </div>
         </div>
+
       </div>
       <div v-else class="mt-12 font-serif text-base text-white/55">{{ isRu ? 'Недостаточно данных для аудита риска.' : 'Insufficient data for a risk audit.' }}</div>
     </div>
