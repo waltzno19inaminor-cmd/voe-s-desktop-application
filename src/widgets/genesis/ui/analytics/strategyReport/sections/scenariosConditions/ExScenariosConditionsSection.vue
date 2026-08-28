@@ -67,10 +67,10 @@ const frequencyPies = computed<FrequencyPie[]>(() => [
 const frequencyPieChartSize = 280
 const frequencyPieCenter = frequencyPieChartSize / 2
 const frequencyPieRadius = 94
-const hoveredFrequencyPieSlice = ref<(FrequencyPieSlice & { pieTitle: string }) | null>(null)
+const hoveredFrequencyPieSlice = ref<FrequencyPieSlice | null>(null)
 const frequencyPieTooltipPosition = ref({ x: 0, y: 0 })
-const handleFrequencyPieHover = (event: MouseEvent, pie: FrequencyPie, slice: FrequencyPieSlice) => {
-  hoveredFrequencyPieSlice.value = { ...slice, pieTitle: pie.title }
+const handleFrequencyPieHover = (event: MouseEvent, slice: FrequencyPieSlice) => {
+  hoveredFrequencyPieSlice.value = { ...slice }
   frequencyPieTooltipPosition.value = { x: event.clientX, y: event.clientY }
 }
 const clearFrequencyPieHover = () => {
@@ -138,8 +138,8 @@ const breakdownRowClass = (item: BreakdownRow) => {
                   :stroke-dashoffset="-slice.offset"
                   pathLength="100"
                   transform="rotate(-90 140 140)"
-                  @mouseenter="handleFrequencyPieHover($event, pie, slice)"
-                  @mousemove="handleFrequencyPieHover($event, pie, slice)"
+                  @mouseenter="handleFrequencyPieHover($event, slice)"
+                  @mousemove="handleFrequencyPieHover($event, slice)"
                   @mouseleave="clearFrequencyPieHover"
                 />
               </svg>
@@ -156,7 +156,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
         <Teleport to="body">
           <div v-if="hoveredFrequencyPieSlice" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${frequencyPieTooltipPosition.x}px`, top: `${frequencyPieTooltipPosition.y - 14}px` }" role="tooltip">
             <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredFrequencyPieSlice.name }}</div>
-            <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ hoveredFrequencyPieSlice.pieTitle }}</span><span class="font-bold text-white">{{ hoveredFrequencyPieSlice.trades }}</span></div>
+            <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Trades', 'Сделки') }}</span><span class="font-bold text-white">{{ hoveredFrequencyPieSlice.trades }}</span></div>
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Share of trades', 'Доля сделок') }}</span><span class="font-bold text-white">{{ formatted(hoveredFrequencyPieSlice.share) }}%</span></div>
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Total profit', 'Итоговая прибыль') }}</span><span class="font-bold text-white">{{ formattedMoney(hoveredFrequencyPieSlice.pnl) }}</span></div>
           </div>
