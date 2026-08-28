@@ -81,7 +81,12 @@ const profitLossXFor = (value: number) => profitLossBaselineX.value + (Math.abs(
 const profitLossRowHeight = profitLossPlotHeight / 3
 const profitLossBarHeight = 38
 const profitLossYFor = (index: number) => profitLossPadding.top + index * profitLossRowHeight + (profitLossRowHeight - profitLossBarHeight) / 2
-const profitLossLabelX = (value: number) => (profitLossBaselineX.value + profitLossXFor(value)) / 2
+const profitLossLabelX = (value: number, text: string) => {
+  const estimatedLabelWidth = text.length * 9
+  const minimumCenter = profitLossBaselineX.value + 16 + estimatedLabelWidth / 2
+  const barCenter = (profitLossBaselineX.value + profitLossXFor(value)) / 2
+  return Math.max(minimumCenter, barCenter)
+}
 const moneyFormatted = (value: number) => {
   if (!Number.isFinite(value)) return '—'
   const sign = value > 0 ? '+' : value < 0 ? '-' : ''
@@ -289,7 +294,7 @@ const clearChartHover = () => {
           <line :x1="profitLossBaselineX" :x2="profitLossBaselineX" :y1="profitLossPadding.top - 8" :y2="profitLossChartHeight - profitLossPadding.bottom + 2" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
           <g v-for="(item, index) in profitLossItems" :key="item.key">
             <line :x1="profitLossBaselineX" :x2="profitLossChartWidth - profitLossPadding.right" :y1="profitLossYFor(index) + profitLossBarHeight / 2" :y2="profitLossYFor(index) + profitLossBarHeight / 2" stroke="white" stroke-opacity="0.06" />
-            <text :x="profitLossLabelX(item.value)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
+            <text :x="profitLossLabelX(item.value, item.label)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
             <rect :x="profitLossBaselineX" :y="profitLossYFor(index)" :width="profitLossXFor(item.value) - profitLossBaselineX" :height="profitLossBarHeight" :fill="item.color" fill-opacity="0.78" />
             <text :x="profitLossXFor(item.value) + 10" :y="profitLossYFor(index) + profitLossBarHeight / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ moneyFormatted(item.value) }}</text>
           </g>

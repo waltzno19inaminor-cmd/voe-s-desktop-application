@@ -76,6 +76,59 @@ const handleFrequencyPieHover = (event: MouseEvent, slice: FrequencyPieSlice) =>
 const clearFrequencyPieHover = () => {
   hoveredFrequencyPieSlice.value = null
 }
+type PnlChartRow = Pick<CapitalGrowthRateGroup, 'id' | 'name' | 'trades' | 'winRate' | 'pnl'>
+type PnlChart = {
+  key: 'scenarios' | 'conditions'
+  title: string
+  rows: PnlChartRow[]
+  maxMagnitude: number
+}
+const buildPnlChart = (groups: CapitalGrowthRateGroup[], key: PnlChart['key'], title: string): PnlChart => {
+  const rows = [...groups]
+    .filter(item => Number.isFinite(item.pnl))
+    .sort((left, right) => right.pnl - left.pnl || right.trades - left.trades || left.name.localeCompare(right.name))
+  return {
+    key,
+    title,
+    rows,
+    maxMagnitude: Math.max(1, ...rows.map(item => Math.abs(item.pnl))) * 1.1
+  }
+}
+const pnlCharts = computed<PnlChart[]>(() => [
+  buildPnlChart(breakdown.value.scenarios, 'scenarios', label('Scenarios', 'Сценарии')),
+  buildPnlChart(breakdown.value.conditions, 'conditions', label('Conditions', 'Условия'))
+])
+const pnlChartWidth = 1000
+const pnlChartHeight = 300
+const pnlChartPadding = { top: 44, right: 96, bottom: 28, left: 12 }
+const pnlPlotWidth = pnlChartWidth - pnlChartPadding.left - pnlChartPadding.right
+const pnlPlotHeight = pnlChartHeight - pnlChartPadding.top - pnlChartPadding.bottom
+const pnlBaselineX = pnlChartPadding.left
+const pnlRowHeight = (chart: PnlChart) => pnlPlotHeight / Math.max(1, chart.rows.length)
+const pnlBarHeight = (chart: PnlChart) => Math.min(38, Math.max(16, pnlRowHeight(chart) * 0.5))
+const pnlBarY = (chart: PnlChart, index: number) => pnlChartPadding.top + index * pnlRowHeight(chart) + (pnlRowHeight(chart) - pnlBarHeight(chart)) / 2
+const pnlBarWidth = (chart: PnlChart, row: PnlChartRow) => Math.abs(row.pnl) / chart.maxMagnitude * pnlPlotWidth
+const pnlBarX = (_chart: PnlChart, _row: PnlChartRow) => pnlBaselineX
+const pnlBarLabel = (row: PnlChartRow) => {
+  const text = formattedGroupName(row.name)
+  return text.length > 28 ? `${text.slice(0, 27)}…` : text
+}
+const pnlBarLabelX = (chart: PnlChart, row: PnlChartRow) => {
+  const estimatedLabelWidth = pnlBarLabel(row).length * 7.8
+  const minimumCenter = pnlBaselineX + 16 + estimatedLabelWidth / 2
+  const barCenter = pnlBarX(chart, row) + pnlBarWidth(chart, row) / 2
+  return Math.max(minimumCenter, barCenter)
+}
+const pnlBarColor = (row: PnlChartRow) => row.pnl >= 0 ? '#cbd5e1' : '#64748b'
+const hoveredPnlBar = ref<(PnlChartRow & { chartTitle: string }) | null>(null)
+const pnlTooltipPosition = ref({ x: 0, y: 0 })
+const handlePnlBarHover = (event: MouseEvent, chart: PnlChart, row: PnlChartRow) => {
+  hoveredPnlBar.value = { ...row, chartTitle: chart.title }
+  pnlTooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+const clearPnlBarHover = () => {
+  hoveredPnlBar.value = null
+}
 const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
 const formattedFrequency = (value: number) => Number.isFinite(value) ? `${value.toFixed(1)}%` : '—'
 const formattedMoney = (value: number) => {
@@ -164,7 +217,38 @@ const breakdownRowClass = (item: BreakdownRow) => {
       </div>
 
       <div v-if="breakdownRows.length" class="mt-12">
-        <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Detailed results by scenario and condition usage', 'II · Детализация результатов по использованию сценариев и условий') }}</div>
+        <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Total profit by scenarios and conditions', 'II · Итоговая прибыль по сценариям и условиям') }}</div>
+        <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The bars show the total realized profit or loss associated with each scenario and condition.', 'Столбцы показывают итоговую реализованную прибыль или убыток, связанные с каждым сценарием и условием.') }}</div>
+        <div class="mt-8 space-y-8">
+          <div v-for="chart in pnlCharts" :key="chart.key" class="min-w-0">
+            <div class="font-serif text-[12px] uppercase tracking-[0.18em] text-white/75">{{ chart.title }}</div>
+            <div v-if="chart.rows.length" class="mt-4 overflow-hidden bg-white/[0.025] p-3 sm:p-5" @mouseleave="clearPnlBarHover">
+              <svg :viewBox="`0 0 ${pnlChartWidth} ${pnlChartHeight}`" class="h-[18rem] w-full" :aria-label="chart.title" role="img">
+                <line :x1="pnlBaselineX" :x2="pnlBaselineX" :y1="pnlChartPadding.top - 8" :y2="pnlChartHeight - pnlChartPadding.bottom" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
+                <g v-for="(row, index) in chart.rows" :key="`${chart.key}-${row.id}`" @mouseenter="handlePnlBarHover($event, chart, row)" @mousemove="handlePnlBarHover($event, chart, row)" @mouseleave="clearPnlBarHover">
+                  <line :x1="pnlChartPadding.left" :x2="pnlChartWidth - pnlChartPadding.right" :y1="pnlBarY(chart, index) + pnlBarHeight(chart) / 2" :y2="pnlBarY(chart, index) + pnlBarHeight(chart) / 2" stroke="white" stroke-opacity="0.06" />
+                  <text :x="pnlBarLabelX(chart, row)" :y="pnlBarY(chart, index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ pnlBarLabel(row) }}</text>
+                  <rect :x="pnlBarX(chart, row)" :y="pnlBarY(chart, index)" :width="pnlBarWidth(chart, row)" :height="pnlBarHeight(chart)" :fill="pnlBarColor(row)" fill-opacity="0.82" />
+                  <text :x="pnlBarX(chart, row) + pnlBarWidth(chart, row) + 10" :y="pnlBarY(chart, index) + pnlBarHeight(chart) / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ formattedMoney(row.pnl) }}</text>
+                </g>
+                <text :x="pnlBaselineX" :y="pnlChartHeight - 5" text-anchor="middle" fill="white" fill-opacity="0.55" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">0</text>
+              </svg>
+            </div>
+            <div v-else class="mt-4 font-serif text-sm text-white/50">{{ label('No data available.', 'Нет данных.') }}</div>
+          </div>
+        </div>
+        <Teleport to="body">
+          <div v-if="hoveredPnlBar" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${pnlTooltipPosition.x}px`, top: `${pnlTooltipPosition.y - 14}px` }" role="tooltip">
+            <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredPnlBar.name }}</div>
+            <div class="flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Trades', 'Сделки') }}</span><span class="font-bold text-white">{{ hoveredPnlBar.trades }}</span></div>
+            <div class="mt-1 flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">Win Rate</span><span class="font-bold text-white">{{ hoveredPnlBar.winRate === null ? '—' : `${formatted(hoveredPnlBar.winRate)}%` }}</span></div>
+            <div class="mt-1 flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Total profit', 'Итоговая прибыль') }}</span><span class="font-bold text-white">{{ formattedMoney(hoveredPnlBar.pnl) }}</span></div>
+          </div>
+        </Teleport>
+      </div>
+
+      <div v-if="breakdownRows.length" class="mt-12">
+        <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('III · Detailed results by scenario and condition usage', 'III · Детализация результатов по использованию сценариев и условий') }}</div>
         <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('Each row shows how often a scenario or condition was used and how the associated results were distributed.', 'В каждой строке показано, как часто использовались сценарий или условие и какими были связанные с ними результаты.') }}</div>
         <div class="mt-8 overflow-x-auto border border-white/10 bg-white/[0.025]">
           <table class="w-full min-w-[760px] border-collapse font-mono text-[11px]">

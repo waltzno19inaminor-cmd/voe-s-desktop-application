@@ -131,6 +131,12 @@ const payoffPlotWidth = payoffChartWidth - payoffPadding.left - payoffPadding.ri
 const payoffScaleMax = computed(() => Math.max(1, averageWin.value, Math.abs(averageLoss.value)) * 1.15)
 const payoffBarWidth = (value: number) => Math.abs(value) / payoffScaleMax.value * payoffPlotWidth
 const payoffBaselineX = payoffPadding.left
+const payoffLabelX = (value: number, text: string) => {
+  const estimatedLabelWidth = text.length * 7.8
+  const minimumCenter = payoffBaselineX + 16 + estimatedLabelWidth / 2
+  const barCenter = payoffBaselineX + payoffBarWidth(value) / 2
+  return Math.max(minimumCenter, barCenter)
+}
 const hoveredBin = ref<DistributionBin | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const handleBinHover = (event: MouseEvent, bin: DistributionBin) => {
@@ -213,10 +219,10 @@ const clearBinHover = () => {
             <svg :viewBox="`0 0 ${payoffChartWidth} ${payoffChartHeight}`" class="h-[13rem] w-full" role="img" :aria-label="label('Average win and loss per trade', 'Средняя прибыль и убыток на сделку')">
               <line :x1="payoffBaselineX" :x2="payoffBaselineX" y1="24" y2="166" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
               <text :x="payoffBaselineX" y="180" text-anchor="middle" fill="white" fill-opacity="0.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">$0</text>
-              <text :x="payoffBaselineX + payoffBarWidth(averageWin) / 2" y="38" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average win', 'Средняя прибыль') }}</text>
+              <text :x="payoffLabelX(averageWin, label('Average win', 'Средняя прибыль'))" y="38" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average win', 'Средняя прибыль') }}</text>
               <rect :x="payoffBaselineX" y="48" :width="payoffBarWidth(averageWin)" height="34" fill="#f1f1f1" fill-opacity="0.88" />
               <text :x="payoffBaselineX + payoffBarWidth(averageWin) + 10" y="70" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageWin ? formatMoney(averageWin) : '—' }}</text>
-              <text :x="payoffBaselineX + payoffBarWidth(averageLoss) / 2" y="112" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average loss', 'Средний убыток') }}</text>
+              <text :x="payoffLabelX(averageLoss, label('Average loss', 'Средний убыток'))" y="112" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average loss', 'Средний убыток') }}</text>
               <rect :x="payoffBaselineX" y="122" :width="payoffBarWidth(averageLoss)" height="34" fill="#64748b" fill-opacity="0.88" />
               <text :x="payoffBaselineX + payoffBarWidth(averageLoss) + 10" y="144" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageLoss ? formatMoney(averageLoss) : '—' }}</text>
             </svg>
