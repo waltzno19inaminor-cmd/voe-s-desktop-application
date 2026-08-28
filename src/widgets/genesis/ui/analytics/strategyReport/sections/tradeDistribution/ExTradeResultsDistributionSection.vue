@@ -39,6 +39,14 @@ const medianPnl = computed(() => {
 })
 const largestWin = computed(() => pnlValues.value.length ? Math.max(...pnlValues.value) : 0)
 const largestLoss = computed(() => pnlValues.value.length ? Math.min(...pnlValues.value) : 0)
+const averageWin = computed(() => {
+  const wins = pnlValues.value.filter(value => value > 0)
+  return wins.length ? wins.reduce((sum, value) => sum + value, 0) / wins.length : 0
+})
+const averageLoss = computed(() => {
+  const losses = pnlValues.value.filter(value => value < 0)
+  return losses.length ? losses.reduce((sum, value) => sum + value, 0) / losses.length : 0
+})
 const percentile = (values: number[], ratio: number) => {
   if (!values.length) return 0
   const position = (values.length - 1) * ratio
@@ -49,9 +57,9 @@ const percentile = (values: number[], ratio: number) => {
 }
 const resultRange = computed(() => ({
   min: sortedPnlValues.value[0] ?? 0,
-  lowerTypical: percentile(sortedPnlValues.value, 0.25),
+  lowerTypical: percentile(sortedPnlValues.value, 0.05),
   median: percentile(sortedPnlValues.value, 0.5),
-  upperTypical: percentile(sortedPnlValues.value, 0.75),
+  upperTypical: percentile(sortedPnlValues.value, 0.95),
   max: sortedPnlValues.value[sortedPnlValues.value.length - 1] ?? 0
 }))
 
@@ -116,6 +124,13 @@ const rangeXFor = (value: number) => {
   const { min, max } = resultRange.value
   return rangePadding.left + ((value - min) / Math.max(max - min, 1e-9)) * rangePlotWidth
 }
+const payoffChartWidth = 1000
+const payoffChartHeight = 190
+const payoffPadding = { left: 64, right: 88 }
+const payoffPlotWidth = payoffChartWidth - payoffPadding.left - payoffPadding.right
+const payoffScaleMax = computed(() => Math.max(1, averageWin.value, Math.abs(averageLoss.value)) * 1.15)
+const payoffBarWidth = (value: number) => Math.abs(value) / payoffScaleMax.value * payoffPlotWidth
+const payoffBaselineX = payoffPadding.left
 const hoveredBin = ref<DistributionBin | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const handleBinHover = (event: MouseEvent, bin: DistributionBin) => {
@@ -165,9 +180,14 @@ const clearBinHover = () => {
           </div>
         </Teleport>
 
+        <div class="mt-8 grid grid-cols-2 gap-px bg-white/10">
+          <div class="bg-black px-4 py-4"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{{ label('Average', 'Среднее') }}</div><div class="mt-2 font-mono text-lg font-bold text-white">{{ formatMoney(averagePnl) }}</div></div>
+          <div class="bg-black px-4 py-4"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{{ label('Median', 'Медиана') }}</div><div class="mt-2 font-mono text-lg font-bold text-white">{{ formatMoney(medianPnl) }}</div></div>
+        </div>
+
         <div class="mt-10">
           <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Typical result range', 'II · Типичный диапазон результатов') }}</div>
-          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The white area shows where the main part of trade results is concentrated; the light slate-blue line marks the median — the value below which half of the results fall and above which the other half fall.', 'Белая закрашенная область показывает, где сосредоточена основная часть результатов сделок; светлая серо-синяя линия обозначает медиану — значение, ниже которого находятся половина результатов, а выше — другая половина.') }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The white area contains about 90% of trade results; the light slate-blue line marks the median — the value below which half of the results fall and above which the other half fall.', 'Белая закрашенная область содержит около 90% результатов сделок; светлая серо-синяя линия обозначает медиану — значение, ниже которого находятся половина результатов, а выше — другая половина.') }}</div>
           <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
             <svg :viewBox="`0 0 ${rangeChartWidth} ${rangeChartHeight}`" class="h-[10rem] w-full" role="img" :aria-label="label('Typical range of trade results', 'Типичный диапазон результатов сделок')">
               <line :x1="rangeXFor(resultRange.min)" :x2="rangeXFor(resultRange.max)" y1="72" y2="72" stroke="#5c5c5c" stroke-width="8" stroke-linecap="round" />
@@ -186,9 +206,21 @@ const clearBinHover = () => {
           </div>
         </div>
 
-        <div class="mt-8 grid grid-cols-2 gap-px bg-white/10">
-          <div class="bg-black px-4 py-4"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{{ label('Average', 'Среднее') }}</div><div class="mt-2 font-mono text-lg font-bold text-white">{{ formatMoney(averagePnl) }}</div></div>
-          <div class="bg-black px-4 py-4"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{{ label('Median', 'Медиана') }}</div><div class="mt-2 font-mono text-lg font-bold text-white">{{ formatMoney(medianPnl) }}</div></div>
+        <div class="mt-10">
+          <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('III · Average win and loss', 'III · Средняя прибыль и убыток') }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('Both bars start at zero, making the typical win and loss easy to compare.', 'Обе полосы начинаются от нулевой линии, поэтому размер типичной прибыли и убытка легко сравнить.') }}</div>
+          <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+            <svg :viewBox="`0 0 ${payoffChartWidth} ${payoffChartHeight}`" class="h-[13rem] w-full" role="img" :aria-label="label('Average win and loss per trade', 'Средняя прибыль и убыток на сделку')">
+              <line :x1="payoffBaselineX" :x2="payoffBaselineX" y1="24" y2="166" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
+              <text :x="payoffBaselineX" y="180" text-anchor="middle" fill="white" fill-opacity="0.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">$0</text>
+              <text :x="payoffBaselineX + payoffBarWidth(averageWin) / 2" y="38" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average win', 'Средняя прибыль') }}</text>
+              <rect :x="payoffBaselineX" y="48" :width="payoffBarWidth(averageWin)" height="34" fill="#f1f1f1" fill-opacity="0.88" />
+              <text :x="payoffBaselineX + payoffBarWidth(averageWin) + 10" y="70" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageWin ? formatMoney(averageWin) : '—' }}</text>
+              <text :x="payoffBaselineX + payoffBarWidth(averageLoss) / 2" y="112" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ label('Average loss', 'Средний убыток') }}</text>
+              <rect :x="payoffBaselineX" y="122" :width="payoffBarWidth(averageLoss)" height="34" fill="#64748b" fill-opacity="0.88" />
+              <text :x="payoffBaselineX + payoffBarWidth(averageLoss) + 10" y="144" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageLoss ? formatMoney(averageLoss) : '—' }}</text>
+            </svg>
+          </div>
         </div>
 
         <div class="mt-8 font-serif text-sm text-white/70 sm:text-base">
