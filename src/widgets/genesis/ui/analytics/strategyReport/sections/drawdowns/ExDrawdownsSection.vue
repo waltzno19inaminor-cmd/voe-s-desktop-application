@@ -193,7 +193,7 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
 
               <div class="mt-4 font-serif text-[12px] uppercase tracking-[0.16em] text-white/65">{{ label('Losing trades', 'Убыточные сделки') }}</div>
               <div v-if="insight.losingTrades.length" class="mt-3 space-y-4">
-                <div v-for="trade in insight.losingTrades" :key="`${insight.id}-trade-${trade.number}`" class="border-t border-white/10 pt-4 first:border-t-0 first:pt-0" :class="trade.isWorst ? 'border-white/35 bg-white/[0.07] px-3 py-3 ring-1 ring-white/15' : ''">
+                <div v-for="trade in insight.losingTrades" :key="`${insight.id}-trade-${trade.number}`" class="border-t border-white/10 pt-4 first:border-t-0" :class="trade.isWorst ? 'border-white/35 bg-white/[0.07] px-3 py-4 ring-1 ring-white/15' : ''">
                   <div class="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
                     <div class="font-mono text-sm font-semibold text-white">{{ trade.asset }} · {{ trade.direction === 'long' ? label('Long', 'Лонг') : trade.direction === 'short' ? label('Short', 'Шорт') : '—' }}</div>
                     <div class="font-mono text-sm font-semibold text-white">{{ formatLoss(trade.pnl) }} <span class="text-white/60">({{ formatTradePercent(trade.pnlPercent) }})</span></div>
