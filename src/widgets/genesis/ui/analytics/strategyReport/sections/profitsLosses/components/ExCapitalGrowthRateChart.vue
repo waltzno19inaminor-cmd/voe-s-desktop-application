@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
-import { buildCapitalSidePerformance, buildCapitalGrowthBreakdown, buildCapitalGrowthRate } from '../analytics/capitalGrowthRate'
+import { buildCapitalAssetPerformance, buildCapitalSidePerformance, buildCapitalGrowthBreakdown, buildCapitalGrowthRate, type CapitalAssetPerformance } from '../analytics/capitalGrowthRate'
 
 const props = defineProps<{
   trades: Record<string, any>[]
@@ -15,6 +15,7 @@ const label = (en: string, ru: string) => isRu.value ? ru : en
 const model = computed(() => buildCapitalGrowthRate(props.trades, props.getTradePnl, props.initialCapital || 1000))
 const breakdown = computed(() => buildCapitalGrowthBreakdown(props.trades, props.getTradePnl, props.initialCapital || 1000))
 const sidePerformance = computed(() => buildCapitalSidePerformance(props.trades, props.getTradePnl, props.initialCapital || 1000))
+const assetPerformance = computed(() => buildCapitalAssetPerformance(props.trades, props.getTradePnl, props.initialCapital || 1000))
 
 const width = 1000
 const height = 460
@@ -113,6 +114,101 @@ const moneyFormatted = (value: number) => {
   if (!Number.isFinite(value)) return '—'
   const sign = value > 0 ? '+' : value < 0 ? '-' : ''
   return `${sign}$${Math.abs(value).toFixed(2)}`
+}
+
+const assetHeatmapWidth = 1000
+const assetHeatmapHeight = 360
+const assetHeatmapTooltip = ref<CapitalAssetPerformance | null>(null)
+const assetHeatmapTooltipPosition = ref({ x: 0, y: 0 })
+type AssetHeatmapArea = {
+  asset: CapitalAssetPerformance
+  x: number
+  y: number
+  width: number
+  height: number
+}
+type AssetHeatmapBlock = AssetHeatmapArea & {
+  fill: string
+  textColor: string
+  showTicker: boolean
+  showResult: boolean
+}
+const splitAssetHeatmap = (
+  assets: CapitalAssetPerformance[],
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): AssetHeatmapArea[] => {
+  if (!assets.length) return []
+  if (assets.length === 1) return [{ asset: assets[0]!, x, y, width, height }]
+
+  const totalWeight = assets.reduce((sum, asset) => sum + asset.trades, 0)
+  const targetWeight = totalWeight / 2
+  let accumulatedWeight = 0
+  let splitIndex = 1
+
+  for (let index = 0; index < assets.length - 1; index += 1) {
+    const nextWeight = accumulatedWeight + assets[index]!.trades
+    if (Math.abs(nextWeight - targetWeight) < Math.abs(accumulatedWeight - targetWeight)) {
+      accumulatedWeight = nextWeight
+      splitIndex = index + 1
+    } else {
+      break
+    }
+  }
+
+  const left = assets.slice(0, splitIndex)
+  const right = assets.slice(splitIndex)
+  const leftWeight = left.reduce((sum, asset) => sum + asset.trades, 0)
+  const ratio = leftWeight / totalWeight
+
+  if (width >= height) {
+    const leftWidth = width * ratio
+    return [
+      ...splitAssetHeatmap(left, x, y, leftWidth, height),
+      ...splitAssetHeatmap(right, x + leftWidth, y, width - leftWidth, height)
+    ]
+  }
+
+  const topHeight = height * ratio
+  return [
+    ...splitAssetHeatmap(left, x, y, width, topHeight),
+    ...splitAssetHeatmap(right, x, y + topHeight, width, height - topHeight)
+  ]
+}
+const topAssetPerformance = computed(() => assetPerformance.value.slice(0, 10))
+const topAssetPnlMin = computed(() => Math.min(0, ...topAssetPerformance.value.map(asset => asset.pnl)))
+const topAssetPnlMax = computed(() => Math.max(0, ...topAssetPerformance.value.map(asset => asset.pnl)))
+const assetHeatmapColor = (pnl: number) => {
+  const range = Math.max(topAssetPnlMax.value - topAssetPnlMin.value, 1e-9)
+  const ratio = (pnl - topAssetPnlMin.value) / range
+  const channel = Math.round(52 + ratio * 200)
+  return `rgb(${channel} ${channel} ${channel})`
+}
+const assetHeatmapTextColor = (pnl: number) => {
+  const range = Math.max(topAssetPnlMax.value - topAssetPnlMin.value, 1e-9)
+  return (pnl - topAssetPnlMin.value) / range > 0.62 ? '#111111' : '#FFFFFF'
+}
+const assetHeatmapBlocks = computed<AssetHeatmapBlock[]>(() => splitAssetHeatmap(
+  topAssetPerformance.value,
+  0,
+  0,
+  assetHeatmapWidth,
+  assetHeatmapHeight
+).map(area => ({
+  ...area,
+  fill: assetHeatmapColor(area.asset.pnl),
+  textColor: assetHeatmapTextColor(area.asset.pnl),
+  showTicker: area.width >= Math.max(58, area.asset.asset.length * 13 + 16) && area.height >= 38,
+  showResult: area.width >= Math.max(132, (moneyFormatted(area.asset.pnl).length + formattedFrequency(area.asset.frequency).length + 3) * 8 + 16) && area.height >= 78
+})))
+const handleAssetHeatmapHover = (event: MouseEvent, asset: CapitalAssetPerformance) => {
+  assetHeatmapTooltip.value = asset
+  assetHeatmapTooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+const clearAssetHeatmapHover = () => {
+  assetHeatmapTooltip.value = null
 }
 
 const yTicks = computed(() => {
@@ -301,6 +397,35 @@ const clearChartHover = () => {
           </tbody>
         </table>
       </div>
+    </div>
+    <div v-if="assetHeatmapBlocks.length" class="mt-12">
+      <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('V · Heatmap of the 10 most frequent assets', 'V · Тепловая карта 10 наиболее частых активов') }}</div>
+      <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The map shows the 10 assets used most often in trades; tile size shows frequency, while grayscale shows the relative net result.', 'Карта показывает 10 активов, которые чаще всего использовались в сделках: размер плитки — частоту, оттенок серого — относительный чистый результат.') }}</div>
+      <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+        <svg :viewBox="`0 0 ${assetHeatmapWidth} ${assetHeatmapHeight}`" class="h-[22rem] w-full" preserveAspectRatio="none" role="img" :aria-label="label('Asset heatmap by net result', 'Тепловая карта активов по чистому результату')">
+          <g
+            v-for="block in assetHeatmapBlocks"
+            :key="block.asset.id"
+            class="cursor-default"
+            :transform="`translate(${block.x} ${block.y})`"
+            @mouseenter="handleAssetHeatmapHover($event, block.asset)"
+            @mousemove="handleAssetHeatmapHover($event, block.asset)"
+            @mouseleave="clearAssetHeatmapHover"
+          >
+            <rect :width="block.width" :height="block.height" :fill="block.fill" stroke="#111111" stroke-width="2" shape-rendering="crispEdges" />
+            <text v-if="block.showTicker" :x="block.width / 2" :y="block.showResult ? block.height / 2 - 8 : block.height / 2 + 5" text-anchor="middle" :fill="block.textColor" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700" letter-spacing="0.04em">{{ block.asset.asset }}</text>
+            <text v-if="block.showResult" :x="block.width / 2" :y="block.height / 2 + 19" text-anchor="middle" :fill="block.textColor" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600">{{ moneyFormatted(block.asset.pnl) }} · {{ formattedFrequency(block.asset.frequency) }}</text>
+          </g>
+        </svg>
+      </div>
+      <Teleport to="body">
+        <div v-if="assetHeatmapTooltip" class="pointer-events-none fixed z-[2147483647] -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${assetHeatmapTooltipPosition.x}px`, top: `${assetHeatmapTooltipPosition.y - 14}px` }" role="tooltip">
+          <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ assetHeatmapTooltip.asset }}</div>
+          <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Trades', 'Сделки') }}</span><span class="font-bold text-white">{{ assetHeatmapTooltip.trades }}</span></div>
+          <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Net result', 'Чистый результат') }}</span><span class="font-bold text-white">{{ moneyFormatted(assetHeatmapTooltip.pnl) }}</span></div>
+          <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Win rate', 'Win Rate') }}</span><span class="font-bold text-white">{{ assetHeatmapTooltip.winRate === null ? '—' : `${formatted(assetHeatmapTooltip.winRate)}%` }}</span></div>
+        </div>
+      </Teleport>
     </div>
     <div v-if="!points.length" class="mt-8 font-serif text-base text-white/55">{{ label('No trade data available.', 'Нет данных по сделкам.') }}</div>
   </section>

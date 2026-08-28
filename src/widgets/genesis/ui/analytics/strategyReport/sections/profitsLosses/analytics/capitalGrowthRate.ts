@@ -38,6 +38,16 @@ export type CapitalSidePerformance = {
   returnRate: number
 }
 
+export type CapitalAssetPerformance = {
+  id: string
+  asset: string
+  trades: number
+  frequency: number
+  pnl: number
+  winRate: number | null
+  returnRate: number
+}
+
 const safeCapital = (value: number) => Number.isFinite(value) && Math.abs(value) > 1e-9 ? Math.abs(value) : 1000
 
 const resolveAsset = (trade: EquityMapTrade): string => {
@@ -126,6 +136,37 @@ export const buildCapitalSidePerformance = (
       returnRate: group.pnl / capital * 100
     }
   })
+}
+
+export const buildCapitalAssetPerformance = (
+  trades: EquityMapTrade[],
+  getTradePnl: (trade: EquityMapTrade) => number,
+  initialCapital = 1000
+): CapitalAssetPerformance[] => {
+  const ordered = orderEquityMapTrades(trades, getTradePnl)
+  const capital = safeCapital(initialCapital)
+  const groups = new Map<string, { asset: string; trades: number; wins: number; pnl: number }>()
+
+  ordered.forEach(item => {
+    const asset = resolveAsset(item.trade)
+    const group = groups.get(asset) ?? { asset, trades: 0, wins: 0, pnl: 0 }
+    group.trades += 1
+    group.wins += item.pnl > 0 ? 1 : 0
+    group.pnl += item.pnl
+    groups.set(asset, group)
+  })
+
+  return [...groups.values()]
+    .map(group => ({
+      id: group.asset,
+      asset: group.asset,
+      trades: group.trades,
+      frequency: ordered.length ? group.trades / ordered.length * 100 : 0,
+      pnl: group.pnl,
+      winRate: group.trades ? group.wins / group.trades * 100 : null,
+      returnRate: group.pnl / capital * 100
+    }))
+    .sort((a, b) => b.trades - a.trades || b.pnl - a.pnl || a.asset.localeCompare(b.asset))
 }
 
 const finalizeGroups = (
