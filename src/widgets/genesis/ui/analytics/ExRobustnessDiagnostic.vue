@@ -7,6 +7,7 @@ import ExStrategyReportCover from './strategyReport/components/core/ExStrategyRe
 import ExStrategyReportTableOfContents from './strategyReport/components/core/ExStrategyReportTableOfContents.vue'
 import ExProfitsLossesSection from './strategyReport/sections/profitsLosses/ExProfitsLossesSection.vue'
 import ExTradeResultsDistributionSection from './strategyReport/sections/tradeDistribution/ExTradeResultsDistributionSection.vue'
+import ExRiskExecutionSection from './strategyReport/sections/riskExecution/ExRiskExecutionSection.vue'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -40,6 +41,12 @@ const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value,
         <ExTradeResultsDistributionSection
           :trades="filteredTrades"
           :get-trade-pnl="getTradePnlFn"
+        />
+
+        <ExRiskExecutionSection
+          :trades="filteredTrades"
+          :get-trade-pnl="getTradePnlFn"
+          :risk-budget="strategyMetrics?.configuredRiskPerTrade"
         />
 
         <ExRobustnessEquityMap
