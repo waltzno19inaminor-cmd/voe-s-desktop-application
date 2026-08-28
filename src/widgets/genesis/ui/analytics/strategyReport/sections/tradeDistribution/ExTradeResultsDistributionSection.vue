@@ -39,6 +39,21 @@ const medianPnl = computed(() => {
 })
 const largestWin = computed(() => pnlValues.value.length ? Math.max(...pnlValues.value) : 0)
 const largestLoss = computed(() => pnlValues.value.length ? Math.min(...pnlValues.value) : 0)
+const percentile = (values: number[], ratio: number) => {
+  if (!values.length) return 0
+  const position = (values.length - 1) * ratio
+  const lower = Math.floor(position)
+  const upper = Math.ceil(position)
+  if (lower === upper) return values[lower]!
+  return values[lower]! + (values[upper]! - values[lower]!) * (position - lower)
+}
+const resultRange = computed(() => ({
+  min: sortedPnlValues.value[0] ?? 0,
+  lowerTypical: percentile(sortedPnlValues.value, 0.25),
+  median: percentile(sortedPnlValues.value, 0.5),
+  upperTypical: percentile(sortedPnlValues.value, 0.75),
+  max: sortedPnlValues.value[sortedPnlValues.value.length - 1] ?? 0
+}))
 
 type DistributionBin = {
   index: number
@@ -93,6 +108,14 @@ const yTicks = computed(() => {
   return Array.from({ length: Math.ceil(maxCount.value / step) + 1 }, (_, index) => Math.min(maxCount.value, index * step))
 })
 const xLabel = (bin: DistributionBin) => formatCompactMoney(bin.center)
+const rangeChartWidth = 1000
+const rangeChartHeight = 170
+const rangePadding = { left: 56, right: 56 }
+const rangePlotWidth = rangeChartWidth - rangePadding.left - rangePadding.right
+const rangeXFor = (value: number) => {
+  const { min, max } = resultRange.value
+  return rangePadding.left + ((value - min) / Math.max(max - min, 1e-9)) * rangePlotWidth
+}
 const hoveredBin = ref<DistributionBin | null>(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const handleBinHover = (event: MouseEvent, bin: DistributionBin) => {
@@ -141,6 +164,27 @@ const clearBinHover = () => {
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Trades', 'Сделки') }}</span><span class="font-bold text-white">{{ hoveredBin.count }}</span></div>
           </div>
         </Teleport>
+
+        <div class="mt-10">
+          <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('II · Typical result range', 'II · Типичный диапазон результатов') }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The white area shows where the main part of trade results is concentrated; the light slate-blue line marks the median — the value below which half of the results fall and above which the other half fall.', 'Белая закрашенная область показывает, где сосредоточена основная часть результатов сделок; светлая серо-синяя линия обозначает медиану — значение, ниже которого находятся половина результатов, а выше — другая половина.') }}</div>
+          <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+            <svg :viewBox="`0 0 ${rangeChartWidth} ${rangeChartHeight}`" class="h-[10rem] w-full" role="img" :aria-label="label('Typical range of trade results', 'Типичный диапазон результатов сделок')">
+              <line :x1="rangeXFor(resultRange.min)" :x2="rangeXFor(resultRange.max)" y1="72" y2="72" stroke="#5c5c5c" stroke-width="8" stroke-linecap="round" />
+              <rect :x="rangeXFor(resultRange.lowerTypical)" y="51" :width="Math.max(2, rangeXFor(resultRange.upperTypical) - rangeXFor(resultRange.lowerTypical))" height="42" fill="#f1f1f1" fill-opacity="0.88" />
+              <line :x1="rangeXFor(resultRange.median)" :x2="rangeXFor(resultRange.median)" y1="38" y2="106" stroke="#94a3b8" stroke-width="5" />
+              <circle :cx="rangeXFor(resultRange.min)" cy="72" r="5" fill="#5c5c5c" stroke="#ffffff" stroke-width="1.5" />
+              <circle :cx="rangeXFor(resultRange.max)" cy="72" r="5" fill="#f1f1f1" stroke="#111111" stroke-width="1.5" />
+              <text :x="rangeXFor(resultRange.min)" y="160" text-anchor="middle" fill="white" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600">{{ formatCompactMoney(resultRange.min) }}</text>
+              <line :x1="rangeXFor(resultRange.lowerTypical)" :x2="rangeXFor(resultRange.lowerTypical)" y1="93" y2="128" stroke="white" stroke-opacity="0.72" stroke-width="1" />
+              <text :x="rangeXFor(resultRange.lowerTypical)" y="143" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatCompactMoney(resultRange.lowerTypical) }}</text>
+              <text :x="rangeXFor(resultRange.median)" y="28" text-anchor="middle" fill="white" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatCompactMoney(resultRange.median) }}</text>
+              <line :x1="rangeXFor(resultRange.upperTypical)" :x2="rangeXFor(resultRange.upperTypical)" y1="93" y2="128" stroke="white" stroke-opacity="0.72" stroke-width="1" />
+              <text :x="rangeXFor(resultRange.upperTypical)" y="143" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatCompactMoney(resultRange.upperTypical) }}</text>
+              <text :x="rangeXFor(resultRange.max)" y="160" text-anchor="middle" fill="white" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600">{{ formatCompactMoney(resultRange.max) }}</text>
+            </svg>
+          </div>
+        </div>
 
         <div class="mt-8 grid grid-cols-2 gap-px bg-white/10">
           <div class="bg-black px-4 py-4"><div class="font-mono text-[10px] uppercase tracking-[0.14em] text-white/60">{{ label('Average', 'Среднее') }}</div><div class="mt-2 font-mono text-lg font-bold text-white">{{ formatMoney(averagePnl) }}</div></div>
