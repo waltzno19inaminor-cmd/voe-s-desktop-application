@@ -46,6 +46,7 @@ const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value,
         <ExRiskExecutionSection
           :trades="filteredTrades"
           :get-trade-pnl="getTradePnlFn"
+          :initial-capital="strategyMetrics?.initialDeposit || 1000"
           :risk-budget="strategyMetrics?.configuredRiskPerTrade"
         />
 

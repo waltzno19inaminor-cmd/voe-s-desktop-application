@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { getTradePlannedStopRiskDollars } from '~/widgets/genesis/model/tradeRisk'
+import { getTradeDurationHours } from '~/widgets/genesis/model/metrics/tradeMetrics'
 import ExStrategyReportPageNumber from '../../components/auxiliary/ExStrategyReportPageNumber.vue'
 import ExStrategyReportSectionHeading from '../../components/auxiliary/ExStrategyReportSectionHeading.vue'
 import ExStrategyReportSectionSubheading from '../../components/auxiliary/ExStrategyReportSectionSubheading.vue'
@@ -11,6 +12,7 @@ const isRu = computed(() => locale.value === 'ru')
 const props = defineProps<{
   trades: Record<string, any>[]
   getTradePnl: (trade: Record<string, any>) => number
+  initialCapital?: number | null
   riskBudget?: number | null
 }>()
 
@@ -36,12 +38,14 @@ const riskAudit = computed(() => props.trades.map(trade => {
 }))
 const plannedRiskValues = computed(() => riskAudit.value.map(item => item.planned).filter(value => Number.isFinite(value)))
 const realizedLossValues = computed(() => riskAudit.value.map(item => item.realizedLoss).filter(value => Number.isFinite(value)))
-const averagePlannedRisk = computed(() => plannedRiskValues.value.length
-  ? plannedRiskValues.value.reduce((sum, value) => sum + value, 0) / plannedRiskValues.value.length
-  : 0)
-const averageRealizedLoss = computed(() => realizedLossValues.value.length
-  ? realizedLossValues.value.reduce((sum, value) => sum + value, 0) / realizedLossValues.value.length
-  : 0)
+const medianOf = (values: number[]) => {
+  if (!values.length) return 0
+  const sorted = [...values].sort((left, right) => left - right)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 ? sorted[middle]! : ((sorted[middle - 1]! + sorted[middle]!) / 2)
+}
+const medianPlannedRisk = computed(() => medianOf(plannedRiskValues.value))
+const medianRealizedLoss = computed(() => medianOf(realizedLossValues.value))
 const configuredRiskBudget = computed(() => {
   const value = Number(props.riskBudget)
   return Number.isFinite(value) && value > 0 ? value : null
@@ -58,7 +62,7 @@ const riskChartWidth = 1000
 const riskChartHeight = 340
 const riskPadding = { left: 64, right: 96 }
 const riskPlotWidth = riskChartWidth - riskPadding.left - riskPadding.right
-const riskScaleMax = computed(() => Math.max(1, averagePlannedRisk.value, averageRealizedLoss.value, configuredRiskBudget.value || 0) * 1.15)
+const riskScaleMax = computed(() => Math.max(1, medianPlannedRisk.value, medianRealizedLoss.value, configuredRiskBudget.value || 0) * 1.15)
 const riskBarWidth = (value: number) => value / riskScaleMax.value * riskPlotWidth
 const riskBaselineX = riskPadding.left
 const riskBudgetX = computed(() => configuredRiskBudget.value === null
@@ -97,10 +101,8 @@ const riskRewardPoints = computed(() => props.trades.map((trade, index) => {
 const profitableRiskRewardValues = computed(() => riskRewardPoints.value
   .map(point => point.riskReward)
   .filter((value): value is number => Number.isFinite(value) && value > 0))
-const averageProfitableRiskReward = computed(() => profitableRiskRewardValues.value.length
-  ? profitableRiskRewardValues.value.reduce((sum, value) => sum + value, 0) / profitableRiskRewardValues.value.length
-  : 0)
-const riskRewardAuditScaleMax = computed(() => Math.max(1, averageProfitableRiskReward.value) * 1.15)
+const medianProfitableRiskReward = computed(() => medianOf(profitableRiskRewardValues.value))
+const riskRewardAuditScaleMax = computed(() => Math.max(1, medianProfitableRiskReward.value) * 1.15)
 const riskRewardAuditBarWidth = (value: number) => value / riskRewardAuditScaleMax.value * riskPlotWidth
 const riskRewardValues = computed(() => riskRewardPoints.value
   .map(point => point.riskReward)
@@ -247,26 +249,30 @@ const positionTimePoints = computed(() => props.trades.map((trade, index) => ({
 const positionSizeValues = computed(() => positionTimePoints.value
   .map(point => point.positionSize)
   .filter((value): value is number => Number.isFinite(value)))
-const positionSizeResultPercentFor = (trade: Record<string, any>, positionSize: number | null) => {
+const configuredInitialCapital = computed(() => {
+  const value = Number(props.initialCapital)
+  return Number.isFinite(value) && value > 0 ? value : 1000
+})
+const capitalResultPercentFor = (trade: Record<string, any>) => {
   const pnl = Number(props.getTradePnl(trade))
-  return positionSize !== null && positionSize > 0 && Number.isFinite(pnl)
-    ? (pnl / positionSize) * 100
+  return Number.isFinite(pnl) && configuredInitialCapital.value > 0
+    ? (pnl / configuredInitialCapital.value) * 100
     : null
 }
 const positionSizeDetails = computed(() => {
   const points = positionTimePoints.value
     .map(point => ({
       ...point,
-      resultPercent: positionSizeResultPercentFor(props.trades[point.index]!, point.positionSize)
+      resultPercent: capitalResultPercentFor(props.trades[point.index]!)
     }))
     .filter(point => point.positionSize !== null)
   if (!points.length) return { average: null, largest: null, smallest: null }
   const average = points.reduce((sum, point) => sum + point.positionSize!, 0) / points.length
   const largest = points.reduce((current, point) => point.positionSize! > current.positionSize! ? point : current)
-const smallest = points.reduce((current, point) => point.positionSize! < current.positionSize! ? point : current)
+  const smallest = points.reduce((current, point) => point.positionSize! < current.positionSize! ? point : current)
   return { average, largest, smallest }
 })
-const positionResultPercentFormatted = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
+const capitalResultPercentFormatted = (value: number | null | undefined) => value === null || value === undefined || !Number.isFinite(value)
   ? '—'
   : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`
 const positionSizeDomain = computed(() => {
@@ -349,6 +355,87 @@ const handlePositionTimePointerMove = (event: MouseEvent) => {
 const clearPositionTimeHover = () => {
   hoveredPositionTimeIndex.value = null
 }
+
+const durationProfitTradePoints = computed(() => props.trades
+  .map((trade, index) => {
+    const normalized = normalizeTrade(trade)
+    const rawDurationHours = getTradeDurationHours(normalized)
+    const resultPercent = capitalResultPercentFor(trade)
+    const riskRewardPoint = riskRewardPoints.value[index]
+    return {
+      index,
+      asset: riskRewardPoint?.asset ?? 'UNKNOWN',
+      direction: riskRewardPoint?.direction ?? '—',
+      closeDate: riskRewardPoint?.closeDate ?? '—',
+      durationHours: Number.isFinite(rawDurationHours) ? rawDurationHours : null,
+      resultPercent
+    }
+  })
+  .filter(point => point.durationHours !== null && point.resultPercent !== null))
+const durationProfitBucketLabel = (index: number, count: number) => {
+  if (count === 2) return index === 0 ? (isRu.value ? 'Короткие' : 'Short') : (isRu.value ? 'Длинные' : 'Long')
+  return index === 0 ? (isRu.value ? 'Короткие' : 'Short') : index === 1 ? (isRu.value ? 'Средние' : 'Medium') : (isRu.value ? 'Длинные' : 'Long')
+}
+const durationProfitBuckets = computed(() => {
+  const points = [...durationProfitTradePoints.value].sort((left, right) => left.durationHours! - right.durationHours!)
+  const bucketCount = Math.min(3, points.length)
+  return Array.from({ length: bucketCount }, (_, index) => {
+    const start = Math.floor(index * points.length / bucketCount)
+    const end = Math.floor((index + 1) * points.length / bucketCount)
+    const bucketPoints = points.slice(start, end)
+    const durations = bucketPoints.map(point => point.durationHours!)
+    const results = bucketPoints.map(point => point.resultPercent!)
+    return {
+      index,
+      label: durationProfitBucketLabel(index, bucketCount),
+      minHours: Math.min(...durations),
+      maxHours: Math.max(...durations),
+      medianResult: medianOf(results),
+      count: bucketPoints.length
+    }
+  })
+})
+const durationProfitYDomain = computed(() => {
+  const values = durationProfitBuckets.value.map(bucket => bucket.medianResult)
+  if (!values.length) return { min: -1, max: 1 }
+  const min = Math.min(0, ...values)
+  const max = Math.max(0, ...values)
+  const padding = Math.max((max - min) * 0.15, 0.5)
+  return { min: min - padding, max: max + padding }
+})
+const durationProfitChartWidth = 1000
+const durationProfitChartHeight = 320
+const durationProfitPadding = { top: 32, right: 70, bottom: 56, left: 112 }
+const durationProfitPlotLeft = durationProfitPadding.left
+const durationProfitPlotRight = durationProfitChartWidth - durationProfitPadding.right
+const durationProfitPlotWidth = durationProfitPlotRight - durationProfitPlotLeft
+const durationProfitPlotHeight = durationProfitChartHeight - durationProfitPadding.top - durationProfitPadding.bottom
+const durationProfitYFor = (value: number) => durationProfitPadding.top
+  + (1 - (value - durationProfitYDomain.value.min) / Math.max(1e-9, durationProfitYDomain.value.max - durationProfitYDomain.value.min)) * durationProfitPlotHeight
+const durationProfitZeroY = computed(() => durationProfitYFor(0))
+const durationProfitYTicks = computed(() => positionTimeTicksFor(durationProfitYDomain.value))
+const durationProfitBarWidth = computed(() => durationProfitBuckets.value.length
+  ? Math.min(180, durationProfitPlotWidth / durationProfitBuckets.value.length * 0.56)
+  : 0)
+const durationProfitBarX = (index: number) => durationProfitPlotLeft
+  + ((index + 0.5) / Math.max(1, durationProfitBuckets.value.length)) * durationProfitPlotWidth
+  - durationProfitBarWidth.value / 2
+const durationProfitHoursFormatted = (value: number) => `${value.toFixed(value >= 10 ? 0 : 1)}${isRu.value ? ' ч' : ' h'}`
+const durationProfitRangeFormatted = (minHours: number, maxHours: number) => minHours === maxHours
+  ? durationProfitHoursFormatted(minHours)
+  : `${durationProfitHoursFormatted(minHours)}–${durationProfitHoursFormatted(maxHours)}`
+const hoveredDurationProfitIndex = ref<number | null>(null)
+const durationProfitTooltipPosition = ref({ x: 0, y: 0 })
+const hoveredDurationProfitBucket = computed(() => hoveredDurationProfitIndex.value === null
+  ? null
+  : durationProfitBuckets.value[hoveredDurationProfitIndex.value] ?? null)
+const handleDurationProfitHover = (event: MouseEvent, bucket: { index: number }) => {
+  hoveredDurationProfitIndex.value = bucket.index
+  durationProfitTooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+const clearDurationProfitHover = () => {
+  hoveredDurationProfitIndex.value = null
+}
 </script>
 
 <template>
@@ -362,24 +449,24 @@ const clearPositionTimeHover = () => {
 
       <div v-if="hasRiskData" class="mt-12">
         <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'I · Аудит риска' : 'I · Risk audit' }}</div>
-        <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Средний риск по стоп-лоссу, средний фактический убыток и средний Risk / Reward по прибыльным сделкам.' : 'Average stop-loss risk, average realized loss and average Risk / Reward on profitable trades.' }}</div>
+        <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Медианный риск по стоп-лоссу, медианный фактический убыток и медианный Risk / Reward по прибыльным сделкам.' : 'Median stop-loss risk, median realized loss and median Risk / Reward on profitable trades.' }}</div>
         <div class="mt-8 bg-white/[0.025] p-3 sm:p-5">
           <svg :viewBox="`0 0 ${riskChartWidth} ${riskChartHeight}`" class="h-[16rem] w-full" role="img" :aria-label="isRu ? 'Сравнение планового риска и фактического убытка' : 'Planned risk compared with realized loss'">
             <line :x1="riskBaselineX" :x2="riskBaselineX" y1="28" y2="306" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
             <line v-if="riskBudgetX !== null" :x1="riskBudgetX" :x2="riskBudgetX" y1="22" y2="306" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 5" />
             <text v-if="riskBudgetX !== null" :x="riskBudgetX" y="14" text-anchor="middle" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatMoney(configuredRiskBudget || 0) }}</text>
 
-            <text :x="riskBaselineX + riskBarWidth(averagePlannedRisk) / 2" y="48" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск по стоп-лоссу (средний)' : 'Stop-loss risk (average)' }}</text>
-            <rect :x="riskBaselineX" y="58" :width="riskBarWidth(averagePlannedRisk)" height="42" fill="#f1f1f1" fill-opacity="0.88" />
-            <text :x="riskBaselineX + riskBarWidth(averagePlannedRisk) + 10" y="85" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averagePlannedRisk ? formatMoney(averagePlannedRisk) : '—' }}</text>
+            <text :x="riskBaselineX + riskBarWidth(medianPlannedRisk) / 2" y="48" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск по стоп-лоссу (медианный)' : 'Stop-loss risk (median)' }}</text>
+            <rect :x="riskBaselineX" y="58" :width="riskBarWidth(medianPlannedRisk)" height="42" fill="#f1f1f1" fill-opacity="0.88" />
+            <text :x="riskBaselineX + riskBarWidth(medianPlannedRisk) + 10" y="85" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianPlannedRisk ? formatMoney(medianPlannedRisk) : '—' }}</text>
 
-            <text :x="riskBaselineX + riskBarWidth(averageRealizedLoss) / 2" y="128" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Фактический убыток (средний)' : 'Realized loss (average)' }}</text>
-            <rect :x="riskBaselineX" y="138" :width="riskBarWidth(averageRealizedLoss)" height="42" fill="#64748b" fill-opacity="0.88" />
-            <text :x="riskBaselineX + riskBarWidth(averageRealizedLoss) + 10" y="165" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageRealizedLoss ? formatMoney(averageRealizedLoss) : '—' }}</text>
+            <text :x="riskBaselineX + riskBarWidth(medianRealizedLoss) / 2" y="128" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Фактический убыток (медианный)' : 'Realized loss (median)' }}</text>
+            <rect :x="riskBaselineX" y="138" :width="riskBarWidth(medianRealizedLoss)" height="42" fill="#64748b" fill-opacity="0.88" />
+            <text :x="riskBaselineX + riskBarWidth(medianRealizedLoss) + 10" y="165" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianRealizedLoss ? formatMoney(medianRealizedLoss) : '—' }}</text>
 
-            <text :x="riskBaselineX + riskRewardAuditBarWidth(averageProfitableRiskReward) / 2" y="208" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск / Награда по прибыльным сделкам (средний)' : 'Risk / Reward on profitable trades (average)' }}</text>
-            <rect :x="riskBaselineX" y="218" :width="riskRewardAuditBarWidth(averageProfitableRiskReward)" height="42" fill="#94a3b8" fill-opacity="0.88" />
-            <text :x="riskBaselineX + riskRewardAuditBarWidth(averageProfitableRiskReward) + 10" y="245" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ averageProfitableRiskReward ? `+${averageProfitableRiskReward.toFixed(2)}R` : '—' }}</text>
+            <text :x="riskBaselineX + riskRewardAuditBarWidth(medianProfitableRiskReward) / 2" y="208" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск / Награда по прибыльным сделкам (медианный)' : 'Risk / Reward on profitable trades (median)' }}</text>
+            <rect :x="riskBaselineX" y="218" :width="riskRewardAuditBarWidth(medianProfitableRiskReward)" height="42" fill="#94a3b8" fill-opacity="0.88" />
+            <text :x="riskBaselineX + riskRewardAuditBarWidth(medianProfitableRiskReward) + 10" y="245" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianProfitableRiskReward ? `+${medianProfitableRiskReward.toFixed(2)}R` : '—' }}</text>
 
             <text :x="riskBaselineX" y="328" text-anchor="middle" fill="white" fill-opacity="0.6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12">$0 / 0R</text>
           </svg>
@@ -457,8 +544,37 @@ const clearPositionTimeHover = () => {
           <div v-if="positionSizeDetails.average !== null" class="mt-8">
             <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'Подробности' : 'Details' }}</div>
             <div class="mt-2 font-serif text-sm text-white/70 sm:text-base">
-              {{ isRu ? 'Средний размер позиции' : 'Average position size' }} — <span class="font-mono font-semibold text-white">{{ positionSizeFormatted(positionSizeDetails.average) }}</span>; {{ isRu ? 'результат по самой большой позиции' : 'result on the largest position' }} ({{ positionSizeFormatted(positionSizeDetails.largest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ positionResultPercentFormatted(positionSizeDetails.largest?.resultPercent) }}</span>; {{ isRu ? 'по самой маленькой' : 'on the smallest' }} ({{ positionSizeFormatted(positionSizeDetails.smallest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ positionResultPercentFormatted(positionSizeDetails.smallest?.resultPercent) }}</span>.
+              {{ isRu ? 'Средний размер позиции' : 'Average position size' }} — <span class="font-mono font-semibold text-white">{{ positionSizeFormatted(positionSizeDetails.average) }}</span>; {{ isRu ? 'результат от капитала по самой большой позиции' : 'capital result on the largest position' }} ({{ positionSizeFormatted(positionSizeDetails.largest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ capitalResultPercentFormatted(positionSizeDetails.largest?.resultPercent) }}</span>; {{ isRu ? 'по самой маленькой' : 'on the smallest' }} ({{ positionSizeFormatted(positionSizeDetails.smallest?.positionSize ?? null) }}) — <span class="font-mono font-semibold text-white">{{ capitalResultPercentFormatted(positionSizeDetails.smallest?.resultPercent) }}</span>.
             </div>
+          </div>
+        </div>
+
+        <div v-if="durationProfitBuckets.length" class="mt-14">
+          <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ isRu ? 'IV · Прибыльность по длительности позиции' : 'IV · Profitability by holding time' }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ isRu ? 'Сделки разделены на короткие, средние и длинные по длительности; высота столбца показывает медианный результат от капитала.' : 'Trades are grouped into short, medium and long holding times; bar height shows the median capital return.' }}</div>
+          <div class="mt-8 bg-white/[0.025] p-3 sm:p-5">
+            <svg :viewBox="`0 0 ${durationProfitChartWidth} ${durationProfitChartHeight}`" class="h-[20rem] w-full" role="img" :aria-label="isRu ? 'Прибыльность по длительности позиции' : 'Profitability by holding time'" @mouseleave="clearDurationProfitHover">
+              <line :x1="durationProfitPlotLeft" :x2="durationProfitPlotRight" :y1="durationProfitZeroY" :y2="durationProfitZeroY" stroke="white" stroke-opacity="0.4" stroke-dasharray="4 5" />
+              <g v-for="tick in durationProfitYTicks" :key="`duration-profit-y-grid-${tick}`">
+                <line :x1="durationProfitPlotLeft" :x2="durationProfitPlotRight" :y1="durationProfitYFor(tick)" :y2="durationProfitYFor(tick)" stroke="white" stroke-opacity="0.06" />
+                <text :x="durationProfitPlotLeft - 14" :y="durationProfitYFor(tick) + 5" text-anchor="end" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="600">{{ capitalResultPercentFormatted(tick) }}</text>
+              </g>
+              <g v-for="bucket in durationProfitBuckets" :key="`duration-profit-bucket-${bucket.index}`" @mouseenter="handleDurationProfitHover($event, bucket)" @mousemove="handleDurationProfitHover($event, bucket)">
+                <rect :x="durationProfitBarX(bucket.index)" :y="durationProfitYFor(Math.max(0, bucket.medianResult))" :width="durationProfitBarWidth" :height="Math.abs(durationProfitYFor(bucket.medianResult) - durationProfitZeroY)" :fill="bucket.medianResult >= 0 ? '#f1f1f1' : '#64748b'" fill-opacity="0.88" />
+                <text :x="durationProfitBarX(bucket.index) + durationProfitBarWidth / 2" :y="durationProfitYFor(bucket.medianResult) + (bucket.medianResult >= 0 ? -10 : 22)" text-anchor="middle" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ capitalResultPercentFormatted(bucket.medianResult) }}</text>
+                <text :x="durationProfitBarX(bucket.index) + durationProfitBarWidth / 2" :y="durationProfitChartHeight - durationProfitPadding.bottom + 24" text-anchor="middle" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ bucket.label }}</text>
+                <text :x="durationProfitBarX(bucket.index) + durationProfitBarWidth / 2" :y="durationProfitChartHeight - durationProfitPadding.bottom + 42" text-anchor="middle" fill="white" fill-opacity="0.65" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" font-weight="600">{{ bucket.count }} {{ isRu ? 'сдел.' : 'trades' }}</text>
+              </g>
+              <text :x="durationProfitPlotLeft - 76" :y="durationProfitPadding.top + durationProfitPlotHeight / 2" text-anchor="middle" fill="white" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600" :transform="`rotate(-90 ${durationProfitPlotLeft - 76} ${durationProfitPadding.top + durationProfitPlotHeight / 2})`">{{ isRu ? 'Результат, %' : 'Return, %' }}</text>
+            </svg>
+            <Teleport to="body">
+              <div v-if="hoveredDurationProfitBucket" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${durationProfitTooltipPosition.x}px`, top: `${durationProfitTooltipPosition.y - 14}px` }" role="tooltip">
+                <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ hoveredDurationProfitBucket.label }}</div>
+                <div class="flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Диапазон' : 'Range' }}</span><span class="font-bold text-white">{{ durationProfitRangeFormatted(hoveredDurationProfitBucket.minHours, hoveredDurationProfitBucket.maxHours) }}</span></div>
+                <div class="mt-1 flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Сделки' : 'Trades' }}</span><span class="font-bold text-white">{{ hoveredDurationProfitBucket.count }}</span></div>
+                <div class="mt-1 flex min-w-[210px] items-center justify-between gap-5"><span class="text-white/85">{{ isRu ? 'Медианный результат' : 'Median return' }}</span><span class="font-bold text-white">{{ capitalResultPercentFormatted(hoveredDurationProfitBucket.medianResult) }}</span></div>
+              </div>
+            </Teleport>
           </div>
         </div>
 
