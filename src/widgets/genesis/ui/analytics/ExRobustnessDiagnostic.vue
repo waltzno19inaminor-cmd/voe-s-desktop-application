@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, toRefs } from 'vue'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
-import ExRobustnessEquityMap from './robustnessEquityMap/ExRobustnessEquityMap.vue'
 import { buildEquityStabilityMap } from './robustnessEquityMap/equityStabilityMap'
 import ExStrategyReportCover from './strategyReport/components/core/ExStrategyReportCover.vue'
 import ExStrategyReportTableOfContents from './strategyReport/components/core/ExStrategyReportTableOfContents.vue'
@@ -10,6 +9,7 @@ import ExTradeResultsDistributionSection from './strategyReport/sections/tradeDi
 import ExRiskExecutionSection from './strategyReport/sections/riskExecution/ExRiskExecutionSection.vue'
 import ExScenariosConditionsSection from './strategyReport/sections/scenariosConditions/ExScenariosConditionsSection.vue'
 import ExDrawdownsSection from './strategyReport/sections/drawdowns/ExDrawdownsSection.vue'
+import ExRobustnessDiagnosticsSection from './strategyReport/sections/robustness/ExRobustnessDiagnosticsSection.vue'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -64,11 +64,10 @@ const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value,
           :get-trade-pnl="getTradePnlFn"
         />
 
-        <ExRobustnessEquityMap
-          v-if="false"
-          :model="equityModel"
+        <ExRobustnessDiagnosticsSection
           :trades="filteredTrades"
           :get-trade-pnl="getTradePnlFn"
+          :initial-capital="strategyMetrics?.initialDeposit || 1000"
         />
       </div>
     </div>
