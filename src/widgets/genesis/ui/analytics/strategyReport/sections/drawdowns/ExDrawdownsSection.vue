@@ -39,7 +39,7 @@ const formatTradeValue = (value: unknown) => {
   return Number.isFinite(numeric) && typeof value !== 'boolean' ? numeric.toFixed(4) : String(value)
 }
 
-const formatDate = (value: unknown) => {
+const formatDate = (value: unknown, includeTime = true) => {
   if (value === null || value === undefined || value === '') return '—'
   const dateValue = value && typeof (value as any).toDate === 'function'
     ? (value as any).toDate()
@@ -49,7 +49,12 @@ const formatDate = (value: unknown) => {
         ? new Date(value < 1e12 ? value * 1000 : value)
         : new Date(String(value))
   return Number.isFinite(dateValue.getTime())
-    ? new Intl.DateTimeFormat(isRu.value ? 'ru-RU' : 'en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(dateValue)
+    ? new Intl.DateTimeFormat(isRu.value ? 'ru-RU' : 'en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        ...(includeTime ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : {})
+      }).format(dateValue)
     : '—'
 }
 
@@ -139,6 +144,8 @@ type DrawdownInsight = {
   id: string
   number: number
   depthPercent: number
+  startedAt: string
+  endedAt: string
   losingTrades: DrawdownTrade[]
 }
 
@@ -155,6 +162,10 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
     id: zone.id,
     number: index + 1,
     depthPercent: trough?.highWater > 0 ? (zone.value ?? 0) / trough.highWater * 100 : 0,
+    startedAt: formatDate(points.value[zone.startIndex]?.timestamp, false),
+    endedAt: zone.recoveryIndex === undefined
+      ? label('open', 'открыта')
+      : formatDate(points.value[zone.recoveryIndex]?.timestamp, false),
     losingTrades: losingTrades.map((trade, tradeIndex) => ({ ...trade, isWorst: tradeIndex === worstTradeIndex }))
   }
 }))
@@ -187,7 +198,7 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
           <div v-if="drawdownInsights.length" class="mt-5 space-y-5">
             <article v-for="insight in drawdownInsights" :key="insight.id" class="border border-white/10 bg-white/[0.025] p-4 sm:p-5">
               <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-white/10 pb-3">
-                <div class="font-serif text-base uppercase tracking-[0.16em] text-white/85">{{ label(`Drawdown ${insight.number}`, `Просадка ${insight.number}`) }}</div>
+                <div class="font-serif text-base uppercase tracking-[0.16em] text-white/85">{{ label(`Drawdown ${insight.number}`, `Просадка ${insight.number}`) }} · {{ insight.startedAt }} — {{ insight.endedAt }}</div>
                 <div class="font-mono text-sm font-semibold text-white">{{ formatPercent(insight.depthPercent) }}</div>
               </div>
 

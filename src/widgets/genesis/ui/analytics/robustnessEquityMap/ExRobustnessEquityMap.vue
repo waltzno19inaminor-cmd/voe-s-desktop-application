@@ -102,7 +102,6 @@ const growthPeriodZones = computed(() => {
   })
 })
 
-const formatted = (value: number) => Number.isFinite(value) ? value.toFixed(2) : '—'
 const label = (en: string, ru: string) => isRu.value ? ru : en
 const moneyFormatted = (value: number) => Number.isFinite(value) ? `-$${Math.abs(value).toFixed(2)}` : '—'
 const percentFormatted = (value: number) => Number.isFinite(value) ? `-${Math.abs(value).toFixed(2)}%` : '—'
@@ -206,12 +205,6 @@ const handleClick = (event: MouseEvent) => {
           <circle :cx="xFor(hoveredIndex)" :cy="yFor(points[hoveredIndex].equity)" r="6" fill="white" stroke="black" stroke-width="2" />
         </g>
 
-        <text :x="padding.left" :y="height - 7" fill="white" fill-opacity="0.45" font-size="9">1</text>
-        <text :x="width - padding.right" :y="height - 7" text-anchor="end" fill="white" fill-opacity="0.45" font-size="9">{{ points.length }}</text>
-        <text :x="width / 2" :y="height - 5" text-anchor="middle" fill="white" fill-opacity="0.45" font-size="9">X</text>
-        <text :x="padding.left - 8" :y="padding.top + 4" text-anchor="end" fill="white" fill-opacity="0.45" font-size="9">{{ formatted(maxValue) }}</text>
-        <text :x="padding.left - 8" :y="height - padding.bottom" text-anchor="end" fill="white" fill-opacity="0.45" font-size="9">{{ formatted(minValue) }}</text>
-        <text :x="padding.left - 26" :y="padding.top - 8" fill="white" fill-opacity="0.45" font-size="9">Y</text>
       </svg>
 
       <Teleport to="body">
