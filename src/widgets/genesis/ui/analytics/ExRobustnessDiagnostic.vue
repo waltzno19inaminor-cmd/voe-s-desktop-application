@@ -35,7 +35,7 @@ const selectedSectionId = ref<string | null>(null)
           @select="selectedSectionId = $event"
         />
 
-        <div class="report-scroll-area min-h-0 min-w-0 flex-1 overflow-y-auto">
+        <div class="report-scroll-area min-h-0 min-w-0 flex-1 overflow-y-auto pb-20">
         <ExStrategyReportCover
           v-if="!selectedSectionId"
           :strategy-name="strategyName"
@@ -109,7 +109,7 @@ const selectedSectionId = ref<string | null>(null)
 
 .report-scroll-area::-webkit-scrollbar-track {
   margin-top: 18px;
-  margin-bottom: 0;
+  margin-bottom: 18px;
   background: transparent;
 }
 
