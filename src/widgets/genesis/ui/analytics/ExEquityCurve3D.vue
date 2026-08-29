@@ -793,7 +793,7 @@
         </template>
 
         <!-- ROBUSTNESS CONTROLS: SHOWN ONLY AFTER DIAGNOSTICS IS OPEN -->
-        <template v-if="showDistribution3D">
+        <template v-if="showDistribution3D && !showRobustnessExplanations">
           <!-- EMPIRICAL KDE -->
           <button
             @click="setRobustnessMode('kde')"
@@ -1579,7 +1579,9 @@ const handleRobustnessDiagnosticsClick = () => {
   showMetricsPanel.value = false
 
   if (shouldOpenDiagnostics) {
-    setRobustnessMode('kde')
+    setRobustnessMode('explanations')
+  } else {
+    setRobustnessMode(null)
   }
 }
 
