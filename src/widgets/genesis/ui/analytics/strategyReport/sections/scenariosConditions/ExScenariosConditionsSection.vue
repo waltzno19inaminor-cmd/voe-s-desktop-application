@@ -162,7 +162,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
 <template>
   <section id="report-section-scenarios-conditions" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
-      <ExStrategyReportPageNumber page="04" total="07" />
+      <ExStrategyReportPageNumber page="04" total="06" />
       <div class="mt-12">
         <ExStrategyReportSectionHeading>{{ isRu ? 'Сценарии и условия' : 'Scenarios & Conditions' }}</ExStrategyReportSectionHeading>
         <ExStrategyReportSectionSubheading muted>{{ isRu ? 'Результаты в разрезе контекста, записанного в сделках.' : 'Results grouped by the context recorded in trades.' }}</ExStrategyReportSectionSubheading>

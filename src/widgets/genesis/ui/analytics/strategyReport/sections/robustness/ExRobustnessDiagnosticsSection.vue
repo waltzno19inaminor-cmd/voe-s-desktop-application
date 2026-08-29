@@ -259,7 +259,7 @@ const concentrationTrade = computed(() => {
 <template>
   <section id="report-section-robustness" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
-      <ExStrategyReportPageNumber page="06" total="07" />
+      <ExStrategyReportPageNumber page="06" total="06" />
       <div class="mt-12">
         <ExStrategyReportSectionHeading>{{ label('Robustness Diagnostics', 'Диагностика устойчивости') }}</ExStrategyReportSectionHeading>
         <ExStrategyReportSectionSubheading muted>{{ label('Independent checks of how dependent the result is on trade selection, timing and concentration.', 'Проверки того, насколько результат зависит от отдельных сделок, порядка и концентрации.') }}</ExStrategyReportSectionSubheading>

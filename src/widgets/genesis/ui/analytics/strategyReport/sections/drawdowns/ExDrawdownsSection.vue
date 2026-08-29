@@ -174,7 +174,7 @@ const drawdownInsights = computed<DrawdownInsight[]>(() => model.value.drawdowns
 <template>
   <section id="report-section-drawdowns" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
-      <ExStrategyReportPageNumber page="05" total="07" />
+      <ExStrategyReportPageNumber page="05" total="06" />
       <div class="mt-12">
         <ExStrategyReportSectionHeading>{{ isRu ? 'Просадки' : 'Drawdowns' }}</ExStrategyReportSectionHeading>
         <ExStrategyReportSectionSubheading muted>{{ isRu ? 'Глубина снижения капитала и периоды восстановления.' : 'Capital declines and recovery periods.' }}</ExStrategyReportSectionSubheading>

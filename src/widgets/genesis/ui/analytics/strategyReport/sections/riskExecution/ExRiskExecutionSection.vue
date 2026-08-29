@@ -461,7 +461,7 @@ const clearDurationProfitHover = () => {
 <template>
   <section id="report-section-risk-execution" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
-      <ExStrategyReportPageNumber page="03" total="07" />
+      <ExStrategyReportPageNumber page="03" total="06" />
       <div class="mt-12">
         <ExStrategyReportSectionHeading>{{ isRu ? 'Риск и исполнение' : 'Risk & Execution' }}</ExStrategyReportSectionHeading>
         <ExStrategyReportSectionSubheading muted>{{ isRu ? 'Стопы, цели, размер позиции, экспозиция и длительность удержания.' : 'Stops, targets, position sizing, exposure and holding time.' }}</ExStrategyReportSectionSubheading>

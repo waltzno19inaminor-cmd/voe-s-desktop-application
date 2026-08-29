@@ -42,10 +42,4 @@ export const strategyReportSections: StrategyReportSection[] = [
     title: { en: 'Robustness Diagnostics', ru: 'Диагностика устойчивости' },
     description: { en: 'Independent checks of the observed result.', ru: 'Независимые проверки наблюдаемого результата.' }
   },
-  {
-    id: 'data-methodology',
-    page: '07',
-    title: { en: 'Data & Methodology', ru: 'Данные и методология' },
-    description: { en: 'Definitions, coverage and calculation notes.', ru: 'Определения, полнота данных и примечания к расчётам.' }
-  }
 ]

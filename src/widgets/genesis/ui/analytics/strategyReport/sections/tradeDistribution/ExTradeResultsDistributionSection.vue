@@ -151,7 +151,7 @@ const clearBinHover = () => {
 <template>
   <section id="report-section-trade-distribution" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
-      <ExStrategyReportPageNumber page="02" total="07" />
+      <ExStrategyReportPageNumber page="02" total="06" />
       <div class="mt-12">
         <ExStrategyReportSectionHeading>{{ isRu ? 'Распределение результатов сделок' : 'Trade Results Distribution' }}</ExStrategyReportSectionHeading>
         <ExStrategyReportSectionSubheading muted>{{ isRu ? 'Форма и разброс индивидуальных результатов по сделкам.' : 'The shape and spread of individual trade outcomes.' }}</ExStrategyReportSectionSubheading>
