@@ -541,7 +541,7 @@
                 <button
                   type="button"
                   @click="closeToolsMenu(); showCalendarMode = false; showWinrateCurve = false; handleRobustnessDiagnosticsClick()"
-                  :aria-label="isRu ? 'Диагностика устойчивости' : 'Robustness diagnostics'"
+                  :aria-label="isRu ? 'Отчёты' : 'Reports'"
                   class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
                   :class="showDistribution3D ? 'bg-white/10 text-white' : ''"
                 >
@@ -551,7 +551,7 @@
                     <path d="M3 12c3-4 6-8 10-8s7 6 9 10" stroke-dasharray="3,3"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'ДИАГНОСТИКА_УСТОЙЧИВОСТИ' : 'ROBUSTNESS_DIAGNOSTICS' }}
+                    {{ isRu ? 'ОТЧЁТЫ' : 'REPORTS' }}
                   </span>
                 </button>
 

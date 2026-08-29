@@ -146,6 +146,93 @@ const handleBinHover = (event: MouseEvent, bin: DistributionBin) => {
 const clearBinHover = () => {
   hoveredBin.value = null
 }
+
+type DensityPoint = {
+  index: number
+  value: number
+  density: number
+}
+
+const densityChartWidth = 1000
+const densityChartHeight = 340
+const densityPadding = { top: 28, right: 24, bottom: 58, left: 72 }
+const densityPlotWidth = densityChartWidth - densityPadding.left - densityPadding.right
+const densityPlotHeight = densityChartHeight - densityPadding.top - densityPadding.bottom
+const densityPointCount = 96
+const densityDomain = computed(() => {
+  const min = Math.min(...pnlValues.value)
+  const max = Math.max(...pnlValues.value)
+  const spread = max - min
+  const margin = spread > 1e-9 ? spread * 0.08 : Math.max(Math.abs(min) * 0.1, 1)
+  return { min: min - margin, max: max + margin }
+})
+const densityBandwidth = computed(() => {
+  const values = pnlValues.value
+  const { min, max } = densityDomain.value
+  const domainSpread = Math.max(max - min, 1e-9)
+  if (values.length < 2) return domainSpread / 8
+
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length
+  const standardDeviation = Math.sqrt(variance)
+  const silverman = 1.06 * standardDeviation * Math.pow(values.length, -0.2)
+  return Math.min(domainSpread / 3, Math.max(domainSpread / 30, silverman || domainSpread / 8))
+})
+const densityPoints = computed<DensityPoint[]>(() => {
+  const values = pnlValues.value
+  if (!values.length) return []
+  const { min, max } = densityDomain.value
+  const bandwidth = densityBandwidth.value
+  const normalizer = values.length * bandwidth * Math.sqrt(2 * Math.PI)
+
+  return Array.from({ length: densityPointCount }, (_, index) => {
+    const value = min + (index / (densityPointCount - 1)) * (max - min)
+    const density = values.reduce((sum, observedValue) => {
+      const standardizedDistance = (value - observedValue) / bandwidth
+      return sum + Math.exp(-0.5 * standardizedDistance ** 2)
+    }, 0) / normalizer
+    return { index, value, density }
+  })
+})
+const densityMax = computed(() => Math.max(1e-9, ...densityPoints.value.map(point => point.density)))
+const densityXFor = (value: number) => {
+  const { min, max } = densityDomain.value
+  return densityPadding.left + ((value - min) / Math.max(max - min, 1e-9)) * densityPlotWidth
+}
+const densityYFor = (density: number) => densityPadding.top + densityPlotHeight - (density / densityMax.value) * densityPlotHeight
+const densityBaselineY = densityPadding.top + densityPlotHeight
+const densityLinePath = computed(() => densityPoints.value
+  .map((point, index) => `${index ? 'L' : 'M'} ${densityXFor(point.value).toFixed(2)} ${densityYFor(point.density).toFixed(2)}`)
+  .join(' '))
+const densityAreaPath = computed(() => {
+  const points = densityPoints.value
+  if (!points.length) return ''
+  const first = points[0]!
+  const last = points[points.length - 1]!
+  return `M ${densityXFor(first.value).toFixed(2)} ${densityBaselineY} ${points.map(point => `L ${densityXFor(point.value).toFixed(2)} ${densityYFor(point.density).toFixed(2)}`).join(' ')} L ${densityXFor(last.value).toFixed(2)} ${densityBaselineY} Z`
+})
+const densityXTicks = computed(() => {
+  const { min, max } = densityDomain.value
+  return Array.from({ length: 5 }, (_, index) => min + (index / 4) * (max - min))
+})
+const densityYTicks = computed(() => Array.from({ length: 4 }, (_, index) => (index / 3) * densityMax.value))
+const formatDensity = (value: number) => value < 0.1 ? value.toFixed(3) : value.toFixed(2)
+const hoveredDensityPoint = ref<DensityPoint | null>(null)
+const densityTooltipPosition = ref({ x: 0, y: 0 })
+const handleDensityHover = (event: MouseEvent) => {
+  const svg = event.currentTarget as SVGSVGElement
+  const bounds = svg.getBoundingClientRect()
+  const viewBoxX = ((event.clientX - bounds.left) / Math.max(bounds.width, 1)) * densityChartWidth
+  const nearest = densityPoints.value.reduce<DensityPoint | null>((closest, point) => {
+    if (!closest) return point
+    return Math.abs(densityXFor(point.value) - viewBoxX) < Math.abs(densityXFor(closest.value) - viewBoxX) ? point : closest
+  }, null)
+  hoveredDensityPoint.value = nearest
+  densityTooltipPosition.value = { x: event.clientX, y: event.clientY }
+}
+const clearDensityHover = () => {
+  hoveredDensityPoint.value = null
+}
 </script>
 
 <template>
@@ -183,6 +270,37 @@ const clearBinHover = () => {
             <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('From', 'От') }}</span><span class="font-bold text-white">{{ formatMoney(hoveredBin.start) }}</span></div>
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('To', 'До') }}</span><span class="font-bold text-white">{{ formatMoney(hoveredBin.end) }}</span></div>
             <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Trades', 'Сделки') }}</span><span class="font-bold text-white">{{ hoveredBin.count }}</span></div>
+          </div>
+        </Teleport>
+
+        <div class="mt-10">
+          <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('Empirical PnL density', 'Эмпирическая плотность PnL') }}</div>
+          <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The curve shows where observed trade results are concentrated: the higher it is, the more results are found near that PnL value.', 'Кривая показывает, где сосредоточены наблюдаемые результаты сделок: чем она выше, тем больше результатов находится рядом с этим значением PnL.') }}</div>
+          <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
+            <svg :viewBox="`0 0 ${densityChartWidth} ${densityChartHeight}`" class="h-[21rem] w-full" role="img" :aria-label="label('Empirical density of trade PnL', 'Эмпирическая плотность PnL сделок')" @mousemove="handleDensityHover" @mouseleave="clearDensityHover">
+              <g v-for="tick in densityYTicks" :key="`density-y-${tick}`">
+                <line :x1="densityPadding.left" :x2="densityChartWidth - densityPadding.right" :y1="densityYFor(tick)" :y2="densityYFor(tick)" stroke="white" stroke-opacity="0.06" />
+                <text :x="densityPadding.left - 12" :y="densityYFor(tick) + 5" text-anchor="end" fill="white" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600">{{ formatDensity(tick) }}</text>
+              </g>
+              <path :d="densityAreaPath" fill="#94a3b8" fill-opacity="0.16" />
+              <path :d="densityLinePath" fill="none" stroke="#cbd5e1" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+              <line :x1="densityPadding.left" :x2="densityChartWidth - densityPadding.right" :y1="densityBaselineY" :y2="densityBaselineY" stroke="white" stroke-opacity="0.32" />
+              <g v-for="tick in densityXTicks" :key="`density-x-${tick}`">
+                <line :x1="densityXFor(tick)" :x2="densityXFor(tick)" :y1="densityBaselineY" :y2="densityBaselineY + 7" stroke="white" stroke-opacity="0.42" />
+                <text :x="densityXFor(tick)" :y="densityChartHeight - 12" text-anchor="middle" fill="white" fill-opacity="0.78" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600">{{ formatCompactMoney(tick) }}</text>
+              </g>
+              <text :x="densityPadding.left - 48" :y="densityPadding.top + densityPlotHeight / 2" text-anchor="middle" fill="white" fill-opacity="0.72" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="600" transform="rotate(-90 24 160)">{{ label('Density', 'Плотность') }}</text>
+              <text v-if="hoveredDensityPoint" :x="densityXFor(hoveredDensityPoint.value)" :y="densityYFor(hoveredDensityPoint.density) - 12" text-anchor="middle" fill="white" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatCompactMoney(hoveredDensityPoint.value) }}</text>
+              <circle v-if="hoveredDensityPoint" :cx="densityXFor(hoveredDensityPoint.value)" :cy="densityYFor(hoveredDensityPoint.density)" r="6" fill="#f8fafc" stroke="#64748b" stroke-width="3" />
+            </svg>
+          </div>
+        </div>
+
+        <Teleport to="body">
+          <div v-if="hoveredDensityPoint" class="pointer-events-none fixed z-[2147483647] -translate-x-1/2 -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${densityTooltipPosition.x}px`, top: `${densityTooltipPosition.y - 14}px` }" role="tooltip">
+            <div class="mb-2 border-b border-white/25 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white/95">{{ label('Empirical density', 'Эмпирическая плотность') }}</div>
+            <div class="flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">PnL</span><span class="font-bold text-white">{{ formatMoney(hoveredDensityPoint.value) }}</span></div>
+            <div class="mt-1 flex min-w-[190px] items-center justify-between gap-5"><span class="text-white/85">{{ label('Density', 'Плотность') }}</span><span class="font-bold text-white">{{ formatDensity(hoveredDensityPoint.density) }}</span></div>
           </div>
         </Teleport>
 
