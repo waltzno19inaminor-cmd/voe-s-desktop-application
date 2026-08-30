@@ -65,11 +65,11 @@
 
       <!-- Core Icon -->
 	      <div class="relative w-20 h-20 flex items-center justify-center mb-2 shrink-0">
-	        <div class="absolute inset-0 border-2 animate-[spin_10s_linear_infinite] border-[#2c2c2a]/40"></div>
-	        <div class="absolute inset-3 border animate-[spin_6s_linear_infinite_reverse] border-[#2c2c2a]/60"></div>
-	        <div class="w-3 h-3 rotate-45 animate-pulse bg-[#2c2c2a]"></div>
-	        <div class="absolute -top-3 -left-3 w-5 h-5 border-t-2 border-l-2 border-[#2c2c2a]"></div>
-	        <div class="absolute -bottom-3 -right-3 w-5 h-5 border-b-2 border-r-2 border-[#2c2c2a]"></div>
+	        <div class="initialization-logo-line absolute inset-0 border-2 animate-[spin_10s_linear_infinite]"></div>
+	        <div class="initialization-logo-line absolute inset-3 border animate-[spin_6s_linear_infinite_reverse]"></div>
+	        <div class="initialization-logo-core w-3 h-3 rotate-45 animate-pulse"></div>
+	        <div class="initialization-logo-line absolute -top-3 -left-3 w-5 h-5 border-t-2 border-l-2"></div>
+	        <div class="initialization-logo-line absolute -bottom-3 -right-3 w-5 h-5 border-b-2 border-r-2"></div>
 	      </div>
 
       <!-- Identity -->
@@ -1047,6 +1047,16 @@ onBeforeUnmount(() => {
   transition: background-color 900ms ease, color 900ms ease;
 }
 
+.initialization-logo-line {
+  border-color: #2c2c2a !important;
+  transition: border-color 900ms ease;
+}
+
+.initialization-logo-core {
+  background-color: #2c2c2a !important;
+  transition: background-color 900ms ease;
+}
+
 .ex-initialization :deep(.gradflow-background),
 .ex-initialization :deep(.gradflow-canvas),
 .ex-initialization :deep(.gradflow-canvas canvas) {
@@ -1169,6 +1179,14 @@ onBeforeUnmount(() => {
 .ex-initialization.is-startup .text-theme-text,
 .ex-initialization.is-startup .nier-text-primary {
   color: var(--startup-light) !important;
+}
+
+.ex-initialization.is-startup .initialization-logo-line {
+  border-color: var(--startup-light) !important;
+}
+
+.ex-initialization.is-startup .initialization-logo-core {
+  background-color: var(--startup-light) !important;
 }
 
 .ex-initialization.is-startup h1,
