@@ -66,7 +66,14 @@ let roundsListenerKey: string | null = null
 let leaderboardUnsubscribe: (() => void) | null = null
 let leaderboardListenerKey: string | null = null
 let leaderboardProfileLoadId = 0
-const leaderboardProfileCache = new Map<string, { displayName: string; photoURL: string }>()
+const leaderboardProfileCache = new Map<string, {
+  displayName: string
+  photoURL: string
+  sourceURL: string
+}>()
+const leaderboardProfileUnsubscribes = new Map<string, () => void>()
+const leaderboardAvatarLoadVersions = new Map<string, number>()
+const pendingLeaderboardProfiles = new Set<string>()
 let participantUnsubscribe: (() => void) | null = null
 
 export function initTournamentListener() {
@@ -181,6 +188,7 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
   terminateLeaderboardListener()
   leaderboardListenerKey = listenerKey
   isLeaderboardNamesReady.value = false
+  const profileLoadId = leaderboardProfileLoadId
 
   const leaderboardCol = collection(db, 'tournaments', eventId, 'seasons', seasonId, 'leaderboard')
   const leaderboardQuery = query(leaderboardCol, orderBy('points', 'desc'))
@@ -192,10 +200,9 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
       userId: leaderboardSnapshot.id
     }) as TournamentLeaderboardEntry)
     leaderboardEntries.value = entries
-
-    const profileLoadId = ++leaderboardProfileLoadId
-    void loadLeaderboardDisplayNames(entries, listenerKey, profileLoadId)
+    syncLeaderboardProfileListeners(entries, listenerKey, profileLoadId)
   }, (err) => {
+    terminateLeaderboardProfileListeners()
     isLeaderboardReady.value = true
     isLeaderboardNamesReady.value = true
     leaderboardDisplayNames.value = {}
@@ -205,48 +212,91 @@ function initLeaderboardListener(eventId: string, seasonId: string) {
   })
 }
 
-async function loadLeaderboardDisplayNames(
+function syncLeaderboardProfileListeners(
   entries: TournamentLeaderboardEntry[],
   listenerKey: string,
   profileLoadId: number
-) {
-  if (!entries.length) {
-    if (leaderboardListenerKey !== listenerKey || leaderboardProfileLoadId !== profileLoadId) return
-    leaderboardDisplayNames.value = {}
-    leaderboardPhotoUrls.value = {}
-    isLeaderboardNamesReady.value = true
-    return
+): void {
+  const activeUserIds = new Set(entries.map((entry) => entry.userId))
+
+  for (const [userId, unsubscribe] of leaderboardProfileUnsubscribes) {
+    if (activeUserIds.has(userId)) continue
+    unsubscribe()
+    leaderboardProfileUnsubscribes.delete(userId)
+    leaderboardAvatarLoadVersions.delete(userId)
+    pendingLeaderboardProfiles.delete(userId)
   }
 
-  const profiles = await Promise.all(entries.map(async (entry) => {
-    try {
-      const userData = (await getDoc(doc(db, 'users', entry.userId))).data()
-      return {
-        userId: entry.userId,
-        profile: {
-          displayName: String(userData?.displayName || '').trim(),
-          photoURL: await resolveLeaderboardPhotoUrl(
-            userData?.avatarUrl || userData?.photoURL || userData?.photoUrl
-          )
-        }
-      }
-    } catch (err) {
-      console.warn(`[Tournament] Failed to load leaderboard profile for ${entry.userId}:`, err)
-      return { userId: entry.userId, profile: null }
-    }
-  }))
+  for (const userId of activeUserIds) {
+    if (leaderboardProfileUnsubscribes.has(userId)) continue
+    if (!leaderboardProfileCache.has(userId)) pendingLeaderboardProfiles.add(userId)
 
-  // Firestore can emit a cached snapshot and then a server snapshot. Their
-  // profile reads finish in arbitrary order, so stale reads must be ignored.
-  if (leaderboardListenerKey !== listenerKey || leaderboardProfileLoadId !== profileLoadId) return
+    const unsubscribe = onSnapshot(doc(db, 'users', userId), (snapshot) => {
+      if (!isCurrentLeaderboardProfileLoad(listenerKey, profileLoadId)) return
+      const userData = snapshot.exists() ? snapshot.data() : null
+      applyLeaderboardProfile(userId, userData, listenerKey, profileLoadId)
+      pendingLeaderboardProfiles.delete(userId)
+      updateLeaderboardNamesReady(listenerKey, profileLoadId)
+    }, (error) => {
+      console.warn(`[Tournament] Failed to watch leaderboard profile for ${userId}:`, error)
+      pendingLeaderboardProfiles.delete(userId)
+      updateLeaderboardNamesReady(listenerKey, profileLoadId)
+    })
+    leaderboardProfileUnsubscribes.set(userId, unsubscribe)
+  }
 
-  profiles.forEach(({ userId, profile }) => {
-    if (profile) leaderboardProfileCache.set(userId, profile)
+  publishLeaderboardProfiles()
+  updateLeaderboardNamesReady(listenerKey, profileLoadId)
+}
+
+function applyLeaderboardProfile(
+  userId: string,
+  userData: Record<string, any> | null,
+  listenerKey: string,
+  profileLoadId: number
+): void {
+  const displayName = String(userData?.displayName || '').trim()
+  const sourceURL = normalizeAvatarSource(
+    userData?.avatarUrl || userData?.photoURL || userData?.photoUrl
+  )
+  const previous = leaderboardProfileCache.get(userId)
+  const photoURL = previous?.sourceURL === sourceURL ? previous.photoURL : ''
+
+  leaderboardProfileCache.set(userId, { displayName, photoURL, sourceURL })
+  publishLeaderboardProfiles()
+
+  const avatarLoadVersion = (leaderboardAvatarLoadVersions.get(userId) || 0) + 1
+  leaderboardAvatarLoadVersions.set(userId, avatarLoadVersion)
+  if (!sourceURL) return
+
+  void resolveLeaderboardPhotoUrl(sourceURL).then((resolvedPhotoURL) => {
+    if (!isCurrentLeaderboardProfileLoad(listenerKey, profileLoadId)) return
+    if (leaderboardAvatarLoadVersions.get(userId) !== avatarLoadVersion) return
+
+    const current = leaderboardProfileCache.get(userId)
+    if (!current || current.sourceURL !== sourceURL) return
+    leaderboardProfileCache.set(userId, {
+      ...current,
+      photoURL: resolvedPhotoURL
+    })
+    publishLeaderboardProfiles()
+  }).catch((error) => {
+    console.warn(`[Tournament] Failed to resolve leaderboard avatar for ${userId}:`, error)
   })
+}
 
-  const resolvedProfiles = entries.map((entry) => ({
+function normalizeAvatarSource(value: unknown): string {
+  return String(value || '').trim().replace(/^(?:'|")|(?:'|")$/g, '')
+}
+
+function publishLeaderboardProfiles(): void {
+  const resolvedProfiles = leaderboardEntries.value.map((entry) => ({
     userId: entry.userId,
-    ...(leaderboardProfileCache.get(entry.userId) || { displayName: '', photoURL: '' })
+    ...(leaderboardProfileCache.get(entry.userId) || {
+      displayName: '',
+      photoURL: '',
+      sourceURL: ''
+    })
   }))
 
   leaderboardDisplayNames.value = Object.fromEntries(
@@ -259,11 +309,26 @@ async function loadLeaderboardDisplayNames(
       .filter((profile) => profile.photoURL)
       .map((profile) => [profile.userId, profile.photoURL])
   )
-  isLeaderboardNamesReady.value = true
+}
+
+function updateLeaderboardNamesReady(listenerKey: string, profileLoadId: number): void {
+  if (!isCurrentLeaderboardProfileLoad(listenerKey, profileLoadId)) return
+  isLeaderboardNamesReady.value = pendingLeaderboardProfiles.size === 0
+}
+
+function isCurrentLeaderboardProfileLoad(listenerKey: string, profileLoadId: number): boolean {
+  return leaderboardListenerKey === listenerKey && leaderboardProfileLoadId === profileLoadId
+}
+
+function terminateLeaderboardProfileListeners(): void {
+  for (const unsubscribe of leaderboardProfileUnsubscribes.values()) unsubscribe()
+  leaderboardProfileUnsubscribes.clear()
+  leaderboardAvatarLoadVersions.clear()
+  pendingLeaderboardProfiles.clear()
 }
 
 async function resolveLeaderboardPhotoUrl(value: unknown): Promise<string> {
-  const rawValue = String(value || '').trim().replace(/^(?:'|")|(?:'|")$/g, '')
+  const rawValue = normalizeAvatarSource(value)
   if (!rawValue) return ''
 
   try {
@@ -287,6 +352,7 @@ function terminateLeaderboardListener(markReady = false) {
     leaderboardUnsubscribe()
     leaderboardUnsubscribe = null
   }
+  terminateLeaderboardProfileListeners()
   leaderboardProfileLoadId += 1
   leaderboardListenerKey = null
   leaderboardEntries.value = []

@@ -1,8 +1,8 @@
 import { useAuthStore } from "~/entities/user/auth.store";
-import { auth as firebaseAuth, db } from "~/shared/firebase.client";
+import { auth as firebaseAuth } from "~/shared/firebase.client";
 import { GoogleAuthProvider, signInWithPopup, signInWithCredential } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
+import { syncGoogleProfile } from '~/entities/user/model/sync-google-profile'
 
 import { open } from '@tauri-apps/plugin-shell';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
@@ -201,17 +201,5 @@ export const googleLogin = async () => {
 
 
 export async function ensureUserDocument(user: any) {
-  const userRef = doc(db, 'users', user.uid)
-  const snap = await getDoc(userRef)
-
-  if (!snap.exists()) {
-    await setDoc(userRef, {
-      displayName: user.displayName || user.email,
-      email: user.email,
-      photoURL: user.photoURL || null,
-      role: 'member',
-      joinedAt: serverTimestamp()
-    })
-  }
-
+  await syncGoogleProfile(user)
 }

@@ -2,6 +2,7 @@ import { useAuthStore } from "~/entities/user/auth.store";
 import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
 import { auth as firebaseAuth } from "~/shared/firebase.client";
 import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
+import { syncGoogleProfile } from '~/entities/user/model/sync-google-profile'
 
 export const useAuthInit = async () => {
     const auth = useAuthStore();
@@ -50,6 +51,11 @@ export const useAuthInit = async () => {
     void auth.setUser(profile)
 
     if (user) {
+        if (user.providerData.some((provider) => provider.providerId === 'google.com')) {
+            void syncGoogleProfile(user).catch((error) => {
+                console.warn('[Auth] Failed to synchronize Google profile:', error)
+            })
+        }
         void getCachedAvatarUrl(user.photoURL)
             .then((avatarUrl) => auth.setAvatarUrl(user.uid, avatarUrl))
             .catch(() => {})

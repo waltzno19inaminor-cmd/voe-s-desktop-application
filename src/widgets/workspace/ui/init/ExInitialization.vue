@@ -331,7 +331,7 @@ import {
   signInWithPopup,
   signInWithCredential
 } from 'firebase/auth'
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { auth as firebaseAuth, db } from '~/shared/firebase.client'
 import { useThemeStore } from '~/features/store/useTheme'
@@ -426,6 +426,7 @@ const phase = ref<'update' | 'auth' | 'boot' | 'ready'>('update')
 
 import { useAppBootStore } from '~/features/store/useAppBoot'
 import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
+import { syncGoogleProfile } from '~/entities/user/model/sync-google-profile'
 
 const appBootStore = useAppBootStore()
 
@@ -778,17 +779,7 @@ const startBoot = async () => {
 
 // ── Helpers ──
 const ensureUserDocument = async (user: any) => {
-  const userRef = doc(db, 'users', user.uid)
-  const snap = await getDoc(userRef)
-  if (!snap.exists()) {
-    await setDoc(userRef, {
-      displayName: user.displayName || user.email,
-      email: user.email,
-      photoURL: user.photoURL || null,
-      role: 'member',
-      joinedAt: serverTimestamp()
-    })
-  }
+  await syncGoogleProfile(user)
   await authStore.setUser({
     uid: user.uid,
     email: user.email,

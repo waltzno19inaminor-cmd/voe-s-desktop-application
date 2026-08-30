@@ -19,6 +19,11 @@ export async function getCachedAvatarUrl(source: unknown): Promise<string | null
 }
 
 async function loadCachedAvatar(sourceUrl: string): Promise<string | null> {
+  if (isTauriRuntime()) {
+    const { invoke } = await import('@tauri-apps/api/core')
+    return await invoke<string>('cache_google_avatar', { sourceUrl })
+  }
+
   if (typeof caches === 'undefined') return null
 
   const cache = await caches.open(AVATAR_CACHE_NAME)
@@ -43,6 +48,10 @@ async function loadCachedAvatar(sourceUrl: string): Promise<string | null> {
   const objectUrl = URL.createObjectURL(image)
   objectUrls.set(sourceUrl, objectUrl)
   return objectUrl
+}
+
+function isTauriRuntime(): boolean {
+  return typeof window !== 'undefined' && Boolean((window as any).__TAURI_INTERNALS__)
 }
 
 async function fetchGoogleAvatar(url: string): Promise<Response> {

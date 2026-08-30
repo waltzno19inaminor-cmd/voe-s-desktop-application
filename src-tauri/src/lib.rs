@@ -1,6 +1,7 @@
 use tauri::{Emitter, Manager};
 
 mod audio_recorder;
+mod avatar_cache;
 mod benchmark;
 mod binance;
 mod bybit;
@@ -34,6 +35,7 @@ pub fn run() {
             audio_recorder::native_audio_pause,
             audio_recorder::native_audio_resume,
             audio_recorder::native_audio_stop,
+            avatar_cache::cache_google_avatar,
             benchmark::get_benchmark_and_beta,
             benchmark::get_historical_curves,
             binance::binance_signed_request,

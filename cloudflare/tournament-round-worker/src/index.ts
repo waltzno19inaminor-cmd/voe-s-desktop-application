@@ -111,6 +111,7 @@ interface TournamentRunResult {
   status: 'settled' | 'cancelled' | 'recalculated' | 'skipped' | 'failed'
   reason?: string
   seasonId?: string
+  seasonClosed?: boolean
   closedRoundId?: string
   cancelledRoundId?: string
   recalculatedRoundId?: string
@@ -341,6 +342,8 @@ async function settleTournament(input: {
   }
 
   const season = openedSeasons[0]
+  const seasonEndsAt = readOptionalDate(season.data.endsAt)
+  const seasonIsEnding = seasonEndsAt !== null && seasonEndsAt.getTime() <= nowMs
   const seasonOrdinal = seasons.findIndex((entry) => entry.id === season.id) + 1
   if (seasonOrdinal < 1) {
     throw new Error(`Could not determine ordinal for opened season ${season.id}.`)
@@ -400,12 +403,15 @@ async function settleTournament(input: {
         fields: {
           status: 'cancelled',
           cancelReason: cancellationReason,
-          nextRoundId
+          ...(seasonIsEnding ? {} : { nextRoundId })
         },
         serverTimestampFields: ['cancelledAt'],
         precondition: requireUpdateTime(round, 'opened round')
-      }),
-      makeUpdateWrite({
+      })
+    ]
+
+    if (!seasonIsEnding) {
+      cancellationWrites.push(makeUpdateWrite({
         name: nextRoundName,
         fields: {
           status: 'opened',
@@ -415,8 +421,14 @@ async function settleTournament(input: {
         },
         serverTimestampFields: ['createdAt'],
         precondition: { exists: false }
-      })
-    ]
+      }))
+    } else {
+      cancellationWrites.push(makeUpdateWrite({
+        name: season.name,
+        fields: { status: 'closed' },
+        precondition: requireUpdateTime(season, 'season')
+      }))
+    }
 
     if (!dryRun) {
       await firestore.commit(cancellationWrites)
@@ -427,7 +439,8 @@ async function settleTournament(input: {
       seasonId: season.id,
       status: 'cancelled',
       cancelledRoundId: round.id,
-      openedRoundId: nextRoundId,
+      seasonClosed: seasonIsEnding,
+      ...(seasonIsEnding ? {} : { openedRoundId: nextRoundId }),
       reason: cancellationReason
     }
   }
@@ -601,23 +614,33 @@ async function settleTournament(input: {
     fields: {
       status: 'closed',
       assetResults,
-      nextRoundId
+      ...(seasonIsEnding ? {} : { nextRoundId })
     },
     serverTimestampFields: ['resolvedAt'],
     precondition: requireUpdateTime(round, 'opened round')
   }))
 
-  writes.push(makeUpdateWrite({
-    name: nextRoundName,
-    fields: {
-      status: 'opened',
-      startsAt: nextStartsAt,
-      endsAt: nextEndsAt,
-      previousRoundId: round.id
-    },
-    serverTimestampFields: ['createdAt'],
-    precondition: { exists: false }
-  }))
+  if (seasonIsEnding && !writes.some((write) => write.update.name === season.name)) {
+    writes.push(makeUpdateWrite({
+      name: season.name,
+      fields: { status: 'closed' },
+      precondition: requireUpdateTime(season, 'season')
+    }))
+  }
+
+  if (!seasonIsEnding) {
+    writes.push(makeUpdateWrite({
+      name: nextRoundName,
+      fields: {
+        status: 'opened',
+        startsAt: nextStartsAt,
+        endsAt: nextEndsAt,
+        previousRoundId: round.id
+      },
+      serverTimestampFields: ['createdAt'],
+      precondition: { exists: false }
+    }))
+  }
 
   if (writes.length > MAX_ATOMIC_WRITES) {
     throw new Error(
@@ -633,8 +656,9 @@ async function settleTournament(input: {
     tournamentId,
     seasonId: season.id,
     status: 'settled',
+    seasonClosed: seasonIsEnding,
     closedRoundId: round.id,
-    openedRoundId: nextRoundId,
+    ...(seasonIsEnding ? {} : { openedRoundId: nextRoundId }),
     predictionsProcessed: predictions.length,
     usersUpdated: userDeltas.size,
     seasonPrizesAwarded: seasonPrizePlan.prizeByUserId.size,
@@ -868,6 +892,7 @@ async function buildSeasonPrizeAwardPlan(input: {
     makeUpdateWrite({
       name: input.season.name,
       fields: {
+        status: 'closed',
         prizesAwarded: true,
         prizeWinners: winners
       },
@@ -2409,6 +2434,10 @@ function requireDate(value: unknown, fieldName: string): Date {
     throw new Error(`${fieldName} must be a Firestore Timestamp.`)
   }
   return value
+}
+
+function readOptionalDate(value: unknown): Date | null {
+  return value instanceof Date && Number.isFinite(value.getTime()) ? value : null
 }
 
 function requireArray(value: unknown, fieldName: string): unknown[] {
