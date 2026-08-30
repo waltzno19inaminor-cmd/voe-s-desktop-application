@@ -334,12 +334,12 @@ onMounted(async () => {
 })
 
 const dashboardGradflowConfig = {
-  color1: { r: 250, g: 235, b: 255 },
+  color1: { r: 0, g: 0, b: 0 },
   color2: { r: 220, g: 219, b: 255 },
-  color3: { r: 235, g: 252, b: 255 },
-  speed: 0.5,
-  scale: 2,
-  type: 'smoke' as const,
+  color3: { r: 195, g: 173, b: 255 },
+  speed: 0.2,
+  scale: 1.2,
+  type: 'aurora' as const,
   noise: 0.08
 }
 
