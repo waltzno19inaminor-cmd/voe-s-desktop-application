@@ -17,7 +17,7 @@ if (args.help) {
   process.exit(0)
 }
 
-for (const required of ['channel', 'version', 'platform', 'dir', 'out']) {
+for (const required of ['channel', 'version', 'minimumNativeVersion', 'platform', 'dir', 'out']) {
   if (!args[required]) fail(`Missing --${kebab(required)}`)
 }
 
@@ -41,6 +41,7 @@ const manifest = {
   channel: args.channel,
   appIdentifier: channel.appIdentifier,
   version: args.version,
+  minimumNativeVersion: args.minimumNativeVersion,
   platform: args.platform,
   baseUrl: args.baseUrl || null,
   files,
@@ -234,12 +235,13 @@ function printHelp() {
   console.log(`Usage:
   npm run payload:manifest -- \\
     --channel release \\
-    --version 1.0.6 \\
-    --platform macos-universal \\
+    --version 1.0.95 \\
+    --minimum-native-version 1.0.89 \\
+    --platform any \\
     --dir .output/public \\
-    --base-url https://example.com/releases/1.0.6/public/ \\
+    --base-url https://example.com/releases/1.0.95/public/ \\
     --tauri-signer-key-path .secrets/hotfix/jlj-hotfix.key \\
-    --out dist/payload/1.0.6/payload-manifest.json
+    --out dist/payload/1.0.95/payload-manifest.json
 
 The manifest lists every file in the generated frontend payload. The app
 downloads only files whose sha256 is not already present in the active payload

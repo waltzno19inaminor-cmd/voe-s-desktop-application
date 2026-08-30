@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "J.L.JÖRMUNGANDR",
-  "version": "1.0.88",
+  "version": "1.0.89",
   "identifier": "com.voe.app",
   "build": {
     "frontendDist": "../.output/public",
@@ -31,6 +31,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "resources": [
       "python/mt5_service.py",
       "resources/mt5/ExportTrades.ex5",

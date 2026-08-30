@@ -21,15 +21,17 @@ Generate a manifest:
 ```bash
 npm run payload:manifest -- \
   --channel release \
-  --version 1.0.6 \
-  --platform macos-universal \
+  --version 1.0.95 \
+  --minimum-native-version 1.0.89 \
+  --platform any \
   --dir .output/public \
-  --base-url https://example.com/releases/1.0.6/public/ \
+  --base-url https://example.com/releases/1.0.95/public/ \
   --tauri-signer-key-path .secrets/hotfix/jlj-hotfix.key \
-  --out dist/payload/1.0.6/payload-manifest.json
+  --out dist/payload/1.0.95/payload-manifest.json
 ```
 
-Upload the complete `.output/public` tree, `payload-manifest.json`, and
+`minimumNativeVersion` is the oldest Rust/Tauri shell that is allowed to run
+the payload. Upload `payload.zip`, `patch.zip`, `payload-manifest.json`, and
 `payload-manifest.json.minisig` to the same hosted release directory. The app
 verifies the manifest signature first, then uses the manifest as the source of
 truth: every file listed there must exist locally after install, with the exact
@@ -42,8 +44,9 @@ listed size and SHA-256.
 - `payload_update_clear`
 
 `payload_update_install_from_feed` accepts a `manifestUrl`. It downloads the
-manifest, validates app id/platform/version, stages the target tree, verifies all
-hashes, then atomically replaces `JLJData/patches/active-web`.
+manifest, validates app id/platform/version and `minimumNativeVersion`, stages
+the target tree, verifies all hashes, then atomically replaces
+`JLJData/patches/active-web`.
 
 ## Release channels
 
@@ -78,5 +81,17 @@ progress bar before continuing.
 ## Current scope
 
 This updates the frontend payload fully. Native/Rust/Tauri shell changes still
-require a normal Tauri full update. The normal Tauri updater is also checked at
-startup and uses the endpoint baked into its channel-specific Tauri config.
+use the normal signed Tauri update. Startup always checks that update first. If
+the installed native version is `1.0.88`, the channel contains native `1.0.89`,
+and payload `1.0.95` requires native `1.0.89`, the app installs native `1.0.89`,
+restarts, and only then offers payload `1.0.95`. Rust validates the same rule,
+so the payload cannot bypass it.
+
+The release workflow publishes both update layers to the same channel release.
+Tauri's `latest.json` selects the signed updater artifact for the running OS and
+architecture. Manual installer assets such as `.dmg` and `.exe` may coexist in
+the release, but the app uses Tauri updater bundles (`.app.tar.gz`, NSIS updater
+packages, and future supported platform packages) instead of guessing by file
+extension. `bundle.createUpdaterArtifacts` must remain enabled in
+`src-tauri/tauri.conf.json`; `bundle.targets: "all"` alone only creates manual
+installer bundles.

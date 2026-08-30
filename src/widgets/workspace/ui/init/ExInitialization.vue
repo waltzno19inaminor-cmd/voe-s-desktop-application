@@ -98,10 +98,22 @@
           <!-- Install Button (Full Width) -->
           <button
             @click="confirmAndInstallUpdate"
+            :disabled="pendingUpdate.isSuitable === false"
             class="w-full py-3 font-mono text-[9px] tracking-[0.3em] uppercase font-black transition-all hover:opacity-90 flex items-center justify-center space-x-2 bg-white !text-black shadow-lg"
+            :class="{ 'cursor-not-allowed opacity-40': pendingUpdate.isSuitable === false }"
           >
-            <span>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
+            <span v-if="pendingUpdate.isSuitable === false">{{ locale === 'ru' ? 'Сначала обновите приложение' : 'Update the application first' }}</span>
+            <span v-else>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
           </button>
+
+          <p class="text-center text-[9px] font-mono text-black/60">
+            {{ pendingUpdate.type === 'native'
+              ? (locale === 'ru' ? `Нативная версия ${pendingUpdate.version}` : `Native version ${pendingUpdate.version}`)
+              : `Payload ${pendingUpdate.version}` }}
+          </p>
+          <p v-if="pendingUpdate.reason" class="text-center text-[9px] font-mono text-red-700/80">
+            {{ pendingUpdate.reason }}
+          </p>
 
           <!-- Skip Text Link (Below Install Button) -->
           <button
@@ -352,13 +364,44 @@ interface AvailableUpdate {
   notes?: string
   nativeUpdateObj?: any
   manifestUrl?: string
+  minimumNativeVersion?: string
   isSuitable?: boolean
   reason?: string
 }
 
-const baseVersion = String(tauriConfig.version || pkg.version || '1.0.88')
+const baseVersion = String(tauriConfig.version || pkg.version || '1.0.89')
+const installedNativeVersion = ref(baseVersion)
 const activePayloadVersion = ref<string | null>(null)
-const appVersion = computed(() => activePayloadVersion.value || baseVersion)
+const appVersion = computed(() => activePayloadVersion.value || installedNativeVersion.value)
+
+const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
+  const normalize = (value: string) => value.replace(/^[vV]/, '').trim().split('+')[0]
+  const [remoteCore, remotePrerelease = ''] = normalize(remoteVer).split('-', 2)
+  const [currentCore, currentPrerelease = ''] = normalize(currentVer).split('-', 2)
+  const remoteParts = remoteCore.split('.').map(part => Number.parseInt(part, 10) || 0)
+  const currentParts = currentCore.split('.').map(part => Number.parseInt(part, 10) || 0)
+  const length = Math.max(remoteParts.length, currentParts.length)
+
+  for (let index = 0; index < length; index += 1) {
+    const remote = remoteParts[index] || 0
+    const current = currentParts[index] || 0
+    if (remote > current) return true
+    if (remote < current) return false
+  }
+
+  if (!remotePrerelease && currentPrerelease) return true
+  if (remotePrerelease && !currentPrerelease) return false
+  return remotePrerelease.localeCompare(currentPrerelease, undefined, { numeric: true }) > 0
+}
+
+const currentPlatformFamily = (): 'macos' | 'windows' | 'linux' | null => {
+  if (typeof navigator === 'undefined') return null
+  const platform = `${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase()
+  if (platform.includes('mac')) return 'macos'
+  if (platform.includes('win')) return 'windows'
+  if (platform.includes('linux')) return 'linux'
+  return null
+}
 
 const initializationGradflowConfig = {
   color1: { r: 0, g: 0, b: 0 },
@@ -555,7 +598,7 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
     if (localState?.active && localState?.version) {
       activePayloadVersion.value = localState.version
     }
-    const activeVersion = activePayloadVersion.value || baseVersion
+    const activeVersion = activePayloadVersion.value || installedNativeVersion.value
 
     let isSuitable = true
     let reason = ''
@@ -565,25 +608,19 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
       reason = locale.value === 'ru'
         ? `Идентификатор приложения (${manifest.appIdentifier}) не совпадает с установленным (${tauriConfig.identifier})`
         : `App identifier (${manifest.appIdentifier}) does not match installed (${tauriConfig.identifier})`
-    } else if (manifest.platform && manifest.platform !== 'any' && !manifest.platform.includes('mac') && typeof navigator !== 'undefined' && (navigator.platform?.toLowerCase().includes('mac') || navigator.userAgent?.toLowerCase().includes('mac'))) {
+    } else if (manifest.platform && manifest.platform !== 'any' && currentPlatformFamily() && !String(manifest.platform).startsWith(currentPlatformFamily()!)) {
       isSuitable = false
       reason = locale.value === 'ru'
         ? `Версия релиза предназначена для платформы ${manifest.platform}`
         : `Release version is built for platform ${manifest.platform}`
     }
 
-    const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
-      const normalize = (v: string) => v.replace(/^v/, '').trim()
-      const rParts = normalize(remoteVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
-      const cParts = normalize(currentVer).split(/[-.]/).map(p => parseInt(p, 10) || 0)
-      const len = Math.max(rParts.length, cParts.length)
-      for (let i = 0; i < len; i++) {
-        const r = rParts[i] || 0
-        const c = cParts[i] || 0
-        if (r > c) return true
-        if (r < c) return false
-      }
-      return false
+    const minimumNativeVersion = String(manifest.minimumNativeVersion || '').trim()
+    if (isSuitable && minimumNativeVersion && isVersionNewer(minimumNativeVersion, installedNativeVersion.value)) {
+      isSuitable = false
+      reason = locale.value === 'ru'
+        ? `Payload требует приложение ${minimumNativeVersion} или новее. Сейчас установлено ${installedNativeVersion.value}`
+        : `Payload requires application ${minimumNativeVersion} or newer. ${installedNativeVersion.value} is installed`
     }
 
     if (isVersionNewer(manifest.version, activeVersion) || !isSuitable) {
@@ -592,6 +629,7 @@ const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate 
         version: manifest.version,
         notes: locale.value === 'ru' ? 'Обновление веб-интерфейса и аналитики' : 'UI payload & analytics update',
         manifestUrl,
+        minimumNativeVersion: minimumNativeVersion || undefined,
         isSuitable,
         reason
       }
@@ -699,7 +737,7 @@ const performPayloadInstall = async (manifestUrl: string) => {
 }
 
 const confirmAndInstallUpdate = async () => {
-  if (!pendingUpdate.value) return
+  if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
   const updateToInstall = { ...pendingUpdate.value }
   pendingUpdate.value = null
 
@@ -737,6 +775,9 @@ const startUpdateCheck = async () => {
   }
 
   try {
+    const { getVersion } = await import('@tauri-apps/api/app')
+    installedNativeVersion.value = await getVersion()
+
     setUpdateCopy('ПРОВЕРКА_ОБНОВЛЕНИЙ', 'проверка доступных обновлений')
     updateProgress.value = 8
 

@@ -36,6 +36,8 @@ pub struct PayloadManifest {
     pub channel: String,
     pub app_identifier: String,
     pub version: String,
+    #[serde(default)]
+    pub minimum_native_version: Option<String>,
     pub platform: String,
     pub base_url: Option<String>,
     pub files: Vec<PayloadFile>,
@@ -479,6 +481,21 @@ fn validate_manifest<R: Runtime>(
     if manifest.version.trim().is_empty() {
         return Err("Payload manifest version is empty.".to_string());
     }
+    if let Some(required_version) = manifest
+        .minimum_native_version
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+    {
+        let required = parse_app_version(required_version, "minimumNativeVersion")?;
+        let installed_text = app.package_info().version.to_string();
+        let installed = parse_app_version(&installed_text, "installed native version")?;
+        if installed < required {
+            return Err(format!(
+                "Payload requires native app version {required_version} or newer, but {installed_text} is installed. Install the native update first."
+            ));
+        }
+    }
     if manifest.platform != current_platform() && manifest.platform != "any" {
         return Err(format!(
             "Payload manifest is for {}, but this app is {}.",
@@ -499,6 +516,11 @@ fn validate_manifest<R: Runtime>(
         }
     }
     Ok(())
+}
+
+fn parse_app_version(value: &str, field: &str) -> Result<semver::Version, String> {
+    semver::Version::parse(value.trim().trim_start_matches(['v', 'V']))
+        .map_err(|err| format!("Invalid {field} {value:?}: {err}"))
 }
 
 fn reusable_file_bytes<R: Runtime>(

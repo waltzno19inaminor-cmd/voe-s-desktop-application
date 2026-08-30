@@ -78,16 +78,21 @@ npm run build
 ```bash
 npm run payload:manifest -- \
   --channel release \
-  --version 1.0.84 \
-  --platform macos-universal \
+  --version 1.0.95 \
+  --minimum-native-version 1.0.89 \
+  --platform any \
   --dir .output/public \
   --base-url https://github.com/jorudr/JLJ/releases/download/release/ \
   --tauri-signer-key-path .secrets/hotfix/jlj-hotfix.key \
-  --out dist/payload/1.0.84/payload-manifest.json
+  --out dist/payload/1.0.95/payload-manifest.json
 ```
 
+`--minimum-native-version` задаёт минимальную версию установленного Rust/Tauri
+приложения. Если она ещё не установлена, payload будет заблокирован как в UI,
+так и внутри Rust-команды установки.
+
 ### Шаг 4: Опубликуйте файлы на GitHub Releases
-Перейдите на GitHub в тег/релиз канала `release` и прикрепите созданные файлы из папки `dist/payload/1.0.84/`:
+Перейдите на GitHub в тег/релиз канала `release` и прикрепите созданные файлы из папки `dist/payload/1.0.95/`:
 - `patch.zip` *(~1 МБ — дифференциальный патч)*
 - `payload-manifest.json` *(основной манифест)*
 - `payload-manifest.json.sig` *(подпись)*

@@ -110,6 +110,7 @@ dependencies = [
  "mime_guess",
  "minisign-verify",
  "reqwest 0.12.28",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
