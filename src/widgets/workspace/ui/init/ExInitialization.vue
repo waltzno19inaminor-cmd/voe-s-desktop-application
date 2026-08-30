@@ -369,7 +369,7 @@ interface AvailableUpdate {
   reason?: string
 }
 
-const baseVersion = String(tauriConfig.version || pkg.version || '1.0.89')
+const baseVersion = String(tauriConfig.version || pkg.version || '1.1.0')
 const installedNativeVersion = ref(baseVersion)
 const activePayloadVersion = ref<string | null>(null)
 const appVersion = computed(() => activePayloadVersion.value || installedNativeVersion.value)

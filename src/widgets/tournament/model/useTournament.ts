@@ -130,35 +130,44 @@ export function initSeasonsListener(eventId?: string) {
 
   seasonsUnsubscribe = onSnapshot(seasonsCol, (snapshot) => {
     isSeasonsReady.value = true
-    tournamentSeasons.value = snapshot.docs.map((seasonSnapshot, index) => ({
-      ...seasonSnapshot.data(),
-      id: seasonSnapshot.id,
-      ordinal: index + 1
-    }) as TournamentSeason)
-    const openedSeasonIndex = snapshot.docs.findIndex((seasonSnapshot) => {
-      const seasonData = seasonSnapshot.data()
-      return String(seasonData.status || '').toLowerCase() === 'opened'
-    })
+    const seasons = snapshot.docs
+      .map((seasonSnapshot) => ({
+        ...seasonSnapshot.data(),
+        id: seasonSnapshot.id
+      }) as TournamentSeason)
+      .filter((season) => {
+        const status = String(season.status || '').toLowerCase()
+        return status === 'opened' || status === 'closed'
+      })
+      .sort(compareTournamentSeasons)
+      .map((season, index) => ({ ...season, ordinal: index + 1 }))
 
-    const openedSeasonSnapshot = openedSeasonIndex >= 0 ? snapshot.docs[openedSeasonIndex] : null
-    openedSeason.value = openedSeasonSnapshot
-      ? { ...openedSeasonSnapshot.data(), id: openedSeasonSnapshot.id, ordinal: openedSeasonIndex + 1 } as TournamentSeason
-      : null
+    tournamentSeasons.value = seasons
+    openedSeason.value = seasons.find(
+      (season) => String(season.status || '').toLowerCase() === 'opened'
+    ) || null
 
-    if (openedSeasonSnapshot) {
-      initRoundsListener(eventId, openedSeasonSnapshot.id)
-      const selectedSeasonExists = tournamentSeasons.value.some(
-        (season) => season.id === selectedLeaderboardSeasonId.value
-      )
-      if (!selectedSeasonExists) {
-        selectedLeaderboardSeasonId.value = openedSeasonSnapshot.id
-      }
-      initLeaderboardListener(eventId, selectedLeaderboardSeasonId.value)
+    if (openedSeason.value) {
+      initRoundsListener(eventId, openedSeason.value.id)
     } else {
       terminateRoundsListener()
       isRoundsReady.value = true
-      terminateLeaderboardListener(true)
       openedSeasonRounds.value = []
+    }
+
+    const selectedSeasonExists = seasons.some(
+      (season) => season.id === selectedLeaderboardSeasonId.value
+    )
+    const defaultLeaderboardSeason = openedSeason.value || seasons.at(-1) || null
+
+    if (!selectedSeasonExists) {
+      selectedLeaderboardSeasonId.value = defaultLeaderboardSeason?.id || ''
+    }
+
+    if (selectedLeaderboardSeasonId.value) {
+      initLeaderboardListener(eventId, selectedLeaderboardSeasonId.value)
+    } else {
+      terminateLeaderboardListener(true)
     }
   }, (err) => {
     terminateRoundsListener()
@@ -171,6 +180,28 @@ export function initSeasonsListener(eventId?: string) {
     selectedLeaderboardSeasonId.value = ''
     console.warn('[Tournament] Error listening to seasons collection:', err)
   })
+}
+
+function compareTournamentSeasons(left: TournamentSeason, right: TournamentSeason): number {
+  const leftDate = toMillis(left.startsAt) || toMillis(left.endsAt) || parseSeasonIdDate(left.id)
+  const rightDate = toMillis(right.startsAt) || toMillis(right.endsAt) || parseSeasonIdDate(right.id)
+
+  if (leftDate !== rightDate) return leftDate - rightDate
+  return left.id.localeCompare(right.id, undefined, { numeric: true, sensitivity: 'base' })
+}
+
+function parseSeasonIdDate(seasonId: string): number {
+  const match = /^(\d{2})-(\d{2})-(\d{2}|\d{4})$/.exec(seasonId.trim())
+  if (!match) return 0
+
+  const [, dayText, monthText, yearText] = match
+  const shortYear = Number(yearText)
+  const year = yearText.length === 2 ? 2000 + shortYear : shortYear
+  const month = Number(monthText) - 1
+  const day = Number(dayText)
+  const date = Date.UTC(year, month, day)
+
+  return Number.isFinite(date) ? date : 0
 }
 
 export function selectLeaderboardSeason(seasonId: string): void {
