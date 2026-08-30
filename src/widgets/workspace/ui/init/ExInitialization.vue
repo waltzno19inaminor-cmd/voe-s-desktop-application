@@ -65,11 +65,11 @@
 
       <!-- Core Icon -->
 	      <div class="relative w-20 h-20 flex items-center justify-center mb-2 shrink-0">
-	        <div class="absolute inset-0 border-2 animate-[spin_10s_linear_infinite] border-theme-text/40"></div>
-	        <div class="absolute inset-3 border animate-[spin_6s_linear_infinite_reverse] border-theme-text/60"></div>
-	        <div class="w-3 h-3 rotate-45 animate-pulse nier-bg-inverted"></div>
-	        <div class="absolute -top-3 -left-3 w-5 h-5 border-t-2 border-l-2 border-theme-text"></div>
-	        <div class="absolute -bottom-3 -right-3 w-5 h-5 border-b-2 border-r-2 border-theme-text"></div>
+	        <div class="absolute inset-0 border-2 animate-[spin_10s_linear_infinite] border-[#2c2c2a]/40"></div>
+	        <div class="absolute inset-3 border animate-[spin_6s_linear_infinite_reverse] border-[#2c2c2a]/60"></div>
+	        <div class="w-3 h-3 rotate-45 animate-pulse bg-[#2c2c2a]"></div>
+	        <div class="absolute -top-3 -left-3 w-5 h-5 border-t-2 border-l-2 border-[#2c2c2a]"></div>
+	        <div class="absolute -bottom-3 -right-3 w-5 h-5 border-b-2 border-r-2 border-[#2c2c2a]"></div>
 	      </div>
 
       <!-- Identity -->
@@ -361,13 +361,13 @@ const activePayloadVersion = ref<string | null>(null)
 const appVersion = computed(() => activePayloadVersion.value || baseVersion)
 
 const initializationGradflowConfig = {
-  color1: { r: 2, g: 145, b: 135 },
-  color2: { r: 165, g: 249, b: 193 },
-  color3: { r: 153, g: 151, b: 231 },
+  color1: { r: 250, g: 235, b: 255 },
+  color2: { r: 220, g: 219, b: 255 },
+  color3: { r: 235, g: 252, b: 255 },
   speed: 0.5,
   scale: 2,
   type: 'smoke' as const,
-  noise: 0.22
+  noise: 0.08
 }
 
 const emit = defineEmits(['initiate'])

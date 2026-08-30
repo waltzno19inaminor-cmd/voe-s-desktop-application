@@ -94,13 +94,13 @@ const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
 const PATREON_URL = 'https://www.patreon.com/cw/jlgandr'
 const accessGradflowConfig = {
-  color1: { r: 2, g: 145, b: 135 },
-  color2: { r: 165, g: 249, b: 193 },
-  color3: { r: 153, g: 151, b: 231 },
+  color1: { r: 250, g: 235, b: 255 },
+  color2: { r: 220, g: 219, b: 255 },
+  color3: { r: 235, g: 252, b: 255 },
   speed: 0.55,
   scale: 2.2,
   type: 'smoke' as const,
-  noise: 0.18
+  noise: 0.08
 }
 
 const props = withDefaults(defineProps<{

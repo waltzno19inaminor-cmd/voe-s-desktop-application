@@ -250,11 +250,11 @@
 
         <div v-else key="dashboard-logo" class="dashboard-core-logo pointer-events-none flex flex-col items-center text-center" data-dashboard-panel="logo">
           <div class="relative flex h-12 w-12 shrink-0 items-center justify-center sm:h-14 sm:w-14">
-            <div class="absolute inset-0 border-2 border-theme-text/40 animate-[spin_10s_linear_infinite]"></div>
-            <div class="absolute inset-4 border border-theme-text/60 animate-[spin_6s_linear_infinite_reverse]"></div>
-            <div class="h-2 w-2 rotate-45 animate-pulse nier-bg-inverted"></div>
-            <div class="absolute -left-2 -top-2 h-3 w-3 border-l-2 border-t-2 border-theme-text"></div>
-            <div class="absolute -bottom-2 -right-2 h-3 w-3 border-b-2 border-r-2 border-theme-text"></div>
+            <div class="absolute inset-0 border-2 border-[#2c2c2a]/40 animate-[spin_10s_linear_infinite]"></div>
+            <div class="absolute inset-4 border border-[#2c2c2a]/60 animate-[spin_6s_linear_infinite_reverse]"></div>
+            <div class="h-2 w-2 rotate-45 animate-pulse bg-[#2c2c2a]"></div>
+            <div class="absolute -left-2 -top-2 h-3 w-3 border-l-2 border-t-2 border-[#2c2c2a]"></div>
+            <div class="absolute -bottom-2 -right-2 h-3 w-3 border-b-2 border-r-2 border-[#2c2c2a]"></div>
           </div>
         </div>
       </Transition>
@@ -334,13 +334,13 @@ onMounted(async () => {
 })
 
 const dashboardGradflowConfig = {
-  color1: { r: 2, g: 145, b: 135 },
-  color2: { r: 165, g: 249, b: 193 },
-  color3: { r: 153, g: 151, b: 231 },
+  color1: { r: 250, g: 235, b: 255 },
+  color2: { r: 220, g: 219, b: 255 },
+  color3: { r: 235, g: 252, b: 255 },
   speed: 0.5,
   scale: 2,
   type: 'smoke' as const,
-  noise: 0.22
+  noise: 0.08
 }
 
 // User menu
