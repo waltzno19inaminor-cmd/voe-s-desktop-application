@@ -84,7 +84,10 @@
                  class="grid grid-cols-[1.5fr_1fr_1fr_1.5fr_1fr] items-center text-[10px] tracking-widest px-2 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer border border-transparent hover:border-white/5 rounded-sm"
                  @click="handleTradeClick($event, trade)">
               
-              <span class="opacity-70">{{ formatDate(getTradeTime(trade)) }}</span>
+              <div class="flex min-w-0 items-center gap-3">
+                <span class="whitespace-nowrap opacity-70">{{ formatDate(getTradeTime(trade)) }}</span>
+                <span class="truncate text-[9px] font-bold tracking-[0.16em] text-white/80">{{ getTradeSession(trade) }}</span>
+              </div>
               <span class="font-bold">{{ trade.asset }}</span>
               <span class="opacity-70">{{ trade.side === 'Long' || trade.side === 'long' ? (locale === 'ru' ? 'ЛОНГ' : 'LONG') : (locale === 'ru' ? 'ШОРТ' : 'SHORT') }}</span>
               
@@ -142,6 +145,7 @@ const {
   getTradePnl,
   isTradeClosed,
   getTradeTime,
+  getTradeSession,
   totalPnl,
   winRate,
   groupedTrades,

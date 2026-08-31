@@ -13,6 +13,52 @@ import {
   getTradeTimelineTimestamp
 } from '~/widgets/genesis/model/metrics'
 
+type ArchiveSessionId = 'SYDNEY' | 'TOKYO' | 'FRANKFURT' | 'LONDON' | 'NEW_YORK'
+
+const archiveSessions: Array<{ id: ArchiveSessionId; start: number; end: number }> = [
+  { id: 'NEW_YORK', start: 13 * 60, end: 22 * 60 },
+  { id: 'LONDON', start: 8 * 60, end: 17 * 60 },
+  { id: 'TOKYO', start: 0, end: 9 * 60 },
+  { id: 'SYDNEY', start: 22 * 60, end: 24 * 60 },
+  { id: 'SYDNEY', start: 0, end: 7 * 60 }
+]
+
+const archiveSessionLabels: Record<ArchiveSessionId, { ru: string; en: string }> = {
+  SYDNEY: { ru: 'СИДНЕЙ', en: 'SYDNEY' },
+  TOKYO: { ru: 'ТОКИО', en: 'TOKYO' },
+  FRANKFURT: { ru: 'ФРАНКФУРТ', en: 'FRANKFURT' },
+  LONDON: { ru: 'ЛОНДОН', en: 'LONDON' },
+  NEW_YORK: { ru: 'НЬЮ-ЙОРК', en: 'NEW YORK' }
+}
+
+const normalizeArchiveSession = (value: unknown): ArchiveSessionId | null => {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_')
+
+  if (normalized === 'NY' || normalized === 'NEWYORK') return 'NEW_YORK'
+  if (normalized === 'FRANKFURT' || normalized === 'FRANKFURT_SESSION') return 'FRANKFURT'
+  if (['SYDNEY', 'TOKYO', 'LONDON', 'NEW_YORK'].includes(normalized)) {
+    return normalized as ArchiveSessionId
+  }
+  return null
+}
+
+const getArchiveTradeEntryDate = (trade: any) => {
+  const entryExecution = Array.isArray(trade?.executions)
+    ? trade.executions.find((execution: any) => execution?.type === 'entry' && execution?.date)
+    : null
+  const rawDate = entryExecution?.date || trade?.date || trade?.dateObj || trade?.dateTime
+  const date = rawDate instanceof Date ? rawDate : new Date(rawDate || '')
+  return Number.isFinite(date.getTime()) ? date : null
+}
+
+const getArchiveSessionLabel = (sessionId: ArchiveSessionId, locale: string) => {
+  const labels = archiveSessionLabels[sessionId]
+  return locale === 'ru' ? labels.ru : labels.en
+}
+
 export interface TradeArchiveProps {
   trades?: any[]
 }
@@ -54,6 +100,26 @@ export const useTradeArchive = (props: TradeArchiveProps, locale: { readonly val
   }
 
   const getTradeTime = (trade: any) => getTradeTimelineTimestamp(trade)
+
+  const getTradeSession = (trade: any) => {
+    const entryExecution = Array.isArray(trade?.executions)
+      ? trade.executions.find((execution: any) => execution?.type === 'entry')
+      : null
+    const explicitSession = normalizeArchiveSession(
+      entryExecution?.session || trade?.session || trade?.marketSession
+    )
+
+    if (explicitSession) return getArchiveSessionLabel(explicitSession, locale.value)
+
+    const entryDate = getArchiveTradeEntryDate(trade)
+    if (!entryDate) return locale.value === 'ru' ? 'НЕТ ДАННЫХ' : 'NO DATA'
+
+    const minuteOfDay = entryDate.getUTCHours() * 60 + entryDate.getUTCMinutes()
+    const derivedSession = archiveSessions.find(({ start, end }) => minuteOfDay >= start && minuteOfDay < end)
+    return derivedSession
+      ? getArchiveSessionLabel(derivedSession.id, locale.value)
+      : (locale.value === 'ru' ? 'НЕТ ДАННЫХ' : 'NO DATA')
+  }
 
   const groupedTrades = computed(() => {
     return groupArchiveTradesByMonth(trades.value, initialCapital.value, locale.value)
@@ -108,6 +174,7 @@ export const useTradeArchive = (props: TradeArchiveProps, locale: { readonly val
     getTradeR,
     isTradeClosed,
     getTradeTime,
+    getTradeSession,
     totalPnl: computed(() => archiveMetrics.value.totalPnl),
     winRate: computed(() => archiveMetrics.value.winRate),
     totalR: computed(() => archiveMetrics.value.totalR),
