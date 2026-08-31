@@ -428,6 +428,7 @@ const feedbackSubmitting = ref(false)
 const feedbackDailyLimitReached = ref(false)
 const feedbackUploading = ref(false)
 const feedbackUploadProgress = ref(0)
+const feedbackUploadRequestId = ref(0)
 const feedbackError = ref('')
 const feedbackAttachments = ref<Array<{ name: string; url: string; publicId: string }>>([])
 const feedbackFieldErrors = ref({
@@ -446,6 +447,7 @@ const revokeFeedbackAttachments = () => {
 }
 
 const resetFeedbackForm = () => {
+  feedbackUploadRequestId.value += 1
   revokeFeedbackAttachments()
   feedbackForm.value = { title: '', message: '' }
   feedbackAttachments.value = []
@@ -458,6 +460,11 @@ const resetFeedbackForm = () => {
 }
 
 const openFeedback = () => {
+  if (isFeedbackOpen.value) {
+    closeFeedback()
+    return
+  }
+
   if (feedbackSubmitting.value || feedbackUploading.value) return
   userMenuOpen.value = false
   resetFeedbackForm()
@@ -466,7 +473,7 @@ const openFeedback = () => {
 }
 
 const closeFeedback = () => {
-  if (feedbackSubmitting.value || feedbackUploading.value) return
+  if (feedbackSubmitting.value) return
   isFeedbackOpen.value = false
   activeDashboardPanel.value = null
   resetFeedbackForm()
@@ -499,6 +506,7 @@ const handleFeedbackAttachment = (event: Event) => {
   input.value = ''
 
   const filesToUpload = files.slice(0, availableSlots)
+  const uploadRequestId = ++feedbackUploadRequestId.value
   feedbackError.value = files.length > availableSlots
     ? (locale.value === 'ru' ? 'Можно прикрепить не более 3 изображений.' : 'You can attach no more than 3 images.')
     : ''
@@ -510,10 +518,12 @@ const handleFeedbackAttachment = (event: Event) => {
       for (let index = 0; index < filesToUpload.length; index += 1) {
         const file = filesToUpload[index]
         const result = await uploadToCloudinary(file, progress => {
+          if (uploadRequestId !== feedbackUploadRequestId.value) return
           const completedFilesProgress = index * 100
           feedbackUploadProgress.value = Math.round((completedFilesProgress + progress) / filesToUpload.length)
         })
 
+        if (uploadRequestId !== feedbackUploadRequestId.value) return
         if (!result?.secure_url) throw new Error('Cloudinary did not return an image URL')
         feedbackAttachments.value.push({
           name: file.name,
@@ -523,12 +533,15 @@ const handleFeedbackAttachment = (event: Event) => {
       }
       feedbackUploadProgress.value = 100
     } catch (error) {
+      if (uploadRequestId !== feedbackUploadRequestId.value) return
       console.error('[ExDashboard] Cloudinary upload failed:', error)
       feedbackError.value = locale.value === 'ru'
         ? 'Не удалось загрузить изображение. Попробуйте еще раз.'
         : 'Image upload failed. Please try again.'
     } finally {
-      feedbackUploading.value = false
+      if (uploadRequestId === feedbackUploadRequestId.value) {
+        feedbackUploading.value = false
+      }
     }
   })()
 }
