@@ -106,11 +106,6 @@
             <span v-else>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
           </button>
 
-          <p class="text-center text-[9px] font-mono text-black/60">
-            {{ pendingUpdate.type === 'native'
-              ? (locale === 'ru' ? `Нативная версия ${pendingUpdate.version}` : `Native version ${pendingUpdate.version}`)
-              : `Payload ${pendingUpdate.version}` }}
-          </p>
           <p v-if="pendingUpdate.reason" class="text-center text-[9px] font-mono text-red-700/80">
             {{ pendingUpdate.reason }}
           </p>
