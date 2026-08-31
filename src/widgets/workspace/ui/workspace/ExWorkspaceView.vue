@@ -6,7 +6,7 @@
        <ExInitialization v-if="showInitialization" @initiate="handleInitializationComplete" />
     </Transition>
 
-    <Transition name="access-reify" mode="out-in">
+    <Transition name="access-gate-reveal" mode="out-in">
       <ExAccessGate
         v-if="showAccessGate"
         key="access-gate"
@@ -706,17 +706,16 @@ onUnmounted(() => {
   filter: blur(10px);
 }
 
-/*
- * Keep the access gate free of transform/filter during its transition.
- * Either property turns its fixed Gradflow child into a main-relative layer,
- * temporarily clipping the background below the custom titlebar.
- */
-.access-reify-enter-active,
-.access-reify-leave-active {
-  transition: opacity 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+/* Keep fixed Gradflow attached to the viewport while the access gate enters.
+   A transform/filter here creates a containing block below the 40px titlebar,
+   which makes the canvas jump into the titlebar after the transition ends. */
+.access-gate-reveal-enter-active,
+.access-gate-reveal-leave-active {
+  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.access-reify-enter-from,
-.access-reify-leave-to {
+
+.access-gate-reveal-enter-from,
+.access-gate-reveal-leave-to {
   opacity: 0;
 }
 
