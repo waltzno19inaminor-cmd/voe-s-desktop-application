@@ -1050,7 +1050,7 @@ const gradflowConfig = {
   color1: { r: 0, g: 0, b: 0 },
   color2: { r: 220, g: 219, b: 255 },
   color3: { r: 195, g: 173, b: 255 },
-  speed: 0.2,
+  speed: 0.4,
   scale: 1.2,
   type: 'aurora' as const,
   noise: 0.08
