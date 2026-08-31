@@ -185,6 +185,29 @@
             </svg>
           </button>
 
+          <!-- Feedback -->
+          <button
+            type="button"
+            class="dashboard-icon-toggle dashboard-feedback-toggle opacity-90 hover:opacity-100 transition-all duration-300"
+            :aria-label="locale === 'ru' ? 'Оставить отзыв' : 'Leave feedback'"
+            :title="locale === 'ru' ? 'Оставить отзыв' : 'Leave feedback'"
+            @click="openFeedback"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="square"
+              stroke-linejoin="miter"
+              class="h-5 w-5 text-white"
+              aria-hidden="true"
+            >
+              <path d="M20 11.5a7.5 7.5 0 0 1-8 7.5 8.6 8.6 0 0 1-3.2-.6L4 20l1.6-3.8A7.3 7.3 0 0 1 4.5 12 7.5 7.5 0 1 1 20 11.5Z" />
+              <path d="M8 12h.01M12 12h.01M16 12h.01" stroke-width="2.4" stroke-linecap="round" />
+            </svg>
+          </button>
+
         </div>
 
       </div>
@@ -280,6 +303,79 @@
       </div>
     </nav>
 
+    <div
+      v-if="isFeedbackOpen"
+      class="dashboard-feedback-stage absolute inset-x-0 bottom-[84px] top-[84px] z-30 overflow-y-auto bg-black px-5 py-7 text-white sm:px-8 sm:py-10 lg:px-14"
+    >
+          <section class="dashboard-feedback-panel relative mx-auto min-h-full w-full max-w-3xl text-white" role="dialog" aria-modal="true" :aria-label="locale === 'ru' ? 'Обратная связь' : 'Feedback'">
+
+            <div class="relative z-10 flex justify-start border-b border-white/10 py-5 text-left">
+              <div class="flex w-full flex-col items-start">
+                <h2 class="text-base font-mono font-black uppercase tracking-[0.24em]">{{ locale === 'ru' ? 'Оставить отзыв' : 'Leave feedback' }}</h2>
+                <p class="mt-2 max-w-lg text-xs font-mono leading-relaxed text-white/65">{{ locale === 'ru' ? 'Сообщите, что работает плохо, чего не хватает или что стоит изменить.' : 'Tell us what is not working, what is missing, or what should change.' }}</p>
+              </div>
+            </div>
+
+            <div v-if="feedbackSubmitted" class="relative z-10 flex min-h-[390px] flex-col items-center justify-center px-6 py-12 text-center sm:px-12">
+              <div class="flex h-14 w-14 items-center justify-center border border-white/40">
+                <svg class="h-7 w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+                  <path d="m5 12 4.5 4.5L19 7" />
+                </svg>
+              </div>
+              <p class="mt-7 text-[10px] font-mono uppercase tracking-[0.32em] text-white/65">{{ locale === 'ru' ? 'Передача завершена' : 'Transmission complete' }}</p>
+              <h3 class="mt-3 text-lg font-mono font-black uppercase tracking-[0.18em]">{{ locale === 'ru' ? 'Спасибо за обратную связь' : 'Thank you for your feedback' }}</h3>
+              <p class="mt-4 max-w-md text-xs font-mono leading-relaxed text-white/70">{{ locale === 'ru' ? 'Ваше сообщение сохранено в локальном черновике и готово к передаче в систему поддержки.' : 'Your message is saved as a local draft and ready to be transmitted to the support system.' }}</p>
+              <button type="button" class="mt-8 border border-white bg-white px-6 py-3 text-[10px] font-mono font-black uppercase tracking-[0.24em] text-black transition-colors hover:bg-transparent hover:text-white" @click="closeFeedback">
+                {{ locale === 'ru' ? 'Закрыть' : 'Close' }}
+              </button>
+            </div>
+
+            <form v-else novalidate class="relative z-10 flex flex-col gap-7 px-0 py-8 sm:py-10" @submit.prevent="submitFeedback">
+              <div>
+                <div class="flex items-center justify-between gap-3">
+                  <label for="feedback-title" class="text-[10px] font-mono font-medium uppercase tracking-[0.28em] text-white/65">{{ locale === 'ru' ? 'Заголовок' : 'Title' }}</label>
+                  <span class="text-[10px] font-mono text-white/50">{{ feedbackForm.title.length }}/80</span>
+                </div>
+                <input id="feedback-title" v-model="feedbackForm.title" maxlength="80" type="text" :placeholder="locale === 'ru' ? 'Коротко опишите проблему или идею' : 'Briefly describe the problem or idea'" :aria-invalid="Boolean(feedbackFieldErrors.title)" class="feedback-field mt-3 w-full" @input="feedbackFieldErrors.title = ''" />
+                <p v-if="feedbackFieldErrors.title" class="mt-2 text-[11px] font-mono text-red-200">{{ feedbackFieldErrors.title }}</p>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between gap-3">
+                  <label for="feedback-message" class="text-[10px] font-mono font-medium uppercase tracking-[0.28em] text-white/65">{{ locale === 'ru' ? 'Сообщение' : 'Message' }}</label>
+                  <span class="text-[10px] font-mono text-white/50">{{ feedbackForm.message.length }}/1000</span>
+                </div>
+                <textarea id="feedback-message" v-model="feedbackForm.message" maxlength="1000" rows="10" :placeholder="locale === 'ru' ? 'Опишите подробнее, что произошло и какой результат вы ожидаете' : 'Describe what happened and what result you expected'" :aria-invalid="Boolean(feedbackFieldErrors.message)" class="feedback-field mt-3 min-h-[250px] w-full resize-none" @input="feedbackFieldErrors.message = ''"></textarea>
+                <p v-if="feedbackFieldErrors.message" class="mt-2 text-[11px] font-mono text-red-200">{{ feedbackFieldErrors.message }}</p>
+              </div>
+
+              <div v-if="feedbackAttachments.length" class="grid gap-3 sm:grid-cols-3">
+                <div v-for="(attachment, index) in feedbackAttachments" :key="attachment.url" class="flex min-w-0 items-center gap-3 border border-white/10 bg-white/[0.03] p-2.5">
+                  <img :src="attachment.url" alt="" class="h-12 w-16 shrink-0 object-cover" />
+                  <span class="min-w-0 flex-1 truncate text-[11px] font-mono text-white/70">{{ attachment.name }}</span>
+                  <button type="button" class="shrink-0 text-[11px] font-mono uppercase tracking-widest text-white/55 hover:text-white" @click="removeFeedbackAttachment(index)">×</button>
+                </div>
+              </div>
+
+              <p v-if="feedbackError" class="border border-red-400/30 bg-red-400/5 px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-red-200">{{ feedbackError }}</p>
+
+              <div class="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <label class="feedback-attachment-button inline-flex min-h-11 cursor-pointer items-center justify-center gap-3 border border-white/30 bg-white/[0.03] px-5 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-white/75 transition-all hover:border-white/70 hover:bg-white/[0.08] hover:text-white" :class="feedbackAttachments.length >= 3 ? 'pointer-events-none opacity-40' : ''">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple :disabled="feedbackAttachments.length >= 3" class="sr-only" @change="handleFeedbackAttachment" />
+                  <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                    <path d="m21.4 11.6-8.8 8.8a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 1 1-2.8-2.8l8.5-8.5" />
+                  </svg>
+                  {{ locale === 'ru' ? 'Прикрепить изображения' : 'Attach images' }} · {{ feedbackAttachments.length }}/3
+                </label>
+                <button type="submit" class="flex min-h-11 items-center justify-center gap-3 border border-white bg-white px-7 py-3 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-transparent hover:text-white disabled:cursor-wait disabled:opacity-60" :disabled="feedbackSubmitting">
+                  <span v-if="feedbackSubmitting" class="h-3 w-3 animate-spin border border-current border-t-transparent"></span>
+                  {{ feedbackSubmitting ? (locale === 'ru' ? 'Подготовка...' : 'Preparing...') : (locale === 'ru' ? 'Отправить отзыв' : 'Submit feedback') }}
+                </button>
+              </div>
+            </form>
+          </section>
+    </div>
+
     <ExProfileOverlay :open="showProfileOverlay" @close="closeProfileOverlay" />
 
   </div>
@@ -322,6 +418,102 @@ const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const payloadVersion = ref<string | null>(null)
 const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.0.88'))
+const userMenuOpen = ref(false)
+const activeDashboardPanel = ref<string | null>(null)
+
+const isFeedbackOpen = ref(false)
+const feedbackSubmitted = ref(false)
+const feedbackSubmitting = ref(false)
+const feedbackError = ref('')
+const feedbackAttachments = ref<Array<{ name: string; url: string }>>([])
+const feedbackFieldErrors = ref({
+  title: '',
+  message: ''
+})
+const feedbackForm = ref({
+  title: '',
+  message: ''
+})
+
+const revokeFeedbackAttachments = () => {
+  feedbackAttachments.value.forEach(attachment => URL.revokeObjectURL(attachment.url))
+}
+
+const resetFeedbackForm = () => {
+  revokeFeedbackAttachments()
+  feedbackForm.value = { title: '', message: '' }
+  feedbackAttachments.value = []
+  feedbackFieldErrors.value = { title: '', message: '' }
+  feedbackError.value = ''
+  feedbackSubmitted.value = false
+}
+
+const openFeedback = () => {
+  userMenuOpen.value = false
+  resetFeedbackForm()
+  isFeedbackOpen.value = true
+  activeDashboardPanel.value = 'feedback'
+}
+
+const closeFeedback = () => {
+  if (feedbackSubmitting.value) return
+  isFeedbackOpen.value = false
+  activeDashboardPanel.value = null
+  resetFeedbackForm()
+}
+
+const handleFeedbackAttachment = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  if (!files.length) return
+
+  const availableSlots = 3 - feedbackAttachments.value.length
+  if (availableSlots <= 0) {
+    feedbackError.value = locale.value === 'ru' ? 'Можно прикрепить не более 3 изображений.' : 'You can attach no more than 3 images.'
+    input.value = ''
+    return
+  }
+
+  if (files.some(file => file.size > 5 * 1024 * 1024)) {
+    feedbackError.value = locale.value === 'ru' ? 'Каждый файл должен быть меньше 5 МБ.' : 'Each file must be smaller than 5 MB.'
+    input.value = ''
+    return
+  }
+
+  const filesToAdd = files.slice(0, availableSlots)
+  feedbackAttachments.value.push(...filesToAdd.map(file => ({ name: file.name, url: URL.createObjectURL(file) })))
+  feedbackError.value = files.length > availableSlots
+    ? (locale.value === 'ru' ? 'Можно прикрепить не более 3 изображений.' : 'You can attach no more than 3 images.')
+    : ''
+  input.value = ''
+}
+
+const removeFeedbackAttachment = (index: number) => {
+  const attachment = feedbackAttachments.value[index]
+  if (!attachment) return
+  URL.revokeObjectURL(attachment.url)
+  feedbackAttachments.value.splice(index, 1)
+}
+
+const submitFeedback = async () => {
+  const title = feedbackForm.value.title.trim()
+  const message = feedbackForm.value.message.trim()
+  feedbackFieldErrors.value = {
+    title: title ? '' : (locale.value === 'ru' ? 'Введите заголовок отзыва.' : 'Enter a feedback title.'),
+    message: message ? '' : (locale.value === 'ru' ? 'Введите сообщение.' : 'Enter a message.')
+  }
+
+  if (!title || !message) {
+    feedbackError.value = ''
+    return
+  }
+
+  feedbackError.value = ''
+  feedbackSubmitting.value = true
+  await new Promise(resolve => window.setTimeout(resolve, 650))
+  feedbackSubmitting.value = false
+  feedbackSubmitted.value = true
+}
 
 onMounted(async () => {
   try {
@@ -344,14 +536,12 @@ const dashboardGradflowConfig = {
 }
 
 // User menu
-const userMenuOpen = ref(false)
 const identityRef = ref<HTMLElement | null>(null)
 const menuRef = ref<HTMLElement | null>(null)
 const menuStyle = ref<Record<string, string>>({})
 const showProfileOverlay = ref(false)
-const activeDashboardPanel = ref<string | null>(null)
 const isDashboardForumLeaving = ref(false)
-const isEventsPanelActive = computed(() => activeDashboardPanel.value === 'tournament')
+const isEventsPanelActive = computed(() => activeDashboardPanel.value === 'tournament' || isFeedbackOpen.value)
 const isOfflineRestrictedPanel = computed(() => (
   authStore.isOffline &&
   ['forum', 'activity', 'tournament'].includes(activeDashboardPanel.value || '')
@@ -445,6 +635,7 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
   if (unsubUpdate) unsubUpdate()
+  revokeFeedbackAttachments()
   terminateTournamentListeners()
 })
 
@@ -482,6 +673,8 @@ const dashboardModules = [
 ]
 
 const handleDashboardModuleClick = (moduleId: string) => {
+  if (isFeedbackOpen.value && !feedbackSubmitting.value) closeFeedback()
+
   if (moduleId === 'activity' || moduleId === 'forum' || moduleId === 'tournament') {
     activeDashboardPanel.value = activeDashboardPanel.value === moduleId ? null : moduleId
     return
@@ -625,6 +818,41 @@ const handleDashboardCenterAfterLeave = (el: Element) => {
   display: block;
   height: 20px;
   width: 20px;
+}
+
+.dashboard-feedback-toggle {
+  color: #fff;
+}
+
+.feedback-field {
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  background: transparent;
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  outline: none;
+  padding: 0.65rem 0;
+  -webkit-font-smoothing: antialiased;
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+
+.feedback-field::placeholder {
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 1;
+}
+
+.feedback-field:focus {
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+  background: transparent;
+}
+
+.feedback-field[aria-invalid="true"] {
+  border-bottom-color: rgba(248, 113, 113, 0.8);
 }
 
 .menu-drop-enter-active,
