@@ -324,7 +324,7 @@
               </div>
               <p class="mt-7 text-[10px] font-mono uppercase tracking-[0.32em] text-white/65">{{ locale === 'ru' ? 'Передача завершена' : 'Transmission complete' }}</p>
               <h3 class="mt-3 text-lg font-mono font-black uppercase tracking-[0.18em]">{{ locale === 'ru' ? 'Спасибо за обратную связь' : 'Thank you for your feedback' }}</h3>
-              <p class="mt-4 max-w-md text-xs font-mono leading-relaxed text-white/70">{{ locale === 'ru' ? 'Ваше сообщение сохранено в локальном черновике и готово к передаче в систему поддержки.' : 'Your message is saved as a local draft and ready to be transmitted to the support system.' }}</p>
+              <p class="mt-4 max-w-md text-xs font-mono leading-relaxed text-white/70">{{ locale === 'ru' ? 'Ваше сообщение сохранено и передано в систему поддержки.' : 'Your message was saved and sent to the support system.' }}</p>
               <button type="button" class="mt-8 border border-white bg-white px-6 py-3 text-[10px] font-mono font-black uppercase tracking-[0.24em] text-black transition-colors hover:bg-transparent hover:text-white" @click="closeFeedback">
                 {{ locale === 'ru' ? 'Закрыть' : 'Close' }}
               </button>
@@ -357,19 +357,19 @@
                 </div>
               </div>
 
-              <p v-if="feedbackError" class="border border-red-400/30 bg-red-400/5 px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-red-200">{{ feedbackError }}</p>
+              <p v-if="feedbackError" role="alert" aria-live="polite" class="border border-red-400/30 bg-red-400/5 px-3 py-2 text-[11px] font-mono uppercase tracking-wider text-red-200">{{ feedbackError }}</p>
 
               <div class="flex flex-col gap-3 border-t border-white/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <label class="feedback-attachment-button inline-flex min-h-11 cursor-pointer items-center justify-center gap-3 border border-white/30 bg-white/[0.03] px-5 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-white/75 transition-all hover:border-white/70 hover:bg-white/[0.08] hover:text-white" :class="feedbackAttachments.length >= 3 ? 'pointer-events-none opacity-40' : ''">
-                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple :disabled="feedbackAttachments.length >= 3" class="sr-only" @change="handleFeedbackAttachment" />
+                <label class="feedback-attachment-button inline-flex min-h-11 cursor-pointer items-center justify-center gap-3 border border-white/30 bg-white/[0.03] px-5 py-3 text-[10px] font-mono font-bold uppercase tracking-[0.14em] text-white/75 transition-all hover:border-white/70 hover:bg-white/[0.08] hover:text-white" :class="feedbackAttachments.length >= 3 || feedbackUploading ? 'pointer-events-none opacity-40' : ''">
+                  <input type="file" accept="image/png,image/jpeg,image/webp" multiple :disabled="feedbackAttachments.length >= 3 || feedbackUploading" class="sr-only" @change="handleFeedbackAttachment" />
                   <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
                     <path d="m21.4 11.6-8.8 8.8a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 1 1-2.8-2.8l8.5-8.5" />
                   </svg>
-                  {{ locale === 'ru' ? 'Прикрепить изображения' : 'Attach images' }} · {{ feedbackAttachments.length }}/3
+                  {{ feedbackUploading ? (locale === 'ru' ? `Загрузка ${feedbackUploadProgress}%...` : `Uploading ${feedbackUploadProgress}%...`) : (locale === 'ru' ? 'Прикрепить изображения' : 'Attach images') }} · {{ feedbackAttachments.length }}/3
                 </label>
-                <button type="submit" class="flex min-h-11 items-center justify-center gap-3 border border-white bg-white px-7 py-3 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-transparent hover:text-white disabled:cursor-wait disabled:opacity-60" :disabled="feedbackSubmitting">
+                <button type="submit" class="flex min-h-11 items-center justify-center gap-3 border border-white bg-white px-7 py-3 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-black transition-all hover:bg-transparent hover:text-white disabled:cursor-not-allowed disabled:opacity-45" :disabled="feedbackSubmitting || feedbackUploading || feedbackDailyLimitReached">
                   <span v-if="feedbackSubmitting" class="h-3 w-3 animate-spin border border-current border-t-transparent"></span>
-                  {{ feedbackSubmitting ? (locale === 'ru' ? 'Подготовка...' : 'Preparing...') : (locale === 'ru' ? 'Отправить отзыв' : 'Submit feedback') }}
+                  {{ feedbackDailyLimitReached ? (locale === 'ru' ? 'Лимит на 24 часа' : '24-hour limit reached') : (feedbackSubmitting ? (locale === 'ru' ? 'Сохранение...' : 'Saving...') : (locale === 'ru' ? 'Отправить отзыв' : 'Submit feedback')) }}
                 </button>
               </div>
             </form>
@@ -384,7 +384,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { getAuth, signOut } from 'firebase/auth'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { collection, doc, onSnapshot, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
 import { open } from '@tauri-apps/plugin-shell'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -404,6 +404,7 @@ import ExForum from '~/widgets/exforum/ui/ExForum.vue'
 import ExTournamentView from '~/widgets/tournament/ui/ExTournamentView.vue'
 import { initTournamentListener, terminateTournamentListeners } from '~/widgets/tournament/model/useTournament'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
+import { uploadToCloudinary } from '~/shared/lib/cloudinary'
 
 const props = withDefaults(defineProps<{
   isMusicMuted?: boolean
@@ -424,8 +425,11 @@ const activeDashboardPanel = ref<string | null>(null)
 const isFeedbackOpen = ref(false)
 const feedbackSubmitted = ref(false)
 const feedbackSubmitting = ref(false)
+const feedbackDailyLimitReached = ref(false)
+const feedbackUploading = ref(false)
+const feedbackUploadProgress = ref(0)
 const feedbackError = ref('')
-const feedbackAttachments = ref<Array<{ name: string; url: string }>>([])
+const feedbackAttachments = ref<Array<{ name: string; url: string; publicId: string }>>([])
 const feedbackFieldErrors = ref({
   title: '',
   message: ''
@@ -436,19 +440,25 @@ const feedbackForm = ref({
 })
 
 const revokeFeedbackAttachments = () => {
-  feedbackAttachments.value.forEach(attachment => URL.revokeObjectURL(attachment.url))
+  feedbackAttachments.value.forEach(attachment => {
+    if (attachment.url.startsWith('blob:')) URL.revokeObjectURL(attachment.url)
+  })
 }
 
 const resetFeedbackForm = () => {
   revokeFeedbackAttachments()
   feedbackForm.value = { title: '', message: '' }
   feedbackAttachments.value = []
+  feedbackUploading.value = false
+  feedbackUploadProgress.value = 0
+  feedbackDailyLimitReached.value = false
   feedbackFieldErrors.value = { title: '', message: '' }
   feedbackError.value = ''
   feedbackSubmitted.value = false
 }
 
 const openFeedback = () => {
+  if (feedbackSubmitting.value || feedbackUploading.value) return
   userMenuOpen.value = false
   resetFeedbackForm()
   isFeedbackOpen.value = true
@@ -456,7 +466,7 @@ const openFeedback = () => {
 }
 
 const closeFeedback = () => {
-  if (feedbackSubmitting.value) return
+  if (feedbackSubmitting.value || feedbackUploading.value) return
   isFeedbackOpen.value = false
   activeDashboardPanel.value = null
   resetFeedbackForm()
@@ -480,22 +490,59 @@ const handleFeedbackAttachment = (event: Event) => {
     return
   }
 
-  const filesToAdd = files.slice(0, availableSlots)
-  feedbackAttachments.value.push(...filesToAdd.map(file => ({ name: file.name, url: URL.createObjectURL(file) })))
+  if (files.some(file => !file.type.startsWith('image/'))) {
+    feedbackError.value = locale.value === 'ru' ? 'Можно прикреплять только изображения.' : 'Only image files can be attached.'
+    input.value = ''
+    return
+  }
+
+  input.value = ''
+
+  const filesToUpload = files.slice(0, availableSlots)
   feedbackError.value = files.length > availableSlots
     ? (locale.value === 'ru' ? 'Можно прикрепить не более 3 изображений.' : 'You can attach no more than 3 images.')
     : ''
-  input.value = ''
+  feedbackUploading.value = true
+  feedbackUploadProgress.value = 0
+
+  void (async () => {
+    try {
+      for (let index = 0; index < filesToUpload.length; index += 1) {
+        const file = filesToUpload[index]
+        const result = await uploadToCloudinary(file, progress => {
+          const completedFilesProgress = index * 100
+          feedbackUploadProgress.value = Math.round((completedFilesProgress + progress) / filesToUpload.length)
+        })
+
+        if (!result?.secure_url) throw new Error('Cloudinary did not return an image URL')
+        feedbackAttachments.value.push({
+          name: file.name,
+          url: result.secure_url,
+          publicId: result.public_id || ''
+        })
+      }
+      feedbackUploadProgress.value = 100
+    } catch (error) {
+      console.error('[ExDashboard] Cloudinary upload failed:', error)
+      feedbackError.value = locale.value === 'ru'
+        ? 'Не удалось загрузить изображение. Попробуйте еще раз.'
+        : 'Image upload failed. Please try again.'
+    } finally {
+      feedbackUploading.value = false
+    }
+  })()
 }
 
 const removeFeedbackAttachment = (index: number) => {
   const attachment = feedbackAttachments.value[index]
   if (!attachment) return
-  URL.revokeObjectURL(attachment.url)
+  if (attachment.url.startsWith('blob:')) URL.revokeObjectURL(attachment.url)
   feedbackAttachments.value.splice(index, 1)
 }
 
 const submitFeedback = async () => {
+  if (feedbackDailyLimitReached.value) return
+
   const title = feedbackForm.value.title.trim()
   const message = feedbackForm.value.message.trim()
   feedbackFieldErrors.value = {
@@ -508,11 +555,75 @@ const submitFeedback = async () => {
     return
   }
 
+  if (feedbackUploading.value) {
+    feedbackError.value = locale.value === 'ru' ? 'Дождитесь завершения загрузки изображений.' : 'Wait for the images to finish uploading.'
+    return
+  }
+
+  const firebaseUser = getAuth().currentUser
+  const userId = authStore.user?.uid || firebaseUser?.uid
+  if (!userId) {
+    feedbackError.value = locale.value === 'ru' ? 'Не удалось определить пользователя. Войдите в аккаунт и повторите попытку.' : 'Unable to identify the user. Sign in and try again.'
+    return
+  }
+
   feedbackError.value = ''
   feedbackSubmitting.value = true
-  await new Promise(resolve => window.setTimeout(resolve, 650))
-  feedbackSubmitting.value = false
-  feedbackSubmitted.value = true
+  const feedbackRef = doc(collection(db, 'feedback'))
+  const feedbackLimitRef = doc(db, 'feedbackLimits', userId)
+
+  try {
+    await runTransaction(db, async transaction => {
+      const limitSnapshot = await transaction.get(feedbackLimitRef)
+
+      if (limitSnapshot.exists()) {
+        const lastSubmittedAt = limitSnapshot.data().lastSubmittedAt
+        if (
+          lastSubmittedAt &&
+          typeof lastSubmittedAt.toMillis === 'function' &&
+          Date.now() - lastSubmittedAt.toMillis() < 24 * 60 * 60 * 1000
+        ) {
+          throw new Error('FEEDBACK_DAILY_LIMIT')
+        }
+      }
+
+      transaction.set(feedbackRef, {
+        title,
+        message,
+        attachments: feedbackAttachments.value.map(({ name, url, publicId }) => ({ name, url, publicId })),
+        userId,
+        user: {
+          displayName: authStore.user?.displayName || firebaseUser?.displayName || null,
+          email: authStore.user?.email || firebaseUser?.email || null
+        },
+        source: 'dashboard',
+        appVersion: appVersion.value,
+        status: 'new',
+        createdAt: serverTimestamp()
+      })
+
+      transaction.set(feedbackLimitRef, {
+        userId,
+        lastSubmittedAt: serverTimestamp(),
+        lastFeedbackId: feedbackRef.id
+      })
+    })
+    feedbackSubmitted.value = true
+  } catch (error) {
+    console.error('[ExDashboard] Feedback write failed:', error)
+    if (error instanceof Error && error.message === 'FEEDBACK_DAILY_LIMIT') {
+      feedbackDailyLimitReached.value = true
+      feedbackError.value = locale.value === 'ru'
+        ? 'Вы уже отправляли отзыв за последние 24 часа. Новая отправка будет доступна позже.'
+        : 'You have already submitted feedback within the last 24 hours. You can send another one later.'
+    } else {
+      feedbackError.value = locale.value === 'ru'
+        ? 'Не удалось сохранить отзыв. Попробуйте еще раз.'
+        : 'Could not save the feedback. Please try again.'
+    }
+  } finally {
+    feedbackSubmitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -673,7 +784,10 @@ const dashboardModules = [
 ]
 
 const handleDashboardModuleClick = (moduleId: string) => {
-  if (isFeedbackOpen.value && !feedbackSubmitting.value) closeFeedback()
+  if (isFeedbackOpen.value) {
+    if (feedbackSubmitting.value || feedbackUploading.value) return
+    closeFeedback()
+  }
 
   if (moduleId === 'activity' || moduleId === 'forum' || moduleId === 'tournament') {
     activeDashboardPanel.value = activeDashboardPanel.value === moduleId ? null : moduleId
