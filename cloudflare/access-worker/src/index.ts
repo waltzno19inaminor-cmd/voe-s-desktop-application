@@ -60,7 +60,7 @@ interface AccessKeyRecord {
   status: 'active' | 'disabled'
   grant: string
   redeemedCount: number
-  maxRedemptions: number | null
+  maxRedemptions: number
   expiresAtMs: number | null
   durationMonths: number | null
   updateTime?: string
@@ -76,7 +76,7 @@ interface FirebaseJwk extends JsonWebKey {
 
 interface CreateKeysInput {
   count: number
-  maxRedemptions: number | null
+  maxRedemptions: number
   expiresAt: Date | null
   durationMonths: number | null
   label: string
@@ -127,6 +127,9 @@ const PATREON_IDENTITY_ENDPOINT = 'https://www.patreon.com/api/oauth2/v2/identit
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
 const MAX_KEYS_PER_REQUEST = 100
 const MAX_KEY_REDEMPTIONS = 1_000_000
+const DEFAULT_MAX_KEY_REDEMPTIONS = 1
+const EXPIRED_ACCESS_CLEANUP_BATCH_SIZE = 500
+const MAX_EXPIRED_ACCESS_CLEANUP_BATCHES = 20
 const ACCESS_GRANT = 'full_access'
 const ROTATION_MONTHS = [2, 4, 6, 8, 10, 12]
 const PATREON_KEY_LABEL = 'patreon-subscription'
@@ -745,9 +748,18 @@ function resolveAccessExpiresAt(key: AccessKeyRecord, activatedAt: Date): number
 async function startFreeTrial(env: Env, userId: string) {
   const transaction = await beginFirestoreTransaction(env)
   const trialPath = `users/${userId}/accessTrials/first`
-  const documents = await batchGetDocuments(env, transaction, [trialPath])
+  const accessStatePath = `users/${userId}/access/state`
+  const documents = await batchGetDocuments(env, transaction, [trialPath, accessStatePath])
   if (documents.get(trialPath)) {
     throw new AccessWorkerError('The free trial has already been used for this account.', 400)
+  }
+
+  const currentAccess = documents.get(accessStatePath)
+  const currentAccessExpiresAtMs = toMillis(currentAccess?.data.expiresAt)
+  const hasActiveAccess = currentAccess?.data.isActivated === true
+    && (!currentAccessExpiresAtMs || currentAccessExpiresAtMs > Date.now())
+  if (hasActiveAccess) {
+    throw new AccessWorkerError('This account already has active access.', 400)
   }
 
   const now = new Date()
@@ -972,59 +984,75 @@ async function disableAccessKey(env: Env, keyId: string) {
 
 async function deactivateExpiredUserAccessStates(env: Env): Promise<{ checked: number; deactivated: number }> {
   const token = await getGoogleAccessToken(env)
-  const response = await fetch(`${firestoreBaseUrl(env)}/documents:runQuery`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      structuredQuery: {
-        from: [{ collectionId: 'access', allDescendants: true }],
-        where: {
-          fieldFilter: {
-            field: { fieldPath: 'isActivated' },
-            op: 'EQUAL',
-            value: { booleanValue: true }
-          }
-        },
-        limit: 1000
-      }
-    })
-  })
-
-  if (!response.ok) {
-    throw new Error(`Firestore query for active user access states failed: ${response.status}`)
-  }
-
-  const documents = parseFirestoreQueryResponse(await response.text())
   const now = Date.now()
-  const expiredDocs: FirestoreDocument[] = []
+  let checked = 0
+  let deactivated = 0
 
-  for (const document of documents) {
-    const expiresAtMs = toMillis(document.data.expiresAt)
-    if (expiresAtMs && expiresAtMs <= now) {
-      expiredDocs.push(document)
-    }
-  }
-
-  if (expiredDocs.length === 0) {
-    return { checked: documents.length, deactivated: 0 }
-  }
-
-  const writes: FirestoreWrite[] = expiredDocs.map((doc) => ({
-    update: {
-      name: doc.name,
-      fields: encodeFields({
-        isActivated: false,
-        grant: doc.data.grant || ACCESS_GRANT,
-        activatedKeyId: doc.data.activatedKeyId || null,
-        expiresAt: doc.data.expiresAt || null
+  for (let batch = 0; batch < MAX_EXPIRED_ACCESS_CLEANUP_BATCHES; batch += 1) {
+    const response = await fetch(`${firestoreBaseUrl(env)}/documents:runQuery`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{ collectionId: 'access', allDescendants: true }],
+          where: {
+            compositeFilter: {
+              op: 'AND',
+              filters: [
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'isActivated' },
+                    op: 'EQUAL',
+                    value: { booleanValue: true }
+                  }
+                },
+                {
+                  fieldFilter: {
+                    field: { fieldPath: 'expiresAt' },
+                    op: 'LESS_THAN_OR_EQUAL',
+                    value: { timestampValue: new Date(now).toISOString() }
+                  }
+                }
+              ]
+            }
+          },
+          orderBy: [{ field: { fieldPath: 'expiresAt' }, direction: 'ASCENDING' }],
+          limit: EXPIRED_ACCESS_CLEANUP_BATCH_SIZE
+        }
       })
-    },
-    updateMask: { fieldPaths: ['isActivated'] },
-    updateTransforms: [{ fieldPath: 'deactivatedAt', setToServerValue: 'REQUEST_TIME' }]
-  }))
+    })
 
-  await commitFirestoreWrites(env, writes)
-  return { checked: documents.length, deactivated: expiredDocs.length }
+    if (!response.ok) {
+      throw new Error(`Firestore query for expired user access states failed: ${response.status}`)
+    }
+
+    const expiredDocs = parseFirestoreQueryResponse(await response.text())
+    checked += expiredDocs.length
+    if (expiredDocs.length === 0) break
+
+    const writes: FirestoreWrite[] = expiredDocs.map((doc) => ({
+      update: {
+        name: doc.name,
+        fields: encodeFields({
+          isActivated: false,
+          grant: doc.data.grant || ACCESS_GRANT,
+          activatedKeyId: doc.data.activatedKeyId || null,
+          expiresAt: doc.data.expiresAt || null
+        })
+      },
+      updateMask: { fieldPaths: ['isActivated'] },
+      updateTransforms: [{ fieldPath: 'deactivatedAt', setToServerValue: 'REQUEST_TIME' }],
+      // Do not let a cleanup result selected before a new redemption overwrite
+      // that newly granted access.
+      currentDocument: doc.updateTime ? { updateTime: doc.updateTime } : undefined
+    }))
+
+    await commitFirestoreWrites(env, writes)
+    deactivated += expiredDocs.length
+    if (expiredDocs.length < EXPIRED_ACCESS_CLEANUP_BATCH_SIZE) break
+  }
+
+  return { checked, deactivated }
 }
 
 function parseCreateKeysInput(input: Record<string, unknown>): CreateKeysInput {
@@ -1035,13 +1063,12 @@ function parseCreateKeysInput(input: Record<string, unknown>): CreateKeysInput {
 
   const rawMaxRedemptions = input.maxRedemptions
   const maxRedemptions = rawMaxRedemptions == null || rawMaxRedemptions === ''
-    ? null
+    ? DEFAULT_MAX_KEY_REDEMPTIONS
     : Number(rawMaxRedemptions)
-  if (maxRedemptions !== null && (
-    !Number.isInteger(maxRedemptions)
+  if (!Number.isInteger(maxRedemptions)
     || maxRedemptions < 1
     || maxRedemptions > MAX_KEY_REDEMPTIONS
-  )) {
+  ) {
     throw new AccessWorkerError('maxRedemptions must be a positive integer.', 400)
   }
 
@@ -1080,7 +1107,7 @@ function decodeAccessKeyRecord(document: FirestoreDocument): AccessKeyRecord {
   }
 
   const maxRedemptions = document.data.maxRedemptions == null
-    ? null
+    ? DEFAULT_MAX_KEY_REDEMPTIONS
     : Number(document.data.maxRedemptions)
   return {
     id: document.id,
@@ -1088,7 +1115,9 @@ function decodeAccessKeyRecord(document: FirestoreDocument): AccessKeyRecord {
     status,
     grant: String(document.data.grant || ACCESS_GRANT),
     redeemedCount: Math.max(0, Number(document.data.redeemedCount || 0)),
-    maxRedemptions: Number.isInteger(maxRedemptions) && maxRedemptions! > 0 ? maxRedemptions : null,
+    maxRedemptions: Number.isInteger(maxRedemptions) && maxRedemptions > 0
+      ? maxRedemptions
+      : DEFAULT_MAX_KEY_REDEMPTIONS,
     expiresAtMs: toMillis(document.data.expiresAt),
     durationMonths: document.data.durationMonths == null
       ? null
@@ -1104,7 +1133,7 @@ function assertAccessKeyCanBeRedeemed(key: AccessKeyRecord, options: { ignoreRed
   if (key.expiresAtMs && key.expiresAtMs <= Date.now()) {
     throw new AccessWorkerError('This access key has expired.', 400)
   }
-  if (!options.ignoreRedemptionLimit && key.maxRedemptions !== null && key.redeemedCount >= key.maxRedemptions) {
+  if (!options.ignoreRedemptionLimit && key.redeemedCount >= key.maxRedemptions) {
     throw new AccessWorkerError('This access key has reached its activation limit.', 400)
   }
 }

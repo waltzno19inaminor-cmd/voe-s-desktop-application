@@ -87,7 +87,8 @@ service cloud.firestore {
         && subcollection != "accessKeyAttempts"
         && subcollection != "access"
         && subcollection != "accessTrials"
-        && subcollection != "redeemedKeys";
+        && subcollection != "redeemedKeys"
+        && subcollection != "savedThreads";
       allow delete: if false;
     }
 
@@ -216,6 +217,60 @@ service cloud.firestore {
           "isRead",
           "readAt"
         ]);
+
+      allow delete: if false;
+    }
+
+    match /feedback/{feedbackId} {
+      allow create: if isSignedIn()
+        && existsAfter(/databases/$(database)/documents/feedbackLimits/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/feedbackLimits/$(request.auth.uid)).data.lastSubmittedAt == request.time
+        && getAfter(/databases/$(database)/documents/feedbackLimits/$(request.auth.uid)).data.lastFeedbackId == feedbackId
+        && request.resource.data.keys().hasAll([
+          "title", "message", "attachments", "userId", "user", "source", "appVersion", "status", "createdAt"
+        ])
+        && request.resource.data.keys().hasOnly([
+          "title", "message", "attachments", "userId", "user", "source", "appVersion", "status", "createdAt"
+        ])
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 80
+        && request.resource.data.message is string
+        && request.resource.data.message.size() > 0
+        && request.resource.data.message.size() <= 1000
+        && request.resource.data.attachments is list
+        && request.resource.data.attachments.size() <= 3
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.user is map
+        && request.resource.data.user.keys().hasOnly(["displayName", "email"])
+        && request.resource.data.source == "dashboard"
+        && request.resource.data.appVersion is string
+        && request.resource.data.appVersion.size() <= 32
+        && request.resource.data.status == "new"
+        && request.resource.data.createdAt == request.time;
+
+      allow read, update, delete: if false;
+    }
+
+    match /feedbackLimits/{userId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(["userId", "lastSubmittedAt", "lastFeedbackId"])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.lastSubmittedAt == request.time
+        && request.resource.data.lastFeedbackId is string
+        && request.resource.data.lastFeedbackId.size() > 0;
+
+      allow update: if isOwner(userId)
+        && resource.data.userId == request.auth.uid
+        && resource.data.lastSubmittedAt is timestamp
+        && request.resource.data.keys().hasOnly(["userId", "lastSubmittedAt", "lastFeedbackId"])
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.lastSubmittedAt == request.time
+        && request.resource.data.lastFeedbackId is string
+        && request.resource.data.lastFeedbackId.size() > 0
+        && request.time - resource.data.lastSubmittedAt >= duration.value(24, 'h');
 
       allow delete: if false;
     }
@@ -393,7 +448,40 @@ service cloud.firestore {
             && !request.resource.data.diff(resource.data).affectedKeys().hasAny(["likesCount"]))
           || isThreadLikeCounterUpdate(threadId)
         );
-      allow delete: if false;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
+    }
+
+    match /threadLinks/{linkId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly(["fromThreadId", "toThreadId", "type"])
+        && request.resource.data.fromThreadId is string
+        && request.resource.data.toThreadId is string
+        && request.resource.data.fromThreadId != request.resource.data.toThreadId
+        && request.resource.data.type == "extends"
+        && exists(/databases/$(database)/documents/threads/$(request.resource.data.fromThreadId))
+        && exists(/databases/$(database)/documents/threads/$(request.resource.data.toThreadId))
+        && get(/databases/$(database)/documents/threads/$(request.resource.data.fromThreadId)).data.authorId == request.auth.uid;
+
+      allow update: if false;
+
+      allow delete: if isSignedIn()
+        && resource.data.type == "extends"
+        && exists(/databases/$(database)/documents/threads/$(resource.data.fromThreadId))
+        && get(/databases/$(database)/documents/threads/$(resource.data.fromThreadId)).data.authorId == request.auth.uid;
+    }
+
+    match /users/{userId}/savedThreads/{threadId} {
+      allow read: if isOwner(userId);
+
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(["savedAt", "threadId"])
+        && request.resource.data.threadId == threadId
+        && request.resource.data.savedAt == request.time;
+
+      allow update: if false;
+      allow delete: if isOwner(userId) && resource.data.threadId == threadId;
     }
 
     match /replies/{replyId} {
