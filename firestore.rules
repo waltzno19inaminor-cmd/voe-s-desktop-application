@@ -86,6 +86,7 @@ service cloud.firestore {
         && subcollection != "notifications"
         && subcollection != "accessKeyAttempts"
         && subcollection != "access"
+        && subcollection != "accessTrials"
         && subcollection != "redeemedKeys";
       allow delete: if false;
     }
@@ -126,6 +127,14 @@ service cloud.firestore {
     // Access is granted only by the trusted access Worker. A user may inspect
     // their own activation state but can never create or alter it directly.
     match /users/{userId}/access/{accessId} {
+      allow read: if isOwner(userId);
+      allow create, update, delete: if false;
+    }
+
+    // Trial redemption is written only by the trusted access Worker. Without
+    // this rule a client could self-create a trial marker and corrupt its own
+    // licensing history.
+    match /users/{userId}/accessTrials/{trialId} {
       allow read: if isOwner(userId);
       allow create, update, delete: if false;
     }

@@ -16,6 +16,7 @@
         :lock-remaining-seconds="accessLockRemainingSeconds"
         :locale="locale"
         @activate="activateAccess"
+        @start-trial="activateFreeTrial"
         @retry="retryAccessCheck"
       />
     </Transition>
@@ -335,7 +336,8 @@ const {
   beginAccessListener,
   stopAccessListener,
   retryAccessCheck,
-  activateAccessKey
+  activateAccessKey,
+  activateFreeTrial: startFreeTrial
 } = useAccessActivation()
 useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 
@@ -480,6 +482,16 @@ const activateAccess = async (key) => {
   try {
     await activateAccessKey(key)
     showSuccessOverlay.value = true
+  } finally {
+    isActivatingAccess.value = false
+  }
+}
+
+const activateFreeTrial = async () => {
+  if (isActivatingAccess.value) return
+  isActivatingAccess.value = true
+  try {
+    if (await startFreeTrial()) showSuccessOverlay.value = true
   } finally {
     isActivatingAccess.value = false
   }

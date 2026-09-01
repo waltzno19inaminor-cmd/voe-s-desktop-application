@@ -68,6 +68,15 @@
         </form>
 
         <button
+          type="button"
+          class="access-gate__trial mt-5"
+          :disabled="isSubmitting || isLocked"
+          @click="emit('startTrial')"
+        >
+          {{ isRussian ? 'ПОПРОБОВАТЬ БЕСПЛАТНО · 7 ДНЕЙ' : 'START FREE TRIAL · 7 DAYS' }}
+        </button>
+
+        <button
           v-if="state === 'error'"
           type="button"
           class="access-gate__retry mt-5"
@@ -118,6 +127,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   activate: [key: string]
+  startTrial: []
   retry: []
 }>()
 
@@ -143,6 +153,18 @@ const localizedAccessError = (error: string) => {
     return isRussian.value
       ? 'Неверный ключ доступа. Проверьте код и попробуйте снова.'
       : 'Invalid access key. Check the code and try again.'
+  }
+
+  if (normalized.includes('access period has expired') || normalized.includes('access key has expired')) {
+    return isRussian.value
+      ? 'Срок действия доступа истёк. Введите новый ключ активации.'
+      : 'Your access period has expired. Please enter a new activation key.'
+  }
+
+  if (normalized.includes('free trial has already been used')) {
+    return isRussian.value
+      ? 'Бесплатный период для этого аккаунта уже был использован.'
+      : 'The free trial has already been used for this account.'
   }
 
   if (
@@ -417,6 +439,21 @@ const openPatreon = async (event: MouseEvent) => {
   cursor: default;
   opacity: 0.38;
 }
+
+.access-gate__trial {
+  border-bottom: 1px solid currentColor;
+  color: var(--theme-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  opacity: 0.58;
+  padding-bottom: 0.22rem;
+  transition: opacity 180ms ease;
+}
+
+.access-gate__trial:hover:not(:disabled) { opacity: 1; }
+.access-gate__trial:disabled { cursor: default; opacity: 0.28; }
 
 @media (max-width: 520px) {
   .access-gate__actions {

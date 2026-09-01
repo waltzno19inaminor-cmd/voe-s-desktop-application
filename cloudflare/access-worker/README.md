@@ -34,10 +34,12 @@ FIREBASE_PROJECT_ID=voes-a88f4
 curl -X POST "https://YOUR-WORKER.workers.dev/v1/admin/keys" \
   -H "Content-Type: application/json" \
   -H "X-Access-Admin-Token: YOUR_ACCESS_ADMIN_TOKEN" \
-  --data '{"count":10,"maxRedemptions":1,"label":"private beta"}'
+  --data '{"count":10,"maxRedemptions":1,"plan":"3m","label":"private beta"}'
 ```
 
 `maxRedemptions: 1` означает один пользователь на один ключ. Можно не передавать поле для ключа без лимита. Ответ содержит исходные ключи только в этот момент; в Firestore сохраняются исключительно HMAC-hash.
+
+Для ручной выдачи используйте `plan`: `1m`, `3m`, `6m`, `1y`, `5y` или `lifetime`. Срок лицензии начинается в момент первой успешной активации ключа, а не при его генерации. `expiresAt` при необходимости остаётся отдельным дедлайном, до которого сам ключ можно погасить.
 
 ### Активировать ключ
 
@@ -48,6 +50,15 @@ Content-Type: application/json
 
 { "key": "EXG-..." }
 ```
+
+### Бесплатный период
+
+```text
+POST /v1/trial
+Authorization: Bearer FIREBASE_ID_TOKEN
+```
+
+Worker выдаёт семь дней доступа один раз на Firebase-аккаунт. Повторный запрос не продлевает период.
 
 Активация ограничена Cloudflare rate limit: максимум 5 попыток за 60 секунд с одного IP.
 

@@ -62,6 +62,7 @@ interface AccessKeyRecord {
   redeemedCount: number
   maxRedemptions: number | null
   expiresAtMs: number | null
+  durationMonths: number | null
   updateTime?: string
 }
 
@@ -77,6 +78,7 @@ interface CreateKeysInput {
   count: number
   maxRedemptions: number | null
   expiresAt: Date | null
+  durationMonths: number | null
   label: string
 }
 
@@ -128,6 +130,15 @@ const MAX_KEY_REDEMPTIONS = 1_000_000
 const ACCESS_GRANT = 'full_access'
 const ROTATION_MONTHS = [2, 4, 6, 8, 10, 12]
 const PATREON_KEY_LABEL = 'patreon-subscription'
+const FREE_TRIAL_DAYS = 7
+const LICENSE_PLANS = {
+  '1m': 1,
+  '3m': 3,
+  '6m': 6,
+  '1y': 12,
+  '5y': 60,
+  lifetime: null
+} as const
 
 let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 let cachedFirebaseJwks: { keys: FirebaseJwk[]; expiresAtMs: number } | null = null
@@ -160,6 +171,12 @@ export default {
         const rawKey = typeof input.key === 'string' ? input.key : ''
         const result = await redeemAccessKey(env, identity.uid, rawKey)
         return jsonResponse(result)
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/trial') {
+        await enforceRedeemRateLimit(request, env)
+        const identity = await requireFirebaseIdentity(request, env)
+        return jsonResponse(await startFreeTrial(env, identity.uid), 201)
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/admin/keys') {
@@ -457,13 +474,11 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
   if (!entry) throw new Error('Unable to create Patreon access key.')
   const encrypted = await encryptRotationKeys(env, [{ id: entry.id, key: entry.key }])
 
-  const PATREON_KEY_DURATION_DAYS = 90
-  const expiresAt = new Date(Date.now() + PATREON_KEY_DURATION_DAYS * 24 * 60 * 60 * 1000)
-
   const keyInput: CreateKeysInput = {
     count: 1,
     maxRedemptions: 1,
-    expiresAt,
+    expiresAt: null,
+    durationMonths: 3,
     label: PATREON_KEY_LABEL
   }
 
@@ -618,21 +633,35 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
   const transaction = await beginFirestoreTransaction(env)
   const keyPath = `accessKeys/${keyDocument.id}`
   const redemptionPath = `${keyPath}/redemptions/${userId}`
-  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath])
+  const accessStatePath = `users/${userId}/access/state`
+  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath])
   const latestKeyDocument = documents.get(keyPath)
   const existingRedemption = documents.get(redemptionPath)
 
   if (!latestKeyDocument) throw new AccessWorkerError('Invalid or inactive access key.', 400)
   const accessKey = decodeAccessKeyRecord(latestKeyDocument)
 
+  // Check status and key redemption deadline even for an idempotent retry.
+  // Otherwise a disabled/expired key could be used to restore access.
+  assertAccessKeyCanBeRedeemed(accessKey, { ignoreRedemptionLimit: Boolean(existingRedemption) })
+
   if (existingRedemption) {
+    const existingExpiresAtMs = toMillis(existingRedemption.data.expiresAt)
+    if (existingExpiresAtMs && existingExpiresAtMs <= Date.now()) {
+      throw new AccessWorkerError('This access period has expired. Please use a new access key.', 400)
+    }
     await commitFirestoreTransaction(env, transaction, [
-      createUserAccessStateWrite(env, userId, accessKey)
+      createUserAccessStateWrite(env, userId, accessKey, existingExpiresAtMs || null, 'key')
     ])
-    return { activated: true, alreadyActivated: true, grant: accessKey.grant }
+    return {
+      activated: true,
+      alreadyActivated: true,
+      grant: accessKey.grant,
+      expiresAt: existingExpiresAtMs ? new Date(existingExpiresAtMs).toISOString() : null
+    }
   }
 
-  assertAccessKeyCanBeRedeemed(accessKey)
+  const accessExpiresAtMs = resolveAccessExpiresAt(accessKey, new Date())
 
   const accessKeyFields = encodeFields({
     ...latestKeyDocument.data,
@@ -655,7 +684,8 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
         fields: encodeFields({
           userId,
           keyId: accessKey.id,
-          grant: accessKey.grant
+          grant: accessKey.grant,
+          expiresAt: accessExpiresAtMs ? new Date(accessExpiresAtMs) : null
         })
       },
       updateTransforms: [{ fieldPath: 'redeemedAt', setToServerValue: 'REQUEST_TIME' }],
@@ -666,20 +696,32 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
         name: firestoreDocumentName(env, `users/${userId}/redeemedKeys/${accessKey.id}`),
         fields: encodeFields({
           keyId: accessKey.id,
-          grant: accessKey.grant
+          grant: accessKey.grant,
+          expiresAt: accessExpiresAtMs ? new Date(accessExpiresAtMs) : null
         })
       },
       updateTransforms: [{ fieldPath: 'redeemedAt', setToServerValue: 'REQUEST_TIME' }],
       currentDocument: { exists: false }
     },
-    createUserAccessStateWrite(env, userId, accessKey)
+    createUserAccessStateWrite(env, userId, accessKey, accessExpiresAtMs, 'key')
   ]
 
   await commitFirestoreTransaction(env, transaction, writes)
-  return { activated: true, alreadyActivated: false, grant: accessKey.grant }
+  return {
+    activated: true,
+    alreadyActivated: false,
+    grant: accessKey.grant,
+    expiresAt: accessExpiresAtMs ? new Date(accessExpiresAtMs).toISOString() : null
+  }
 }
 
-function createUserAccessStateWrite(env: Env, userId: string, accessKey: AccessKeyRecord): FirestoreWrite {
+function createUserAccessStateWrite(
+  env: Env,
+  userId: string,
+  accessKey: AccessKeyRecord,
+  expiresAtMs: number | null,
+  source: 'key' | 'trial'
+): FirestoreWrite {
   return {
     update: {
       name: firestoreDocumentName(env, `users/${userId}/access/state`),
@@ -687,11 +729,45 @@ function createUserAccessStateWrite(env: Env, userId: string, accessKey: AccessK
         isActivated: true,
         grant: accessKey.grant,
         activatedKeyId: accessKey.id,
-        expiresAt: accessKey.expiresAtMs ? new Date(accessKey.expiresAtMs) : null
+        expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
+        source
       })
     },
     updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }]
   }
+}
+
+function resolveAccessExpiresAt(key: AccessKeyRecord, activatedAt: Date): number | null {
+  if (key.durationMonths !== null) return addUtcMonths(activatedAt, key.durationMonths).getTime()
+  return key.expiresAtMs
+}
+
+async function startFreeTrial(env: Env, userId: string) {
+  const transaction = await beginFirestoreTransaction(env)
+  const trialPath = `users/${userId}/accessTrials/first`
+  const documents = await batchGetDocuments(env, transaction, [trialPath])
+  if (documents.get(trialPath)) {
+    throw new AccessWorkerError('The free trial has already been used for this account.', 400)
+  }
+
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000)
+  const trialKey: AccessKeyRecord = {
+    id: 'free-trial', keyHash: '', status: 'active', grant: ACCESS_GRANT,
+    redeemedCount: 0, maxRedemptions: 1, expiresAtMs: expiresAt.getTime(), durationMonths: null
+  }
+  await commitFirestoreTransaction(env, transaction, [
+    {
+      update: {
+        name: firestoreDocumentName(env, trialPath),
+        fields: encodeFields({ source: 'free-trial', expiresAt })
+      },
+      updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }],
+      currentDocument: { exists: false }
+    },
+    createUserAccessStateWrite(env, userId, trialKey, expiresAt.getTime(), 'trial')
+  ])
+  return { activated: true, trial: true, expiresAt: expiresAt.toISOString() }
 }
 
 async function enforceRedeemRateLimit(request: Request, env: Env): Promise<void> {
@@ -736,6 +812,7 @@ async function createRotationBatch(env: Env, rotationStart: Date): Promise<Rotat
     count: 2,
     maxRedemptions: 1,
     expiresAt,
+    durationMonths: null,
     label: `rotation-${rotationStart.toISOString().slice(0, 7)}`
   }
   const batchPath = `accessKeyBatches/${batchId}`
@@ -788,7 +865,10 @@ function createAccessKeyWrite(env: Env, entry: AccessKeyEntry, input: CreateKeys
         label: input.label,
         maxRedemptions: input.maxRedemptions,
         redeemedCount: 0,
-        expiresAt: input.expiresAt
+        // expiresAt is a deadline for redeeming the key itself. License plans
+        // use durationMonths and start counting only after activation.
+        expiresAt: input.expiresAt,
+        durationMonths: input.durationMonths
       })
     },
     updateTransforms: [{ fieldPath: 'createdAt', setToServerValue: 'REQUEST_TIME' }],
@@ -857,7 +937,18 @@ function getRotationBatchId(rotationStart: Date): string {
 }
 
 function addUtcMonths(date: Date, months: number): Date {
-  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1))
+  const targetYear = date.getUTCFullYear()
+  const targetMonth = date.getUTCMonth() + months
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate()
+  return new Date(Date.UTC(
+    targetYear,
+    targetMonth,
+    Math.min(date.getUTCDate(), lastDay),
+    date.getUTCHours(),
+    date.getUTCMinutes(),
+    date.getUTCSeconds(),
+    date.getUTCMilliseconds()
+  ))
 }
 
 async function disableAccessKey(env: Env, keyId: string) {
@@ -954,26 +1045,31 @@ function parseCreateKeysInput(input: Record<string, unknown>): CreateKeysInput {
     throw new AccessWorkerError('maxRedemptions must be a positive integer.', 400)
   }
 
-  const rawDurationDays = input.durationDays ?? input.validityDays
-  let expiresAt: Date | null = null
-  if (rawDurationDays != null && rawDurationDays !== '') {
-    const days = Number(rawDurationDays)
-    if (!Number.isInteger(days) || days < 1 || days > 3650) {
-      throw new AccessWorkerError('durationDays must be an integer from 1 to 3650.', 400)
+  const requestedPlan = String(input.plan || '').trim().toLowerCase()
+  const rawDurationMonths = input.durationMonths
+  let durationMonths: number | null = null
+  if (requestedPlan) {
+    if (!(requestedPlan in LICENSE_PLANS)) {
+      throw new AccessWorkerError('plan must be one of: 1m, 3m, 6m, 1y, 5y, lifetime.', 400)
     }
-    expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000)
-  } else {
-    const rawExpiresAt = input.expiresAt
-    expiresAt = rawExpiresAt == null || rawExpiresAt === ''
-      ? null
-      : new Date(String(rawExpiresAt))
+    durationMonths = LICENSE_PLANS[requestedPlan as keyof typeof LICENSE_PLANS]
+  } else if (rawDurationMonths != null && rawDurationMonths !== '') {
+    durationMonths = Number(rawDurationMonths)
+    if (!Number.isInteger(durationMonths) || durationMonths < 1 || durationMonths > 1200) {
+      throw new AccessWorkerError('durationMonths must be an integer from 1 to 1200.', 400)
+    }
   }
+
+  const rawExpiresAt = input.expiresAt
+  const expiresAt = rawExpiresAt == null || rawExpiresAt === ''
+    ? null
+    : new Date(String(rawExpiresAt))
   if (expiresAt && (!Number.isFinite(expiresAt.getTime()) || expiresAt.getTime() <= Date.now())) {
     throw new AccessWorkerError('expiresAt must be a future ISO date.', 400)
   }
 
   const label = String(input.label || '').trim().slice(0, 120)
-  return { count, maxRedemptions, expiresAt, label }
+  return { count, maxRedemptions, expiresAt, durationMonths, label }
 }
 
 function decodeAccessKeyRecord(document: FirestoreDocument): AccessKeyRecord {
@@ -994,16 +1090,21 @@ function decodeAccessKeyRecord(document: FirestoreDocument): AccessKeyRecord {
     redeemedCount: Math.max(0, Number(document.data.redeemedCount || 0)),
     maxRedemptions: Number.isInteger(maxRedemptions) && maxRedemptions! > 0 ? maxRedemptions : null,
     expiresAtMs: toMillis(document.data.expiresAt),
+    durationMonths: document.data.durationMonths == null
+      ? null
+      : Number.isInteger(Number(document.data.durationMonths)) && Number(document.data.durationMonths) > 0
+        ? Number(document.data.durationMonths)
+        : null,
     updateTime: document.updateTime
   }
 }
 
-function assertAccessKeyCanBeRedeemed(key: AccessKeyRecord) {
+function assertAccessKeyCanBeRedeemed(key: AccessKeyRecord, options: { ignoreRedemptionLimit?: boolean } = {}) {
   if (key.status !== 'active') throw new AccessWorkerError('Invalid or inactive access key.', 400)
   if (key.expiresAtMs && key.expiresAtMs <= Date.now()) {
     throw new AccessWorkerError('This access key has expired.', 400)
   }
-  if (key.maxRedemptions !== null && key.redeemedCount >= key.maxRedemptions) {
+  if (!options.ignoreRedemptionLimit && key.maxRedemptions !== null && key.redeemedCount >= key.maxRedemptions) {
     throw new AccessWorkerError('This access key has reached its activation limit.', 400)
   }
 }

@@ -19,6 +19,7 @@ const offlineAccessRestored = ref(false)
 let accessUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
 let accessLockTimer: ReturnType<typeof setInterval> | null = null
+let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let activeUserId = ''
 let activeLockUntilMs = 0
 let networkListenersAttached = false
@@ -89,6 +90,7 @@ async function restoreOfflineAccess(userId: string, force = false) {
   if (activeUserId !== userId || !cached) return false
 
   offlineAccessRestored.value = true
+  scheduleAccessExpiry(userId, cached.expiresAt || 0)
   if (force || isOffline.value) {
     accessState.value = 'granted'
     accessError.value = ''
@@ -125,6 +127,34 @@ function stopAccessLockTimer() {
   if (!accessLockTimer) return
   clearInterval(accessLockTimer)
   accessLockTimer = null
+}
+
+function stopAccessExpiryTimer() {
+  if (!accessExpiryTimer) return
+  clearTimeout(accessExpiryTimer)
+  accessExpiryTimer = null
+}
+
+function expireAccessLocally(userId: string) {
+  if (activeUserId !== userId) return
+  accessState.value = 'requires_key'
+  accessError.value = 'Your access period has expired. Please enter a new activation key.'
+  offlineAccessRestored.value = false
+  void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
+    console.warn('[Access] Unable to clear expired access cache:', error)
+  })
+}
+
+function scheduleAccessExpiry(userId: string, expiresAtMs: number) {
+  stopAccessExpiryTimer()
+  if (!expiresAtMs) return
+  const remaining = expiresAtMs - Date.now()
+  if (remaining <= 0) {
+    expireAccessLocally(userId)
+    return
+  }
+  // setTimeout accepts at most a signed 32-bit millisecond delay.
+  accessExpiryTimer = setTimeout(() => scheduleAccessExpiry(userId, expiresAtMs), Math.min(remaining, 2_147_000_000))
 }
 
 async function readAccessAttemptLock(userId: string): Promise<number> {
@@ -177,6 +207,7 @@ export function useAccessActivation() {
 
     accessUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
+    stopAccessExpiryTimer()
     accessUnsubscribe = null
     accessAttemptsUnsubscribe = null
     activeUserId = normalizedUserId
@@ -202,12 +233,7 @@ export function useAccessActivation() {
         if (data?.isActivated === true) {
           const expiresAtMs = toMillis(data?.expiresAt)
           if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
-            accessState.value = 'requires_key'
-            accessError.value = 'Your access period has expired. Please enter a new activation key.'
-            offlineAccessRestored.value = false
-            void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
-              console.warn('[Access] Unable to clear expired access cache:', error)
-            })
+            expireAccessLocally(normalizedUserId)
           } else {
             accessState.value = 'granted'
             accessError.value = ''
@@ -215,8 +241,10 @@ export function useAccessActivation() {
             void persistGrantedAccess(normalizedUserId, data?.expiresAt).catch((error) => {
               console.warn('[Access] Unable to cache confirmed access:', error)
             })
+            scheduleAccessExpiry(normalizedUserId, expiresAtMs)
           }
         } else if (snapshot.metadata.fromCache || isOffline.value) {
+          stopAccessExpiryTimer()
           // A local Firestore snapshot is not authoritative. This matters in
           // Tauri/WebView environments where navigator.onLine can stay true
           // even though the network is unavailable.
@@ -226,6 +254,7 @@ export function useAccessActivation() {
             accessError.value = ''
           })
         } else {
+          stopAccessExpiryTimer()
           accessState.value = 'requires_key'
           accessError.value = ''
           offlineAccessRestored.value = false
@@ -263,6 +292,7 @@ export function useAccessActivation() {
     accessAttemptsUnsubscribe?.()
     accessUnsubscribe = null
     accessAttemptsUnsubscribe = null
+    stopAccessExpiryTimer()
     activeUserId = ''
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
@@ -309,7 +339,7 @@ export function useAccessActivation() {
         },
         body: JSON.stringify({ key })
       })
-      const payload = await response.json().catch(() => ({})) as { activated?: boolean; error?: unknown }
+      const payload = await response.json().catch(() => ({})) as { activated?: boolean; expiresAt?: unknown; error?: unknown }
       if (!response.ok || payload.activated !== true) {
         accessError.value = getAccessErrorMessage(payload.error)
         try {
@@ -328,7 +358,40 @@ export function useAccessActivation() {
       }
       accessState.value = 'granted'
       offlineAccessRestored.value = false
-      await persistGrantedAccess(currentUser.uid)
+      const expiresAtMs = toMillis(payload.expiresAt)
+      await persistGrantedAccess(currentUser.uid, expiresAtMs || undefined)
+      scheduleAccessExpiry(currentUser.uid, expiresAtMs)
+      return true
+    } catch {
+      accessError.value = 'Unable to reach the access service. Please try again.'
+      accessState.value = 'requires_key'
+      return false
+    }
+  }
+
+  const activateFreeTrial = async (): Promise<boolean> => {
+    const currentUser = auth.currentUser
+    if (!currentUser || currentUser.uid !== activeUserId) {
+      accessState.value = 'error'
+      accessError.value = 'Your authentication session has expired. Please sign in again.'
+      return false
+    }
+    accessError.value = ''
+    try {
+      const idToken = await currentUser.getIdToken()
+      const response = await fetch(`${getAccessWorkerUrl()}/v1/trial`, {
+        method: 'POST', headers: { Authorization: `Bearer ${idToken}` }
+      })
+      const payload = await response.json().catch(() => ({})) as { activated?: boolean; expiresAt?: unknown; error?: unknown }
+      if (!response.ok || payload.activated !== true) {
+        accessError.value = getAccessErrorMessage(payload.error)
+        accessState.value = 'requires_key'
+        return false
+      }
+      const expiresAtMs = toMillis(payload.expiresAt)
+      accessState.value = 'granted'
+      await persistGrantedAccess(currentUser.uid, expiresAtMs || undefined)
+      scheduleAccessExpiry(currentUser.uid, expiresAtMs)
       return true
     } catch {
       accessError.value = 'Unable to reach the access service. Please try again.'
@@ -347,6 +410,7 @@ export function useAccessActivation() {
     beginAccessListener,
     stopAccessListener,
     retryAccessCheck,
-    activateAccessKey
+    activateAccessKey,
+    activateFreeTrial
   }
 }
