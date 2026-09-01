@@ -337,7 +337,7 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__title {
-  color: var(--theme-text) !important;
+  color: #000000 !important;
   font-size: clamp(2rem, 7vw, 3.5rem) !important;
   letter-spacing: 0.1em !important;
   line-height: 1.04 !important;
