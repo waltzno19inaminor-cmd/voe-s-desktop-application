@@ -68,6 +68,7 @@
         </form>
 
         <button
+          v-if="!isTrialUsed"
           type="button"
           class="access-gate__trial mt-5"
           :disabled="isSubmitting || isLocked"
@@ -116,11 +117,13 @@ const props = withDefaults(defineProps<{
   state: AccessActivationState
   error?: string
   isSubmitting?: boolean
+  isTrialUsed?: boolean
   lockRemainingSeconds?: number
   locale?: string
 }>(), {
   error: '',
   isSubmitting: false,
+  isTrialUsed: false,
   lockRemainingSeconds: 0,
   locale: 'en'
 })
@@ -134,6 +137,7 @@ const emit = defineEmits<{
 const accessKey = ref('')
 const isRussian = computed(() => props.locale === 'ru')
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
+const isTrialUsed = computed(() => props.isTrialUsed)
 const lockDurationText = computed(() => {
   const totalSeconds = Math.max(0, Math.ceil(props.lockRemainingSeconds))
   const minutes = Math.floor(totalSeconds / 60)

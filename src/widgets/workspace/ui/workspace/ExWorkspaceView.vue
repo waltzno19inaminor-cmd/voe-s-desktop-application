@@ -13,6 +13,7 @@
         :state="visibleAccessState"
         :error="accessError"
         :is-submitting="isActivatingAccess"
+        :is-trial-used="freeTrialUsed"
         :lock-remaining-seconds="accessLockRemainingSeconds"
         :locale="locale"
         @activate="activateAccess"
@@ -333,6 +334,7 @@ const {
   accessState,
   accessError,
   accessLockRemainingSeconds,
+  freeTrialUsed,
   beginAccessListener,
   stopAccessListener,
   retryAccessCheck,

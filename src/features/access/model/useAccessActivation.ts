@@ -14,10 +14,12 @@ const accessState = ref<AccessActivationState>('checking')
 const accessError = ref('')
 const accessLockRemainingSeconds = ref(0)
 const accessAttemptFailedCount = ref(0)
+const freeTrialUsed = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const offlineAccessRestored = ref(false)
 let accessUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
+let accessTrialUnsubscribe: (() => void) | null = null
 let accessLockTimer: ReturnType<typeof setInterval> | null = null
 let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let activeUserId = ''
@@ -207,12 +209,15 @@ export function useAccessActivation() {
 
     accessUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
+    accessTrialUnsubscribe?.()
     stopAccessExpiryTimer()
     accessUnsubscribe = null
     accessAttemptsUnsubscribe = null
+    accessTrialUnsubscribe = null
     activeUserId = normalizedUserId
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
+    freeTrialUsed.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
 
@@ -285,17 +290,31 @@ export function useAccessActivation() {
         accessLockRemainingSeconds.value = 0
       }
     )
+
+    accessTrialUnsubscribe = onSnapshot(
+      doc(db, 'users', normalizedUserId, 'accessTrials', 'first'),
+      (snapshot) => {
+        freeTrialUsed.value = snapshot.exists()
+      },
+      () => {
+        // Do not show the trial button again merely because the network failed
+        // after we have already learned that the account used it.
+      }
+    )
   }
 
   const stopAccessListener = () => {
     accessUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
+    accessTrialUnsubscribe?.()
     accessUnsubscribe = null
     accessAttemptsUnsubscribe = null
+    accessTrialUnsubscribe = null
     stopAccessExpiryTimer()
     activeUserId = ''
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
+    freeTrialUsed.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     accessState.value = 'checking'
@@ -405,6 +424,7 @@ export function useAccessActivation() {
     accessError,
     accessLockRemainingSeconds,
     accessAttemptFailedCount,
+    freeTrialUsed,
     isOffline,
     offlineAccessRestored,
     beginAccessListener,
