@@ -441,18 +441,19 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__trial {
-  border-bottom: 1px solid currentColor;
-  color: var(--theme-text);
+  background: #000000;
+  border: 1px solid #000000;
+  color: #ffffff;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 8px;
   font-weight: 800;
   letter-spacing: 0.2em;
-  opacity: 0.58;
-  padding-bottom: 0.22rem;
-  transition: opacity 180ms ease;
+  opacity: 1;
+  padding: 0.72rem 1rem;
+  transition: background-color 180ms ease, border-color 180ms ease;
 }
 
-.access-gate__trial:hover:not(:disabled) { opacity: 1; }
+.access-gate__trial:hover:not(:disabled) { background: #252525; border-color: #252525; }
 .access-gate__trial:disabled { cursor: default; opacity: 0.28; }
 
 @media (max-width: 520px) {
