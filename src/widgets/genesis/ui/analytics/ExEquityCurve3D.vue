@@ -73,8 +73,14 @@
             <div>
               <div class="text-[11px] font-mono font-black uppercase tracking-[0.3em] text-white leading-none mb-1.5">Insufficient Data</div>
               <div class="text-[11px] font-mono text-red-100 leading-snug">
-                Robustness diagnostics require at least <span class="font-bold text-white">20 trades</span>.
-                This strategy has <span class="font-bold text-white">{{ diagnosticStats.pnls?.length ?? 0 }}</span>.
+                <template v-if="isRu">
+                  Для составления отчёта необходимо минимум <span class="font-bold text-white">20 сделок</span>.
+                  В этой стратегии <span class="font-bold text-white">{{ diagnosticStats.pnls?.length ?? 0 }}</span>.
+                </template>
+                <template v-else>
+                  At least <span class="font-bold text-white">20 trades</span> are required to compile the report.
+                  This strategy has <span class="font-bold text-white">{{ diagnosticStats.pnls?.length ?? 0 }}</span>.
+                </template>
               </div>
             </div>
           </div>
