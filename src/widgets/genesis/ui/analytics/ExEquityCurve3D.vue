@@ -400,13 +400,13 @@
               <button @click="showWinrateMenu = false"
                       class="absolute -right-6 top-1/2 -translate-y-1/2 w-6 h-40 bg-[#ffffff] dark:bg-[#070707] border-t border-r border-b border-black/20 dark:border-white/20 flex items-center justify-center group/close-tab cursor-pointer hover:bg-black/5 dark:hover:bg-[#111] transition-colors z-[100]">
                  <div class="w-[1px] h-16 bg-black/10 dark:bg-white/10 group-hover/close-tab:bg-black/40 dark:group-hover/close-tab:bg-white/40 transition-all duration-300"></div>
-                 <span class="absolute text-[7px] font-mono tracking-[0.4em] uppercase text-black/10 dark:text-white/10 group-hover/close-tab:text-black/40 dark:group-hover/close-tab:text-white/40 rotate-90 whitespace-nowrap">Close_Menu</span>
+                 <span class="absolute text-[7px] font-mono tracking-[0.4em] uppercase text-black/10 dark:text-white/10 group-hover/close-tab:text-black/40 dark:group-hover/close-tab:text-white/40 rotate-90 whitespace-nowrap">Close Menu</span>
               </button>
               
               <ExPanel class="w-full h-full" noPadding variant="light">
                 <template #header>
                   <div class="flex items-center justify-between w-full">
-                    <span class="text-[9px] font-mono tracking-[0.4em] uppercase font-black nier-text-primary">{{ isRu ? 'ПРОТОКОЛ_ЦЕЛЕЙ_СИСТЕМЫ_V4.0' : 'SYSTEM_TARGET_PROTOCOL_V4.0' }}</span>
+                    <span class="text-[9px] font-mono tracking-[0.4em] uppercase font-black nier-text-primary">{{ isRu ? 'ПРОТОКОЛ ЦЕЛЕЙ СИСТЕМЫ V4.0' : 'SYSTEM TARGET PROTOCOL V4.0' }}</span>
                   </div>
                 </template>
 
@@ -418,7 +418,7 @@
                   <div class="relative flex items-center">
                     <div class="absolute left-3 w-1.5 h-1.5 bg-black/20 dark:bg-white/20 rotate-45"></div>
                     <input v-model="winrateTargetSearch" 
-                           :placeholder="isRu ? 'ПОИСК_ЦЕЛИ...' : 'SEARCH_TARGET...'" 
+                           :placeholder="isRu ? 'ПОИСК ЦЕЛИ...' : 'SEARCH TARGET...'"
                            class="bg-black/5 dark:bg-white/5 border nier-border-primary px-8 py-1.5 text-[9px] font-mono tracking-widest focus:outline-none focus:border-black/30 dark:focus:border-white/30 w-64 uppercase placeholder:opacity-30 nier-text-primary" />
                   </div>
 
@@ -440,7 +440,7 @@
                         <div class="w-1.5 h-1.5 bg-theme-text/40 rotate-45"></div>
                         <span class="text-[9px] font-mono tracking-[0.2em] text-black/60 dark:text-white/60 uppercase">{{ group.groupName }}</span>
                         <div class="flex-1 h-px bg-black/5 dark:bg-white/5"></div>
-                        <span class="text-[7px] font-mono opacity-20 uppercase tracking-[0.4em]">Scenario_Node</span>
+                        <span class="text-[7px] font-mono opacity-20 uppercase tracking-[0.4em]">Scenario Node</span>
                       </div>
                       <div class="flex flex-wrap gap-4">
                         <ExNTtooltip v-for="node in group.nodes" :key="node.id" :title="node.name">
@@ -472,9 +472,9 @@
                           </template>
                           <div class="flex flex-col gap-1">
                             <div class="flex items-center justify-between">
-                              <span class="text-[8px] font-mono opacity-40 uppercase">Target_Description</span>
+                              <span class="text-[8px] font-mono opacity-40 uppercase">Target Description</span>
                             </div>
-                            <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO_METADATA_AVAILABLE') : node.name }}</p>
+                            <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
                           </div>
                         </ExNTtooltip>
                       </div>
@@ -512,9 +512,9 @@
                         </template>
                         <div class="flex flex-col gap-1">
                           <div class="flex items-center justify-between">
-                            <span class="text-[8px] font-mono opacity-40 uppercase">Target_Description</span>
+                            <span class="text-[8px] font-mono opacity-40 uppercase">Target Description</span>
                           </div>
-                          <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO_METADATA_AVAILABLE') : node.name }}</p>
+                          <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
                         </div>
                       </ExNTtooltip>
                     </div>
@@ -523,7 +523,7 @@
 
                 <div v-else
                        class="w-full p-8 border border-dashed nier-border-primary text-center text-[10px] font-mono font-black uppercase tracking-[0.35em] text-black/30 dark:text-white/30">
-                    {{ isRu ? 'ЦЕЛИ НЕ НАЙДЕНЫ' : 'NO_TARGETS_FOUND' }}
+                    {{ isRu ? 'ЦЕЛИ НЕ НАЙДЕНЫ' : 'NO TARGETS FOUND' }}
                   </div>
                 </div>
               </ExPanel>
@@ -572,7 +572,7 @@
                     <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'НАЧАЛЬНЫЙ_ДЕПОЗИТ' : 'INITIAL_DEPOSIT' }}
+                    {{ isRu ? 'НАЧАЛЬНЫЙ ДЕПОЗИТ' : 'INITIAL DEPOSIT' }}
                   </span>
                 </button>
 
@@ -590,7 +590,7 @@
                     <circle cx="8" cy="18" r="2" fill="currentColor"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'НАСТРОЙКИ_BENCHMARK' : 'BENCHMARK_SETTINGS' }}
+                    {{ isRu ? 'НАСТРОЙКИ BENCHMARK' : 'BENCHMARK SETTINGS' }}
                   </span>
                 </button>
 
@@ -607,7 +607,7 @@
                     <path d="M2 17 6 17 9 8 15 17 18 17 22 17" stroke-dasharray="2,2" opacity="0.5"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'BENCHMARK-КРИВЫЕ' : 'BENCHMARK_CURVES' }}
+                    {{ isRu ? 'BENCHMARK-КРИВЫЕ' : 'BENCHMARK CURVES' }}
                   </span>
                 </button>
 
@@ -639,7 +639,7 @@
                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'БРОКЕР_БИРЖА' : 'BROKER_EXCHANGE' }}
+                    {{ isRu ? 'БРОКЕР / БИРЖА' : 'BROKER EXCHANGE' }}
                   </span>
                 </button>
 
@@ -656,7 +656,7 @@
                     <path d="M3 21v-5h5M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M16 8h5V3"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'СИНХРОНИЗАЦИЯ_API' : 'SYNC_API' }}
+                    {{ isRu ? 'СИНХРОНИЗАЦИЯ API' : 'SYNC API' }}
                   </span>
                 </button>
 
@@ -672,7 +672,7 @@
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                   </svg>
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-red-600 px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-white opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-                    {{ isRu ? 'УДАЛИТЬ_ЗАПИСИ' : 'PURGE_RECORDS' }}
+                    {{ isRu ? 'УДАЛИТЬ ЗАПИСИ' : 'PURGE RECORDS' }}
                   </span>
                 </button>
               </div>
@@ -697,7 +697,7 @@
             <line x1="6" y1="12" x2="18" y2="12"/>
           </svg>
           <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-            {{ isRu ? '[ НОВАЯ_СДЕЛКА ]' : '[ NEW_TRADE ]' }}
+            {{ isRu ? '[ НОВАЯ СДЕЛКА ]' : '[ NEW TRADE ]' }}
           </span>
         </button>
 
@@ -720,7 +720,7 @@
               <rect x="3" y="14" width="7" height="7"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showMetricsPanel ? '[ ПОКАЗАТЬ_КРИВУЮ_КАПИТАЛА ]' : '[ ОТКРЫТЬ_МЕТРИКИ_СТРАТЕГИИ ]') : (showMetricsPanel ? '[ VIEW_EQUITY_CURVE ]' : '[ OPEN_STRATEGY_METRICS ]') }}
+              {{ isRu ? (showMetricsPanel ? '[ ПОКАЗАТЬ КРИВУЮ КАПИТАЛА ]' : '[ ОТКРЫТЬ МЕТРИКИ СТРАТЕГИИ ]') : (showMetricsPanel ? '[ VIEW EQUITY CURVE ]' : '[ OPEN STRATEGY METRICS ]') }}
           </span>
         </button>
 
@@ -738,7 +738,7 @@
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (isEditMode ? '[ ВЫЙТИ_ИЗ_РЕДАКТИРОВАНИЯ ]' : '[ РЕЖИМ_РЕДАКТИРОВАНИЯ ]') : (isEditMode ? '[ EXIT_EDIT_MODE ]' : '[ EDIT_MODE ]') }}
+              {{ isRu ? (isEditMode ? '[ ВЫЙТИ ИЗ РЕДАКТИРОВАНИЯ ]' : '[ РЕЖИМ РЕДАКТИРОВАНИЯ ]') : (isEditMode ? '[ EXIT EDIT MODE ]' : '[ EDIT MODE ]') }}
             </span>
           </button>
 
@@ -754,7 +754,7 @@
               <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? '[ ЦЕНТРИРОВАТЬ_КРИВУЮ ]' : '[ CENTER_CURVE ]' }}
+              {{ isRu ? '[ ЦЕНТРИРОВАТЬ КРИВУЮ ]' : '[ CENTER CURVE ]' }}
             </span>
           </button>
 
@@ -762,7 +762,7 @@
           <button
             v-if="!showMetricsPanel && !showCalendarMode"
             @click="showWinrateMenu = true; showWinrateCurve = false"
-            :aria-label="isRu ? 'Выбор цели системы' : 'Select system target'"
+            :aria-label="isRu ? 'Выбор сценариев и условий' : 'Select scenarios and conditions'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showWinrateMenu ? 'border-white/30 bg-white/10 text-white' : ''"
           >
@@ -771,7 +771,7 @@
               <path d="M5 4c4-3 7 3 14 0v9c-7 3-10-3-14 0"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? '[ ВЫБОР_ЦЕЛИ_СИСТЕМЫ ]' : '[ SELECT_SYSTEM_TARGET ]' }}
+              {{ isRu ? '[ ВЫБОР СЦЕНАРИЕВ И УСЛОВИЙ ]' : '[ SELECT SCENARIOS AND CONDITIONS ]' }}
             </span>
           </button>
 
@@ -793,7 +793,7 @@
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showCalendarMode ? '[ ПОКАЗАТЬ_КРИВУЮ_КАПИТАЛА ]' : '[ ПОКАЗАТЬ_КАЛЕНДАРЬ ]') : (showCalendarMode ? '[ VIEW_EQUITY_CURVE ]' : '[ VIEW_CALENDAR_MODE ]') }}
+              {{ isRu ? (showCalendarMode ? '[ ПОКАЗАТЬ КРИВУЮ КАПИТАЛА ]' : '[ ПОКАЗАТЬ КАЛЕНДАРЬ ]') : (showCalendarMode ? '[ VIEW EQUITY CURVE ]' : '[ VIEW CALENDAR MODE ]') }}
             </span>
           </button>
         </template>
@@ -811,7 +811,7 @@
               <path d="M3 18C6 18 6.5 14 9 14C11.5 14 11 6 14 6C17 6 17 15 21 17"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? '[ ЭМПИРИЧЕСКАЯ_ПЛОТНОСТЬ_PNL ]' : '[ EMPIRICAL_PNL_DENSITY ]' }}
+              {{ isRu ? '[ ЭМПИРИЧЕСКАЯ ПЛОТНОСТЬ PNL ]' : '[ EMPIRICAL PNL DENSITY ]' }}
             </span>
           </button>
 
@@ -829,7 +829,7 @@
               <rect x="15" y="10" width="2.5" height="9"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? '[ РЕАЛЬНОЕ_РАСПРЕДЕЛЕНИЕ_PNL ]' : '[ OBSERVED_PNL_DISTRIBUTION ]' }}
+              {{ isRu ? '[ РЕАЛЬНОЕ РАСПРЕДЕЛЕНИЕ PNL ]' : '[ OBSERVED PNL DISTRIBUTION ]' }}
             </span>
           </button>
 
@@ -848,7 +848,7 @@
               <circle cx="17" cy="7" r="1.5" fill="currentColor"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showQQPlot ? '[ СКРЫТЬ_QQ_ГРАФИК ]' : '[ ПОКАЗАТЬ_QQ_ГРАФИК ]') : (showQQPlot ? '[ HIDE_QQ_PLOT ]' : '[ SHOW_QQ_PLOT ]') }}
+              {{ isRu ? (showQQPlot ? '[ СКРЫТЬ QQ ГРАФИК ]' : '[ ПОКАЗАТЬ QQ ГРАФИК ]') : (showQQPlot ? '[ HIDE QQ PLOT ]' : '[ SHOW QQ PLOT ]') }}
             </span>
           </button>
 
@@ -864,7 +864,7 @@
               <path d="M12 11v5M12 8h.01"/>
             </svg>
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-              {{ isRu ? (showRobustnessExplanations ? '[ СКРЫТЬ_ПОЯСНЕНИЯ ]' : '[ ПОКАЗАТЬ_ПОЯСНЕНИЯ ]') : (showRobustnessExplanations ? '[ HIDE_EXPLANATIONS ]' : '[ SHOW_EXPLANATIONS ]') }}
+              {{ isRu ? (showRobustnessExplanations ? '[ СКРЫТЬ ПОЯСНЕНИЯ ]' : '[ ПОКАЗАТЬ ПОЯСНЕНИЯ ]') : (showRobustnessExplanations ? '[ HIDE EXPLANATIONS ]' : '[ SHOW EXPLANATIONS ]') }}
             </span>
           </button>
 
