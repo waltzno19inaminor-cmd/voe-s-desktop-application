@@ -38,10 +38,10 @@
            </svg>
        </ExGenesisHudButton>
        <div v-if="canCreateStrategyVersion || (hasSelectedStrategyVersion && hasStrategyVersionChanges)" class="mx-1 h-px w-7 bg-white/15"></div>
-       <ExGenesisHudButton v-if="canCreateStrategyVersion" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-create')">
+       <ExGenesisHudButton v-if="canCreateStrategyVersion" class="!border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-create')">
            <Icon name="lucide:bookmark-plus" class="w-4 h-4" />
        </ExGenesisHudButton>
-       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-update')">
+       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="!border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-update')">
            <Icon name="lucide:refresh-cw" class="w-4 h-4" />
        </ExGenesisHudButton>
        <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="$emit('strategy-version-clear')">
