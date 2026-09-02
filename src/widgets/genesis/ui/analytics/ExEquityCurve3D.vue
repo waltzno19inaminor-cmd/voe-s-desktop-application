@@ -470,12 +470,7 @@
                                    class="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45 border-2 border-white dark:border-black shadow-sm transition-colors duration-500 bg-blue-500"></div>
                             </div>
                           </template>
-                          <div class="flex flex-col gap-1">
-                            <div class="flex items-center justify-between">
-                              <span class="text-[8px] font-mono opacity-40 uppercase">Target Description</span>
-                            </div>
-                            <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
-                          </div>
+                          <p class="text-[11px] font-mono font-semibold leading-relaxed tracking-[0.03em] opacity-85 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
                         </ExNTtooltip>
                       </div>
                     </div>
@@ -510,12 +505,7 @@
                                  class="absolute -bottom-1 -right-1 w-2.5 h-2.5 rotate-45 border-2 border-white dark:border-black shadow-sm transition-colors duration-500 bg-blue-500"></div>
                           </div>
                         </template>
-                        <div class="flex flex-col gap-1">
-                          <div class="flex items-center justify-between">
-                            <span class="text-[8px] font-mono opacity-40 uppercase">Target Description</span>
-                          </div>
-                          <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
-                        </div>
+                        <p class="text-[11px] font-mono font-semibold leading-relaxed tracking-[0.03em] opacity-85 uppercase">{{ node.type === 'condition' ? (node.description || 'NO METADATA AVAILABLE') : node.name }}</p>
                       </ExNTtooltip>
                     </div>
                   </template>
