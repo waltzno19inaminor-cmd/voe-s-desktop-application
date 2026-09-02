@@ -276,16 +276,16 @@
         <div v-else-if="phase === 'boot'" key="boot" class="w-full flex flex-col items-center space-y-6">
           <div class="w-full flex flex-col space-y-3">
             <div class="flex justify-between items-end">
-              <span class="text-[9px] font-mono uppercase tracking-widest text-black" style="opacity: 0.4; ">System_Initialization</span>
-              <span class="text-[9px] font-mono font-black text-black" >{{ Math.floor(progress) }}%</span>
+              <span class="text-[9px] font-mono uppercase tracking-widest text-black/60">System_Initialization</span>
+              <span class="text-[10px] font-mono font-black text-black">{{ Math.floor(progress) }}%</span>
             </div>
-            <div class="h-px w-full relative overflow-hidden" style="background: #000; opacity: 0.1;">
+
+            <div class="h-2 w-full relative overflow-hidden rounded-full border border-black/15 bg-black/10">
               <div
-                class="absolute top-0 left-0 h-full transition-all duration-300"
-                style="background: #000; opacity: 1;"
+                class="absolute top-0 left-0 h-full bg-black transition-all duration-300 rounded-full"
                 :style="{ width: `${progress}%` }"
               ></div>
-              <div class="absolute inset-y-0 left-0 w-8 blur-sm animate-scan" style="background: #000; opacity: 0.4;"></div>
+              <div class="absolute inset-y-0 left-0 w-12 bg-white/40 blur-sm animate-scan"></div>
             </div>
           </div>
 
