@@ -17,6 +17,7 @@ import { resolveRiskManagementForStrategy, riskValueToDollars } from '~/widgets/
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import { SystemProtocolSelect } from '~/widgets/system-protocol-select'
 import { useMatrixState } from '~/widgets/genesis/model/matrix/useMatrixState'
+import { getConditionSignalKeys, isDiscouragedCondition, isRecommendedCondition } from '~/widgets/genesis/model/recommendedConditions'
 
 
 export function useExTradeEntry(props, emit) {
@@ -1044,6 +1045,24 @@ const getScenarioConditions = (scenarioId) => {
     }
   })
   return flattened
+}
+
+const conditionSignalKeys = computed(() => {
+  return getConditionSignalKeys({
+    trades: tradeStore.getTradesForStrategy(selectedStrategyId.value) || [],
+    scenarios: [...entryScenarios.value, ...exitScenarios.value],
+    getScenarioConditions: getFlattenedScenarioConditions,
+    systemExitScenarioId: SYSTEM_EXIT_SCENARIO_ID,
+    systemExitProtocolIds: SYSTEM_EXIT_PROTOCOL_IDS
+  })
+})
+
+const isConditionRecommended = (condition, scenarioIdOverride = null) => {
+  return isRecommendedCondition(condition, conditionSignalKeys.value.recommended, scenarioIdOverride)
+}
+
+const isConditionDiscouraged = (condition, scenarioIdOverride = null) => {
+  return isDiscouragedCondition(condition, conditionSignalKeys.value.discouraged, scenarioIdOverride)
 }
 
 const getScenarioRequiredConditionsSnapshot = (scenarioId) => {
@@ -2651,6 +2670,8 @@ const submit = async () => {
     handleMouseLeaveInsight,
     getScenarioConditions,
     getFlattenedScenarioConditions,
+    isConditionRecommended,
+    isConditionDiscouraged,
     getRequiredConditionsSnapshotForScenarios,
     activeSector,
     sectors,

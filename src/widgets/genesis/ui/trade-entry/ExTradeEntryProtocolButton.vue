@@ -4,7 +4,7 @@
       type="button"
       class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
       :class="showStrategyMenu ? 'border-white/30 bg-white/10 text-white' : ''"
-      :aria-label="selectedStrategyName ? `${tr('Протокол', 'Protocol')}: ${selectedStrategyName}` : tr('Выбор протокола', 'Select protocol')"
+      :aria-label="selectedStrategyName ? `${tr('Выбор стратегии', 'Strategy selection')}: ${selectedStrategyName}` : tr('Выбор стратегии', 'Select strategy')"
       :aria-expanded="showStrategyMenu"
       @click="showStrategyMenu = !showStrategyMenu"
     >
@@ -15,7 +15,7 @@
         <path d="M14 17h6M17 14v6" />
       </svg>
       <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-        [ {{ tr('ПРОТОКОЛ', 'PROTOCOL') }} ]
+        [ {{ tr('ВЫБОР СТРАТЕГИИ', 'SELECT STRATEGY') }} ]
       </span>
     </button>
 

@@ -101,7 +101,7 @@ const emit = defineEmits<{
           :class="activePanel === 'matrix'
             ? 'border-white/30 bg-white/10 text-white'
             : 'border-transparent text-white/70 hover:border-white/20 hover:bg-white/5 hover:text-white'"
-          :aria-label="tr('Протокол Матрицы', 'Matrix protocol')"
+          :aria-label="tr('Условия и сценарии', 'Conditions and scenarios')"
           @click="emit('open-panel', 'matrix')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5" aria-hidden="true">
@@ -111,7 +111,7 @@ const emit = defineEmits<{
             <rect x="14" y="14" width="7" height="7" />
           </svg>
           <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
-            [ {{ tr('Протокол матрицы', 'Matrix protocol') }} ]
+            [ {{ tr('Условия и сценарии', 'Conditions and scenarios') }} ]
           </span>
         </button>
 

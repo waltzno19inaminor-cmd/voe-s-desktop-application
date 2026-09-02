@@ -7,7 +7,7 @@ const { locale } = useI18n();
 
 import ExPanel from '~/shared/ui/ExPanel.vue';
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue';
-const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, isConditionActive, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, isConditionActive, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, isConditionRecommended, isConditionDiscouraged, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
 
 const getScenarioLabel = (scenario) => {
   if (scenario?.id === 'default-exit-system') {
@@ -43,7 +43,7 @@ const getScenarioLabel = (scenario) => {
                 <div class="relative flex items-center">
                   <div class="absolute left-3 w-1.5 h-1.5 bg-black/20 dark:bg-white/20 rotate-45"></div>
                   <input v-model="registrySearchQuery" 
-                         placeholder="SEARCH_NODE..." 
+                         :placeholder="locale === 'ru' ? 'ПОИСК' : 'SEARCH'"
                          class="bg-black/5 dark:bg-white/5 border nier-border-primary px-8 py-1.5 text-[9px] font-mono tracking-widest focus:outline-none focus:border-black/30 dark:focus:border-white/30 w-64 uppercase placeholder:opacity-30" />
                 </div>
 
@@ -78,6 +78,20 @@ const getScenarioLabel = (scenario) => {
                                 : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white'))
                           ]">
                         
+                        <div v-if="isConditionRecommended(cond) || isConditionDiscouraged(cond)"
+                             class="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center"
+                             :class="isConditionRecommended(cond) ? 'text-emerald-500' : 'text-red-500'"
+                             :aria-label="isConditionRecommended(cond) ? 'RECOMMENDED' : 'LOW PERFORMANCE'">
+                          <svg v-if="isConditionRecommended(cond)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" class="condition-signal-arrow condition-signal-arrow--up">
+                            <path d="M12 19V5M6 11l6-6 6 6" />
+                            <path d="M12 19V5M6 11l6-6 6 6" pathLength="100" class="condition-signal-shine" />
+                          </svg>
+                          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" class="condition-signal-arrow condition-signal-arrow--down">
+                            <path d="M12 5v14m-6-6 6 6 6-6" />
+                            <path d="M12 5v14m-6-6 6 6 6-6" pathLength="100" class="condition-signal-shine" />
+                          </svg>
+                        </div>
+
                         <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
                              :class="[
                                cond.isMismatched ? 'border-red-500/30' : (isConditionActive(cond.id, cond.scenarioId) ? 'border-white/40 dark:border-black/40' : 'nier-border-primary')
@@ -186,6 +200,20 @@ const getScenarioLabel = (scenario) => {
                                 : (cond.priority === 'REQUIRED' ? 'bg-red-500/[0.05] border-red-500/30 hover:border-red-500' : cond.priority === 'ADDITIONAL' ? 'bg-blue-500/[0.05] border-blue-500/30 hover:border-blue-500' : 'bg-black/[0.02] dark:bg-white/[0.02] nier-border-primary hover:border-black dark:hover:border-white')
                             ]">
                           
+                          <div v-if="isConditionRecommended(cond, scen.id) || isConditionDiscouraged(cond, scen.id)"
+                               class="absolute -top-2 -right-2 z-10 flex h-5 w-5 items-center justify-center"
+                               :class="isConditionRecommended(cond, scen.id) ? 'text-emerald-500' : 'text-red-500'"
+                               :aria-label="isConditionRecommended(cond, scen.id) ? 'RECOMMENDED' : 'LOW PERFORMANCE'">
+                            <svg v-if="isConditionRecommended(cond, scen.id)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" class="condition-signal-arrow condition-signal-arrow--up">
+                              <path d="M12 19V5M6 11l6-6 6 6" />
+                              <path d="M12 19V5M6 11l6-6 6 6" pathLength="100" class="condition-signal-shine" />
+                            </svg>
+                            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" class="condition-signal-arrow condition-signal-arrow--down">
+                              <path d="M12 5v14m-6-6 6 6 6-6" />
+                              <path d="M12 5v14m-6-6 6 6 6-6" pathLength="100" class="condition-signal-shine" />
+                            </svg>
+                          </div>
+
                           <!-- CORNER ACCENT -->
                           <div class="absolute top-1 left-1 w-1 h-1 border-t border-l transition-colors duration-500"
                                :class="isConditionActive(cond.id, scen.id) ? 'border-white/40 dark:border-black/40' : 'nier-border-primary'"></div>
@@ -230,3 +258,52 @@ const getScenarioLabel = (scenario) => {
 
     
 </template>
+
+<style scoped>
+.condition-signal-arrow {
+  transform-origin: center;
+}
+
+.condition-signal-shine {
+  stroke-width: 4;
+  stroke-dasharray: 10 90;
+  stroke-dashoffset: 100;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 2px currentColor);
+  animation: condition-signal-shine 1.8s linear infinite;
+}
+
+.condition-signal-arrow--up .condition-signal-shine,
+.condition-signal-arrow--down .condition-signal-shine {
+  animation-name: condition-signal-shine;
+}
+
+@keyframes condition-signal-shine {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 0.95;
+  }
+
+  72% {
+    stroke-dashoffset: 0;
+    opacity: 0.95;
+  }
+
+  100% {
+    stroke-dashoffset: -10;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .condition-signal-shine {
+    animation: none;
+    opacity: 0.9;
+    stroke-dashoffset: 50;
+  }
+}
+</style>
