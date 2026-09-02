@@ -1,4 +1,4 @@
-export function timeAgo(date: any): string {
+export function timeAgo(date: any, locale: 'ru' | 'en' = 'en'): string {
   const now = new Date()
 
   let parsedDate: Date
@@ -21,6 +21,30 @@ export function timeAgo(date: any): string {
   }
 
   const seconds = Math.floor((now.getTime() - parsedDate.getTime()) / 1000)
+
+  if (locale === 'ru') {
+    const formatter = new Intl.RelativeTimeFormat('ru-RU', { numeric: 'always' })
+
+    if (seconds < 60) return 'только что'
+
+    const minutes = Math.floor(seconds / 60)
+    if (minutes < 60) return formatter.format(-minutes, 'minute')
+
+    const hours = Math.floor(minutes / 60)
+    if (hours < 24) return formatter.format(-hours, 'hour')
+
+    const days = Math.floor(hours / 24)
+    if (days < 7) return formatter.format(-days, 'day')
+
+    const weeks = Math.floor(days / 7)
+    if (weeks < 4) return formatter.format(-weeks, 'week')
+
+    const months = Math.floor(days / 30)
+    if (months < 12) return formatter.format(-months, 'month')
+
+    const years = Math.floor(days / 365)
+    return formatter.format(-years, 'year')
+  }
 
   if (seconds < 60) return 'just now'
 

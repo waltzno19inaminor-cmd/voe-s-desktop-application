@@ -56,9 +56,14 @@
             @click="markAsRead(notification.id)"
           >
             <span v-if="!notification.isRead" class="notification-item__unread" aria-hidden="true" />
-            <span class="block pr-4 font-mono text-[8px] font-black uppercase tracking-[0.16em] text-theme-text/45">
-              {{ notification.type === 'event' ? eventMeta(notification) : typeLabel(notification.type) }} · {{ timeAgo(notification.createdAt) }}
-            </span>
+            <div class="flex items-baseline justify-between gap-3 pr-4">
+              <span class="min-w-0 font-mono text-[10px] font-black uppercase tracking-[0.14em] text-theme-text/85">
+                {{ notification.type === 'event' ? eventMeta(notification) : typeLabel(notification.type) }}
+              </span>
+              <span class="shrink-0 font-mono text-[8px] font-bold uppercase tracking-[0.1em] text-theme-text/50">
+                {{ timeAgo(notification.createdAt, locale) }}
+              </span>
+            </div>
             <span class="mt-2 block pr-4 font-mono text-[11px] leading-relaxed tracking-[0.04em] text-theme-text/90">
               {{ notificationContent(notification) }}
               <strong v-if="notification.type === 'event'" class="notification-item__award ml-1.5 font-black tracking-[0.08em]">
