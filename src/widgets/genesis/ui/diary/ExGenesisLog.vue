@@ -4147,7 +4147,7 @@ onUnmounted(() => {
   if (rafId !== null) cancelAnimationFrame(rafId)
   rafId = null
   renderScheduled = false
-  for (const canvas of [canvasRef.value, distributionCanvasRef.value]) {
+  for (const canvas of [distributionCanvasRef.value]) {
     if (canvas) {
       canvas.width = 0
       canvas.height = 0

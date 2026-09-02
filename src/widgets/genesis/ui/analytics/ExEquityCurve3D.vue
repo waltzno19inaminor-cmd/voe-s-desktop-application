@@ -3064,6 +3064,8 @@ watch(() => themeStore.settings.isDark, () => {
 
 // --- INITIALIZATION --- //
 let equityCurveGeneration = 0
+let isComponentMounted = false
+let bootInterval: ReturnType<typeof setInterval> | null = null
 
 const initData = () => {
   const generation = ++equityCurveGeneration
@@ -4438,6 +4440,7 @@ const updateNetworkState = () => {
 }
 
 onMounted(() => {
+  isComponentMounted = true
   if (route.query.entry !== undefined) {
     router.replace({
       query: {
@@ -4455,50 +4458,58 @@ onMounted(() => {
   window.addEventListener('offline', updateNetworkState)
   window.addEventListener('keydown', handleCurveTradeDetailsKeydown)
 
-  const bootInterval = setInterval(() => {
+  bootInterval = setInterval(() => {
     bootProgress.value += Math.random() * 30
     if (bootProgress.value >= 100) {
       bootProgress.value = 100
-      clearInterval(bootInterval)
+      if (bootInterval) clearInterval(bootInterval)
+      bootInterval = null
     }
   }, 50)
 
   const revealInitialFrame = () => {
-    if (!isInitializing.value) return
+    if (!isComponentMounted || !isInitializing.value) return
     initData()
     updateColors()
     update()
     bootProgress.value = 100
     isInitializing.value = false
     canRevealCurve.value = true
-    clearInterval(bootInterval)
+    if (bootInterval) clearInterval(bootInterval)
+    bootInterval = null
   }
+
+  // Reveal the interactive curve immediately. Matrix/trade hydration continues
+  // in the background and refreshes the data when it completes.
+  requestAnimationFrame(revealInitialFrame)
 
   const hydrateData = async () => {
     // The selected strategy version lives in genesis_matrix_v2.json. Hydrate
-    // the shared matrix state before revealing EquityCurve so the first
-    // visible frame already uses pages[].selectedStrategyVersionId.
+    // the shared matrix state and refresh the visible curve when it is ready.
     await loadMatrixData()
     await tradeStore.init()
-    requestAnimationFrame(revealInitialFrame)
 
     await loadBenchmarkMetricsCache()
 
     await metricsPanel.loadMetricsLayout()
 
     await fetchRealtimeMetrics(getBenchmarkStrategyIds())
+    if (!isComponentMounted) return
     initData()
   }
 
   void hydrateData().catch(err => {
     console.error('[ExEquityCurve3D] Failed to hydrate deferred data:', err)
-    requestAnimationFrame(revealInitialFrame)
   })
 })
 
 // --- END CALENDAR LOGIC ---
 
 onUnmounted(() => {
+  isComponentMounted = false
+  equityCurveGeneration++
+  if (bootInterval) clearInterval(bootInterval)
+  bootInterval = null
   window.removeEventListener('online', updateNetworkState)
   window.removeEventListener('offline', updateNetworkState)
   window.removeEventListener('keydown', handleCurveTradeDetailsKeydown)
