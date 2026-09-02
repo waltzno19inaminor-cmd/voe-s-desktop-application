@@ -570,7 +570,7 @@ const DEFAULT_ENTRY_CONDITIONS = []
 const DEFAULT_ENTRY_SCENARIOS = []
 const DEFAULT_EXIT_CONDITIONS = []
 const DEFAULT_EXIT_SCENARIOS = [
-  { id: SYSTEM_EXIT_SCENARIO_ID, label: 'SYSTEM_PROTOCOLS', params: { customName: 'SYSTEM_PROTOCOLS', phase: 'EXIT' }, isMini: true }
+  { id: SYSTEM_EXIT_SCENARIO_ID, label: 'BASE EXIT SCENARIOS', params: { customName: 'BASE EXIT SCENARIOS', phase: 'EXIT' }, isMini: true }
 ]
 
 const entryConditions = computed(() => {
@@ -877,10 +877,29 @@ const getScenarioConditions = (scenarioId) => {
     const isEntry = scenarioId.includes('-entry-')
     
     if (scenarioId === SYSTEM_EXIT_SCENARIO_ID) {
+      const isRu = locale.value === 'ru'
       return [
-        { id: 'cond-exit-tp', name: 'TAKE-PROFIT', description: 'STRATEGIC_PROFIT_CAPTURE_TARGET' },
-        { id: 'cond-exit-sl', name: 'STOP-LOSS', description: 'CAPITAL_PRESERVATION_THRESHOLD' },
-        { id: 'cond-exit-fl', name: 'FULL-LIQUIDATION', description: 'TOTAL_EXPOSURE_TERMINATION' }
+        {
+          id: 'cond-exit-tp',
+          name: isRu ? 'ТЕЙК-ПРОФИТ' : 'TAKE-PROFIT',
+          description: isRu
+            ? 'ЗАКРЫТИЕ ПОЗИЦИИ ПРИ ДОСТИЖЕНИИ ЗАДАННОЙ ЦЕЛИ ПРИБЫЛИ.'
+            : 'CLOSE THE POSITION WHEN PRICE REACHES THE DEFINED PROFIT TARGET.'
+        },
+        {
+          id: 'cond-exit-sl',
+          name: isRu ? 'СТОП-ЛОСС' : 'STOP-LOSS',
+          description: isRu
+            ? 'ЗАКРЫТИЕ ПОЗИЦИИ ПРИ ДОСТИЖЕНИИ ЗАЩИТНОГО ПОРОГА УБЫТКА.'
+            : 'CLOSE THE POSITION WHEN PRICE REACHES THE PROTECTIVE LOSS THRESHOLD.'
+        },
+        {
+          id: 'cond-exit-fl',
+          name: isRu ? 'ПОЛНАЯ ЛИКВИДАЦИЯ' : 'FULL-LIQUIDATION',
+          description: isRu
+            ? 'ПОЛНОЕ ЗАКРЫТИЕ ПОЗИЦИИ И ПРЕКРАЩЕНИЕ ВСЕЙ ОСТАВШЕЙСЯ ЭКСПОЗИЦИИ.'
+            : 'CLOSE THE ENTIRE POSITION AND TERMINATE ALL REMAINING EXPOSURE.'
+        }
       ]
     }
 

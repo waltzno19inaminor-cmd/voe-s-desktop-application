@@ -8,6 +8,15 @@ const { locale } = useI18n();
 import ExPanel from '~/shared/ui/ExPanel.vue';
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue';
 const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJournalEntry, removeJournalEntry, addJournalEntryTag, removeJournalEntryTag, handleImageUpload, triggerUpload, showCmeNotice, rememberCmeNotice, closeCmeNotice, showAssetMenu, asset, assetSearch, filteredAssets, currentAssetData, selectAsset, matrixNodes, matrixConnections, matrixZones, isMatrixLoading, loadMatrixData, tradeStore, strategies, selectedStrategyId, selectedStrategy, findAllNodes, findAllConnections, findNodeById, activeRiskManagement, activeRiskPerTradeDollars, activeRiskSnapshot, actualRR, actualRiskPercent, violatesRR, violatesRiskPerTrade, riskViolationMessage, getReachableNodes, getNodeZoneType, showStrategyMenu, failedIcons, handleIconError, closeAssetMenu, selectedScenarioNode, getNodesForStrategy, DEFAULT_ENTRY_CONDITIONS, DEFAULT_ENTRY_SCENARIOS, DEFAULT_EXIT_CONDITIONS, DEFAULT_EXIT_SCENARIOS, entryConditions, entryScenarios, exitConditions, exitScenarios, miniExitScenarios, regularExitScenarios, filteredRegistryEntryScenarios, filteredRegistryExitScenarios, currentRegistryScenarioConditions, mismatchedNodeIds, hasVectorMismatch, activeConditions, isConditionActive, toggleCondition, showConditionLibrary, showEmotionSelector, registrySearchQuery, libraryFilter, filteredLibraryScenarios, flatLibraryConditions, selectedRegistryScenarioId, hoverTimeout, hoveredScenarioId, handleMouseEnterScenario, handleMouseLeaveScenario, handleMouseEnterInsight, getActiveConditionsInScenario, isScenarioSelected, handleMouseLeaveInsight, getScenarioConditions, getFlattenedScenarioConditions, activeSector, sectors, side, entry, exit, size, entryFee, exitFee, feeType, resultMode, showEntryMethod, activeProtocolTab, entryMethodType, pyramidingEntries, averagingDownEntries, activeMultipleEntries, entryMethodEnabled, hasActiveMethodNode, addMultipleEntry, exitEntries, exitMethodEnabled, totalExitSize, averageExit, addExitEntry, removeExitEntry, removeMultipleEntry, showAutoPrompt, autoEntryBasePrice, autoEntryBaseLots, toggleAutoPrompt, confirmAutoGenerate, totalSize, averageEntry, isForex, isManualEntryAsset, isFixedFeeAsset, overridePnl, liveRates, FALLBACK_RATES, fetchLiveRates, getRate, EMOTION_LIBRARY, emotionsByCategory, showEmotions, selectedEmotions, hoveredEmotion, mousePos, EMOTION_OPPOSITES, toggleEmotion, isEmotionDisabled, stopLoss, takeProfit, openDate, exitDate, cloneDate, adjustDate, formatPart, handleManualDate, projectedProfit, hasValidProjection, equityCurveTrades, isTemporalOpen, activeTemporalTarget, _now, tempDateParts, syncTempParts, openTemporal, scrollContainer, pnl, commitState, resetForm, submit } = inject('tradeState');
+
+const getScenarioLabel = (scenario) => {
+  if (scenario?.id === 'default-exit-system') {
+    return locale.value === 'ru' ? 'БАЗОВЫЕ СЦЕНАРИИ ВЫХОДА' : 'BASE EXIT SCENARIOS';
+  }
+
+  return String(scenario?.params?.customName || scenario?.label || '')
+    .replace(/_/g, ' ');
+};
 </script>
 
 <template>
@@ -57,7 +66,7 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
               
               <!-- FLAT CONDITION LIST (ONLY FOR 'ALL') -->
               <div v-if="libraryFilter === 'ALL'" class="flex flex-wrap gap-4">
-                <ExNTtooltip v-for="cond in flatLibraryConditions" :key="`${cond.scenarioId}:${cond.id}`" :title="cond.isMismatched ? `WRONG_DIRECTION / ${cond.tooltipName}` : cond.tooltipName" :disabled="cond.scenarioId === 'default-exit-system'">
+                <ExNTtooltip v-for="cond in flatLibraryConditions" :key="`${cond.scenarioId}:${cond.id}`" :title="cond.isMismatched ? `WRONG_DIRECTION / ${cond.tooltipName}` : cond.tooltipName">
                   <template #trigger>
                      <div @click="!cond.isMismatched && toggleCondition(cond.id, cond.scenarioId)"
                           class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center transition-all duration-500 group/node"
@@ -95,14 +104,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                   </template>
                   <div class="flex flex-col gap-1">
                      <div class="flex items-center justify-between">
-                       <span class="text-[8px] font-mono opacity-40">{{ cond.isMismatched ? 'CRITICAL_WARNING' : 'TELEMETRY_DESCRIPTION' }}</span>
+                       <span v-if="cond.isMismatched" class="text-[8px] font-mono opacity-50">CRITICAL_WARNING</span>
                        <span v-if="cond.priority && cond.priority !== 'NONE'" 
                              class="px-1 py-0.5 text-[6px] font-mono tracking-widest uppercase border"
                              :class="cond.priority === 'REQUIRED' ? 'border-red-500 text-red-500' : 'border-blue-500 text-blue-500'">
                          {{ cond.priority }}
                        </span>
                      </div>
-                     <p class="text-[9px] font-mono leading-relaxed uppercase" :class="cond.isMismatched ? 'text-red-500' : 'opacity-60'">
+                     <p class="text-[11px] font-mono font-semibold leading-relaxed tracking-[0.03em] uppercase" :class="cond.isMismatched ? 'text-red-500' : 'opacity-85'">
                        {{ cond.isMismatched ? 'PROTOCOL_DIRECTION_MISMATCH: THE TRADE SIDE DOES NOT ALIGN WITH THIS TACTICAL SCENARIO.' : (cond.description || 'NO_METADATA_AVAILABLE') }}
                      </p>
                   </div>
@@ -160,14 +169,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                 <!-- SCENARIO HEADER -->
                 <div class="flex items-center gap-4">
                   <div class="w-1.5 h-1.5 bg-black/40 dark:bg-white/40 rotate-45"></div>
-                  <span class="text-[9px] font-mono tracking-[0.2em] text-black/60 dark:text-white/60 uppercase">{{ scen.params?.customName || scen.label }}</span>
+                  <span class="text-[9px] font-mono tracking-[0.2em] text-black/60 dark:text-white/60 uppercase">{{ getScenarioLabel(scen) }}</span>
                   <div class="flex-1 h-px bg-black/5 dark:bg-white/5"></div>
                   <span class="text-[7px] font-mono opacity-20 uppercase tracking-[0.4em]">Scenario_Node</span>
                 </div>
 
                 <!-- CONDITION MATRIX -->
                 <div class="flex flex-wrap gap-4">
-                  <ExNTtooltip v-for="cond in getFlattenedScenarioConditions(scen.id)" :key="cond.id" :title="cond.name" :disabled="scen.id === 'default-exit-system'">
+                  <ExNTtooltip v-for="cond in getFlattenedScenarioConditions(scen.id)" :key="cond.id" :title="cond.name">
                     <template #trigger>
                        <div @click="toggleCondition(cond.id, scen.id)"
                             class="relative w-14 h-14 border -ml-px -mt-px flex items-center justify-center cursor-pointer transition-all duration-500 group/node"
@@ -200,15 +209,14 @@ const { themeStore, isDark, viewMode, journalEntries, getArchiveNodeName, addJou
                        </div>
                     </template>
                     <div class="flex flex-col gap-1">
-                       <div class="flex items-center justify-between">
-                         <span class="text-[8px] font-mono opacity-40">TELEMETRY_DESCRIPTION</span>
+                       <div v-if="cond.priority && cond.priority !== 'NONE'" class="flex items-center justify-end">
                          <span v-if="cond.priority && cond.priority !== 'NONE'" 
                                class="px-1 py-0.5 text-[6px] font-mono tracking-widest uppercase border"
                                :class="cond.priority === 'REQUIRED' ? 'border-red-500 text-red-500' : 'border-blue-500 text-blue-500'">
                            {{ cond.priority }}
                          </span>
                        </div>
-                       <p class="text-[9px] font-mono leading-relaxed opacity-60 uppercase">{{ cond.description || 'NO_METADATA_AVAILABLE' }}</p>
+                       <p class="text-[11px] font-mono font-semibold leading-relaxed tracking-[0.03em] opacity-85 uppercase">{{ cond.description || 'NO_METADATA_AVAILABLE' }}</p>
                     </div>
                   </ExNTtooltip>
                 </div>
