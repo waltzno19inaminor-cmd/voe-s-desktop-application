@@ -19,6 +19,8 @@ const appCheckSiteKey = String(import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KE
 let appCheckInstance: AppCheck | null = null;
 
 if (typeof window !== 'undefined' && appCheckSiteKey) {
+    // Debug tokens are accepted only when explicitly registered in Firebase
+    // App Check. Production builds always use the Enterprise provider.
     if (import.meta.env.DEV) {
         (self as typeof self & { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
     }
@@ -29,9 +31,8 @@ if (typeof window !== 'undefined' && appCheckSiteKey) {
     });
 }
 
-// Access-changing requests send this token to the Worker. The Worker can be
-// configured to fail closed when it is absent or invalid, which prevents a
-// Firebase ID token alone from being enough to mint a free/trial entitlement.
+// Only access-changing Worker calls use this token. A missing or invalid token
+// must never result in the Worker granting an entitlement.
 export async function getFirebaseAppCheckToken(): Promise<string | null> {
     if (!appCheckInstance) return null;
     try {
