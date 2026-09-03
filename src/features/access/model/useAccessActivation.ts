@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore'
 import { auth, db } from '~/shared/firebase.client'
 import { loadFromDisk, removeFromDisk, saveToDisk } from '~/shared/diskStorage'
 
@@ -200,6 +200,44 @@ function applyAccountBlockState(userId: string, data: Record<string, unknown> | 
   }
 }
 
+function applyAccessDocumentState(
+  userId: string,
+  data: Record<string, unknown> | undefined,
+  fromCache = false
+) {
+  if (isAccountBlocked.value) {
+    blockAccessLocally(userId)
+  } else if (data?.isActivated === true) {
+    const expiresAtMs = toMillis(data?.expiresAt)
+    if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
+      expireAccessLocally(userId)
+    } else {
+      accessState.value = 'granted'
+      accessError.value = ''
+      offlineAccessRestored.value = false
+      void persistGrantedAccess(userId, data?.expiresAt).catch((error) => {
+        console.warn('[Access] Unable to cache confirmed access:', error)
+      })
+      scheduleAccessExpiry(userId, expiresAtMs)
+    }
+  } else if (fromCache || isOffline.value) {
+    stopAccessExpiryTimer()
+    void restoreOfflineAccess(userId, true).then((restored) => {
+      if (restored) return
+      accessState.value = 'requires_key'
+      accessError.value = ''
+    })
+  } else {
+    stopAccessExpiryTimer()
+    accessState.value = 'requires_key'
+    accessError.value = ''
+    offlineAccessRestored.value = false
+    void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
+      console.warn('[Access] Unable to clear revoked access cache:', error)
+    })
+  }
+}
+
 function scheduleAccessExpiry(userId: string, expiresAtMs: number) {
   stopAccessExpiryTimer()
   if (!expiresAtMs) return
@@ -292,7 +330,22 @@ export function useAccessActivation() {
     userUnsubscribe = onSnapshot(
       doc(db, 'users', normalizedUserId),
       (snapshot) => {
+        const wasBlocked = isAccountBlocked.value
         applyAccountBlockState(normalizedUserId, snapshot.data())
+
+        // The admin panel restores the profile and license in two writes. If
+        // the license snapshot arrives first, read the final server state once
+        // the block flag is removed so access resumes without a restart.
+        if (wasBlocked && !isAccountBlocked.value) {
+          void getDocFromServer(doc(db, 'users', normalizedUserId, 'access', 'state'))
+            .then((accessSnapshot) => {
+              if (activeUserId !== normalizedUserId) return
+              applyAccessDocumentState(normalizedUserId, accessSnapshot.data(), false)
+            })
+            .catch(() => {
+              // The regular listener remains active and will retry naturally.
+            })
+        }
       },
       () => {
         // Do not revoke access because a profile read transiently failed.
@@ -301,41 +354,7 @@ export function useAccessActivation() {
     accessUnsubscribe = onSnapshot(
       doc(db, 'users', normalizedUserId, 'access', 'state'),
       (snapshot) => {
-        const data = snapshot.data()
-        if (isAccountBlocked.value) {
-          blockAccessLocally(normalizedUserId)
-        } else if (data?.isActivated === true) {
-          const expiresAtMs = toMillis(data?.expiresAt)
-          if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
-            expireAccessLocally(normalizedUserId)
-          } else {
-            accessState.value = 'granted'
-            accessError.value = ''
-            offlineAccessRestored.value = false
-            void persistGrantedAccess(normalizedUserId, data?.expiresAt).catch((error) => {
-              console.warn('[Access] Unable to cache confirmed access:', error)
-            })
-            scheduleAccessExpiry(normalizedUserId, expiresAtMs)
-          }
-        } else if (snapshot.metadata.fromCache || isOffline.value) {
-          stopAccessExpiryTimer()
-          // A local Firestore snapshot is not authoritative. This matters in
-          // Tauri/WebView environments where navigator.onLine can stay true
-          // even though the network is unavailable.
-          void restoreOfflineAccess(normalizedUserId, true).then((restored) => {
-            if (restored) return
-            accessState.value = 'requires_key'
-            accessError.value = ''
-          })
-        } else {
-          stopAccessExpiryTimer()
-          accessState.value = 'requires_key'
-          accessError.value = ''
-          offlineAccessRestored.value = false
-          void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
-            console.warn('[Access] Unable to clear revoked access cache:', error)
-          })
-        }
+        applyAccessDocumentState(normalizedUserId, snapshot.data(), snapshot.metadata.fromCache)
       },
       () => {
         void restoreOfflineAccess(normalizedUserId, true).then((restored) => {
