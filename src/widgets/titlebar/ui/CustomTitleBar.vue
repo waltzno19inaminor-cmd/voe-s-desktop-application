@@ -41,12 +41,34 @@ const isFullscreen = useState('isFullscreen', () => false)
 const isInitializationVisible = useState('isInitializationVisible', () => false)
 const isTauri = ref(false)
 let unlistenResize = null
+let wasMaximizedBeforeFullscreen = false
+let fullscreenTransition = false
+
+const syncFullscreenState = async () => {
+  if (appWindow.value && !fullscreenTransition) {
+    isFullscreen.value = await appWindow.value.isFullscreen()
+  }
+}
+
+const leaveFullscreen = async () => {
+  if (!appWindow.value || fullscreenTransition) return
+
+  fullscreenTransition = true
+  try {
+    await appWindow.value.setFullscreen(false)
+    if (wasMaximizedBeforeFullscreen) {
+      await appWindow.value.maximize()
+    }
+    isFullscreen.value = false
+  } finally {
+    fullscreenTransition = false
+  }
+}
 
 const handleKeydown = async (e) => {
   if (e.key === 'Escape' && isFullscreen.value && appWindow.value) {
     try {
-      await appWindow.value.setFullscreen(false)
-      isFullscreen.value = await appWindow.value.isFullscreen()
+      await leaveFullscreen()
     } catch (err) {
       console.error("Escape fullscreen error:", err)
     }
@@ -64,11 +86,7 @@ onMounted(async () => {
     isFullscreen.value = await appWindow.value.isFullscreen()
     
     // Automatically track fullscreen state changes
-    unlistenResize = await appWindow.value.onResized(async () => {
-      if (appWindow.value) {
-        isFullscreen.value = await appWindow.value.isFullscreen()
-      }
-    })
+    unlistenResize = await appWindow.value.onResized(syncFullscreenState)
   } catch {
     isTauri.value = false
   }
@@ -101,10 +119,27 @@ const minimize = async () => {
 
 const toggleFullscreen = async () => {
   try {
-    if (appWindow.value) {
-      const current = await appWindow.value.isFullscreen()
-      await appWindow.value.setFullscreen(!current)
-      isFullscreen.value = await appWindow.value.isFullscreen()
+    if (!appWindow.value || fullscreenTransition) return
+
+    const current = await appWindow.value.isFullscreen()
+    if (current) {
+      await leaveFullscreen()
+      return
+    }
+
+    fullscreenTransition = true
+    try {
+      // On Windows, entering fullscreen directly from a maximized frameless
+      // window can preserve DWM's work-area bounds. That leaves a thin border
+      // or keeps the taskbar visible. Normalize the native window first.
+      wasMaximizedBeforeFullscreen = await appWindow.value.isMaximized()
+      if (wasMaximizedBeforeFullscreen) {
+        await appWindow.value.unmaximize()
+      }
+      await appWindow.value.setFullscreen(true)
+      isFullscreen.value = true
+    } finally {
+      fullscreenTransition = false
     }
   } catch (e) {
     console.error("Fullscreen error: ", e)
