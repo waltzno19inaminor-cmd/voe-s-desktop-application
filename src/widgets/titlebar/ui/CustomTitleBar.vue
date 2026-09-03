@@ -46,6 +46,8 @@ let unlistenResize = null
 let wasMaximizedBeforeFullscreen = false
 let fullscreenTransition = false
 
+const isWindows = () => typeof navigator !== 'undefined' && /win/i.test(navigator.userAgent)
+
 const syncFullscreenState = async () => {
   if (appWindow.value && !fullscreenTransition) {
     isFullscreen.value = await appWindow.value.isFullscreen()
@@ -123,19 +125,17 @@ const toggleFullscreen = async () => {
   try {
     if (!appWindow.value || fullscreenTransition) return
 
-    const current = await appWindow.value.isFullscreen()
-    if (current) {
+    if (isFullscreen.value) {
       await leaveFullscreen()
       return
     }
 
     fullscreenTransition = true
     try {
-      // On Windows, entering fullscreen directly from a maximized frameless
-      // window can preserve DWM's work-area bounds. That leaves a thin border
-      // or keeps the taskbar visible. Normalize the native window first.
       wasMaximizedBeforeFullscreen = await appWindow.value.isMaximized()
-      if (wasMaximizedBeforeFullscreen) {
+      // Keep the Windows workaround intact. macOS must not unmaximize here,
+      // because it visibly shrinks the window before native fullscreen.
+      if (isWindows() && wasMaximizedBeforeFullscreen) {
         await appWindow.value.unmaximize()
       }
       await appWindow.value.setFullscreen(true)
