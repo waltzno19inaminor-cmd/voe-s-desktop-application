@@ -50,6 +50,7 @@
       "allowDowngrades": false,
       "nsis": {
         "installerIcon": "icons/icon.ico",
+        "sidebarImage": "icons/wizard.bmp",
         "installMode": "currentUser",
         "startMenuFolder": "VOSHE COMPANY DOO"
       }
