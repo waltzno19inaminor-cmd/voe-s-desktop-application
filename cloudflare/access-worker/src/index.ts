@@ -642,7 +642,7 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
   const latestKeyDocument = documents.get(keyPath)
   const existingRedemption = documents.get(redemptionPath)
 
-  if (documents.get(userPath)?.data.isBlocked === true) {
+  if (isUserCurrentlyBlocked(documents.get(userPath)?.data)) {
     throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
   }
 
@@ -750,13 +750,19 @@ function resolveAccessExpiresAt(key: AccessKeyRecord, activatedAt: Date): number
   return key.expiresAtMs
 }
 
+function isUserCurrentlyBlocked(data: Record<string, unknown> | undefined): boolean {
+  if (data?.isBlocked !== true) return false
+  const blockedUntilMs = toMillis(data.blockedUntil)
+  return !blockedUntilMs || blockedUntilMs > Date.now()
+}
+
 async function startFreeTrial(env: Env, userId: string) {
   const transaction = await beginFirestoreTransaction(env)
   const trialPath = `users/${userId}/accessTrials/first`
   const accessStatePath = `users/${userId}/access/state`
   const userPath = `users/${userId}`
   const documents = await batchGetDocuments(env, transaction, [trialPath, accessStatePath, userPath])
-  if (documents.get(userPath)?.data.isBlocked === true) {
+  if (isUserCurrentlyBlocked(documents.get(userPath)?.data)) {
     throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
   }
   if (documents.get(trialPath)) {

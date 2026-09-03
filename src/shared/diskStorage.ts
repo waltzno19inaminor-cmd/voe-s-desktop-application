@@ -26,6 +26,11 @@ const getStorageCandidates = (fileName: string): string[] => {
     return [fileName, getBackupKey(fileName)];
 };
 
+const isMissingFileError = (error: unknown): boolean => {
+    const text = String((error as { message?: unknown })?.message || error).toLowerCase();
+    return text.includes('no such file') || text.includes('not found') || text.includes('os error 2');
+};
+
 const storageApiUrl = (fileName: string): string => `/api/storage/${encodeURIComponent(fileName)}`;
 
 const loadFromStorageApi = async <T>(fileName: string): Promise<T | null> => {
@@ -156,7 +161,11 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
         const isTauri = typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__;
         if (!isTauri) {
             for (const candidate of getStorageCandidates(fileName)) {
-                await removeFromStorageApi(candidate);
+                try {
+                    await removeFromStorageApi(candidate);
+                } catch (error) {
+                    if (!isMissingFileError(error)) throw error;
+                }
             }
             return;
         }
@@ -166,10 +175,16 @@ export const removeFromDisk = async (fileName: string): Promise<void> => {
             const path = await join(dataPath, `${candidate}.json`);
             const fileExists = await exists(path);
             if (fileExists) {
-                await remove(path);
+                try {
+                    await remove(path);
+                } catch (error) {
+                    // A cache file may disappear between exists() and remove().
+                    if (!isMissingFileError(error)) throw error;
+                }
             }
         }
     } catch (error: any) {
+        if (isMissingFileError(error)) return;
         console.error(`Error removing ${fileName} from disk:`, error);
         await message(`Failed to remove file: ${error.message || error}`, { title: 'Delete Error', kind: 'error' });
     }

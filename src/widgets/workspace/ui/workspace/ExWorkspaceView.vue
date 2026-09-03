@@ -15,10 +15,13 @@
         :is-submitting="isActivatingAccess"
         :is-trial-used="freeTrialUsed"
         :lock-remaining-seconds="accessLockRemainingSeconds"
+        :is-account-blocked="isAccountBlocked"
+        :blocked-until="accountBlockedUntil"
         :locale="locale"
         @activate="activateAccess"
         @start-trial="activateFreeTrial"
         @retry="retryAccessCheck"
+        @gradflow-ready="isAccessGradflowReady = true"
       />
     </Transition>
 
@@ -335,6 +338,8 @@ const {
   accessError,
   accessLockRemainingSeconds,
   freeTrialUsed,
+  isAccountBlocked,
+  accountBlockedUntil,
   beginAccessListener,
   stopAccessListener,
   retryAccessCheck,
@@ -347,6 +352,8 @@ const authenticatedUserId = computed(() => authStore.user?.uid || '')
 const hasAccessGranted = computed(() => Boolean(authenticatedUserId.value) && accessState.value === 'granted')
 const showInitialization = computed(() => !hasInitialized.value)
 const isInitializationVisible = useState('isInitializationVisible', () => false)
+const isAccessGateVisible = useState('isAccessGateVisible', () => false)
+const isAccessGradflowReady = useState('isAccessGradflowReady', () => false)
 const showAccessGate = computed(() => (
   hasInitialized.value
   && Boolean(authenticatedUserId.value)
@@ -632,6 +639,11 @@ watch(showInitialization, (isVisible) => {
   isInitializationVisible.value = isVisible
 }, { immediate: true })
 
+watch(showAccessGate, (isVisible) => {
+  isAccessGateVisible.value = isVisible
+  if (!isVisible) isAccessGradflowReady.value = false
+}, { immediate: true })
+
 watch(activeTab, (newTab) => {
   setScrollLock(newTab)
 }, { immediate: true })
@@ -700,6 +712,8 @@ const handleSignedOut = () => {
 
 onUnmounted(() => {
   isInitializationVisible.value = false
+  isAccessGateVisible.value = false
+  isAccessGradflowReady.value = false
   stopDashboardScore(false)
   stopAccessListener()
   notificationStore.unsubscribeFromNotifications()

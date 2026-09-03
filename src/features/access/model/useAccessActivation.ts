@@ -17,14 +17,16 @@ const accessAttemptFailedCount = ref(0)
 const freeTrialUsed = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const offlineAccessRestored = ref(false)
+const isAccountBlocked = ref(false)
+const accountBlockedUntil = ref<number | null>(null)
 let accessUnsubscribe: (() => void) | null = null
 let userUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
 let accessTrialUnsubscribe: (() => void) | null = null
 let accessLockTimer: ReturnType<typeof setInterval> | null = null
 let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
+let accountBlockExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let activeUserId = ''
-let isAccountBlocked = false
 let activeLockUntilMs = 0
 let networkListenersAttached = false
 
@@ -139,6 +141,12 @@ function stopAccessExpiryTimer() {
   accessExpiryTimer = null
 }
 
+function stopAccountBlockExpiryTimer() {
+  if (!accountBlockExpiryTimer) return
+  clearTimeout(accountBlockExpiryTimer)
+  accountBlockExpiryTimer = null
+}
+
 function expireAccessLocally(userId: string) {
   if (activeUserId !== userId) return
   accessState.value = 'requires_key'
@@ -158,6 +166,38 @@ function blockAccessLocally(userId: string) {
   void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
     console.warn('[Access] Unable to clear blocked access cache:', error)
   })
+}
+
+function scheduleAccountBlockExpiry(userId: string, untilMs: number) {
+  const remaining = untilMs - Date.now()
+  if (remaining <= 0) {
+    if (activeUserId !== userId) return
+    isAccountBlocked.value = false
+    accountBlockedUntil.value = null
+    accessState.value = 'requires_key'
+    accessError.value = ''
+    return
+  }
+
+  accountBlockExpiryTimer = setTimeout(() => {
+    if (activeUserId !== userId) return
+    scheduleAccountBlockExpiry(userId, untilMs)
+  }, Math.min(remaining, 2_147_000_000))
+}
+
+function applyAccountBlockState(userId: string, data: Record<string, unknown> | undefined) {
+  stopAccountBlockExpiryTimer()
+  const untilMs = toMillis(data?.blockedUntil)
+  const isActiveBlock = data?.isBlocked === true && (!untilMs || untilMs > Date.now())
+  isAccountBlocked.value = isActiveBlock
+  accountBlockedUntil.value = isActiveBlock && untilMs > 0 ? untilMs : null
+
+  if (!isActiveBlock) return
+  blockAccessLocally(userId)
+
+  if (untilMs > Date.now()) {
+    scheduleAccountBlockExpiry(userId, untilMs)
+  }
 }
 
 function scheduleAccessExpiry(userId: string, expiresAtMs: number) {
@@ -225,12 +265,14 @@ export function useAccessActivation() {
     accessAttemptsUnsubscribe?.()
     accessTrialUnsubscribe?.()
     stopAccessExpiryTimer()
+    stopAccountBlockExpiryTimer()
     accessUnsubscribe = null
     userUnsubscribe = null
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
     activeUserId = normalizedUserId
-    isAccountBlocked = false
+    isAccountBlocked.value = false
+    accountBlockedUntil.value = null
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
@@ -250,8 +292,7 @@ export function useAccessActivation() {
     userUnsubscribe = onSnapshot(
       doc(db, 'users', normalizedUserId),
       (snapshot) => {
-        isAccountBlocked = snapshot.data()?.isBlocked === true
-        if (isAccountBlocked) blockAccessLocally(normalizedUserId)
+        applyAccountBlockState(normalizedUserId, snapshot.data())
       },
       () => {
         // Do not revoke access because a profile read transiently failed.
@@ -261,7 +302,7 @@ export function useAccessActivation() {
       doc(db, 'users', normalizedUserId, 'access', 'state'),
       (snapshot) => {
         const data = snapshot.data()
-        if (isAccountBlocked) {
+        if (isAccountBlocked.value) {
           blockAccessLocally(normalizedUserId)
         } else if (data?.isActivated === true) {
           const expiresAtMs = toMillis(data?.expiresAt)
@@ -341,8 +382,10 @@ export function useAccessActivation() {
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
     stopAccessExpiryTimer()
+    stopAccountBlockExpiryTimer()
     activeUserId = ''
-    isAccountBlocked = false
+    isAccountBlocked.value = false
+    accountBlockedUntil.value = null
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
@@ -364,7 +407,7 @@ export function useAccessActivation() {
       accessError.value = 'Your authentication session has expired. Please sign in again.'
       return false
     }
-    if (isAccountBlocked) {
+    if (isAccountBlocked.value) {
       blockAccessLocally(currentUser.uid)
       return false
     }
@@ -430,7 +473,7 @@ export function useAccessActivation() {
       accessError.value = 'Your authentication session has expired. Please sign in again.'
       return false
     }
-    if (isAccountBlocked) {
+    if (isAccountBlocked.value) {
       blockAccessLocally(currentUser.uid)
       return false
     }
@@ -466,6 +509,8 @@ export function useAccessActivation() {
     freeTrialUsed,
     isOffline,
     offlineAccessRestored,
+    isAccountBlocked,
+    accountBlockedUntil,
     beginAccessListener,
     stopAccessListener,
     retryAccessCheck,

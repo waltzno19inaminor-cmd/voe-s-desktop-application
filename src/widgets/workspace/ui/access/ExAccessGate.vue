@@ -1,7 +1,7 @@
 <template>
-  <section class="access-gate flex h-full w-full items-center justify-center px-5 py-10 sm:px-8 relative overflow-hidden ethereal-void" :class="{ 'is-dark': isDark }">
+  <section class="access-gate flex h-full w-full items-center justify-center px-5 py-10 sm:px-8 relative overflow-hidden ethereal-void" :class="{ 'is-dark': isDark, 'is-gradflow-ready': isGradflowReady }">
     <!-- Gradflow Background -->
-    <GradflowBackground preset="mystic" :config="accessGradflowConfig" />
+    <GradflowBackground preset="mystic" :config="accessGradflowConfig" @ready="handleGradflowReady" />
 
     <!-- Ethereal Background -->
     <div class="access-gate__ethereal-layer" aria-hidden="true">
@@ -15,6 +15,21 @@
       <div v-if="state === 'checking'" class="flex min-h-48 flex-col items-center justify-center text-center">
         <span class="access-gate__spinner mb-6" aria-hidden="true"></span>
         <p class="access-gate__eyebrow">{{ isRussian ? 'ПРОВЕРКА ДОСТУПА' : 'VERIFYING ACCESS' }}</p>
+      </div>
+
+      <div v-else-if="isAccountBlocked" class="access-gate__blocked text-center">
+        <p class="access-gate__eyebrow">{{ isRussian ? 'ДОСТУП ОГРАНИЧЕН' : 'ACCESS RESTRICTED' }}</p>
+        <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-5">
+          {{ isRussian ? 'АККАУНТ ВРЕМЕННО ЗАБЛОКИРОВАН' : 'ACCOUNT TEMPORARILY BLOCKED' }}
+        </ExHeading>
+        <p class="access-gate__description">
+          {{ isRussian
+            ? `Доступ к аккаунту ограничен до ${blockedUntilText}.`
+            : `Access to this account is restricted until ${blockedUntilText}.` }}
+        </p>
+        <p class="access-gate__blocked-note">
+          {{ isRussian ? 'Если вы считаете это ошибкой, обратитесь в поддержку.' : 'If you believe this is a mistake, please contact support.' }}
+        </p>
       </div>
 
       <div v-else class="text-center">
@@ -119,12 +134,16 @@ const props = withDefaults(defineProps<{
   isSubmitting?: boolean
   isTrialUsed?: boolean
   lockRemainingSeconds?: number
+  isAccountBlocked?: boolean
+  blockedUntil?: number | null
   locale?: string
 }>(), {
   error: '',
   isSubmitting: false,
   isTrialUsed: false,
   lockRemainingSeconds: 0,
+  isAccountBlocked: false,
+  blockedUntil: null,
   locale: 'en'
 })
 
@@ -132,12 +151,26 @@ const emit = defineEmits<{
   activate: [key: string]
   startTrial: []
   retry: []
+  gradflowReady: []
 }>()
 
 const accessKey = ref('')
+const isGradflowReady = ref(false)
 const isRussian = computed(() => props.locale === 'ru')
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
+const isAccountBlocked = computed(() => props.isAccountBlocked)
+const blockedUntilText = computed(() => {
+  if (!props.blockedUntil) return isRussian.value ? 'дальнейшего уведомления' : 'further notice'
+  return new Intl.DateTimeFormat(isRussian.value ? 'ru-RU' : 'en-GB', {
+    day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+  }).format(new Date(props.blockedUntil))
+})
+
+const handleGradflowReady = () => {
+  isGradflowReady.value = true
+  emit('gradflowReady')
+}
 const lockDurationText = computed(() => {
   const totalSeconds = Math.max(0, Math.ceil(props.lockRemainingSeconds))
   const minutes = Math.floor(totalSeconds / 60)
@@ -286,17 +319,8 @@ const openPatreon = async (event: MouseEvent) => {
 
 <style scoped>
 .access-gate {
-  min-height: 100vh;
-  min-height: 100dvh;
-  background:
-    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.58), transparent 42%),
-    var(--theme-bg);
-}
-
-.access-gate.is-dark {
-  background:
-    radial-gradient(circle at 50% 45%, rgba(246, 240, 230, 0.08), transparent 44%),
-    #050505;
+  min-height: 100%;
+  background: #050505;
 }
 
 .access-gate :deep(.gradflow-background),
@@ -324,6 +348,14 @@ const openPatreon = async (event: MouseEvent) => {
   background: transparent;
   border: 0;
   box-shadow: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.access-gate.is-gradflow-ready .access-gate__panel {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .access-gate__eyebrow,
@@ -357,6 +389,27 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate.is-dark .access-gate__description {
   color: #171717;
+}
+
+.access-gate__blocked-note {
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  line-height: 1.7;
+  margin: 2rem auto 0;
+  max-width: 27rem;
+  text-transform: uppercase;
+}
+
+.access-gate__blocked {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0 auto;
+  min-height: 18rem;
+  width: 100%;
 }
 
 .access-gate__input {

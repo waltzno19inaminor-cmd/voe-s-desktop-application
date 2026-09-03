@@ -3,7 +3,7 @@
     v-if="isTauri"
     v-show="!isFullscreen"
     @mousedown="startDrag"
-    :class="{ 'is-initialization-visible': isInitializationVisible }"
+    :class="{ 'is-initialization-visible': isInitializationVisible, 'is-access-gate-visible': isAccessGateVisible, 'is-access-gradflow-ready': isAccessGradflowReady }"
     class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[99999] transition-colors"
   >
     <div class="titlebar-surface" aria-hidden="true"></div>
@@ -39,6 +39,8 @@ import { onMounted, onUnmounted, ref } from 'vue'
 const appWindow = ref(null)
 const isFullscreen = useState('isFullscreen', () => false)
 const isInitializationVisible = useState('isInitializationVisible', () => false)
+const isAccessGateVisible = useState('isAccessGateVisible', () => false)
+const isAccessGradflowReady = useState('isAccessGradflowReady', () => false)
 const isTauri = ref(false)
 let unlistenResize = null
 let wasMaximizedBeforeFullscreen = false
@@ -170,7 +172,16 @@ const close = async () => {
   transition: background-color 300ms ease;
 }
 
-.titlebar-panel.is-initialization-visible .titlebar-surface {
+.titlebar-panel.is-initialization-visible .titlebar-surface,
+.titlebar-panel.is-access-gradflow-ready .titlebar-surface {
+  background: transparent;
+}
+
+.titlebar-panel.is-access-gate-visible .titlebar-surface {
+  background: #050505;
+}
+
+.titlebar-panel.is-access-gate-visible.is-access-gradflow-ready .titlebar-surface {
   background: transparent;
 }
 

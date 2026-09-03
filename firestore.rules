@@ -67,7 +67,8 @@ service cloud.firestore {
           "updatedAt",
           "access",
           "isBlocked",
-          "blockedAt"
+          "blockedAt",
+          "blockedUntil"
         ]);
 
       allow update: if isOwner(userId)
@@ -77,7 +78,8 @@ service cloud.firestore {
           "updatedAt",
           "access",
           "isBlocked",
-          "blockedAt"
+          "blockedAt",
+          "blockedUntil"
         ]);
 
       allow delete: if false;
