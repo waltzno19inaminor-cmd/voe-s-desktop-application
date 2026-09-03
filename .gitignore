@@ -27,6 +27,9 @@ logs
 .secrets/
 .wrangler/
 
+# Personal local operator console. This directory must never be committed or packaged.
+/.local-admin/
+
 node_modules/
 dist/
 .nuxt/
