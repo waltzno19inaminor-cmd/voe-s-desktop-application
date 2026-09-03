@@ -75,7 +75,18 @@ jobs:
           curl -L "${{ inputs.base_public_zip_url }}" -o artifacts/base-public.zip
           unzip -q artifacts/base-public.zip -d artifacts/base
 
+      - name: verify App Check build configuration
+        env:
+          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
+        run: |
+          if [[ -z "$VITE_RECAPTCHA_ENTERPRISE_SITE_KEY" ]]; then
+            echo "::error::VITE_RECAPTCHA_ENTERPRISE_SITE_KEY is not configured in GitHub Actions variables."
+            exit 1
+          fi
+
       - name: build fixed frontend
+        env:
+          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         run: npm run build
 
       - name: build standalone patcher
