@@ -1,20 +1,12 @@
 <template>
   <div
     class="ex-initialization fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden ethereal-void nier-text-primary"
-    :class="{ 'is-dark': isDark, 'is-startup': isStartupView }"
+    :class="{ 'is-dark': isDark, 'is-startup': isStartupView, 'is-gradflow-ready': isGradflowReady }"
     style="font-family: 'Cormorant Garamond', serif;"
   >
-    <!-- Ethereal Background -->
     <EtherealBackground :is-dark="isDark" :is-assembled="true" :show-bloom="false" />
-    <GradflowBackground
-      preset="mystic"
-      :config="initializationGradflowConfig"
-      class="transition-opacity duration-1000"
-      :class="isStartupView ? 'opacity-0' : 'opacity-100'"
-      @ready="isGradflowReady = true"
-    />
     <div
-      class="pointer-events-none absolute inset-0 z-[1] bg-white/[0.08] transition-opacity duration-500"
+      class="pointer-events-none absolute inset-0 z-[1] bg-[#050505] transition-opacity duration-500"
       :class="isGradflowReady ? 'opacity-0' : 'opacity-100'"
       aria-hidden="true"
     ></div>
@@ -321,10 +313,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { useRuntimeConfig } from '#imports'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
-import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
 import pkg from '../../../../../package.json'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -398,26 +389,22 @@ const currentPlatformFamily = (): 'macos' | 'windows' | 'linux' | null => {
   return null
 }
 
-const initializationGradflowConfig = {
-  color1: { r: 0, g: 0, b: 0 },
-  color2: { r: 220, g: 219, b: 255 },
-  color3: { r: 195, g: 173, b: 255 },
-  speed: 0.4,
-  scale: 1.2,
-  type: 'aurora' as const,
-  noise: 0.08
-}
-
 const emit = defineEmits(['initiate'])
 const { locale, setLocale } = useI18n()
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
-const isGradflowReady = ref(false)
+const isGradflowReady = useState('isAccessGradflowReady', () => false)
+const isInitializationGradflowVisible = useState('isInitializationGradflowVisible', () => false)
 const FORCE_STARTUP_PREVIEW = false
 const isStartupIntro = ref(true)
 const isStartupView = computed(() => FORCE_STARTUP_PREVIEW || isStartupIntro.value)
 let startupIntroTimer: ReturnType<typeof setTimeout> | null = null
+
+watch(isStartupView, (isStartup) => {
+  isInitializationGradflowVisible.value = !isStartup
+  if (!isStartup) isGradflowReady.value = false
+}, { immediate: true })
 const primaryButtonStyle = computed(() => ({
   background: '#171717',
   color: '#ffffff'
@@ -1062,6 +1049,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  isInitializationGradflowVisible.value = false
   clearUpdateProgressTimer()
   if (!startupIntroTimer) return
   clearTimeout(startupIntroTimer)
@@ -1071,7 +1059,12 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .ex-initialization {
+  background-color: #050505 !important;
   transition: background-color 900ms ease, color 900ms ease;
+}
+
+.ex-initialization.is-gradflow-ready {
+  background-color: transparent !important;
 }
 
 .initialization-logo-line {
@@ -1098,7 +1091,7 @@ onBeforeUnmount(() => {
 }
 
 .ex-initialization.is-startup {
-  --startup-dark: #000000;
+  --startup-dark: #050505;
   --startup-light: #eee9df;
   --startup-light-rgb: 238, 233, 223;
   --theme-bg: var(--startup-dark);

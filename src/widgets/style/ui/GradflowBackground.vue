@@ -1,5 +1,5 @@
 <template>
-  <div class="gradflow-background" :class="{ 'is-ready': isReady }" aria-hidden="true">
+  <div class="gradflow-background" :class="{ 'is-ready': isReady, 'is-immediate': immediate }" aria-hidden="true">
     <div ref="mountEl" class="gradflow-canvas"></div>
   </div>
 </template>
@@ -25,8 +25,10 @@ const props = withDefaults(defineProps<{
   config?: GradientConfigInput
   preset?: GradFlowPreset
   paused?: boolean
+  immediate?: boolean
 }>(), {
-  paused: false
+  paused: false,
+  immediate: false
 })
 
 const emit = defineEmits<{
@@ -110,6 +112,11 @@ onBeforeUnmount(() => {
 
 .gradflow-background.is-ready .gradflow-canvas {
   opacity: 1;
+}
+
+.gradflow-background.is-immediate .gradflow-canvas {
+  opacity: 1;
+  transition: none;
 }
 
 .gradflow-canvas :deep(canvas) {

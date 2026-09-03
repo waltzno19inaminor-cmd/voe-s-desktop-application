@@ -1,13 +1,5 @@
 <template>
-  <section class="access-gate flex h-full w-full items-center justify-center px-5 py-10 sm:px-8 relative overflow-hidden ethereal-void" :class="{ 'is-dark': isDark, 'is-gradflow-ready': isGradflowReady }">
-    <!-- Gradflow Background -->
-    <GradflowBackground preset="mystic" :config="accessGradflowConfig" @ready="handleGradflowReady" />
-
-    <!-- Ethereal Background -->
-    <div class="access-gate__ethereal-layer" aria-hidden="true">
-      <EtherealBackground :is-dark="isDark" :is-assembled="true" :show-bloom="false" />
-    </div>
-    <DesignVignette v-if="!isDark" :is-dark="isDark" />
+  <section class="access-gate flex h-full w-full items-center justify-center px-5 py-10 sm:px-8 relative overflow-hidden" :class="{ 'is-dark': isDark }">
 
     <div class="access-gate__panel w-full max-w-[34rem] overflow-visible relative z-10">
       <div class="px-7 py-9 sm:px-11 sm:py-12">
@@ -30,6 +22,9 @@
         <p class="access-gate__blocked-note">
           {{ isRussian ? 'Если вы считаете это ошибкой, обратитесь в поддержку.' : 'If you believe this is a mistake, please contact support.' }}
         </p>
+        <button type="button" class="access-gate__sign-out mt-8" @click="emit('signOut')">
+          {{ isRussian ? 'ВЫЙТИ ИЗ АККАУНТА' : 'SIGN OUT' }}
+        </button>
       </div>
 
       <div v-else class="text-center">
@@ -100,6 +95,10 @@
         >
           {{ isRussian ? 'ПОВТОРИТЬ ПРОВЕРКУ' : 'RETRY CHECK' }}
         </button>
+
+        <button type="button" class="access-gate__sign-out mt-8" @click="emit('signOut')">
+          {{ isRussian ? 'ВЫЙТИ ИЗ АККАУНТА' : 'SIGN OUT' }}
+        </button>
       </div>
       </div>
     </div>
@@ -110,24 +109,11 @@
 import { computed, ref } from 'vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import type { AccessActivationState } from '~/features/access/model/useAccessActivation'
-import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
-import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
-import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
 const PATREON_URL = 'https://www.patreon.com/cw/jlgandr'
-const accessGradflowConfig = {
-  color1: { r: 0, g: 0, b: 0 },
-  color2: { r: 220, g: 219, b: 255 },
-  color3: { r: 195, g: 173, b: 255 },
-  speed: 0.4,
-  scale: 1.2,
-  type: 'aurora' as const,
-  noise: 0.08
-}
-
 const props = withDefaults(defineProps<{
   state: AccessActivationState
   error?: string
@@ -151,11 +137,10 @@ const emit = defineEmits<{
   activate: [key: string]
   startTrial: []
   retry: []
-  gradflowReady: []
+  signOut: []
 }>()
 
 const accessKey = ref('')
-const isGradflowReady = ref(false)
 const isRussian = computed(() => props.locale === 'ru')
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
@@ -167,10 +152,6 @@ const blockedUntilText = computed(() => {
   }).format(new Date(props.blockedUntil))
 })
 
-const handleGradflowReady = () => {
-  isGradflowReady.value = true
-  emit('gradflowReady')
-}
 const lockDurationText = computed(() => {
   const totalSeconds = Math.max(0, Math.ceil(props.lockRemainingSeconds))
   const minutes = Math.floor(totalSeconds / 60)
@@ -320,42 +301,14 @@ const openPatreon = async (event: MouseEvent) => {
 <style scoped>
 .access-gate {
   min-height: 100%;
-  background: #050505;
-}
-
-.access-gate :deep(.gradflow-background),
-.access-gate :deep(.gradflow-canvas),
-.access-gate :deep(.gradflow-canvas canvas) {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-}
-
-.access-gate :deep(.gradflow-background) {
-  position: fixed;
-  inset: 0;
-}
-
-.access-gate__ethereal-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  opacity: 0.42;
+  background: transparent;
 }
 
 .access-gate__panel {
   background: transparent;
   border: 0;
   box-shadow: none;
-  opacity: 0;
-  transform: translateY(6px);
-  transition: opacity 500ms ease, transform 500ms ease;
-}
-
-.access-gate.is-gradflow-ready .access-gate__panel {
-  opacity: 1;
-  transform: translateY(0);
+  animation: access-gate-content-reveal 560ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
 }
 
 .access-gate__eyebrow,
@@ -539,6 +492,23 @@ const openPatreon = async (event: MouseEvent) => {
   opacity: 1;
 }
 
+.access-gate__sign-out {
+  background: transparent;
+  border: 0;
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  opacity: 0.5;
+  padding: 0.5rem 0.75rem;
+  transition: opacity 180ms ease;
+}
+
+.access-gate__sign-out:hover {
+  opacity: 1;
+}
+
 .access-gate__spinner,
 .access-gate__button-spinner {
   animation: access-gate-spin 800ms linear infinite;
@@ -563,4 +533,17 @@ const openPatreon = async (event: MouseEvent) => {
 @keyframes access-gate-spin {
   to { transform: rotate(360deg); }
 }
+
+@keyframes access-gate-content-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 </style>

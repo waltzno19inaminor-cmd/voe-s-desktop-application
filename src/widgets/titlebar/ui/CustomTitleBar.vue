@@ -172,16 +172,15 @@ const close = async () => {
   transition: background-color 300ms ease;
 }
 
-.titlebar-panel.is-initialization-visible .titlebar-surface,
-.titlebar-panel.is-access-gradflow-ready .titlebar-surface {
-  background: transparent;
-}
-
-.titlebar-panel.is-access-gate-visible .titlebar-surface {
+.titlebar-panel.is-initialization-visible .titlebar-surface {
   background: #050505;
 }
 
-.titlebar-panel.is-access-gate-visible.is-access-gradflow-ready .titlebar-surface {
+.titlebar-panel.is-access-gate-visible .titlebar-surface {
+  background: transparent;
+}
+
+.titlebar-panel.is-initialization-visible.is-access-gradflow-ready .titlebar-surface {
   background: transparent;
 }
 
@@ -191,6 +190,16 @@ const close = async () => {
   background: transparent;
   color: rgb(var(--theme-text-rgb) / 0.82);
   outline: none;
+}
+
+.titlebar-panel.is-initialization-visible .window-control {
+  color: rgb(255 255 255 / 0.82);
+  transition: color 500ms ease, background-color 500ms ease;
+}
+
+.titlebar-panel.is-initialization-visible.is-access-gradflow-ready .window-control,
+.titlebar-panel.is-access-gate-visible .window-control {
+  color: rgb(0 0 0 / 0.82);
 }
 
 .window-control:hover {

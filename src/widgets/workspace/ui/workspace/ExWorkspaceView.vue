@@ -1,29 +1,33 @@
 <template>
   <div ref="workspaceRoot" class="ethereal-void h-full min-h-0 relative overflow-hidden transition-all duration-1000"
-       :class="{ 'is-dark': isDark }">
+       :class="{ 'is-dark': isDark, 'is-access-gate-visible': showAccessGate }">
 
-    <Transition name="fade">
-       <ExInitialization v-if="showInitialization" @initiate="handleInitializationComplete" />
-    </Transition>
+    <GradflowBackground
+      v-if="isSharedGradflowVisible"
+      class="workspace-shared-gradflow"
+      preset="mystic"
+      :config="sharedGradflowConfig"
+      :immediate="showAccessGate && !isInitializationGradflowVisible"
+      @ready="isAccessGradflowReady = true"
+    />
 
-    <Transition name="access-gate-reveal" mode="out-in">
-      <ExAccessGate
-        v-if="showAccessGate"
-        key="access-gate"
-        :state="visibleAccessState"
-        :error="accessError"
-        :is-submitting="isActivatingAccess"
-        :is-trial-used="freeTrialUsed"
-        :lock-remaining-seconds="accessLockRemainingSeconds"
-        :is-account-blocked="isAccountBlocked"
-        :blocked-until="accountBlockedUntil"
-        :locale="locale"
-        @activate="activateAccess"
+    <ExInitialization v-if="showInitialization" @initiate="handleInitializationComplete" />
+
+    <ExAccessGate
+      v-if="showAccessGate"
+      :state="visibleAccessState"
+      :error="accessError"
+      :is-submitting="isActivatingAccess"
+      :is-trial-used="freeTrialUsed"
+      :lock-remaining-seconds="accessLockRemainingSeconds"
+      :is-account-blocked="isAccountBlocked"
+      :blocked-until="accountBlockedUntil"
+      :locale="locale"
+      @activate="activateAccess"
         @start-trial="activateFreeTrial"
         @retry="retryAccessCheck"
-        @gradflow-ready="isAccessGradflowReady = true"
-      />
-    </Transition>
+        @sign-out="handleAccessSignOut"
+    />
 
     <TesseractCanvas v-if="canEnterWorkspace && isTesseractEnabled" :is-dark="isDark" />
     <DesignVignette v-if="canEnterWorkspace" :is-dark="isDark" />
@@ -251,11 +255,14 @@
 <script setup>
 import { ref, watch, computed, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { signOut } from 'firebase/auth'
 import ExDashboard from '~/widgets/dashboard/ui/main/ExDashboard.vue'
 import TesseractCanvas from '~/widgets/style/ui/TesseractCanvas.vue'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 import ExInitialization from '~/widgets/workspace/ui/init/ExInitialization.vue'
 import ExAccessGate from '~/widgets/workspace/ui/access/ExAccessGate.vue'
+import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
+import { auth as firebaseAuth } from '~/shared/firebase.client'
 
 import ExGenesisMatrix from '~/widgets/genesis/ui/matrix/ExGenesisMatrix.vue'
 import ExEquityCurve3D from '~/widgets/genesis/ui/analytics/ExEquityCurve3D.vue'
@@ -354,11 +361,24 @@ const showInitialization = computed(() => !hasInitialized.value)
 const isInitializationVisible = useState('isInitializationVisible', () => false)
 const isAccessGateVisible = useState('isAccessGateVisible', () => false)
 const isAccessGradflowReady = useState('isAccessGradflowReady', () => false)
+const isInitializationGradflowVisible = useState('isInitializationGradflowVisible', () => false)
 const showAccessGate = computed(() => (
   hasInitialized.value
   && Boolean(authenticatedUserId.value)
   && accessState.value !== 'granted'
 ))
+const isSharedGradflowVisible = computed(() => (
+  isInitializationGradflowVisible.value || showAccessGate.value
+))
+const sharedGradflowConfig = {
+  color1: { r: 0, g: 0, b: 0 },
+  color2: { r: 220, g: 219, b: 255 },
+  color3: { r: 195, g: 173, b: 255 },
+  speed: 0.4,
+  scale: 1.2,
+  type: 'aurora',
+  noise: 0.08
+}
 const canEnterWorkspace = computed(() => hasInitialized.value && hasAccessGranted.value)
 const visibleAccessState = computed(() => {
   if (!authStore.authReady || !authenticatedUserId.value) return 'checking'
@@ -641,7 +661,7 @@ watch(showInitialization, (isVisible) => {
 
 watch(showAccessGate, (isVisible) => {
   isAccessGateVisible.value = isVisible
-  if (!isVisible) isAccessGradflowReady.value = false
+  if (isVisible) isAccessGradflowReady.value = false
 }, { immediate: true })
 
 watch(activeTab, (newTab) => {
@@ -691,8 +711,6 @@ watch(shouldPlayDashboardScore, (shouldPlay) => {
 const handleInitializationComplete = () => {
   if (!activeTab.value) primeDashboardScore()
   hasInitialized.value = true
-  // Mount the destination before the initialization overlay finishes leaving,
-  // so the transition never exposes the workspace background between screens.
   isAssembled.value = true
   setTimeout(() => {
     showBloom.value = false
@@ -708,6 +726,14 @@ const handleSignedOut = () => {
   activeTab.value = ''
 
   router.replace({ path: '/' })
+}
+
+const handleAccessSignOut = async () => {
+  try {
+    await signOut(firebaseAuth)
+  } finally {
+    handleSignedOut()
+  }
 }
 
 onUnmounted(() => {
@@ -728,6 +754,14 @@ onUnmounted(() => {
   font-family: 'Cormorant Garamond', serif;
 }
 
+.ethereal-void.is-access-gate-visible {
+  background-color: transparent !important;
+}
+
+.workspace-shared-gradflow {
+  z-index: 1 !important;
+}
+
 /* Animation: Page Reify */
 .page-reify-enter-active,
 .page-reify-leave-active {
@@ -738,28 +772,6 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(20px);
   filter: blur(10px);
-}
-
-/* Keep fixed Gradflow attached to the viewport while the access gate enters.
-   A transform/filter here creates a containing block below the 40px titlebar,
-   which makes the canvas jump into the titlebar after the transition ends. */
-.access-gate-reveal-enter-active,
-.access-gate-reveal-leave-active {
-  transition: opacity 420ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.access-gate-reveal-enter-from,
-.access-gate-reveal-leave-to {
-  opacity: 0;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 
 ::-webkit-scrollbar { width: 4px; }
