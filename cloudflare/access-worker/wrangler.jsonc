@@ -21,7 +21,10 @@
     }
   ],
   "vars": {
-    "FIREBASE_PROJECT_ID": "voes-a88f4"
+    "FIREBASE_PROJECT_ID": "voes-a88f4",
+    "FIREBASE_PROJECT_NUMBER": "79915571390",
+    "FIREBASE_APPCHECK_ENFORCE": "true",
+    "FIREBASE_APPCHECK_APP_IDS": "1:79915571390:web:fe7659ef2933e1167826ef"
   },
   "secrets": {
     "required": [

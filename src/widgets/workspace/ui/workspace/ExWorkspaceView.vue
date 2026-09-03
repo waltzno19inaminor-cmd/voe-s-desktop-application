@@ -25,6 +25,7 @@
       :locale="locale"
       @activate="activateAccess"
         @start-trial="activateFreeTrial"
+        @start-free-plan="activateFreePlan"
         @retry="retryAccessCheck"
         @sign-out="handleAccessSignOut"
     />
@@ -351,7 +352,8 @@ const {
   stopAccessListener,
   retryAccessCheck,
   activateAccessKey,
-  activateFreeTrial: startFreeTrial
+  activateFreeTrial: startFreeTrial,
+  activateFreePlan: startFreePlan
 } = useAccessActivation()
 useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 
@@ -510,8 +512,7 @@ const activateAccess = async (key) => {
   if (isActivatingAccess.value) return
   isActivatingAccess.value = true
   try {
-    await activateAccessKey(key)
-    showSuccessOverlay.value = true
+    if (await activateAccessKey(key)) showSuccessOverlay.value = true
   } finally {
     isActivatingAccess.value = false
   }
@@ -522,6 +523,16 @@ const activateFreeTrial = async () => {
   isActivatingAccess.value = true
   try {
     if (await startFreeTrial()) showSuccessOverlay.value = true
+  } finally {
+    isActivatingAccess.value = false
+  }
+}
+
+const activateFreePlan = async () => {
+  if (isActivatingAccess.value) return
+  isActivatingAccess.value = true
+  try {
+    if (await startFreePlan()) showSuccessOverlay.value = true
   } finally {
     isActivatingAccess.value = false
   }

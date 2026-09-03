@@ -1,17 +1,28 @@
 import { ref } from 'vue'
 import { doc, getDoc, getDocFromServer, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore'
-import { auth, db } from '~/shared/firebase.client'
+import { auth, db, getFirebaseAppCheckToken } from '~/shared/firebase.client'
 import { loadFromDisk, removeFromDisk, saveToDisk } from '~/shared/diskStorage'
+import {
+  capabilitiesForPlan,
+  isAccessPlan,
+  normalizeAccessCapabilities,
+  NO_ACCESS_CAPABILITIES,
+  type AccessCapabilities,
+  type AccessCapability,
+  type AccessPlan
+} from './accessEntitlements'
 
 export type AccessActivationState = 'checking' | 'requires_key' | 'granted' | 'error'
 
 const DEFAULT_ACCESS_WORKER_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev'
 const MAX_ACCESS_KEY_ATTEMPTS = 5
 const ACCESS_KEY_LOCK_MS = 15 * 60 * 1000
-const OFFLINE_ACCESS_CACHE_KEY = 'access_activation_offline_v1'
+const OFFLINE_ACCESS_CACHE_KEY = 'access_activation_offline_v2'
 const OFFLINE_ACCESS_GRACE_MS = 30 * 24 * 60 * 60 * 1000
 const accessState = ref<AccessActivationState>('checking')
 const accessError = ref('')
+const accessPlan = ref<AccessPlan>('none')
+const accessCapabilities = ref<AccessCapabilities>(NO_ACCESS_CAPABILITIES)
 const accessLockRemainingSeconds = ref(0)
 const accessAttemptFailedCount = ref(0)
 const freeTrialUsed = ref(false)
@@ -34,6 +45,8 @@ type CachedAccessState = {
   userId: string
   isActivated: true
   checkedAt: number
+  plan: Exclude<AccessPlan, 'none'>
+  capabilities: AccessCapabilities
   expiresAt?: number | null
 }
 
@@ -49,6 +62,22 @@ function getAccessErrorMessage(value: unknown): string {
 
 function getAccessAttemptsRef(userId: string) {
   return doc(db, 'users', userId, 'accessKeyAttempts', 'state')
+}
+
+function clearAccessEntitlement() {
+  accessPlan.value = 'none'
+  accessCapabilities.value = NO_ACCESS_CAPABILITIES
+}
+
+function setAccessEntitlement(plan: Exclude<AccessPlan, 'none'>, capabilities?: unknown) {
+  accessPlan.value = plan
+  accessCapabilities.value = normalizeAccessCapabilities(capabilities, plan)
+}
+
+function resolveAccessPlan(data: Record<string, unknown> | undefined): Exclude<AccessPlan, 'none'> {
+  // Existing valid access documents predate plans. Treating them as paid keeps
+  // active customers online while the Worker begins issuing explicit plans.
+  return isAccessPlan(data?.plan) ? data.plan : 'paid'
 }
 
 function toMillis(value: unknown): number {
@@ -69,6 +98,8 @@ function isValidCachedAccess(value: unknown, userId: string): value is CachedAcc
   if (!value || typeof value !== 'object') return false
   const cached = value as Partial<CachedAccessState>
   if (cached.userId !== userId || cached.isActivated !== true) return false
+  if (!isAccessPlan(cached.plan)) return false
+  if (!cached.capabilities || typeof cached.capabilities !== 'object') return false
   if (!Number.isFinite(cached.checkedAt) || !cached.checkedAt) return false
   if (Date.now() - cached.checkedAt > OFFLINE_ACCESS_GRACE_MS) return false
   if (cached.expiresAt && Date.now() >= cached.expiresAt) return false
@@ -80,12 +111,19 @@ async function readValidCachedAccess(userId: string): Promise<CachedAccessState 
   return isValidCachedAccess(cached, userId) ? cached : null
 }
 
-async function persistGrantedAccess(userId: string, expiresAt?: unknown) {
+async function persistGrantedAccess(
+  userId: string,
+  plan: Exclude<AccessPlan, 'none'>,
+  capabilities: AccessCapabilities,
+  expiresAt?: unknown
+) {
   const expiresAtMs = toMillis(expiresAt)
   const payload: CachedAccessState = {
     userId,
     isActivated: true,
     checkedAt: Date.now(),
+    plan,
+    capabilities,
     expiresAt: expiresAtMs > 0 ? expiresAtMs : null
   }
   await saveToDisk(OFFLINE_ACCESS_CACHE_KEY, payload)
@@ -96,6 +134,7 @@ async function restoreOfflineAccess(userId: string, force = false) {
   if (activeUserId !== userId || !cached) return false
 
   offlineAccessRestored.value = true
+  setAccessEntitlement(cached.plan, cached.capabilities)
   scheduleAccessExpiry(userId, cached.expiresAt || 0)
   if (force || isOffline.value) {
     accessState.value = 'granted'
@@ -150,6 +189,7 @@ function stopAccountBlockExpiryTimer() {
 function expireAccessLocally(userId: string) {
   if (activeUserId !== userId) return
   accessState.value = 'requires_key'
+  clearAccessEntitlement()
   accessError.value = 'Your access period has expired. Please enter a new activation key.'
   offlineAccessRestored.value = false
   void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
@@ -161,6 +201,7 @@ function blockAccessLocally(userId: string) {
   if (activeUserId !== userId) return
   stopAccessExpiryTimer()
   accessState.value = 'requires_key'
+  clearAccessEntitlement()
   accessError.value = 'This account has been blocked. Please contact support.'
   offlineAccessRestored.value = false
   void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
@@ -212,10 +253,12 @@ function applyAccessDocumentState(
     if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
       expireAccessLocally(userId)
     } else {
+      const plan = resolveAccessPlan(data)
+      setAccessEntitlement(plan, data?.capabilities)
       accessState.value = 'granted'
       accessError.value = ''
       offlineAccessRestored.value = false
-      void persistGrantedAccess(userId, data?.expiresAt).catch((error) => {
+      void persistGrantedAccess(userId, plan, accessCapabilities.value, data?.expiresAt).catch((error) => {
         console.warn('[Access] Unable to cache confirmed access:', error)
       })
       scheduleAccessExpiry(userId, expiresAtMs)
@@ -225,11 +268,13 @@ function applyAccessDocumentState(
     void restoreOfflineAccess(userId, true).then((restored) => {
       if (restored) return
       accessState.value = 'requires_key'
+      clearAccessEntitlement()
       accessError.value = ''
     })
   } else {
     stopAccessExpiryTimer()
     accessState.value = 'requires_key'
+    clearAccessEntitlement()
     accessError.value = ''
     offlineAccessRestored.value = false
     void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
@@ -292,7 +337,29 @@ async function resetAccessAttemptFailure(userId: string) {
   updateAccessLockRemaining()
 }
 
+async function getAccessRequestHeaders(idToken: string): Promise<Record<string, string>> {
+  const appCheckToken = await getFirebaseAppCheckToken()
+  return {
+    Authorization: `Bearer ${idToken}`,
+    ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {})
+  }
+}
+
+function applyGrantedResponse(payload: { plan?: unknown; capabilities?: unknown; expiresAt?: unknown }, userId: string) {
+  const plan = isAccessPlan(payload.plan) ? payload.plan : 'paid'
+  setAccessEntitlement(plan, payload.capabilities)
+  accessState.value = 'granted'
+  offlineAccessRestored.value = false
+  const expiresAtMs = toMillis(payload.expiresAt)
+  return persistGrantedAccess(userId, plan, accessCapabilities.value, expiresAtMs || undefined)
+    .then(() => scheduleAccessExpiry(userId, expiresAtMs))
+}
+
 export function useAccessActivation() {
+  const canAccess = (capability: AccessCapability) => (
+    accessState.value === 'granted' && accessCapabilities.value[capability] === true
+  )
+
   const beginAccessListener = (userId?: string | null, options: { force?: boolean } = {}) => {
     const normalizedUserId = String(userId || '').trim()
     attachNetworkListeners()
@@ -316,6 +383,7 @@ export function useAccessActivation() {
     freeTrialUsed.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
+    clearAccessEntitlement()
 
     if (!normalizedUserId) {
       accessState.value = 'checking'
@@ -325,6 +393,7 @@ export function useAccessActivation() {
 
     ensureAccessLockTimer()
     accessState.value = 'checking'
+    clearAccessEntitlement()
     offlineAccessRestored.value = false
     void restoreOfflineAccess(normalizedUserId)
     userUnsubscribe = onSnapshot(
@@ -360,6 +429,7 @@ export function useAccessActivation() {
         void restoreOfflineAccess(normalizedUserId, true).then((restored) => {
           if (restored) return
           accessState.value = 'error'
+          clearAccessEntitlement()
           accessError.value = 'Unable to verify your access status.'
         })
       }
@@ -411,6 +481,7 @@ export function useAccessActivation() {
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     accessState.value = 'checking'
+    clearAccessEntitlement()
     offlineAccessRestored.value = false
     stopAccessLockTimer()
   }
@@ -446,16 +517,22 @@ export function useAccessActivation() {
         return false
       }
 
-      const idToken = await currentUser.getIdToken()
+      const idToken = await currentUser.getIdToken(true)
       const response = await fetch(`${getAccessWorkerUrl()}/v1/redeem`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${idToken}`,
+          ...await getAccessRequestHeaders(idToken),
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ key })
       })
-      const payload = await response.json().catch(() => ({})) as { activated?: boolean; expiresAt?: unknown; error?: unknown }
+      const payload = await response.json().catch(() => ({})) as {
+        activated?: boolean
+        plan?: unknown
+        capabilities?: unknown
+        expiresAt?: unknown
+        error?: unknown
+      }
       if (!response.ok || payload.activated !== true) {
         accessError.value = getAccessErrorMessage(payload.error)
         try {
@@ -472,11 +549,7 @@ export function useAccessActivation() {
       } catch (error) {
         console.warn('[Access] Unable to reset activation attempts:', error)
       }
-      accessState.value = 'granted'
-      offlineAccessRestored.value = false
-      const expiresAtMs = toMillis(payload.expiresAt)
-      await persistGrantedAccess(currentUser.uid, expiresAtMs || undefined)
-      scheduleAccessExpiry(currentUser.uid, expiresAtMs)
+      await applyGrantedResponse(payload, currentUser.uid)
       return true
     } catch {
       accessError.value = 'Unable to reach the access service. Please try again.'
@@ -498,20 +571,23 @@ export function useAccessActivation() {
     }
     accessError.value = ''
     try {
-      const idToken = await currentUser.getIdToken()
+      const idToken = await currentUser.getIdToken(true)
       const response = await fetch(`${getAccessWorkerUrl()}/v1/trial`, {
-        method: 'POST', headers: { Authorization: `Bearer ${idToken}` }
+        method: 'POST', headers: await getAccessRequestHeaders(idToken)
       })
-      const payload = await response.json().catch(() => ({})) as { activated?: boolean; expiresAt?: unknown; error?: unknown }
+      const payload = await response.json().catch(() => ({})) as {
+        activated?: boolean
+        plan?: unknown
+        capabilities?: unknown
+        expiresAt?: unknown
+        error?: unknown
+      }
       if (!response.ok || payload.activated !== true) {
         accessError.value = getAccessErrorMessage(payload.error)
         accessState.value = 'requires_key'
         return false
       }
-      const expiresAtMs = toMillis(payload.expiresAt)
-      accessState.value = 'granted'
-      await persistGrantedAccess(currentUser.uid, expiresAtMs || undefined)
-      scheduleAccessExpiry(currentUser.uid, expiresAtMs)
+      await applyGrantedResponse(payload, currentUser.uid)
       return true
     } catch {
       accessError.value = 'Unable to reach the access service. Please try again.'
@@ -520,9 +596,55 @@ export function useAccessActivation() {
     }
   }
 
+  const activateFreePlan = async (): Promise<boolean> => {
+    const currentUser = auth.currentUser
+    if (!currentUser || currentUser.uid !== activeUserId) {
+      accessState.value = 'error'
+      clearAccessEntitlement()
+      accessError.value = 'Your authentication session has expired. Please sign in again.'
+      return false
+    }
+    if (isAccountBlocked.value) {
+      blockAccessLocally(currentUser.uid)
+      return false
+    }
+
+    accessError.value = ''
+    try {
+      const idToken = await currentUser.getIdToken(true)
+      const response = await fetch(`${getAccessWorkerUrl()}/v1/free`, {
+        method: 'POST', headers: await getAccessRequestHeaders(idToken)
+      })
+      const payload = await response.json().catch(() => ({})) as {
+        activated?: boolean
+        plan?: unknown
+        capabilities?: unknown
+        expiresAt?: unknown
+        error?: unknown
+      }
+      if (!response.ok || payload.activated !== true) {
+        accessError.value = getAccessErrorMessage(payload.error)
+        accessState.value = 'requires_key'
+        clearAccessEntitlement()
+        return false
+      }
+
+      await applyGrantedResponse(payload, currentUser.uid)
+      return true
+    } catch {
+      accessError.value = 'Unable to reach the access service. Please try again.'
+      accessState.value = 'requires_key'
+      clearAccessEntitlement()
+      return false
+    }
+  }
+
   return {
     accessState,
     accessError,
+    accessPlan,
+    accessCapabilities,
+    canAccess,
     accessLockRemainingSeconds,
     accessAttemptFailedCount,
     freeTrialUsed,
@@ -534,6 +656,7 @@ export function useAccessActivation() {
     stopAccessListener,
     retryAccessCheck,
     activateAccessKey,
-    activateFreeTrial
+    activateFreeTrial,
+    activateFreePlan
   }
 }

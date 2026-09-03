@@ -88,6 +88,20 @@
         </button>
 
         <button
+          type="button"
+          class="access-gate__free-plan mt-3"
+          :disabled="isSubmitting || isLocked"
+          @click="emit('startFreePlan')"
+        >
+          {{ isRussian ? 'ИСПОЛЬЗОВАТЬ БЕСПЛАТНУЮ ВЕРСИЮ' : 'USE FREE VERSION' }}
+        </button>
+        <p class="access-gate__free-plan-note">
+          {{ isRussian
+            ? 'Без ограничения срока. MetaTrader 5 включён; остальные брокерские интеграции требуют полного доступа.'
+            : 'No expiry. MetaTrader 5 is included; other broker integrations require full access.' }}
+        </p>
+
+        <button
           v-if="state === 'error'"
           type="button"
           class="access-gate__retry mt-5"
@@ -136,6 +150,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   activate: [key: string]
   startTrial: []
+  startFreePlan: []
   retry: []
   signOut: []
 }>()
@@ -215,6 +230,12 @@ const localizedAccessError = (error: string) => {
     return isRussian.value
       ? 'Сессия авторизации истекла. Войдите в аккаунт снова.'
       : 'Your authentication session has expired. Please sign in again.'
+  }
+
+  if (normalized.includes('verify your email') || normalized.includes('verified email')) {
+    return isRussian.value
+      ? 'Подтвердите адрес email по ссылке из письма, затем повторите попытку.'
+      : 'Verify your email using the link we sent, then try again.'
   }
 
   if (
@@ -465,6 +486,31 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate__trial:hover:not(:disabled) { background: #252525; border-color: #252525; }
 .access-gate__trial:disabled { cursor: default; opacity: 0.28; }
+
+.access-gate__free-plan {
+  background: transparent;
+  border: 1px solid rgba(23, 23, 23, 0.55);
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  padding: 0.72rem 1rem;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+.access-gate__free-plan:hover:not(:disabled) { background: #171717; color: #ffffff; }
+.access-gate__free-plan:disabled { cursor: default; opacity: 0.28; }
+
+.access-gate__free-plan-note {
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  line-height: 1.6;
+  margin: 0.7rem auto 0;
+  max-width: 27rem;
+  opacity: 0.58;
+}
 
 @media (max-width: 520px) {
   .access-gate__actions {

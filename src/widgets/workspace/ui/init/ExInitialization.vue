@@ -324,6 +324,7 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -867,6 +868,12 @@ const doRegister = async () => {
   try {
     const result = await createUserWithEmailAndPassword(firebaseAuth, email, authPassword.value)
     const user = result.user
+    // Trial/free activation requires a verified email on the Worker. Do not
+    // block account creation if Firebase cannot send the message immediately;
+    // the access screen will clearly require verification before activation.
+    void sendEmailVerification(user).catch((error) => {
+      console.warn('[Auth] Unable to send verification email:', error)
+    })
     authStore.setUser({
       uid: user.uid,
       email: user.email,

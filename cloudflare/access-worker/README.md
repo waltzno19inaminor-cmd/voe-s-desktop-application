@@ -24,7 +24,17 @@ ACCESS_EMAIL_FROM
 
 ```text
 FIREBASE_PROJECT_ID=voes-a88f4
+FIREBASE_PROJECT_NUMBER=79915571390
+FIREBASE_APPCHECK_ENFORCE=true
+FIREBASE_APPCHECK_APP_IDS=1:79915571390:web:fe7659ef2933e1167826ef
 ```
+
+Для production включите Firebase App Check для этого Web App и задайте
+`VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` во время сборки приложения. Worker в
+production настроен fail-closed: запросы к `/v1/redeem`, `/v1/trial` и
+`/v1/free` требуют одновременно валидный Firebase ID token и App Check token.
+Не переключайте `FIREBASE_APPCHECK_ENFORCE` в `false` за пределами локальной
+отладки.
 
 ## API
 
@@ -59,6 +69,25 @@ Authorization: Bearer FIREBASE_ID_TOKEN
 ```
 
 Worker выдаёт семь дней доступа один раз на Firebase-аккаунт. Повторный запрос не продлевает период.
+Для trial и free Worker также требует `email_verified: true` в Firebase ID token.
+Регистрация по email отправляет письмо подтверждения; Google sign-in обычно уже
+возвращает подтверждённый email.
+
+### Бесплатная версия
+
+```text
+POST /v1/free
+Authorization: Bearer FIREBASE_ID_TOKEN
+X-Firebase-AppCheck: FIREBASE_APPCHECK_TOKEN
+```
+
+Worker выдаёт постоянный тариф `free`. Сейчас его серверная policy разрешает
+всё, кроме интеграций Binance, Bybit, Kraken и Interactive Brokers; MetaTrader
+5 остаётся доступен. Список прав сохраняется в `access/state.capabilities` и
+должен повторно проверяться каждым серверным endpoint с платной функцией.
+
+Если пользователь бесплатного плана позднее активирует платный ключ, Worker
+сохраняет бесплатный тариф как fallback и восстановит его после истечения ключа.
 
 Активация ограничена Cloudflare rate limit: максимум 5 попыток за 60 секунд с одного IP.
 
@@ -134,6 +163,7 @@ accessKeyBatches/{batchId}                 # только Worker, ключи з�
 patreonAccessGrants/{memberId}             # только Worker, факт выдачи Patreon ключа
 users/{userId}/redeemedKeys/{keyId}        # пользователь может только читать
 users/{userId}/access/state                # пользователь может только читать
+users/{userId}/accessFreePlans/default     # пользователь может только читать
 ```
 
 Один Firestore transaction создаёт запись активации, историю ключа у пользователя и увеличивает счётчик использования. Это исключает двойную активацию при параллельных запросах.

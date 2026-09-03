@@ -4,6 +4,9 @@ interface Env {
   ACCESS_ADMIN_TOKEN: string
   ACCESS_REDEEM_RATE_LIMIT: RateLimit
   FIREBASE_PROJECT_ID: string
+  FIREBASE_PROJECT_NUMBER: string
+  FIREBASE_APPCHECK_ENFORCE: string
+  FIREBASE_APPCHECK_APP_IDS: string
   FIREBASE_CLIENT_EMAIL: string
   FIREBASE_PRIVATE_KEY: string
   PATREON_CLIENT_ID: string
@@ -68,6 +71,7 @@ interface AccessKeyRecord {
 
 interface FirebaseIdentity {
   uid: string
+  emailVerified: boolean
 }
 
 interface FirebaseJwk extends JsonWebKey {
@@ -122,6 +126,7 @@ interface RotationBatchRecord {
 const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const FIREBASE_JWKS_ENDPOINT = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
+const FIREBASE_APPCHECK_JWKS_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1/jwks'
 const PATREON_TOKEN_ENDPOINT = 'https://www.patreon.com/api/oauth2/token'
 const PATREON_IDENTITY_ENDPOINT = 'https://www.patreon.com/api/oauth2/v2/identity'
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
@@ -134,6 +139,22 @@ const ACCESS_GRANT = 'full_access'
 const ROTATION_MONTHS = [2, 4, 6, 8, 10, 12]
 const PATREON_KEY_LABEL = 'patreon-subscription'
 const FREE_TRIAL_DAYS = 7
+const FREE_PLAN_ID = 'default'
+const ACCESS_CAPABILITIES = [
+  'workspace',
+  'broker.metatrader5',
+  'broker.binance',
+  'broker.bybit',
+  'broker.kraken',
+  'broker.interactiveBrokers',
+  'analytics.advanced',
+  'genesis.matrix',
+  'data.export'
+] as const
+type AccessCapability = typeof ACCESS_CAPABILITIES[number]
+type AccessPlan = 'free' | 'trial' | 'paid'
+type AccessCapabilities = Record<AccessCapability, boolean>
+type AccessSource = 'key' | 'trial' | 'free'
 const LICENSE_PLANS = {
   '1m': 1,
   '3m': 3,
@@ -145,6 +166,22 @@ const LICENSE_PLANS = {
 
 let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 let cachedFirebaseJwks: { keys: FirebaseJwk[]; expiresAtMs: number } | null = null
+let cachedFirebaseAppCheckJwks: { keys: FirebaseJwk[]; expiresAtMs: number } | null = null
+
+function fullAccessCapabilities(): AccessCapabilities {
+  return Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [capability, true])) as AccessCapabilities
+}
+
+function capabilitiesForPlan(plan: AccessPlan): AccessCapabilities {
+  if (plan !== 'free') return fullAccessCapabilities()
+  return {
+    ...fullAccessCapabilities(),
+    'broker.binance': false,
+    'broker.bybit': false,
+    'broker.kraken': false,
+    'broker.interactiveBrokers': false
+  }
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -168,8 +205,8 @@ export default {
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/redeem') {
-        await enforceRedeemRateLimit(request, env)
         const identity = await requireFirebaseIdentity(request, env)
+        await enforceRedeemRateLimit(request, env, identity.uid)
         const input = await readJsonBody<{ key?: unknown }>(request)
         const rawKey = typeof input.key === 'string' ? input.key : ''
         const result = await redeemAccessKey(env, identity.uid, rawKey)
@@ -177,9 +214,17 @@ export default {
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/trial') {
-        await enforceRedeemRateLimit(request, env)
         const identity = await requireFirebaseIdentity(request, env)
+        await enforceRedeemRateLimit(request, env, identity.uid)
+        requireVerifiedEmail(identity)
         return jsonResponse(await startFreeTrial(env, identity.uid), 201)
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/free') {
+        const identity = await requireFirebaseIdentity(request, env)
+        await enforceRedeemRateLimit(request, env, identity.uid)
+        requireVerifiedEmail(identity)
+        return jsonResponse(await startFreePlan(env, identity.uid), 201)
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/admin/keys') {
@@ -637,10 +682,12 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
   const keyPath = `accessKeys/${keyDocument.id}`
   const redemptionPath = `${keyPath}/redemptions/${userId}`
   const accessStatePath = `users/${userId}/access/state`
+  const freePlanPath = `users/${userId}/accessFreePlans/${FREE_PLAN_ID}`
   const userPath = `users/${userId}`
-  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath, userPath])
+  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath, freePlanPath, userPath])
   const latestKeyDocument = documents.get(keyPath)
   const existingRedemption = documents.get(redemptionPath)
+  const hasFreePlan = Boolean(documents.get(freePlanPath))
 
   if (isUserCurrentlyBlocked(documents.get(userPath)?.data)) {
     throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
@@ -659,12 +706,14 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
       throw new AccessWorkerError('This access period has expired. Please use a new access key.', 400)
     }
     await commitFirestoreTransaction(env, transaction, [
-      createUserAccessStateWrite(env, userId, accessKey, existingExpiresAtMs || null, 'key')
+      createUserAccessStateWrite(env, userId, accessKey, existingExpiresAtMs || null, 'key', 'paid', hasFreePlan)
     ])
     return {
       activated: true,
       alreadyActivated: true,
       grant: accessKey.grant,
+      plan: 'paid',
+      capabilities: capabilitiesForPlan('paid'),
       expiresAt: existingExpiresAtMs ? new Date(existingExpiresAtMs).toISOString() : null
     }
   }
@@ -711,7 +760,7 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
       updateTransforms: [{ fieldPath: 'redeemedAt', setToServerValue: 'REQUEST_TIME' }],
       currentDocument: { exists: false }
     },
-    createUserAccessStateWrite(env, userId, accessKey, accessExpiresAtMs, 'key')
+    createUserAccessStateWrite(env, userId, accessKey, accessExpiresAtMs, 'key', 'paid', hasFreePlan)
   ]
 
   await commitFirestoreTransaction(env, transaction, writes)
@@ -719,6 +768,8 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
     activated: true,
     alreadyActivated: false,
     grant: accessKey.grant,
+    plan: 'paid',
+    capabilities: capabilitiesForPlan('paid'),
     expiresAt: accessExpiresAtMs ? new Date(accessExpiresAtMs).toISOString() : null
   }
 }
@@ -728,7 +779,9 @@ function createUserAccessStateWrite(
   userId: string,
   accessKey: AccessKeyRecord,
   expiresAtMs: number | null,
-  source: 'key' | 'trial'
+  source: AccessSource,
+  plan: AccessPlan,
+  hasFreePlan = false
 ): FirestoreWrite {
   return {
     update: {
@@ -736,6 +789,9 @@ function createUserAccessStateWrite(
       fields: encodeFields({
         isActivated: true,
         grant: accessKey.grant,
+        plan,
+        capabilities: capabilitiesForPlan(plan),
+        hasFreePlan,
         activatedKeyId: accessKey.id,
         expiresAt: expiresAtMs ? new Date(expiresAtMs) : null,
         source
@@ -792,16 +848,77 @@ async function startFreeTrial(env: Env, userId: string) {
       updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }],
       currentDocument: { exists: false }
     },
-    createUserAccessStateWrite(env, userId, trialKey, expiresAt.getTime(), 'trial')
+    createUserAccessStateWrite(env, userId, trialKey, expiresAt.getTime(), 'trial', 'trial')
   ])
-  return { activated: true, trial: true, expiresAt: expiresAt.toISOString() }
+  return {
+    activated: true,
+    trial: true,
+    plan: 'trial',
+    capabilities: capabilitiesForPlan('trial'),
+    expiresAt: expiresAt.toISOString()
+  }
 }
 
-async function enforceRedeemRateLimit(request: Request, env: Env): Promise<void> {
-  const outcome = await env.ACCESS_REDEEM_RATE_LIMIT.limit({
-    key: getRedeemRateLimitKey(request)
-  })
-  if (!outcome.success) {
+async function startFreePlan(env: Env, userId: string) {
+  const transaction = await beginFirestoreTransaction(env)
+  const freePlanPath = `users/${userId}/accessFreePlans/${FREE_PLAN_ID}`
+  const accessStatePath = `users/${userId}/access/state`
+  const userPath = `users/${userId}`
+  const documents = await batchGetDocuments(env, transaction, [freePlanPath, accessStatePath, userPath])
+
+  if (isUserCurrentlyBlocked(documents.get(userPath)?.data)) {
+    throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
+  }
+
+  const currentAccess = documents.get(accessStatePath)
+  const currentExpiresAtMs = toMillis(currentAccess?.data.expiresAt)
+  const hasActiveAccess = currentAccess?.data.isActivated === true
+    && (!currentExpiresAtMs || currentExpiresAtMs > Date.now())
+  const alreadyHasFreePlan = Boolean(documents.get(freePlanPath))
+  const currentPlan = String(currentAccess?.data.plan || '')
+
+  // A repeated request is safe and lets a former free user restore their
+  // permanent fallback after a paid key has expired. It never downgrades an
+  // active trial or paid entitlement.
+  if (hasActiveAccess && !(alreadyHasFreePlan && currentPlan === 'free')) {
+    throw new AccessWorkerError('This account already has active access.', 400)
+  }
+
+  const freePlanKey: AccessKeyRecord = {
+    id: 'free-plan', keyHash: '', status: 'active', grant: 'free_access',
+    redeemedCount: 0, maxRedemptions: 1, expiresAtMs: null, durationMonths: null
+  }
+  const writes: FirestoreWrite[] = [
+    createUserAccessStateWrite(env, userId, freePlanKey, null, 'free', 'free', true)
+  ]
+
+  if (!alreadyHasFreePlan) {
+    writes.unshift({
+      update: {
+        name: firestoreDocumentName(env, freePlanPath),
+        fields: encodeFields({ source: 'free-plan' })
+      },
+      updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }],
+      currentDocument: { exists: false }
+    })
+  }
+
+  await commitFirestoreTransaction(env, transaction, writes)
+  return {
+    activated: true,
+    alreadyActivated: alreadyHasFreePlan,
+    plan: 'free',
+    capabilities: capabilitiesForPlan('free'),
+    expiresAt: null
+  }
+}
+
+async function enforceRedeemRateLimit(request: Request, env: Env, userId: string): Promise<void> {
+  const [ipOutcome, userOutcome] = await Promise.all([
+    env.ACCESS_REDEEM_RATE_LIMIT.limit({ key: `ip:${getRedeemRateLimitKey(request)}` }),
+    env.ACCESS_REDEEM_RATE_LIMIT.limit({ key: `user:${userId}` })
+  ])
+  if (!ipOutcome.success || !userOutcome.success) {
     throw new AccessWorkerError('Too many activation attempts. Please try again later.', 429)
   }
 }
@@ -1045,22 +1162,45 @@ async function deactivateExpiredUserAccessStates(env: Env): Promise<{ checked: n
     checked += expiredDocs.length
     if (expiredDocs.length === 0) break
 
-    const writes: FirestoreWrite[] = expiredDocs.map((doc) => ({
-      update: {
-        name: doc.name,
-        fields: encodeFields({
-          isActivated: false,
-          grant: doc.data.grant || ACCESS_GRANT,
-          activatedKeyId: doc.data.activatedKeyId || null,
-          expiresAt: doc.data.expiresAt || null
-        })
-      },
-      updateMask: { fieldPaths: ['isActivated'] },
-      updateTransforms: [{ fieldPath: 'deactivatedAt', setToServerValue: 'REQUEST_TIME' }],
-      // Do not let a cleanup result selected before a new redemption overwrite
-      // that newly granted access.
-      currentDocument: doc.updateTime ? { updateTime: doc.updateTime } : undefined
-    }))
+    const writes: FirestoreWrite[] = expiredDocs.map((doc) => {
+      const restoreFreePlan = doc.data.hasFreePlan === true
+      return {
+        update: {
+          name: doc.name,
+          fields: encodeFields(restoreFreePlan
+            ? {
+                isActivated: true,
+                grant: 'free_access',
+                plan: 'free',
+                capabilities: capabilitiesForPlan('free'),
+                hasFreePlan: true,
+                activatedKeyId: 'free-plan',
+                expiresAt: null,
+                source: 'free'
+              }
+            : {
+                isActivated: false,
+                grant: doc.data.grant || ACCESS_GRANT,
+                plan: doc.data.plan || 'paid',
+                capabilities: doc.data.capabilities || capabilitiesForPlan('paid'),
+                hasFreePlan: false,
+                activatedKeyId: doc.data.activatedKeyId || null,
+                expiresAt: doc.data.expiresAt || null,
+                source: doc.data.source || 'key'
+              })
+        },
+        updateMask: restoreFreePlan
+          ? undefined
+          : { fieldPaths: ['isActivated'] },
+        updateTransforms: [{
+          fieldPath: restoreFreePlan ? 'freePlanRestoredAt' : 'deactivatedAt',
+          setToServerValue: 'REQUEST_TIME'
+        }],
+        // Do not let a cleanup result selected before a new redemption overwrite
+        // that newly granted access.
+        currentDocument: doc.updateTime ? { updateTime: doc.updateTime } : undefined
+      }
+    })
 
     await commitFirestoreWrites(env, writes)
     deactivated += expiredDocs.length
@@ -1157,7 +1297,9 @@ async function requireFirebaseIdentity(request: Request, env: Env): Promise<Fire
   const authorization = request.headers.get('Authorization') || ''
   const token = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
   if (!token) throw new AccessWorkerError('Authentication is required.', 401)
-  return verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID)
+  const identity = await verifyFirebaseIdToken(token, env.FIREBASE_PROJECT_ID)
+  if (isAppCheckEnforced(env)) await requireFirebaseAppCheck(request, env)
+  return identity
 }
 
 async function requireAdminToken(request: Request, env: Env): Promise<void> {
@@ -1167,15 +1309,28 @@ async function requireAdminToken(request: Request, env: Env): Promise<void> {
   }
 }
 
+function requireVerifiedEmail(identity: FirebaseIdentity): void {
+  if (!identity.emailVerified) {
+    throw new AccessWorkerError('Verify your email address before activating free access.', 403)
+  }
+}
+
 async function verifyFirebaseIdToken(token: string, projectId: string): Promise<FirebaseIdentity> {
   const [encodedHeader, encodedPayload, encodedSignature, ...extra] = token.split('.')
   if (!encodedHeader || !encodedPayload || !encodedSignature || extra.length) {
     throw new AccessWorkerError('Invalid authentication token.', 401)
   }
 
-  const header = decodeJwtPart<{ alg?: string; kid?: string }>(encodedHeader)
-  const payload = decodeJwtPart<{ aud?: string; iss?: string; sub?: string; exp?: number; iat?: number }>(encodedPayload)
-  if (header.alg !== 'RS256' || !header.kid || !payload.sub || payload.aud !== projectId) {
+  const header = decodeJwtPart<{ alg?: string; kid?: string; typ?: string }>(encodedHeader)
+  const payload = decodeJwtPart<{
+    aud?: string
+    iss?: string
+    sub?: string
+    exp?: number
+    iat?: number
+    email_verified?: boolean
+  }>(encodedPayload)
+  if (header.alg !== 'RS256' || header.typ !== 'JWT' || !header.kid || !payload.sub || payload.aud !== projectId) {
     throw new AccessWorkerError('Invalid authentication token.', 401)
   }
 
@@ -1206,7 +1361,79 @@ async function verifyFirebaseIdToken(token: string, projectId: string): Promise<
   )
   if (!isValid) throw new AccessWorkerError('Invalid authentication token.', 401)
 
-  return { uid: payload.sub }
+  return { uid: payload.sub, emailVerified: payload.email_verified === true }
+}
+
+function isAppCheckEnforced(env: Env): boolean {
+  return String(env.FIREBASE_APPCHECK_ENFORCE || '').trim().toLowerCase() === 'true'
+}
+
+function configuredAppCheckAppIds(env: Env): Set<string> {
+  return new Set(String(env.FIREBASE_APPCHECK_APP_IDS || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean))
+}
+
+async function requireFirebaseAppCheck(request: Request, env: Env): Promise<void> {
+  const token = request.headers.get('X-Firebase-AppCheck')?.trim()
+  if (!token) throw new AccessWorkerError('A valid App Check token is required.', 401)
+  await verifyFirebaseAppCheckToken(token, env)
+}
+
+async function verifyFirebaseAppCheckToken(token: string, env: Env): Promise<void> {
+  const projectNumber = String(env.FIREBASE_PROJECT_NUMBER || '').trim()
+  if (!projectNumber) throw new AccessWorkerError('App Check is not configured on the access service.', 500)
+
+  const [encodedHeader, encodedPayload, encodedSignature, ...extra] = token.split('.')
+  if (!encodedHeader || !encodedPayload || !encodedSignature || extra.length) {
+    throw new AccessWorkerError('Invalid App Check token.', 401)
+  }
+
+  const header = decodeJwtPart<{ alg?: string; kid?: string; typ?: string }>(encodedHeader)
+  const payload = decodeJwtPart<{
+    aud?: string | string[]
+    iss?: string
+    sub?: string
+    exp?: number
+    iat?: number
+  }>(encodedPayload)
+  const audience = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  if (
+    header.alg !== 'RS256'
+    || header.typ !== 'JWT'
+    || !header.kid
+    || !payload.sub
+    || payload.iss !== `https://firebaseappcheck.googleapis.com/${projectNumber}`
+    || !audience.includes(`projects/${projectNumber}`)
+    || !Number.isFinite(payload.exp)
+    || payload.exp! <= nowSeconds
+    || !Number.isFinite(payload.iat)
+    || payload.iat! > nowSeconds + 60
+  ) {
+    throw new AccessWorkerError('Invalid App Check token.', 401)
+  }
+
+  const allowedAppIds = configuredAppCheckAppIds(env)
+  if (allowedAppIds.size > 0 && !allowedAppIds.has(payload.sub)) {
+    throw new AccessWorkerError('This app is not permitted to request access.', 403)
+  }
+
+  const jwks = await getFirebaseAppCheckJwks()
+  const jwk = jwks.find((candidate) => candidate.kid === header.kid)
+  if (!jwk) throw new AccessWorkerError('Invalid App Check token.', 401)
+
+  const publicKey = await crypto.subtle.importKey(
+    'jwk', jwk, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']
+  )
+  const isValid = await crypto.subtle.verify(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    publicKey,
+    toArrayBuffer(base64UrlDecode(encodedSignature)),
+    new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`)
+  )
+  if (!isValid) throw new AccessWorkerError('Invalid App Check token.', 401)
 }
 
 async function getFirebaseJwks(): Promise<FirebaseJwk[]> {
@@ -1227,6 +1454,27 @@ async function getFirebaseJwks(): Promise<FirebaseJwk[]> {
     expiresAtMs: Date.now() + Math.max(60, maxAgeSeconds) * 1000
   }
   return cachedFirebaseJwks.keys
+}
+
+async function getFirebaseAppCheckJwks(): Promise<FirebaseJwk[]> {
+  if (cachedFirebaseAppCheckJwks && cachedFirebaseAppCheckJwks.expiresAtMs > Date.now()) {
+    return cachedFirebaseAppCheckJwks.keys
+  }
+
+  const response = await fetch(FIREBASE_APPCHECK_JWKS_ENDPOINT)
+  const payload = await readJsonResponse(response) as { keys?: FirebaseJwk[] }
+  if (!response.ok || !Array.isArray(payload.keys)) {
+    throw new AccessWorkerError('Unable to verify App Check.', 503)
+  }
+
+  const cacheControl = response.headers.get('Cache-Control') || ''
+  const maxAgeSeconds = Number(cacheControl.match(/max-age=(\d+)/)?.[1] || 21_600)
+  cachedFirebaseAppCheckJwks = {
+    keys: payload.keys,
+    // Firebase explicitly limits JWK caching to six hours.
+    expiresAtMs: Date.now() + Math.min(21_600, Math.max(60, maxAgeSeconds)) * 1000
+  }
+  return cachedFirebaseAppCheckJwks.keys
 }
 
 async function findAccessKeyByHash(env: Env, keyHash: string): Promise<FirestoreDocument | null> {
@@ -1735,7 +1983,9 @@ function jsonResponse(payload: unknown, status = 200): Response {
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Access-Admin-Token',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Firebase-AppCheck, X-Access-Admin-Token',
+      'Referrer-Policy': 'no-referrer',
+      'X-Content-Type-Options': 'nosniff',
       'Cache-Control': 'no-store'
     }
   })
@@ -1756,7 +2006,7 @@ function emptyResponse(status: number): Response {
     status,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Access-Admin-Token',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type, X-Firebase-AppCheck, X-Access-Admin-Token',
       'Access-Control-Allow-Methods': 'POST, OPTIONS'
     }
   })

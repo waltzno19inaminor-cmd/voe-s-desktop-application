@@ -16,7 +16,7 @@
             <!-- TOPBAR BROKER SELECTOR -->
             <div class="flex items-center justify-between border-b border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] px-8 py-4 shrink-0">
               <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pr-4 pb-2">
-                <button v-for="broker in brokers"
+                <button v-for="broker in availableBrokers"
                         :key="broker.id"
                         class="group flex items-center gap-3 px-5 py-2.5 border transition-colors shrink-0 relative"
                         :class="selectedBrokerId === broker.id
@@ -445,6 +445,8 @@ import { resolveImportedAsset } from '~/utils/assetResolver'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { syncBrokerConnectionTrades, type StoredBrokerConnection } from '~/utils/brokerTradeSync'
 import { testMt5Connection, mt5Request } from '~/utils/metatrader5'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
+import type { AccessCapability } from '~/features/access/model/accessEntitlements'
 
 type BrokerId = 'metatrader5' | 'binance' | 'bybit' | 'kraken' | 'interactive-brokers'
 type KrakenMarketMode = 'spot' | 'futures'
@@ -490,6 +492,17 @@ const STORAGE_KEY = 'broker_connections_v1'
 const tradeStore = useStrategyTradesStore()
 const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
+const { canAccess } = useAccessActivation()
+
+const brokerCapabilities: Record<BrokerId, AccessCapability> = {
+  metatrader5: 'broker.metatrader5',
+  binance: 'broker.binance',
+  bybit: 'broker.bybit',
+  kraken: 'broker.kraken',
+  'interactive-brokers': 'broker.interactiveBrokers'
+}
+
+const isBrokerAllowed = (brokerId: BrokerId) => canAccess(brokerCapabilities[brokerId])
 
 const brokers = computed<BrokerDefinition[]>(() => [
   {
@@ -557,6 +570,8 @@ const brokers = computed<BrokerDefinition[]>(() => [
     ]
   },
 ])
+
+const availableBrokers = computed(() => brokers.value.filter((broker) => isBrokerAllowed(broker.id)))
 
 const selectedBrokerId = ref<BrokerId>('metatrader5')
 const connectionMap = ref<Record<string, SavedConnection>>({})
@@ -688,7 +703,11 @@ const isBrokerActiveForTopbar = (brokerId: BrokerId) => {
 
 
 const selectedBroker = computed(() => {
-  return (brokers.value.find(broker => broker.id === selectedBrokerId.value) || brokers.value[0]) as BrokerDefinition
+  // The workspace is removed immediately when access is revoked, but retain a
+  // safe fallback for the short reactive interval before this panel unmounts.
+  return (availableBrokers.value.find(broker => broker.id === selectedBrokerId.value)
+    || availableBrokers.value[0]
+    || brokers.value[0]) as BrokerDefinition
 })
 
 const selectedImportStrategyName = computed(() => {
@@ -777,6 +796,7 @@ const showStrategyBinding = computed(() => {
 })
 
 const canActivateSelected = computed(() => {
+  if (!isBrokerAllowed(selectedBroker.value.id)) return false
   if (!selectedBroker.value.canActivate || isKrakenSpotDemoSelected.value) return false
 
   if (selectedBroker.value.id === 'metatrader5') {
@@ -907,6 +927,13 @@ const persistConnections = async () => {
 }
 
 const saveCurrentConnection = async () => {
+  if (!isBrokerAllowed(selectedBroker.value.id)) {
+    statusTone.value = 'error'
+    statusMessage.value = isRu.value
+      ? 'Этот брокер недоступен в вашем плане.'
+      : 'This broker is not available in your plan.'
+    return
+  }
   const credentials = getSavedCredentialsForCurrentSelection()
   const key = getStorageKeyForBrokerSelection(selectedBroker.value.id)
   const existing = connectionMap.value[key]
@@ -952,7 +979,13 @@ const migrateKrakenFuturesConnection = async () => {
 }
 
 const handlePrimaryAction = async () => {
-
+  if (!isBrokerAllowed(selectedBroker.value.id)) {
+    statusTone.value = 'error'
+    statusMessage.value = isRu.value
+      ? 'Этот брокер недоступен в вашем плане.'
+      : 'This broker is not available in your plan.'
+    return
+  }
 
   if (isSelectedBrokerActive.value) {
     await deactivateCurrentConnection()
@@ -963,7 +996,7 @@ const handlePrimaryAction = async () => {
 }
 
 const handleManualSync = async () => {
-  if (!isSelectedBrokerActive.value) return
+  if (!isSelectedBrokerActive.value || !isBrokerAllowed(selectedBroker.value.id)) return
   activationState.value = 'loading'
   try {
     const key = getStorageKeyForBrokerSelection(selectedBroker.value.id)
@@ -1848,6 +1881,11 @@ watch(selectedBrokerId, (brokerId) => {
     stopMt5Video()
   }
 })
+
+watch(availableBrokers, (available) => {
+  if (available.some((broker) => broker.id === selectedBrokerId.value)) return
+  selectedBrokerId.value = available[0]?.id || 'metatrader5'
+}, { immediate: true })
 
 onMounted(async () => {
   await tradeStore.init()

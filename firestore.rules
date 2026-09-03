@@ -93,6 +93,7 @@ service cloud.firestore {
         && subcollection != "accessKeyAttempts"
         && subcollection != "access"
         && subcollection != "accessTrials"
+        && subcollection != "accessFreePlans"
         && subcollection != "redeemedKeys"
         && subcollection != "savedThreads";
       allow delete: if false;
@@ -142,6 +143,14 @@ service cloud.firestore {
     // this rule a client could self-create a trial marker and corrupt its own
     // licensing history.
     match /users/{userId}/accessTrials/{trialId} {
+      allow read: if isOwner(userId);
+      allow create, update, delete: if false;
+    }
+
+    // The free-plan marker is also written only by the trusted Worker. It is
+    // retained when a free user later upgrades, so an expired paid key can
+    // never be used to erase or forge the user's free entitlement.
+    match /users/{userId}/accessFreePlans/{planId} {
       allow read: if isOwner(userId);
       allow create, update, delete: if false;
     }
