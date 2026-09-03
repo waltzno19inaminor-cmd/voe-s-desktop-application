@@ -46,7 +46,7 @@ const handleKeydown = async (e) => {
   if (e.key === 'Escape' && isFullscreen.value && appWindow.value) {
     try {
       await appWindow.value.setFullscreen(false)
-      isFullscreen.value = false
+      isFullscreen.value = await appWindow.value.isFullscreen()
     } catch (err) {
       console.error("Escape fullscreen error:", err)
     }
@@ -104,7 +104,7 @@ const toggleFullscreen = async () => {
     if (appWindow.value) {
       const current = await appWindow.value.isFullscreen()
       await appWindow.value.setFullscreen(!current)
-      isFullscreen.value = !current
+      isFullscreen.value = await appWindow.value.isFullscreen()
     }
   } catch (e) {
     console.error("Fullscreen error: ", e)

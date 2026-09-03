@@ -1,5 +1,8 @@
 <template>
-  <div class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 pb-4 lg:py-2 lg:pb-4" :class="activeDashboardPanel === 'forum' ? 'px-0' : 'px-6 lg:px-10'">
+  <div
+    class="dashboard-shell h-full min-h-0 w-full relative overflow-hidden py-1.5 pb-4 lg:py-2 lg:pb-4"
+    :class="isFullscreen || activeDashboardPanel === 'forum' ? 'px-0' : 'px-6 lg:px-10'"
+  >
     <div
       class="pointer-events-none absolute inset-0 transition-opacity duration-[900ms] ease-in-out"
       :class="isEventsPanelActive ? 'opacity-0' : 'opacity-100'"
@@ -350,6 +353,7 @@ const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const isFullscreen = useState('isFullscreen', () => false)
 const payloadVersion = ref<string | null>(null)
 const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.0.88'))
 const userMenuOpen = ref(false)
