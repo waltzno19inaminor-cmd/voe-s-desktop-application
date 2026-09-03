@@ -19,10 +19,11 @@ const appCheckSiteKey = String(import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KE
 let appCheckInstance: AppCheck | null = null;
 
 if (typeof window !== 'undefined' && appCheckSiteKey) {
-    // Debug tokens are accepted only when explicitly registered in Firebase
-    // App Check. Production builds always use the Enterprise provider.
+    // A development token must be registered for this exact Firebase app.
+    // It is never enabled in production builds.
     if (import.meta.env.DEV) {
-        (self as typeof self & { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean }).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+        const appCheckDebugToken = String(import.meta.env.VITE_FIREBASE_APPCHECK_DEBUG_TOKEN || '').trim();
+        (self as typeof self & { FIREBASE_APPCHECK_DEBUG_TOKEN?: boolean | string }).FIREBASE_APPCHECK_DEBUG_TOKEN = appCheckDebugToken || true;
     }
 
     appCheckInstance = initializeAppCheck(app, {
