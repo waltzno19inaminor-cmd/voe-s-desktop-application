@@ -18,11 +18,13 @@ const freeTrialUsed = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const offlineAccessRestored = ref(false)
 let accessUnsubscribe: (() => void) | null = null
+let userUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
 let accessTrialUnsubscribe: (() => void) | null = null
 let accessLockTimer: ReturnType<typeof setInterval> | null = null
 let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let activeUserId = ''
+let isAccountBlocked = false
 let activeLockUntilMs = 0
 let networkListenersAttached = false
 
@@ -147,6 +149,17 @@ function expireAccessLocally(userId: string) {
   })
 }
 
+function blockAccessLocally(userId: string) {
+  if (activeUserId !== userId) return
+  stopAccessExpiryTimer()
+  accessState.value = 'requires_key'
+  accessError.value = 'This account has been blocked. Please contact support.'
+  offlineAccessRestored.value = false
+  void removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch((error) => {
+    console.warn('[Access] Unable to clear blocked access cache:', error)
+  })
+}
+
 function scheduleAccessExpiry(userId: string, expiresAtMs: number) {
   stopAccessExpiryTimer()
   if (!expiresAtMs) return
@@ -208,13 +221,16 @@ export function useAccessActivation() {
     if (accessUnsubscribe && activeUserId === normalizedUserId && !options.force) return
 
     accessUnsubscribe?.()
+    userUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
     accessTrialUnsubscribe?.()
     stopAccessExpiryTimer()
     accessUnsubscribe = null
+    userUnsubscribe = null
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
     activeUserId = normalizedUserId
+    isAccountBlocked = false
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
@@ -231,11 +247,23 @@ export function useAccessActivation() {
     accessState.value = 'checking'
     offlineAccessRestored.value = false
     void restoreOfflineAccess(normalizedUserId)
+    userUnsubscribe = onSnapshot(
+      doc(db, 'users', normalizedUserId),
+      (snapshot) => {
+        isAccountBlocked = snapshot.data()?.isBlocked === true
+        if (isAccountBlocked) blockAccessLocally(normalizedUserId)
+      },
+      () => {
+        // Do not revoke access because a profile read transiently failed.
+      }
+    )
     accessUnsubscribe = onSnapshot(
       doc(db, 'users', normalizedUserId, 'access', 'state'),
       (snapshot) => {
         const data = snapshot.data()
-        if (data?.isActivated === true) {
+        if (isAccountBlocked) {
+          blockAccessLocally(normalizedUserId)
+        } else if (data?.isActivated === true) {
           const expiresAtMs = toMillis(data?.expiresAt)
           if (expiresAtMs > 0 && Date.now() >= expiresAtMs) {
             expireAccessLocally(normalizedUserId)
@@ -305,13 +333,16 @@ export function useAccessActivation() {
 
   const stopAccessListener = () => {
     accessUnsubscribe?.()
+    userUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
     accessTrialUnsubscribe?.()
     accessUnsubscribe = null
+    userUnsubscribe = null
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
     stopAccessExpiryTimer()
     activeUserId = ''
+    isAccountBlocked = false
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
@@ -331,6 +362,10 @@ export function useAccessActivation() {
     if (!currentUser || currentUser.uid !== activeUserId) {
       accessState.value = 'error'
       accessError.value = 'Your authentication session has expired. Please sign in again.'
+      return false
+    }
+    if (isAccountBlocked) {
+      blockAccessLocally(currentUser.uid)
       return false
     }
 
@@ -393,6 +428,10 @@ export function useAccessActivation() {
     if (!currentUser || currentUser.uid !== activeUserId) {
       accessState.value = 'error'
       accessError.value = 'Your authentication session has expired. Please sign in again.'
+      return false
+    }
+    if (isAccountBlocked) {
+      blockAccessLocally(currentUser.uid)
       return false
     }
     accessError.value = ''

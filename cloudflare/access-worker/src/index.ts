@@ -637,9 +637,14 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
   const keyPath = `accessKeys/${keyDocument.id}`
   const redemptionPath = `${keyPath}/redemptions/${userId}`
   const accessStatePath = `users/${userId}/access/state`
-  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath])
+  const userPath = `users/${userId}`
+  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath, userPath])
   const latestKeyDocument = documents.get(keyPath)
   const existingRedemption = documents.get(redemptionPath)
+
+  if (documents.get(userPath)?.data.isBlocked === true) {
+    throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
+  }
 
   if (!latestKeyDocument) throw new AccessWorkerError('Invalid or inactive access key.', 400)
   const accessKey = decodeAccessKeyRecord(latestKeyDocument)
@@ -749,7 +754,11 @@ async function startFreeTrial(env: Env, userId: string) {
   const transaction = await beginFirestoreTransaction(env)
   const trialPath = `users/${userId}/accessTrials/first`
   const accessStatePath = `users/${userId}/access/state`
-  const documents = await batchGetDocuments(env, transaction, [trialPath, accessStatePath])
+  const userPath = `users/${userId}`
+  const documents = await batchGetDocuments(env, transaction, [trialPath, accessStatePath, userPath])
+  if (documents.get(userPath)?.data.isBlocked === true) {
+    throw new AccessWorkerError('This account has been blocked. Please contact support.', 403)
+  }
   if (documents.get(trialPath)) {
     throw new AccessWorkerError('The free trial has already been used for this account.', 400)
   }
