@@ -633,7 +633,7 @@ const handleAutoInstallAdvisor = async () => {
 
   try {
     const response = await mt5Request<{ installed?: boolean; message?: string }>({
-      action: 'install_advisor' as any,
+      action: 'install_advisor',
       connection: { mode: 'local' },
       params: { targetOs: mt5OsSelection.value }
     })
@@ -654,7 +654,7 @@ const handleAutoInstallAdvisor = async () => {
 const handleDownloadAdvisorToDesktop = async () => {
   try {
     const response = await mt5Request<{ downloaded?: boolean; message?: string }>({
-      action: 'download_desktop' as any,
+      action: 'download_desktop',
       connection: { mode: 'local' },
       params: {}
     })

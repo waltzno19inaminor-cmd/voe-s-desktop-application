@@ -12,6 +12,8 @@ export interface Mt5Connection {
 }
 
 export type Mt5Action =
+  | 'install_advisor'
+  | 'download_desktop'
   | 'connect'
   | 'status'
   | 'shutdown'
