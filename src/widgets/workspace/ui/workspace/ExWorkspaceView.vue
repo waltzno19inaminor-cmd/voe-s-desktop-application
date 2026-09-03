@@ -346,6 +346,7 @@ useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 const authenticatedUserId = computed(() => authStore.user?.uid || '')
 const hasAccessGranted = computed(() => Boolean(authenticatedUserId.value) && accessState.value === 'granted')
 const showInitialization = computed(() => !hasInitialized.value)
+const isInitializationVisible = useState('isInitializationVisible', () => false)
 const showAccessGate = computed(() => (
   hasInitialized.value
   && Boolean(authenticatedUserId.value)
@@ -627,6 +628,10 @@ const goToHub = () => {
 
 watch(() => [route.path, route.params.workspace, route.query.tab, route.query.mode], syncTabFromRoute, { immediate: true })
 
+watch(showInitialization, (isVisible) => {
+  isInitializationVisible.value = isVisible
+}, { immediate: true })
+
 watch(activeTab, (newTab) => {
   setScrollLock(newTab)
 }, { immediate: true })
@@ -694,6 +699,7 @@ const handleSignedOut = () => {
 }
 
 onUnmounted(() => {
+  isInitializationVisible.value = false
   stopDashboardScore(false)
   stopAccessListener()
   notificationStore.unsubscribeFromNotifications()
