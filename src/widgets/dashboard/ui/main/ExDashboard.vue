@@ -77,6 +77,7 @@
         <div class="flex items-center gap-2">
           <ExTag class="shrink-0">v{{ appVersion.toUpperCase() }}</ExTag>
           <button
+            v-if="showLicenseUpgrade"
             type="button"
             class="license-upgrade-button shrink-0 border px-2.5 py-1.5 text-[8px] font-mono uppercase tracking-[0.2em] transition-all duration-300"
             :aria-label="locale === 'ru' ? 'Обновить лицензию' : 'Upgrade license'"
@@ -356,8 +357,10 @@ import ExDashboardFeedback from '~/widgets/dashboard/ui/feedback/ExDashboardFeed
 
 const props = withDefaults(defineProps<{
   isMusicMuted?: boolean
+  showLicenseUpgrade?: boolean
 }>(), {
-  isMusicMuted: false
+  isMusicMuted: false,
+  showLicenseUpgrade: true
 })
 
 const emit = defineEmits(['navigate', 'signed-out', 'toggle-music', 'request-access'])

@@ -68,6 +68,7 @@
          <div v-if="isAssembled && !activeTab" key="hub" class="w-full h-full">
             <ExDashboard
               :is-music-muted="isDashboardMusicMuted"
+              :show-license-upgrade="accessPlan !== 'paid'"
               @navigate="handleDashboardNavigate"
               @request-access="requestAccessGate"
               @signed-out="handleSignedOut"
@@ -370,6 +371,7 @@ let accessGateAnimationTimer = null
 const {
   accessState,
   accessError,
+  accessPlan,
   accessLockRemainingSeconds,
   freeTrialUsed,
   freeTrialStatusKnown,
