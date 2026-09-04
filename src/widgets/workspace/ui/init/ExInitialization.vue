@@ -158,8 +158,8 @@
           <p class="text-[8px] font-mono uppercase tracking-[0.4em] text-black/60">
             {{ locale === 'ru' ? 'ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ' : 'VERIFICATION REQUIRED' }}
           </p>
-          <div class="w-12 h-12 border border-black flex items-center justify-center">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+          <div class="w-12 h-12 border border-[#151515] bg-[#151515] flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.4" aria-hidden="true">
               <rect x="3" y="5" width="18" height="14" rx="1" />
               <path d="m3 7 9 6 9-6" />
             </svg>
@@ -168,10 +168,10 @@
             <h1 class="text-xl font-semibold uppercase tracking-[0.16em] text-black">
               {{ locale === 'ru' ? 'ПОДТВЕРДИТЕ EMAIL' : 'VERIFY YOUR EMAIL' }}
             </h1>
-            <p class="text-[10px] font-mono leading-5 text-black/70">
+            <p class="text-[12px] font-mono leading-6 text-black/70">
               {{ locale === 'ru'
-                ? `Мы отправили письмо с кнопкой подтверждения на ${emailVerificationAddress}. После нажатия вход продолжится автоматически.`
-                : `We sent a verification email with a confirmation button to ${emailVerificationAddress}. Sign-in will continue automatically after confirmation.` }}
+                ? `Мы отправили письмо с кнопкой подтверждения на ${emailVerificationAddress}.`
+                : `We sent a verification email with a confirmation button to ${emailVerificationAddress}.` }}
             </p>
           </div>
           <p v-if="emailVerificationMessage" class="text-[9px] font-mono leading-5 text-black/60" role="status">
@@ -180,17 +180,19 @@
           <p v-if="emailVerificationError" class="text-[9px] font-mono leading-5 text-red-700" role="alert">
             {{ emailVerificationError }}
           </p>
-          <p class="text-[8px] font-mono uppercase tracking-[0.22em] text-black/45">
+          <p class="border border-[#151515] px-4 py-3 text-[11px] font-mono font-bold uppercase tracking-[0.22em] text-[#151515]">
             {{ locale === 'ru' ? 'ОЖИДАЕМ ПОДТВЕРЖДЕНИЯ...' : 'WAITING FOR CONFIRMATION...' }}
           </p>
           <button
             type="button"
-            :disabled="isSendingVerificationEmail"
+            :disabled="isSendingVerificationEmail || verificationResendCooldown > 0"
             class="font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-black/55 transition-opacity hover:text-black disabled:opacity-35"
-            @click="requestVerificationEmail"
+            @click="requestVerificationEmail(true)"
           >
             {{ isSendingVerificationEmail
               ? (locale === 'ru' ? 'ОТПРАВКА...' : 'SENDING...')
+              : verificationResendCooldown > 0
+                ? (locale === 'ru' ? `ПОВТОРНО ЧЕРЕЗ ${verificationResendCooldown} СЕК.` : `RESEND IN ${verificationResendCooldown} SEC.`)
               : (locale === 'ru' ? 'ОТПРАВИТЬ ПИСЬМО ЕЩЁ РАЗ' : 'RESEND VERIFICATION EMAIL') }}
           </button>
         </div>
@@ -493,6 +495,8 @@ const emailVerificationMessage = ref('')
 const emailVerificationError = ref('')
 const isSendingVerificationEmail = ref(false)
 let emailVerificationPollTimer: ReturnType<typeof setInterval> | null = null
+const verificationResendCooldown = ref(0)
+let verificationResendCooldownTimer: ReturnType<typeof setInterval> | null = null
 
 const accessWorkerUrl = () => {
   const configured = String(import.meta.env.VITE_ACCESS_WORKER_URL || '').trim()
@@ -555,9 +559,10 @@ const authFailureMessage = (error: unknown, action: 'login' | 'register' | 'goog
   return (locale.value === 'ru' ? ru : en)[code] || fallback
 }
 
-async function requestVerificationEmail(): Promise<boolean> {
+async function requestVerificationEmail(isResend = false): Promise<boolean> {
   const user = firebaseAuth.currentUser
   if (!user || !user.email) return false
+  if (isResend && verificationResendCooldown.value > 0) return false
   if (user.emailVerified) {
     clearEmailVerificationPending()
     return true
@@ -589,6 +594,17 @@ async function requestVerificationEmail(): Promise<boolean> {
     }
     emailVerificationMessage.value = verificationCopy('sent')
     setEmailVerificationPending(user.email)
+    if (isResend) {
+      verificationResendCooldown.value = 30
+      if (verificationResendCooldownTimer) clearInterval(verificationResendCooldownTimer)
+      verificationResendCooldownTimer = setInterval(() => {
+        verificationResendCooldown.value = Math.max(0, verificationResendCooldown.value - 1)
+        if (verificationResendCooldown.value === 0 && verificationResendCooldownTimer) {
+          clearInterval(verificationResendCooldownTimer)
+          verificationResendCooldownTimer = null
+        }
+      }, 1000)
+    }
     return Boolean(payload.sent)
   } catch (error) {
     console.warn('[Auth] Unable to send verification email:', error)
@@ -657,6 +673,7 @@ watch(isEmailVerificationPending, (pending) => {
 
 onBeforeUnmount(() => {
   if (emailVerificationPollTimer) clearInterval(emailVerificationPollTimer)
+  if (verificationResendCooldownTimer) clearInterval(verificationResendCooldownTimer)
 })
 
 // ── Phase ──
