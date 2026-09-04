@@ -24,10 +24,11 @@
       :blocked-until="accountBlockedUntil"
       :locale="locale"
       @activate="activateAccess"
-        @start-trial="activateFreeTrial"
-        @start-free-plan="activateFreePlan"
-        @retry="retryAccessCheck"
-        @sign-out="handleAccessSignOut"
+      @start-trial="activateFreeTrial"
+      @start-free-plan="activateFreePlan"
+      @change-locale="setLocale"
+      @retry="retryAccessCheck"
+      @sign-out="handleAccessSignOut"
     />
 
     <TesseractCanvas v-if="canEnterWorkspace && isTesseractEnabled" :is-dark="isDark" />

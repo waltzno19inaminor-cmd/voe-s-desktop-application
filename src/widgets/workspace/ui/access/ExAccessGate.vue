@@ -1,5 +1,29 @@
 <template>
   <section class="access-gate flex h-full w-full items-center justify-center px-5 py-10 sm:px-8 relative overflow-hidden" :class="{ 'is-dark': isDark }">
+    <div
+      class="fixed left-8 top-14 z-[100] flex items-center gap-4"
+      role="group"
+      :aria-label="isRussian ? 'Смена языка' : 'Language switcher'"
+    >
+      <button
+        type="button"
+        class="px-1 py-2 text-[8px] font-mono uppercase tracking-[0.35em] text-black transition-all duration-300"
+        :class="isRussian ? 'font-bold opacity-100' : 'opacity-35 hover:opacity-100'"
+        :aria-pressed="isRussian"
+        @click="emit('changeLocale', 'ru')"
+      >
+        RU
+      </button>
+      <button
+        type="button"
+        class="px-1 py-2 text-[8px] font-mono uppercase tracking-[0.35em] text-black transition-all duration-300"
+        :class="!isRussian ? 'font-bold opacity-100' : 'opacity-35 hover:opacity-100'"
+        :aria-pressed="!isRussian"
+        @click="emit('changeLocale', 'en')"
+      >
+        EN
+      </button>
+    </div>
 
     <div class="access-gate__panel w-full max-w-[34rem] overflow-visible relative z-10">
       <div class="px-7 py-9 sm:px-11 sm:py-12">
@@ -77,30 +101,26 @@
           </div>
         </form>
 
-        <button
-          v-if="!isTrialUsed"
-          type="button"
-          class="access-gate__trial mt-5"
-          :disabled="isSubmitting || isLocked"
-          @click="emit('startTrial')"
-        >
-          {{ isRussian ? 'ПОПРОБОВАТЬ БЕСПЛАТНО · 7 ДНЕЙ' : 'START FREE TRIAL · 7 DAYS' }}
-        </button>
+        <div class="mt-5 flex flex-nowrap justify-center gap-3">
+          <button
+            v-if="!isTrialUsed"
+            type="button"
+            class="access-gate__trial"
+            :disabled="isSubmitting || isLocked"
+            @click="emit('startTrial')"
+          >
+            {{ isRussian ? 'ПОПРОБОВАТЬ · 7 ДНЕЙ' : 'START TRIAL · 7 DAYS' }}
+          </button>
 
-        <button
-          type="button"
-          class="access-gate__free-plan mt-3"
-          :disabled="isSubmitting || isLocked"
-          @click="emit('startFreePlan')"
-        >
-          {{ isRussian ? 'ИСПОЛЬЗОВАТЬ БЕСПЛАТНУЮ ВЕРСИЮ' : 'USE FREE VERSION' }}
-        </button>
-        <p class="access-gate__free-plan-note">
-          {{ isRussian
-            ? 'Без ограничения срока. MetaTrader 5 включён; остальные брокерские интеграции требуют полного доступа.'
-            : 'No expiry. MetaTrader 5 is included; other broker integrations require full access.' }}
-        </p>
-
+          <button
+            type="button"
+            class="access-gate__free-plan"
+            :disabled="isSubmitting || isLocked"
+            @click="emit('startFreePlan')"
+          >
+            {{ isRussian ? 'ИСПОЛЬЗОВАТЬ БЕСПЛАТНУЮ ВЕРСИЮ' : 'USE FREE VERSION' }}
+          </button>
+        </div>
         <button
           v-if="state === 'error'"
           type="button"
@@ -151,6 +171,7 @@ const emit = defineEmits<{
   activate: [key: string]
   startTrial: []
   startFreePlan: []
+  changeLocale: [locale: 'ru' | 'en']
   retry: []
   signOut: []
 }>()
@@ -501,16 +522,6 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate__free-plan:hover:not(:disabled) { background: #171717; color: #ffffff; }
 .access-gate__free-plan:disabled { cursor: default; opacity: 0.28; }
-
-.access-gate__free-plan-note {
-  color: #171717;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 8px;
-  line-height: 1.6;
-  margin: 0.7rem auto 0;
-  max-width: 27rem;
-  opacity: 0.58;
-}
 
 @media (max-width: 520px) {
   .access-gate__actions {
