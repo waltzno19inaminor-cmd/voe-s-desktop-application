@@ -95,6 +95,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NUXT_PUBLIC_PAYLOAD_MANIFEST_URL: https://github.com/jorudr/JLJ/releases/download/${{ needs.resolve-channel.outputs.channel }}/payload-manifest.json
+          VITE_ACCESS_WORKER_URL: https://auth.gandr.site
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         with:
           tagName: ${{ needs.resolve-channel.outputs.channel }}
@@ -151,6 +152,7 @@ jobs:
       - name: build frontend payload
         env:
           NUXT_PUBLIC_PAYLOAD_MANIFEST_URL: https://github.com/jorudr/JLJ/releases/download/${{ needs.resolve-channel.outputs.channel }}/payload-manifest.json
+          VITE_ACCESS_WORKER_URL: https://auth.gandr.site
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         run: npm run build
 

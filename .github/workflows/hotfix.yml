@@ -86,6 +86,7 @@ jobs:
 
       - name: build fixed frontend
         env:
+          VITE_ACCESS_WORKER_URL: https://auth.gandr.site
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         run: npm run build
 

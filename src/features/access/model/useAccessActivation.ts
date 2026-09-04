@@ -14,7 +14,7 @@ import {
 
 export type AccessActivationState = 'checking' | 'requires_key' | 'granted' | 'error'
 
-const DEFAULT_ACCESS_WORKER_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev'
+const DEFAULT_ACCESS_WORKER_URL = 'https://auth.gandr.site'
 const MAX_ACCESS_KEY_ATTEMPTS = 5
 const ACCESS_KEY_LOCK_MS = 15 * 60 * 1000
 const OFFLINE_ACCESS_CACHE_KEY = 'access_activation_offline_v2'
