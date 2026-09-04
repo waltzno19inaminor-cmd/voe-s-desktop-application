@@ -31,12 +31,36 @@ FIREBASE_APPCHECK_APP_IDS=1:79915571390:web:fe7659ef2933e1167826ef
 
 Для production включите Firebase App Check для этого Web App и задайте
 `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` во время сборки приложения. Worker в
-production настроен fail-closed: запросы к `/v1/redeem`, `/v1/trial` и
-`/v1/free` требуют одновременно валидный Firebase ID token и App Check token.
+production настроен fail-closed: запросы к `/v1/redeem`, `/v1/trial`,
+`/v1/free` и `/v1/email-verification` требуют одновременно валидный Firebase
+ID token и App Check token.
 Не переключайте `FIREBASE_APPCHECK_ENFORCE` в `false` за пределами локальной
 отладки.
 
+`FIREBASE_CLIENT_EMAIL` должен принадлежать service account с доступом к
+Firestore. Для branded-писем подтверждения email ему также нужен permission
+`firebaseauth.users.sendEmail` (обычно роль **Firebase Authentication Admin**).
+
 ## API
+
+### Подтверждение email
+
+```text
+POST /v1/email-verification
+Authorization: Bearer FIREBASE_ID_TOKEN
+X-Firebase-AppCheck: FIREBASE_APPCHECK_TOKEN
+Content-Type: application/json
+
+{ "locale": "ru" }
+```
+
+Worker создаёт одноразовую Firebase verification link и отправляет её через
+Resend в branded HTML-письме с кнопкой подтверждения. Endpoint доступен только
+самому неподтверждённому пользователю, требует App Check и ограничен до трёх
+писем за минуту для каждого IP и аккаунта.
+
+После подтверждения клиент вызывает `reload()` у Firebase user и продолжает
+вход только когда `emailVerified` стал `true`.
 
 ### Создать ключи
 

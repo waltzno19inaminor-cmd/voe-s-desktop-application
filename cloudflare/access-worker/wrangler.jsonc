@@ -18,6 +18,14 @@
         "limit": 5,
         "period": 60
       }
+    },
+    {
+      "name": "EMAIL_VERIFICATION_RATE_LIMIT",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 3,
+        "period": 60
+      }
     }
   ],
   "vars": {

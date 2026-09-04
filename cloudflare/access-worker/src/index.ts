@@ -3,6 +3,7 @@ interface Env {
   ACCESS_KEY_ENCRYPTION_KEY: string
   ACCESS_ADMIN_TOKEN: string
   ACCESS_REDEEM_RATE_LIMIT: RateLimit
+  EMAIL_VERIFICATION_RATE_LIMIT: RateLimit
   FIREBASE_PROJECT_ID: string
   FIREBASE_PROJECT_NUMBER: string
   FIREBASE_APPCHECK_ENFORCE: string
@@ -71,6 +72,7 @@ interface AccessKeyRecord {
 
 interface FirebaseIdentity {
   uid: string
+  email: string
   emailVerified: boolean
 }
 
@@ -123,10 +125,14 @@ interface RotationBatchRecord {
   encryptionIv: string
 }
 
-const FIRESTORE_SCOPE = 'https://www.googleapis.com/auth/datastore'
+const GOOGLE_API_SCOPES = [
+  'https://www.googleapis.com/auth/datastore',
+  'https://www.googleapis.com/auth/identitytoolkit'
+].join(' ')
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const FIREBASE_JWKS_ENDPOINT = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 const FIREBASE_APPCHECK_JWKS_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1/jwks'
+const FIREBASE_SEND_OOB_CODE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/projects'
 const PATREON_TOKEN_ENDPOINT = 'https://www.patreon.com/api/oauth2/token'
 const PATREON_IDENTITY_ENDPOINT = 'https://www.patreon.com/api/oauth2/v2/identity'
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
@@ -225,6 +231,18 @@ export default {
         await enforceRedeemRateLimit(request, env, identity.uid)
         requireVerifiedEmail(identity)
         return jsonResponse(await startFreePlan(env, identity.uid), 201)
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/email-verification') {
+        const identity = await requireFirebaseIdentity(request, env)
+        if (identity.emailVerified) return jsonResponse({ sent: false, alreadyVerified: true })
+        if (!isEmailLike(identity.email)) throw new AccessWorkerError('An email address is required.', 400)
+
+        await enforceEmailVerificationRateLimit(request, env, identity.uid)
+        const input = await readJsonBody<{ locale?: unknown }>(request)
+        const locale = input.locale === 'ru' ? 'ru' : 'en'
+        await sendVerificationEmail(env, { email: identity.email, locale })
+        return jsonResponse({ sent: true }, 202)
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/admin/keys') {
@@ -649,6 +667,101 @@ async function sendPatreonAccessEmail(env: Env, input: {
   }
 }
 
+async function sendVerificationEmail(env: Env, input: { email: string; locale: 'ru' | 'en' }): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.ACCESS_EMAIL_FROM) {
+    throw new AccessWorkerError('Email delivery is not configured.', 500)
+  }
+
+  const googleToken = await getGoogleAccessToken(env)
+  const response = await fetch(
+    `${FIREBASE_SEND_OOB_CODE_ENDPOINT}/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/accounts:sendOobCode`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${googleToken}`,
+        'Content-Type': 'application/json'
+      },
+      // The Worker delivers the generated one-time link itself, rather than
+      // asking Firebase to send its limited-template email.
+      body: JSON.stringify({
+        requestType: 'VERIFY_EMAIL',
+        email: input.email,
+        returnOobLink: true
+      })
+    }
+  )
+  const payload = await readJsonResponse(response) as { oobLink?: unknown }
+  const verificationUrl = typeof payload.oobLink === 'string' ? payload.oobLink : ''
+  if (!response.ok || !verificationUrl || !isTrustedVerificationUrl(verificationUrl)) {
+    throw new AccessWorkerError('Unable to create an email verification link.', 502)
+  }
+
+  const copy = input.locale === 'ru'
+    ? {
+        subject: 'Подтвердите email — J.L.JÖRMUNGANDR',
+        title: 'Подтвердите email',
+        body: 'Чтобы продолжить вход в приложение, подтвердите, что этот адрес принадлежит вам.',
+        button: 'ПОДТВЕРДИТЬ EMAIL',
+        note: 'Если вы не создавали аккаунт, просто проигнорируйте это письмо.',
+        text: 'Чтобы продолжить вход в приложение, подтвердите адрес email по ссылке:'
+      }
+    : {
+        subject: 'Verify your email — J.L.JÖRMUNGANDR',
+        title: 'Verify your email',
+        body: 'To continue signing in to the app, confirm that you own this email address.',
+        button: 'VERIFY EMAIL',
+        note: 'If you did not create an account, you can safely ignore this email.',
+        text: 'To continue signing in to the app, verify your email using this link:'
+      }
+  const safeUrl = escapeHtml(verificationUrl)
+  const text = [
+    'J.L.JÖRMUNGANDR',
+    '',
+    copy.text,
+    verificationUrl,
+    '',
+    copy.note
+  ].join('\n')
+  const html = `
+    <div style="margin:0;padding:32px 20px;background:#f5f5f2;color:#171717;font-family:Inter,Arial,sans-serif">
+      <main style="margin:0 auto;max-width:560px;background:#ffffff;padding:42px 36px;text-align:center">
+        <p style="margin:0 0 26px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:800;letter-spacing:.22em">J.L.JÖRMUNGANDR</p>
+        <h1 style="margin:0;font-size:26px;letter-spacing:.04em">${copy.title}</h1>
+        <p style="margin:22px auto 30px;max-width:390px;font-size:16px;line-height:1.6">${copy.body}</p>
+        <a href="${safeUrl}" style="display:inline-block;background:#171717;color:#ffffff;padding:15px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:800;letter-spacing:.15em;text-decoration:none">${copy.button}</a>
+        <p style="margin:30px auto 0;max-width:390px;color:#5f5f5a;font-size:12px;line-height:1.55">${copy.note}</p>
+      </main>
+    </div>
+  `
+  const resendResponse = await fetch(RESEND_EMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: env.ACCESS_EMAIL_FROM,
+      to: [input.email],
+      subject: copy.subject,
+      text,
+      html,
+      tags: [{ name: 'source', value: 'email-verification' }]
+    })
+  })
+  const resendPayload = await readJsonResponse(resendResponse)
+  if (!resendResponse.ok) {
+    throw new AccessWorkerError(`Unable to send verification email: ${resendResponse.status} ${JSON.stringify(resendPayload)}`, 502)
+  }
+}
+
+function isTrustedVerificationUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 function renderPatreonCallbackPage(result: { ok: boolean; email: string; fullName: string }): string {
   const email = result.email ? `<p>Email: <strong>${escapeHtml(result.email)}</strong></p>` : ''
   const fullName = result.fullName ? `<p>Name: <strong>${escapeHtml(result.fullName)}</strong></p>` : ''
@@ -920,6 +1033,16 @@ async function enforceRedeemRateLimit(request: Request, env: Env, userId: string
   ])
   if (!ipOutcome.success || !userOutcome.success) {
     throw new AccessWorkerError('Too many activation attempts. Please try again later.', 429)
+  }
+}
+
+async function enforceEmailVerificationRateLimit(request: Request, env: Env, userId: string): Promise<void> {
+  const [ipOutcome, userOutcome] = await Promise.all([
+    env.EMAIL_VERIFICATION_RATE_LIMIT.limit({ key: `ip:${getRedeemRateLimitKey(request)}` }),
+    env.EMAIL_VERIFICATION_RATE_LIMIT.limit({ key: `user:${userId}` })
+  ])
+  if (!ipOutcome.success || !userOutcome.success) {
+    throw new AccessWorkerError('Too many verification emails. Please try again later.', 429)
   }
 }
 
@@ -1328,6 +1451,7 @@ async function verifyFirebaseIdToken(token: string, projectId: string): Promise<
     sub?: string
     exp?: number
     iat?: number
+    email?: string
     email_verified?: boolean
   }>(encodedPayload)
   if (header.alg !== 'RS256' || header.typ !== 'JWT' || !header.kid || !payload.sub || payload.aud !== projectId) {
@@ -1361,7 +1485,11 @@ async function verifyFirebaseIdToken(token: string, projectId: string): Promise<
   )
   if (!isValid) throw new AccessWorkerError('Invalid authentication token.', 401)
 
-  return { uid: payload.sub, emailVerified: payload.email_verified === true }
+  return {
+    uid: payload.sub,
+    email: typeof payload.email === 'string' ? payload.email.trim() : '',
+    emailVerified: payload.email_verified === true
+  }
 }
 
 function isAppCheckEnforced(env: Env): boolean {
@@ -1632,7 +1760,7 @@ async function createServiceAccountJwt(input: {
     iss: input.clientEmail,
     sub: input.clientEmail,
     aud: GOOGLE_TOKEN_ENDPOINT,
-    scope: FIRESTORE_SCOPE,
+    scope: GOOGLE_API_SCOPES,
     iat: input.issuedAtSeconds,
     exp: input.expiresAtSeconds
   }))

@@ -153,6 +153,55 @@
           </div>
         </div>
 
+        <!-- ── EMAIL VERIFICATION GATE ── -->
+        <div v-else-if="isAuthenticated && isEmailVerificationPending && phase === 'auth'" key="email-verification" class="w-full max-w-xs flex flex-col items-center space-y-5 text-center">
+          <p class="text-[8px] font-mono uppercase tracking-[0.4em] text-black/60">
+            {{ locale === 'ru' ? 'ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ' : 'VERIFICATION REQUIRED' }}
+          </p>
+          <div class="w-12 h-12 border border-black flex items-center justify-center">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="1" />
+              <path d="m3 7 9 6 9-6" />
+            </svg>
+          </div>
+          <div class="space-y-2">
+            <h1 class="text-xl font-semibold uppercase tracking-[0.16em] text-black">
+              {{ locale === 'ru' ? 'ПОДТВЕРДИТЕ EMAIL' : 'VERIFY YOUR EMAIL' }}
+            </h1>
+            <p class="text-[10px] font-mono leading-5 text-black/70">
+              {{ locale === 'ru'
+                ? `Мы отправили письмо с кнопкой подтверждения на ${emailVerificationAddress}.`
+                : `We sent a verification email with a confirmation button to ${emailVerificationAddress}.` }}
+            </p>
+          </div>
+          <p v-if="emailVerificationMessage" class="text-[9px] font-mono leading-5 text-black/60" role="status">
+            {{ emailVerificationMessage }}
+          </p>
+          <p v-if="emailVerificationError" class="text-[9px] font-mono leading-5 text-red-700" role="alert">
+            {{ emailVerificationError }}
+          </p>
+          <button
+            type="button"
+            :disabled="isCheckingEmailVerification || isSendingVerificationEmail"
+            class="w-full bg-black py-3 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-white transition-opacity disabled:opacity-40"
+            @click="confirmEmailVerification"
+          >
+            {{ isCheckingEmailVerification
+              ? (locale === 'ru' ? 'ПРОВЕРКА...' : 'CHECKING...')
+              : (locale === 'ru' ? 'Я ПОДТВЕРДИЛ EMAIL · ПРОДОЛЖИТЬ' : 'I VERIFIED MY EMAIL · CONTINUE') }}
+          </button>
+          <button
+            type="button"
+            :disabled="isSendingVerificationEmail || isCheckingEmailVerification"
+            class="font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-black/55 transition-opacity hover:text-black disabled:opacity-35"
+            @click="requestVerificationEmail"
+          >
+            {{ isSendingVerificationEmail
+              ? (locale === 'ru' ? 'ОТПРАВКА...' : 'SENDING...')
+              : (locale === 'ru' ? 'ОТПРАВИТЬ ПИСЬМО ЕЩЁ РАЗ' : 'RESEND VERIFICATION EMAIL') }}
+          </button>
+        </div>
+
         <!-- ── AUTHENTICATED: boot prompt ── -->
         <div v-else-if="isAuthenticated && phase === 'auth'" key="authenticated" class="w-full flex flex-col items-center space-y-5">
 	          <div class="initialization-auth-card w-full border bg-black/[0.05] p-4 flex items-center space-x-4">
@@ -321,10 +370,9 @@ import pkg from '../../../../../package.json'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import {
-  getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendEmailVerification,
+  reload,
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
@@ -332,7 +380,7 @@ import {
 } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { useAuthStore } from '~/entities/user/auth.store'
-import { auth as firebaseAuth, db } from '~/shared/firebase.client'
+import { auth as firebaseAuth, db, getFirebaseAppCheckToken } from '~/shared/firebase.client'
 import { useThemeStore } from '~/features/store/useTheme'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 
@@ -446,6 +494,137 @@ const authPassword = ref('')
 const authPasswordConfirm = ref('')
 const authError = ref<string | null>(null)
 const authLoading = ref(false)
+const DEFAULT_ACCESS_WORKER_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev'
+const isEmailVerificationPending = ref(false)
+const emailVerificationAddress = ref('')
+const emailVerificationMessage = ref('')
+const emailVerificationError = ref('')
+const isSendingVerificationEmail = ref(false)
+const isCheckingEmailVerification = ref(false)
+
+const accessWorkerUrl = () => {
+  const configured = String(import.meta.env.VITE_ACCESS_WORKER_URL || '').trim()
+  return (configured || DEFAULT_ACCESS_WORKER_URL).replace(/\/$/, '')
+}
+
+const setEmailVerificationPending = (email: string | null) => {
+  emailVerificationAddress.value = String(email || '')
+  isEmailVerificationPending.value = true
+}
+
+const clearEmailVerificationPending = () => {
+  isEmailVerificationPending.value = false
+  emailVerificationAddress.value = ''
+  emailVerificationMessage.value = ''
+  emailVerificationError.value = ''
+}
+
+const verificationCopy = (key: 'sent' | 'notConfirmed' | 'sendFailed' | 'checkFailed') => {
+  const ru = {
+    sent: 'Письмо с кнопкой подтверждения отправлено.',
+    notConfirmed: 'Подтверждение ещё не найдено. Откройте кнопку в письме и повторите проверку.',
+    sendFailed: 'Не удалось отправить письмо. Попробуйте ещё раз.',
+    checkFailed: 'Не удалось проверить подтверждение. Попробуйте ещё раз.'
+  }
+  const en = {
+    sent: 'A verification email with a confirmation button has been sent.',
+    notConfirmed: 'Verification has not been found yet. Open the button in the email and check again.',
+    sendFailed: 'Unable to send the verification email. Please try again.',
+    checkFailed: 'Unable to check email verification. Please try again.'
+  }
+  return (locale.value === 'ru' ? ru : en)[key]
+}
+
+async function requestVerificationEmail(): Promise<boolean> {
+  const user = firebaseAuth.currentUser
+  if (!user || !user.email) return false
+  if (user.emailVerified) {
+    clearEmailVerificationPending()
+    return true
+  }
+
+  isSendingVerificationEmail.value = true
+  emailVerificationError.value = ''
+  try {
+    const [idToken, appCheckToken] = await Promise.all([
+      user.getIdToken(true),
+      getFirebaseAppCheckToken()
+    ])
+    const response = await fetch(`${accessWorkerUrl()}/v1/email-verification`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
+        ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {})
+      },
+      body: JSON.stringify({ locale: locale.value })
+    })
+    const payload = await response.json().catch(() => ({})) as { sent?: boolean; alreadyVerified?: boolean; error?: unknown }
+    if (!response.ok) {
+      throw new Error(typeof payload.error === 'string' ? payload.error : '')
+    }
+    if (payload.alreadyVerified) {
+      clearEmailVerificationPending()
+      return true
+    }
+    emailVerificationMessage.value = verificationCopy('sent')
+    setEmailVerificationPending(user.email)
+    return Boolean(payload.sent)
+  } catch (error) {
+    console.warn('[Auth] Unable to send verification email:', error)
+    emailVerificationError.value = verificationCopy('sendFailed')
+    return false
+  } finally {
+    isSendingVerificationEmail.value = false
+  }
+}
+
+async function refreshEmailVerification(): Promise<boolean> {
+  const user = firebaseAuth.currentUser
+  if (!user) return false
+  if (!user.email || user.emailVerified) {
+    clearEmailVerificationPending()
+    return true
+  }
+
+  try {
+    await reload(user)
+  } catch (error) {
+    console.warn('[Auth] Unable to refresh email verification status:', error)
+    emailVerificationError.value = verificationCopy('checkFailed')
+    return false
+  }
+
+  if (!user.emailVerified) {
+    setEmailVerificationPending(user.email)
+    emailVerificationMessage.value = ''
+    emailVerificationError.value = verificationCopy('notConfirmed')
+    return false
+  }
+
+  clearEmailVerificationPending()
+  return true
+}
+
+async function confirmEmailVerification() {
+  isCheckingEmailVerification.value = true
+  emailVerificationError.value = ''
+  try {
+    if (await refreshEmailVerification()) await startBoot({ skipEmailVerificationCheck: true })
+  } finally {
+    isCheckingEmailVerification.value = false
+  }
+}
+
+watch(() => authStore.user?.uid, () => {
+  const user = firebaseAuth.currentUser
+  if (!user) {
+    clearEmailVerificationPending()
+    return
+  }
+  if (user.email && !user.emailVerified) setEmailVerificationPending(user.email)
+  else clearEmailVerificationPending()
+}, { immediate: true })
 
 // ── Phase ──
 const phase = ref<'update' | 'auth' | 'boot' | 'ready'>('update')
@@ -788,7 +967,12 @@ const startUpdateCheck = async () => {
   }
 }
 
-const startBoot = async () => {
+const startBoot = async (options: { skipEmailVerificationCheck?: boolean } = {}) => {
+  if (!options.skipEmailVerificationCheck && !(await refreshEmailVerification())) {
+    phase.value = 'auth'
+    return
+  }
+
   phase.value = 'boot'
   
   if (authStore.user?.uid) {
@@ -839,7 +1023,7 @@ const doLogin = async () => {
       photoURL: user.photoURL,
       joinedAt: user.metadata.creationTime ?? null
     })
-    startBoot()
+    await startBoot()
   } catch (e: any) {
     authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Login failed.'
   } finally {
@@ -868,12 +1052,6 @@ const doRegister = async () => {
   try {
     const result = await createUserWithEmailAndPassword(firebaseAuth, email, authPassword.value)
     const user = result.user
-    // Trial/free activation requires a verified email on the Worker. Do not
-    // block account creation if Firebase cannot send the message immediately;
-    // the access screen will clearly require verification before activation.
-    void sendEmailVerification(user).catch((error) => {
-      console.warn('[Auth] Unable to send verification email:', error)
-    })
     authStore.setUser({
       uid: user.uid,
       email: user.email,
@@ -894,7 +1072,8 @@ const doRegister = async () => {
       photoURL: null,
       joinedAt: user.metadata.creationTime ?? null
     })
-    startBoot()
+    setEmailVerificationPending(user.email)
+    await requestVerificationEmail()
   } catch (e: any) {
     authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Registration failed.'
   } finally {
@@ -1024,7 +1203,7 @@ const doGoogleLogin = async () => {
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
       await ensureUserDocument(user)
     }
-    startBoot()
+    await startBoot()
   } catch (e: any) {
     authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Google login failed.'
   } finally {
@@ -1040,6 +1219,7 @@ const doSignOut = async () => {
   authPassword.value = ''
   authPasswordConfirm.value = ''
   authError.value = null
+  clearEmailVerificationPending()
   appBootStore.bootProgress = 0
   phase.value = 'auth'
 }
