@@ -133,6 +133,8 @@ const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const FIREBASE_JWKS_ENDPOINT = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 const FIREBASE_APPCHECK_JWKS_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1/jwks'
 const FIREBASE_SEND_OOB_CODE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/projects'
+const EMAIL_VERIFICATION_PAGE_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev/email-verify'
+const FIREBASE_WEB_API_KEY = 'AIzaSyBIyST2glGpq6guZ8-yTlegn_wGRTeKw8s'
 const PATREON_TOKEN_ENDPOINT = 'https://www.patreon.com/api/oauth2/token'
 const PATREON_IDENTITY_ENDPOINT = 'https://www.patreon.com/api/oauth2/v2/identity'
 const RESEND_EMAIL_ENDPOINT = 'https://api.resend.com/emails'
@@ -198,6 +200,19 @@ export default {
     try {
       if (request.method === 'GET' && url.pathname === '/health') {
         return jsonResponse({ ok: true })
+      }
+
+      if (request.method === 'GET' && url.pathname === '/email-verify') {
+        return htmlResponse(renderEmailVerificationPage())
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/email-verification/confirm') {
+        await enforceEmailVerificationConfirmationRateLimit(request, env)
+        const input = await readJsonBody<{ code?: unknown }>(request)
+        const code = typeof input.code === 'string' ? input.code.trim() : ''
+        if (code.length < 16 || code.length > 2048) throw new AccessWorkerError('Invalid verification link.', 400)
+        await applyEmailVerificationCode(code)
+        return jsonResponse({ verified: true })
       }
 
       if (request.method === 'GET' && url.pathname === '/patreon/callback') {
@@ -690,11 +705,19 @@ async function sendVerificationEmail(env: Env, input: { email: string; locale: '
       })
     }
   )
-  const payload = await readJsonResponse(response) as { oobLink?: unknown }
-  const verificationUrl = typeof payload.oobLink === 'string' ? payload.oobLink : ''
-  if (!response.ok || !verificationUrl || !isTrustedVerificationUrl(verificationUrl)) {
+  const payload = await readJsonResponse(response) as { oobCode?: unknown }
+  const oobCode = typeof payload.oobCode === 'string' ? payload.oobCode : ''
+  if (!response.ok || !oobCode) {
+    console.error('[email-verification] Firebase link generation failed', {
+      serviceAccount: env.FIREBASE_CLIENT_EMAIL,
+      status: response.status,
+      payload
+    })
     throw new AccessWorkerError('Unable to create an email verification link.', 502)
   }
+  // Keep the one-time code in the URL fragment. It is never sent as a Referer
+  // and the landing page exchanges it immediately over same-origin HTTPS.
+  const verificationUrl = `${EMAIL_VERIFICATION_PAGE_URL}#code=${encodeURIComponent(oobCode)}&locale=${input.locale}`
 
   const copy = input.locale === 'ru'
     ? {
@@ -752,6 +775,30 @@ async function sendVerificationEmail(env: Env, input: { email: string; locale: '
   if (!resendResponse.ok) {
     throw new AccessWorkerError(`Unable to send verification email: ${resendResponse.status} ${JSON.stringify(resendPayload)}`, 502)
   }
+}
+
+async function applyEmailVerificationCode(code: string): Promise<void> {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oobCode: code })
+    }
+  )
+  if (response.ok) return
+
+  const payload = await readJsonResponse(response)
+  console.error('[email-verification] Firebase code application failed', { status: response.status, payload })
+  throw new AccessWorkerError('Unable to verify this email link.', 400)
+}
+
+function renderEmailVerificationPage(): string {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Email verification — J.L.JÖRMUNGANDR</title>
+<style>body{margin:0;background:#ece9e2;color:#151515;font-family:Inter,Arial,sans-serif}.shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}.card{width:min(100%,540px);box-sizing:border-box;background:#f8f7f3;border:1px solid #151515;padding:50px 36px;text-align:center}.mark{font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.28em}.icon{margin:30px auto 24px;width:48px;height:48px;border:1px solid #151515;display:grid;place-items:center}.icon:after{content:'✓';font-size:24px}h1{margin:0;font-size:25px;letter-spacing:.08em;text-transform:uppercase}p{margin:18px auto 0;max-width:390px;font-size:14px;line-height:1.65;color:#4f4e49}.line{margin:30px auto 0;width:42px;height:1px;background:#151515}.error .icon:after{content:'!';font-weight:700}.error .icon{border-color:#9b2727}.error h1{color:#9b2727}</style>
+</head><body><main class="shell"><section class="card" id="card"><div class="mark">J.L.JÖRMUNGANDR</div><div class="icon"></div><h1 id="title">VERIFYING EMAIL</h1><p id="body">Please wait while we confirm your email address.</p><div class="line"></div></section></main>
+<script>const q=new URLSearchParams(location.hash.slice(1)),ru=q.get('locale')==='ru',copy=ru?{loading:['ПОДТВЕРЖДАЕМ EMAIL','Пожалуйста, подождите. Проверяем ваш адрес.'],success:['EMAIL ПОДТВЕРЖДЁН','Можно вернуться в приложение — вход продолжится автоматически.'],error:['ССЫЛКА НЕДЕЙСТВИТЕЛЬНА','Запросите новое письмо в приложении и попробуйте снова.']}:{loading:['VERIFYING EMAIL','Please wait while we confirm your email address.'],success:['EMAIL VERIFIED','Return to the app — sign-in will continue automatically.'],error:['LINK IS INVALID','Request a new verification email in the app and try again.']};const title=document.getElementById('title'),body=document.getElementById('body'),card=document.getElementById('card');async function verify(){const code=q.get('code')||'';try{const r=await fetch('/v1/email-verification/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});if(!r.ok)throw new Error();title.textContent=copy.success[0];body.textContent=copy.success[1]}catch{card.classList.add('error');title.textContent=copy.error[0];body.textContent=copy.error[1]}}verify()</script></body></html>`
 }
 
 function isTrustedVerificationUrl(value: string): boolean {
@@ -1044,6 +1091,11 @@ async function enforceEmailVerificationRateLimit(request: Request, env: Env, use
   if (!ipOutcome.success || !userOutcome.success) {
     throw new AccessWorkerError('Too many verification emails. Please try again later.', 429)
   }
+}
+
+async function enforceEmailVerificationConfirmationRateLimit(request: Request, env: Env): Promise<void> {
+  const outcome = await env.ACCESS_REDEEM_RATE_LIMIT.limit({ key: `email-confirm:${getRedeemRateLimitKey(request)}` })
+  if (!outcome.success) throw new AccessWorkerError('Too many verification attempts. Please try again later.', 429)
 }
 
 function getRedeemRateLimitKey(request: Request): string {

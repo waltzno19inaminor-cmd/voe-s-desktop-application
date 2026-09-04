@@ -170,8 +170,8 @@
             </h1>
             <p class="text-[10px] font-mono leading-5 text-black/70">
               {{ locale === 'ru'
-                ? `Мы отправили письмо с кнопкой подтверждения на ${emailVerificationAddress}.`
-                : `We sent a verification email with a confirmation button to ${emailVerificationAddress}.` }}
+                ? `Мы отправили письмо с кнопкой подтверждения на ${emailVerificationAddress}. После нажатия вход продолжится автоматически.`
+                : `We sent a verification email with a confirmation button to ${emailVerificationAddress}. Sign-in will continue automatically after confirmation.` }}
             </p>
           </div>
           <p v-if="emailVerificationMessage" class="text-[9px] font-mono leading-5 text-black/60" role="status">
@@ -180,19 +180,12 @@
           <p v-if="emailVerificationError" class="text-[9px] font-mono leading-5 text-red-700" role="alert">
             {{ emailVerificationError }}
           </p>
+          <p class="text-[8px] font-mono uppercase tracking-[0.22em] text-black/45">
+            {{ locale === 'ru' ? 'ОЖИДАЕМ ПОДТВЕРЖДЕНИЯ...' : 'WAITING FOR CONFIRMATION...' }}
+          </p>
           <button
             type="button"
-            :disabled="isCheckingEmailVerification || isSendingVerificationEmail"
-            class="w-full bg-black py-3 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-white transition-opacity disabled:opacity-40"
-            @click="confirmEmailVerification"
-          >
-            {{ isCheckingEmailVerification
-              ? (locale === 'ru' ? 'ПРОВЕРКА...' : 'CHECKING...')
-              : (locale === 'ru' ? 'Я ПОДТВЕРДИЛ EMAIL · ПРОДОЛЖИТЬ' : 'I VERIFIED MY EMAIL · CONTINUE') }}
-          </button>
-          <button
-            type="button"
-            :disabled="isSendingVerificationEmail || isCheckingEmailVerification"
+            :disabled="isSendingVerificationEmail"
             class="font-mono text-[8px] font-bold uppercase tracking-[0.24em] text-black/55 transition-opacity hover:text-black disabled:opacity-35"
             @click="requestVerificationEmail"
           >
@@ -237,10 +230,9 @@
             >{{ locale === 'ru' ? 'Регистрация' : 'Register' }}</button>
           </div>
 
-          <!-- Error display -->
           <Transition name="fade-quick">
-            <div v-if="authError" class="border border-red-500/40 bg-red-500/10 px-4 py-2">
-              <span class="text-[9px] font-mono text-red-400 uppercase tracking-widest">{{ authError }}</span>
+            <div v-if="authError" class="border border-red-500/40 bg-red-500/10 px-4 py-2" role="status">
+              <span class="text-[10px] text-red-400">{{ authError }}</span>
             </div>
           </Transition>
 
@@ -500,7 +492,7 @@ const emailVerificationAddress = ref('')
 const emailVerificationMessage = ref('')
 const emailVerificationError = ref('')
 const isSendingVerificationEmail = ref(false)
-const isCheckingEmailVerification = ref(false)
+let emailVerificationPollTimer: ReturnType<typeof setInterval> | null = null
 
 const accessWorkerUrl = () => {
   const configured = String(import.meta.env.VITE_ACCESS_WORKER_URL || '').trim()
@@ -533,6 +525,34 @@ const verificationCopy = (key: 'sent' | 'notConfirmed' | 'sendFailed' | 'checkFa
     checkFailed: 'Unable to check email verification. Please try again.'
   }
   return (locale.value === 'ru' ? ru : en)[key]
+}
+
+const authFailureMessage = (error: unknown, action: 'login' | 'register' | 'google' = 'login') => {
+  const code = typeof error === 'object' && error && 'code' in error
+    ? String((error as { code?: unknown }).code || '')
+    : ''
+  const ru = {
+    'auth/email-already-in-use': 'Этот email уже зарегистрирован. Перейдите на вкладку «Вход».',
+    'auth/invalid-email': 'Укажите корректный адрес email.',
+    'auth/weak-password': 'Пароль недостаточно надёжный. Используйте не менее 8 символов.',
+    'auth/wrong-password': 'Неверный email или пароль.',
+    'auth/user-not-found': 'Неверный email или пароль.',
+    'auth/invalid-credential': 'Неверный email или пароль.',
+    'auth/too-many-requests': 'Слишком много попыток. Попробуйте немного позже.'
+  } as Record<string, string>
+  const en = {
+    'auth/email-already-in-use': 'This email is already registered. Switch to the Sign in tab.',
+    'auth/invalid-email': 'Enter a valid email address.',
+    'auth/weak-password': 'This password is not strong enough. Use at least 8 characters.',
+    'auth/wrong-password': 'Incorrect email or password.',
+    'auth/user-not-found': 'Incorrect email or password.',
+    'auth/invalid-credential': 'Incorrect email or password.',
+    'auth/too-many-requests': 'Too many attempts. Please try again shortly.'
+  } as Record<string, string>
+  const fallback = locale.value === 'ru'
+    ? (action === 'register' ? 'Не удалось создать аккаунт. Попробуйте ещё раз.' : 'Что-то пошло не так. Попробуйте ещё раз.')
+    : (action === 'register' ? 'Unable to create the account. Please try again.' : 'Something went wrong. Please try again.')
+  return (locale.value === 'ru' ? ru : en)[code] || fallback
 }
 
 async function requestVerificationEmail(): Promise<boolean> {
@@ -579,7 +599,7 @@ async function requestVerificationEmail(): Promise<boolean> {
   }
 }
 
-async function refreshEmailVerification(): Promise<boolean> {
+async function refreshEmailVerification(options: { silent?: boolean } = {}): Promise<boolean> {
   const user = firebaseAuth.currentUser
   if (!user) return false
   if (!user.email || user.emailVerified) {
@@ -591,29 +611,21 @@ async function refreshEmailVerification(): Promise<boolean> {
     await reload(user)
   } catch (error) {
     console.warn('[Auth] Unable to refresh email verification status:', error)
-    emailVerificationError.value = verificationCopy('checkFailed')
+    if (!options.silent) emailVerificationError.value = verificationCopy('checkFailed')
     return false
   }
 
   if (!user.emailVerified) {
     setEmailVerificationPending(user.email)
-    emailVerificationMessage.value = ''
-    emailVerificationError.value = verificationCopy('notConfirmed')
+    if (!options.silent) {
+      emailVerificationMessage.value = ''
+      emailVerificationError.value = verificationCopy('notConfirmed')
+    }
     return false
   }
 
   clearEmailVerificationPending()
   return true
-}
-
-async function confirmEmailVerification() {
-  isCheckingEmailVerification.value = true
-  emailVerificationError.value = ''
-  try {
-    if (await refreshEmailVerification()) await startBoot({ skipEmailVerificationCheck: true })
-  } finally {
-    isCheckingEmailVerification.value = false
-  }
 }
 
 watch(() => authStore.user?.uid, () => {
@@ -625,6 +637,27 @@ watch(() => authStore.user?.uid, () => {
   if (user.email && !user.emailVerified) setEmailVerificationPending(user.email)
   else clearEmailVerificationPending()
 }, { immediate: true })
+
+watch(isEmailVerificationPending, (pending) => {
+  if (emailVerificationPollTimer) {
+    clearInterval(emailVerificationPollTimer)
+    emailVerificationPollTimer = null
+  }
+  if (!pending) return
+
+  emailVerificationPollTimer = setInterval(() => {
+    void (async () => {
+      if (phase.value !== 'auth' || !isEmailVerificationPending.value) return
+      if (await refreshEmailVerification({ silent: true })) {
+        await startBoot({ skipEmailVerificationCheck: true })
+      }
+    })()
+  }, 2500)
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  if (emailVerificationPollTimer) clearInterval(emailVerificationPollTimer)
+})
 
 // ── Phase ──
 const phase = ref<'update' | 'auth' | 'boot' | 'ready'>('update')
@@ -1024,8 +1057,8 @@ const doLogin = async () => {
       joinedAt: user.metadata.creationTime ?? null
     })
     await startBoot()
-  } catch (e: any) {
-    authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Login failed.'
+  } catch (error) {
+    authError.value = authFailureMessage(error, 'login')
   } finally {
     authLoading.value = false
   }
@@ -1074,8 +1107,8 @@ const doRegister = async () => {
     })
     setEmailVerificationPending(user.email)
     await requestVerificationEmail()
-  } catch (e: any) {
-    authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Registration failed.'
+  } catch (error) {
+    authError.value = authFailureMessage(error, 'register')
   } finally {
     authLoading.value = false
   }
@@ -1204,8 +1237,8 @@ const doGoogleLogin = async () => {
       await ensureUserDocument(user)
     }
     await startBoot()
-  } catch (e: any) {
-    authError.value = e.message?.replace('Firebase: ', '').replace(/\(auth\/.*\)\.?/, '').trim() ?? 'Google login failed.'
+  } catch (error) {
+    authError.value = authFailureMessage(error, 'google')
   } finally {
     authLoading.value = false
   }
