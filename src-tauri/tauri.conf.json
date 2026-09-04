@@ -66,7 +66,8 @@
     "deep-link": {
       "desktop": {
         "schemes": [
-          "com.googleusercontent.apps.79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22"
+          "com.googleusercontent.apps.79915571390-v910mjv94lmgod0nrcu1vj9ctb3tdm22",
+          "jlj"
         ]
       }
     }

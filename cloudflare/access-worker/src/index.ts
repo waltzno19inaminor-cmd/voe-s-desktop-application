@@ -4,6 +4,7 @@ interface Env {
   ACCESS_ADMIN_TOKEN: string
   ACCESS_REDEEM_RATE_LIMIT: RateLimit
   EMAIL_VERIFICATION_RATE_LIMIT: RateLimit
+  PASSWORD_RESET_RATE_LIMIT: RateLimit
   FIREBASE_PROJECT_ID: string
   FIREBASE_PROJECT_NUMBER: string
   FIREBASE_APPCHECK_ENFORCE: string
@@ -134,6 +135,7 @@ const FIREBASE_JWKS_ENDPOINT = 'https://www.googleapis.com/service_accounts/v1/j
 const FIREBASE_APPCHECK_JWKS_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1/jwks'
 const FIREBASE_SEND_OOB_CODE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/projects'
 const EMAIL_VERIFICATION_PAGE_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev/email-verify'
+const PASSWORD_RESET_PAGE_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev/password-reset'
 const FIREBASE_WEB_API_KEY = 'AIzaSyBIyST2glGpq6guZ8-yTlegn_wGRTeKw8s'
 const PATREON_TOKEN_ENDPOINT = 'https://www.patreon.com/api/oauth2/token'
 const PATREON_IDENTITY_ENDPOINT = 'https://www.patreon.com/api/oauth2/v2/identity'
@@ -206,6 +208,10 @@ export default {
         return htmlResponse(renderEmailVerificationPage())
       }
 
+      if (request.method === 'GET' && url.pathname === '/password-reset') {
+        return htmlResponse(renderPasswordResetPageModern())
+      }
+
       if (request.method === 'POST' && url.pathname === '/v1/email-verification/confirm') {
         await enforceEmailVerificationConfirmationRateLimit(request, env)
         const input = await readJsonBody<{ code?: unknown }>(request)
@@ -213,6 +219,16 @@ export default {
         if (code.length < 16 || code.length > 2048) throw new AccessWorkerError('Invalid verification link.', 400)
         await applyEmailVerificationCode(code)
         return jsonResponse({ verified: true })
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/password-reset/confirm') {
+        const input = await readJsonBody<{ code?: unknown; newPassword?: unknown }>(request)
+        const code = typeof input.code === 'string' ? input.code.trim() : ''
+        const newPassword = typeof input.newPassword === 'string' ? input.newPassword : ''
+        if (code.length < 16 || code.length > 2048) throw new AccessWorkerError('Invalid password reset link.', 400)
+        validatePasswordResetPassword(newPassword)
+        await applyPasswordResetCode(code, newPassword)
+        return jsonResponse({ updated: true })
       }
 
       if (request.method === 'GET' && url.pathname === '/patreon/callback') {
@@ -257,6 +273,18 @@ export default {
         const input = await readJsonBody<{ locale?: unknown }>(request)
         const locale = input.locale === 'ru' ? 'ru' : 'en'
         await sendVerificationEmail(env, { email: identity.email, locale })
+        return jsonResponse({ sent: true }, 202)
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/password-reset') {
+        if (isAppCheckEnforced(env)) await requireFirebaseAppCheck(request, env)
+        const input = await readJsonBody<{ email?: unknown; locale?: unknown }>(request)
+        const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
+        if (!isEmailLike(email)) throw new AccessWorkerError('An email address is required.', 400)
+
+        await enforcePasswordResetRateLimit(request, env, email)
+        const locale = input.locale === 'ru' ? 'ru' : 'en'
+        await sendPasswordResetEmail(env, { email, locale })
         return jsonResponse({ sent: true }, 202)
       }
 
@@ -777,6 +805,377 @@ async function sendVerificationEmail(env: Env, input: { email: string; locale: '
   }
 }
 
+async function sendPasswordResetEmail(env: Env, input: { email: string; locale: 'ru' | 'en' }): Promise<void> {
+  if (!env.RESEND_API_KEY || !env.ACCESS_EMAIL_FROM) {
+    throw new AccessWorkerError('Email delivery is not configured.', 500)
+  }
+
+  const googleToken = await getGoogleAccessToken(env)
+  const response = await fetch(
+    `${FIREBASE_SEND_OOB_CODE_ENDPOINT}/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/accounts:sendOobCode`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${googleToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        requestType: 'PASSWORD_RESET',
+        email: input.email,
+        returnOobLink: true
+      })
+    }
+  )
+  const payload = await readJsonResponse(response) as { oobCode?: unknown; error?: { message?: unknown } }
+  const firebaseError = String(payload.error?.message || '')
+  const oobCode = typeof payload.oobCode === 'string' ? payload.oobCode : ''
+
+  // Do not reveal whether the email is registered. The client receives the
+  // same successful response, but no message is sent for an unknown address.
+  if (!response.ok && firebaseError === 'EMAIL_NOT_FOUND') return
+  if (!response.ok || !oobCode) {
+    console.error('[password-reset] Firebase link generation failed', {
+      serviceAccount: env.FIREBASE_CLIENT_EMAIL,
+      status: response.status,
+      payload
+    })
+    throw new AccessWorkerError('Unable to create a password reset link.', 502)
+  }
+
+  const resetUrl = `${PASSWORD_RESET_PAGE_URL}#code=${encodeURIComponent(oobCode)}&locale=${input.locale}`
+  const copy = input.locale === 'ru'
+    ? {
+        subject: 'Сброс пароля — J.L.JÖRMUNGANDR',
+        title: 'Сброс пароля',
+        body: 'Нажмите кнопку ниже, чтобы задать новый пароль для аккаунта.',
+        button: 'СБРОСИТЬ ПАРОЛЬ',
+        note: 'Если вы не запрашивали сброс пароля, просто проигнорируйте это письмо.',
+        text: 'Чтобы задать новый пароль, откройте ссылку:'
+      }
+    : {
+        subject: 'Password reset — J.L.JÖRMUNGANDR',
+        title: 'Password Reset',
+        body: 'Click the button below to set a new password for your account.',
+        button: 'RESET PASSWORD',
+        note: 'If you did not request a password reset, you can safely ignore this email.',
+        text: 'Open this link to set a new password:'
+      }
+  const safeUrl = escapeHtml(resetUrl)
+  const text = [
+    'J.L.JÖRMUNGANDR',
+    '',
+    copy.text,
+    resetUrl,
+    '',
+    copy.note
+  ].join('\n')
+  const html = `
+    <div style="margin:0;padding:32px 20px;background:#f5f5f2;color:#171717;font-family:Inter,Arial,sans-serif">
+      <main style="margin:0 auto;max-width:560px;background:#ffffff;padding:42px 36px;text-align:center">
+        <p style="margin:0 0 26px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;font-weight:800;letter-spacing:.22em">J.L.JÖRMUNGANDR</p>
+        <h1 style="margin:0;font-size:26px;letter-spacing:.04em">${copy.title}</h1>
+        <p style="margin:22px auto 30px;max-width:390px;font-size:16px;line-height:1.6">${copy.body}</p>
+        <a href="${safeUrl}" style="display:inline-block;background:#171717;color:#ffffff;padding:15px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;font-weight:800;letter-spacing:.15em;text-decoration:none">${copy.button}</a>
+        <p style="margin:30px auto 0;max-width:390px;color:#5f5f5a;font-size:12px;line-height:1.55">${copy.note}</p>
+      </main>
+    </div>
+  `
+  const resendResponse = await fetch(RESEND_EMAIL_ENDPOINT, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      from: env.ACCESS_EMAIL_FROM,
+      to: [input.email],
+      subject: copy.subject,
+      text,
+      html,
+      tags: [{ name: 'source', value: 'password-reset' }]
+    })
+  })
+  const resendPayload = await readJsonResponse(resendResponse)
+  if (!resendResponse.ok) {
+    throw new AccessWorkerError(`Unable to send password reset email: ${resendResponse.status} ${JSON.stringify(resendPayload)}`, 502)
+  }
+}
+
+async function applyPasswordResetCode(code: string, newPassword: string): Promise<void> {
+  const response = await fetch(
+    `https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ oobCode: code, newPassword })
+    }
+  )
+  if (response.ok) return
+
+  const payload = await readJsonResponse(response)
+  console.error('[password-reset] Firebase code application failed', { status: response.status, payload })
+  throw new AccessWorkerError('This password reset link is invalid or expired.', 400)
+}
+
+function validatePasswordResetPassword(password: string): void {
+  if (password.length < 8) throw new AccessWorkerError('Password must contain at least 8 characters.', 400)
+  if (!/[A-Z]/.test(password)) throw new AccessWorkerError('Password must contain an uppercase letter.', 400)
+  if (!/[a-z]/.test(password)) throw new AccessWorkerError('Password must contain a lowercase letter.', 400)
+  if (!/\d/.test(password)) throw new AccessWorkerError('Password must contain a number.', 400)
+  if (!/[^A-Za-z0-9]/.test(password)) throw new AccessWorkerError('Password must contain a special character.', 400)
+}
+
+function renderPasswordResetPageModern(): string {
+  return String.raw`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Password reset — J.L.JÖRMUNGANDR</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #ece9e2; color: #151515; font-family: Inter, Arial, sans-serif; }
+    .shell { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+    .card { width: min(100%, 480px); background: #f8f7f3; border: 1px solid #151515; padding: 42px 34px 36px; box-shadow: 0 18px 50px rgba(21,21,21,.08); }
+    .brand { text-align: center; font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .28em; }
+    .icon { margin: 28px auto 22px; width: 48px; height: 48px; border: 1px solid #151515; display: grid; place-items: center; font-size: 24px; }
+    .icon::after { content: '↻'; }
+    h1 { margin: 0; text-align: center; font-size: 25px; letter-spacing: .08em; text-transform: uppercase; }
+    .intro { margin: 14px auto 0; max-width: 380px; text-align: center; color: #4f4e49; font-size: 14px; line-height: 1.65; }
+    .form { margin: 28px auto 0; display: grid; gap: 18px; max-width: 380px; }
+    .field { display: grid; gap: 7px; }
+    .field-label { color: #292925; font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .control { position: relative; display: flex; align-items: center; }
+    .control input { width: 100%; border: 1px solid #a8a69f; background: #fff; color: #151515; padding: 14px 78px 14px 14px; font: 14px ui-monospace, SFMono-Regular, Menlo, monospace; outline: none; transition: border-color .2s, box-shadow .2s; }
+    .control input:focus { border-color: #151515; box-shadow: 0 0 0 3px rgba(21,21,21,.1); }
+    .control input.invalid { border-color: #b3261e; box-shadow: 0 0 0 3px rgba(179,38,30,.08); }
+    .toggle { position: absolute; right: 8px; border: 0; background: transparent; color: #5d5b55; padding: 8px; font: 800 9px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+    .toggle:hover { color: #151515; }
+    .hint { margin: 0; color: #6b6962; font-size: 12px; line-height: 1.5; }
+    .field-error { min-height: 17px; margin: 0; color: #b3261e; font-size: 12px; line-height: 1.45; }
+    .form button[type="submit"] { border: 1px solid #151515; background: #151515; color: #fff; padding: 15px 18px; font: 800 11px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; cursor: pointer; transition: opacity .2s; }
+    .form button[type="submit"]:hover:not(:disabled) { opacity: .86; }
+    .form button[type="submit"]:disabled { cursor: wait; opacity: .5; }
+    .form.is-saving .field { display: none; }
+    .message { min-height: 22px; margin: 18px auto 0; max-width: 380px; text-align: center; font-size: 13px; line-height: 1.55; }
+    .message.error { color: #b3261e; }
+    .message.saving { color: #4f4e49; font-weight: 700; }
+    .message.success { color: #216e39; font-weight: 700; }
+    .success .icon::after { content: '✓'; }
+    .return-actions { margin: 24px auto 0; display: grid; gap: 10px; max-width: 380px; }
+    .return-actions a { display: block; border: 1px solid #151515; padding: 14px 18px; text-align: center; text-decoration: none; font: 800 10px ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+    .return-actions a.primary { background: #151515; color: #fff; }
+    .return-actions a.secondary { background: transparent; color: #151515; }
+    @media (max-width: 520px) { .card { padding: 34px 20px 28px; } h1 { font-size: 21px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="card" id="card">
+      <div class="brand">J.L.JÖRMUNGANDR</div>
+      <div class="icon" aria-hidden="true"></div>
+      <h1 id="title">RESET PASSWORD</h1>
+      <p class="intro" id="body">Set a new password for your account.</p>
+      <form id="form" class="form" hidden novalidate>
+        <div class="field">
+          <label class="field-label" id="password-label" for="password">New password</label>
+          <div class="control">
+            <input id="password" type="password" autocomplete="new-password" aria-describedby="password-hint password-error" required>
+            <button class="toggle" id="password-toggle" type="button">Show</button>
+          </div>
+          <p class="hint" id="password-hint"></p>
+          <p class="field-error" id="password-error" aria-live="polite"></p>
+        </div>
+        <div class="field">
+          <label class="field-label" id="confirm-label" for="confirm">Confirm password</label>
+          <div class="control">
+            <input id="confirm" type="password" autocomplete="new-password" aria-describedby="confirm-error" required>
+            <button class="toggle" id="confirm-toggle" type="button">Show</button>
+          </div>
+          <p class="field-error" id="confirm-error" aria-live="polite"></p>
+        </div>
+        <button id="submit" type="submit">SAVE PASSWORD</button>
+      </form>
+      <p id="message" class="message" role="alert" aria-live="polite"></p>
+      <div id="return-actions" class="return-actions" hidden>
+        <a class="primary" id="desktop-return" href="jlj://password-reset-success">OPEN DESKTOP APP</a>
+        <a class="secondary" id="web-return" href="https://jorudr.github.io/JLJ/?password-reset=success">OPEN WEB APP</a>
+      </div>
+    </section>
+  </main>
+  <script>
+    const query = new URLSearchParams(location.hash.slice(1));
+    const ru = query.get('locale') === 'ru';
+    const code = query.get('code') || '';
+    const copy = ru
+      ? {
+          title: 'СБРОС ПАРОЛЯ',
+          body: 'Задайте новый пароль для вашего аккаунта.',
+          passwordLabel: 'Новый пароль',
+          confirmLabel: 'Повторите пароль',
+          passwordHint: 'Минимум 8 символов: заглавная и строчная буквы, цифра и специальный символ.',
+          passwordRequired: 'Введите новый пароль.',
+          confirmRequired: 'Повторите новый пароль.',
+          mismatch: 'Пароли не совпадают.',
+          submit: 'СОХРАНИТЬ ПАРОЛЬ',
+          saving: 'СОХРАНЕНИЕ...',
+          show: 'ПОКАЗАТЬ',
+          hide: 'СКРЫТЬ',
+          successTitle: 'ПАРОЛЬ ИЗМЕНЁН',
+          successBody: 'Пароль успешно изменён. Теперь можно войти в приложение.',
+          successMessage: 'Новый пароль сохранён.',
+          missing: 'Ссылка недействительна или устарела. Запросите новую ссылку в приложении.',
+          weak: 'Пароль должен содержать минимум 8 символов, заглавную и строчную буквы, цифру и специальный символ.',
+          failed: 'Не удалось изменить пароль. Попробуйте ещё раз или запросите новую ссылку.',
+          linkFailed: 'Ссылка недействительна или срок её действия истёк.',
+          desktop: 'ОТКРЫТЬ DESKTOP-ПРИЛОЖЕНИЕ',
+          web: 'ОТКРЫТЬ WEB-ПРИЛОЖЕНИЕ'
+        }
+      : {
+          title: 'RESET PASSWORD',
+          body: 'Set a new password for your account.',
+          passwordLabel: 'New password',
+          confirmLabel: 'Confirm password',
+          passwordHint: 'At least 8 characters: uppercase and lowercase letters, a number and a special character.',
+          passwordRequired: 'Enter a new password.',
+          confirmRequired: 'Re-enter your new password.',
+          mismatch: 'The passwords do not match.',
+          submit: 'SAVE PASSWORD',
+          saving: 'SAVING...',
+          show: 'SHOW',
+          hide: 'HIDE',
+          successTitle: 'PASSWORD UPDATED',
+          successBody: 'Your password has been changed. You can now sign in to the app.',
+          successMessage: 'Your new password has been saved.',
+          missing: 'This link is invalid or expired. Request a new link in the app.',
+          weak: 'Use at least 8 characters with uppercase and lowercase letters, a number and a special character.',
+          failed: 'Unable to change the password. Try again or request a new link.',
+          linkFailed: 'This link is invalid or expired.',
+          desktop: 'OPEN DESKTOP APP',
+          web: 'OPEN WEB APP'
+        };
+    const card = document.getElementById('card');
+    const title = document.getElementById('title');
+    const body = document.getElementById('body');
+    const form = document.getElementById('form');
+    const password = document.getElementById('password');
+    const confirm = document.getElementById('confirm');
+    const submit = document.getElementById('submit');
+    const message = document.getElementById('message');
+    const passwordError = document.getElementById('password-error');
+    const confirmError = document.getElementById('confirm-error');
+    const returnActions = document.getElementById('return-actions');
+    document.title = copy.title;
+    title.textContent = copy.title;
+    body.textContent = copy.body;
+    document.getElementById('password-label').textContent = copy.passwordLabel;
+    document.getElementById('confirm-label').textContent = copy.confirmLabel;
+    document.getElementById('password-hint').textContent = copy.passwordHint;
+    submit.textContent = copy.submit;
+    document.getElementById('desktop-return').textContent = copy.desktop;
+    document.getElementById('web-return').textContent = copy.web;
+
+    function setFieldError(input, output, text) {
+      output.textContent = text;
+      input.classList.toggle('invalid', Boolean(text));
+    }
+
+    function passwordErrorFor(value) {
+      if (!value) return copy.passwordRequired;
+      return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value)
+        ? ''
+        : copy.weak;
+    }
+
+    function validate(showRequired) {
+      const passwordErrorText = passwordErrorFor(password.value);
+      const confirmErrorText = !confirm.value
+        ? (showRequired ? copy.confirmRequired : '')
+        : password.value === confirm.value ? '' : copy.mismatch;
+      setFieldError(password, passwordError, passwordErrorText);
+      setFieldError(confirm, confirmError, confirmErrorText);
+      return !passwordErrorText && !confirmErrorText;
+    }
+
+    function bindToggle(buttonId, input) {
+      const button = document.getElementById(buttonId);
+      button.addEventListener('click', () => {
+        const visible = input.type === 'text';
+        input.type = visible ? 'password' : 'text';
+        button.textContent = visible ? copy.show : copy.hide;
+      });
+    }
+
+    bindToggle('password-toggle', password);
+    bindToggle('confirm-toggle', confirm);
+    password.addEventListener('input', () => validate(false));
+    confirm.addEventListener('input', () => validate(false));
+
+    if (!code) {
+      message.className = 'message error';
+      message.textContent = copy.missing;
+    } else {
+      form.hidden = false;
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      message.textContent = '';
+      if (!validate(true)) return;
+
+      form.classList.add('is-saving');
+      password.disabled = true;
+      confirm.disabled = true;
+      submit.disabled = true;
+      submit.textContent = copy.saving;
+      message.className = 'message saving';
+      message.textContent = copy.saving;
+
+      try {
+        const response = await fetch('/v1/password-reset/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, newPassword: password.value })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const errorText = typeof payload.error === 'string' ? payload.error : '';
+          throw new Error(errorText);
+        }
+        form.hidden = true;
+        card.classList.add('success');
+        title.textContent = copy.successTitle;
+        body.textContent = copy.successBody;
+        message.className = 'message success';
+        message.textContent = copy.successMessage;
+        returnActions.hidden = false;
+      } catch (error) {
+        form.classList.remove('is-saving');
+        password.disabled = false;
+        confirm.disabled = false;
+        submit.disabled = false;
+        submit.textContent = copy.submit;
+        message.className = 'message error';
+        message.textContent = String(error.message || '').toLowerCase().includes('invalid') || String(error.message || '').toLowerCase().includes('expired')
+          ? copy.linkFailed
+          : copy.failed;
+      }
+    });
+  </script>
+</body>
+</html>`
+}
+
+function renderPasswordResetPage(): string {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Password reset — J.L.JÖRMUNGANDR</title>
+<style>body{margin:0;background:#ece9e2;color:#151515;font-family:Inter,Arial,sans-serif}.shell{min-height:100vh;display:grid;place-items:center;padding:24px;box-sizing:border-box}.card{width:min(100%,540px);box-sizing:border-box;background:#f8f7f3;border:1px solid #151515;padding:50px 36px;text-align:center}.mark{font:800 10px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.28em}.icon{margin:30px auto 24px;width:48px;height:48px;border:1px solid #151515;display:grid;place-items:center}.icon:after{content:'↻';font-size:24px}h1{margin:0;font-size:25px;letter-spacing:.08em;text-transform:uppercase}p{margin:18px auto 0;max-width:390px;font-size:14px;line-height:1.65;color:#4f4e49}.form{margin:28px auto 0;display:grid;gap:14px;max-width:390px}.form input{box-sizing:border-box;width:100%;border:1px solid #aaa;background:#fff;padding:14px 15px;color:#151515;font:14px ui-monospace,SFMono-Regular,Menlo,monospace}.form button{border:1px solid #151515;background:#151515;color:#fff;padding:15px 18px;font:800 11px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.15em;cursor:pointer}.form button:disabled{cursor:wait;opacity:.45}.message{min-height:24px;margin-top:18px!important;color:#9b2727!important;font-size:13px!important}.success .icon:after{content:'✓'}.success .icon{border-color:#151515}</style>
+</head><body><main class="shell"><section class="card" id="card"><div class="mark">J.L.JÖRMUNGANDR</div><div class="icon"></div><h1 id="title">RESET PASSWORD</h1><p id="body">Set a new password for your account.</p><form id="form" class="form" hidden><input id="password" type="password" autocomplete="new-password" placeholder="NEW PASSWORD" required><input id="confirm" type="password" autocomplete="new-password" placeholder="CONFIRM PASSWORD" required><button id="submit" type="submit">SAVE PASSWORD</button></form><p id="message" class="message" role="alert"></p></section></main>
+<script>const q=new URLSearchParams(location.hash.slice(1)),ru=q.get('locale')==='ru',code=q.get('code')||'',copy=ru?{title:'СБРОС ПАРОЛЯ',body:'Задайте новый пароль для вашего аккаунта.',password:'НОВЫЙ ПАРОЛЬ',confirm:'ПОВТОРИТЕ ПАРОЛЬ',submit:'СОХРАНИТЬ ПАРОЛЬ',saving:'СОХРАНЕНИЕ...',successTitle:'ПАРОЛЬ ИЗМЕНЁН',successBody:'Пароль успешно изменён. Теперь можно войти в приложение.',missing:'Ссылка недействительна или устарела.',mismatch:'Пароли не совпадают.',weak:'Пароль должен содержать минимум 8 символов, заглавную и строчную буквы, цифру и специальный символ.',failed:'Не удалось изменить пароль. Запросите новую ссылку.'}:{title:'RESET PASSWORD',body:'Set a new password for your account.',password:'NEW PASSWORD',confirm:'CONFIRM PASSWORD',submit:'SAVE PASSWORD',saving:'SAVING...',successTitle:'PASSWORD UPDATED',successBody:'Your password has been changed. You can now sign in to the app.',missing:'This link is invalid or expired.',mismatch:'The passwords do not match.',weak:'Use at least 8 characters with uppercase and lowercase letters, a number and a special character.',failed:'Unable to change the password. Request a new link.'};const card=document.getElementById('card'),title=document.getElementById('title'),body=document.getElementById('body'),form=document.getElementById('form'),password=document.getElementById('password'),confirm=document.getElementById('confirm'),submit=document.getElementById('submit'),message=document.getElementById('message');document.title=copy.title;body.textContent=copy.body;password.placeholder=copy.password;confirm.placeholder=copy.confirm;submit.textContent=copy.submit;if(!code){message.textContent=copy.missing}else{form.hidden=false}function validPassword(value){return value.length>=8&&/[A-Z]/.test(value)&&/[a-z]/.test(value)&&/\\d/.test(value)&&/[^A-Za-z0-9]/.test(value)}form.addEventListener('submit',async event=>{event.preventDefault();message.textContent='';if(password.value!==confirm.value){message.textContent=copy.mismatch;return}if(!validPassword(password.value)){message.textContent=copy.weak;return}password.hidden=true;confirm.hidden=true;submit.disabled=true;submit.textContent=copy.saving;try{const response=await fetch('/v1/password-reset/confirm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code,newPassword:password.value})});if(!response.ok)throw new Error();form.hidden=true;card.classList.add('success');title.textContent=copy.successTitle;body.textContent=copy.successBody}catch{password.hidden=false;confirm.hidden=false;message.textContent=copy.failed;submit.disabled=false;submit.textContent=copy.submit}})</script></body></html>`
+}
+
 async function applyEmailVerificationCode(code: string): Promise<void> {
   const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${encodeURIComponent(FIREBASE_WEB_API_KEY)}`,
@@ -1091,6 +1490,16 @@ async function enforceEmailVerificationRateLimit(request: Request, env: Env, use
   ])
   if (!ipOutcome.success || !userOutcome.success) {
     throw new AccessWorkerError('Too many verification emails. Please try again later.', 429)
+  }
+}
+
+async function enforcePasswordResetRateLimit(request: Request, env: Env, email: string): Promise<void> {
+  const [ipOutcome, emailOutcome] = await Promise.all([
+    env.PASSWORD_RESET_RATE_LIMIT.limit({ key: `ip:${getRedeemRateLimitKey(request)}` }),
+    env.PASSWORD_RESET_RATE_LIMIT.limit({ key: `email:${email}` })
+  ])
+  if (!ipOutcome.success || !emailOutcome.success) {
+    throw new AccessWorkerError('Too many password reset emails. Please try again in 60 seconds.', 429)
   }
 }
 

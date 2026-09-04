@@ -217,15 +217,15 @@
         <div v-else-if="authStore.authReady && !isAuthenticated && phase === 'auth'" key="auth-panel" class="w-full flex flex-col space-y-5">
 
           <!-- Tab switcher -->
-	          <div class="initialization-auth-tabs flex border border-theme-border">
+          <div class="initialization-auth-tabs flex border border-theme-border">
             <button
-              @click="authTab = 'login'"
+              @click="switchAuthTab('login')"
               class="initialization-auth-tab flex-1 py-2.5 text-[9px] font-mono uppercase tracking-[0.4em] transition-all duration-300"
               :class="{ 'is-active': authTab === 'login' }"
               :style="getAuthTabStyle('login')"
             >{{ locale === 'ru' ? 'Войти' : 'Sign In' }}</button>
             <button
-              @click="authTab = 'register'"
+              @click="switchAuthTab('register')"
               class="initialization-auth-tab flex-1 py-2.5 text-[9px] font-mono uppercase tracking-[0.4em] transition-all duration-300"
               :class="{ 'is-active': authTab === 'register' }"
               :style="getAuthTabStyle('register')"
@@ -238,8 +238,14 @@
             </div>
           </Transition>
 
+          <Transition name="fade-quick">
+            <div v-if="authMessage" class="border border-black/20 bg-black/[0.04] px-4 py-2" role="status" aria-live="polite">
+              <span class="text-[14px] font-semibold leading-6 text-black">{{ authMessage }}</span>
+            </div>
+          </Transition>
+
           <!-- Form -->
-          <form @submit.prevent="authTab === 'login' ? doLogin() : doRegister()" class="flex flex-col space-y-4">
+          <form @submit.prevent="isPasswordResetMode ? requestPasswordReset() : (authTab === 'login' ? doLogin() : doRegister())" class="flex flex-col space-y-4">
             <div class="flex flex-col">
               <input
                 v-model="authEmail"
@@ -251,7 +257,7 @@
               />
             </div>
 
-            <div class="flex flex-col">
+            <div v-if="!isPasswordResetMode" class="flex flex-col">
               <input
                 v-model="authPassword"
                 type="password"
@@ -262,7 +268,7 @@
               />
             </div>
 
-            <div v-if="authTab === 'register'" class="flex flex-col">
+            <div v-if="authTab === 'register' && !isPasswordResetMode" class="flex flex-col">
               <input
                 v-model="authPasswordConfirm"
                 type="password"
@@ -274,18 +280,36 @@
 
             <button
               type="submit"
-              :disabled="authLoading"
+              :disabled="authLoading || (isPasswordResetMode && passwordResetCooldown > 0)"
               class="initialization-auth-submit-button w-full py-3 font-mono text-[9px] tracking-[0.5em] uppercase font-black transition-all mt-1 disabled:opacity-40 hover:opacity-90"
               :style="primaryButtonStyle"
             >
               <span v-if="authLoading">{{ locale === 'ru' ? 'Обработка...' : 'Processing...' }}</span>
+              <span v-else-if="isPasswordResetMode && passwordResetCooldown > 0">{{ locale === 'ru' ? `Повторно через ${passwordResetCooldown} сек.` : `Try again in ${passwordResetCooldown} sec.` }}</span>
+              <span v-else-if="isPasswordResetMode">{{ locale === 'ru' ? 'Отправить ссылку' : 'Send Reset Link' }}</span>
               <span v-else-if="authTab === 'login'">{{ locale === 'ru' ? 'Войти в систему' : 'Access System' }}</span>
               <span v-else>{{ locale === 'ru' ? 'Создать оператора' : 'Create Operator' }}</span>
             </button>
+
+            <button
+              v-if="isPasswordResetMode"
+              type="button"
+              :disabled="authLoading"
+              class="initialization-password-reset-link self-center py-1 font-mono text-[9px] uppercase tracking-[0.28em] text-black/55 transition-all hover:text-black disabled:opacity-40"
+              @click="closePasswordReset"
+            >{{ locale === 'ru' ? 'Вернуться ко входу' : 'Back to Sign In' }}</button>
+
+            <button
+              v-else-if="authTab === 'login'"
+              type="button"
+              :disabled="authLoading"
+              class="initialization-password-reset-link self-center py-1 font-mono text-[9px] uppercase tracking-[0.28em] text-black/55 transition-all hover:text-black disabled:opacity-40"
+              @click="openPasswordReset"
+            >{{ locale === 'ru' ? 'Забыли пароль?' : 'Forgot password?' }}</button>
           </form>
 
           <!-- Divider -->
-          <div class="flex items-center space-x-4">
+          <div v-if="!isPasswordResetMode" class="flex items-center space-x-4">
             <div class="initialization-auth-divider-line flex-1 h-px"></div>
             <span class="initialization-auth-divider-text text-[8px] font-mono uppercase tracking-widest">{{ locale === 'ru' ? 'или' : 'or' }}</span>
             <div class="initialization-auth-divider-line flex-1 h-px"></div>
@@ -293,6 +317,7 @@
 
           <!-- Google sign-in -->
           <button
+            v-if="!isPasswordResetMode"
             @click="doGoogleLogin"
             :disabled="authLoading"
 	            class="initialization-google-button w-full border py-3 font-mono text-[9px] tracking-[0.5em] uppercase font-black transition-all duration-300 flex items-center justify-center space-x-3 disabled:opacity-40"
@@ -487,7 +512,14 @@ const authEmail = ref('')
 const authPassword = ref('')
 const authPasswordConfirm = ref('')
 const authError = ref<string | null>(null)
+const authMessage = ref<string | null>(null)
 const authLoading = ref(false)
+const isPasswordResetMode = ref(false)
+const PASSWORD_RESET_MAX_SENDS = 2
+const PASSWORD_RESET_COOLDOWN_SECONDS = 60
+const passwordResetSendCount = ref(0)
+const passwordResetCooldown = ref(0)
+let passwordResetCooldownTimer: ReturnType<typeof setInterval> | null = null
 const DEFAULT_ACCESS_WORKER_URL = 'https://exgenesis-access-worker.waltzno19inaminor.workers.dev'
 const isEmailVerificationPending = ref(false)
 const emailVerificationAddress = ref('')
@@ -513,6 +545,106 @@ const clearEmailVerificationPending = () => {
   emailVerificationAddress.value = ''
   emailVerificationMessage.value = ''
   emailVerificationError.value = ''
+}
+
+const startPasswordResetCooldown = (seconds = PASSWORD_RESET_COOLDOWN_SECONDS) => {
+  if (passwordResetCooldownTimer) clearInterval(passwordResetCooldownTimer)
+  passwordResetCooldown.value = Math.max(1, Math.ceil(seconds))
+  passwordResetCooldownTimer = setInterval(() => {
+    passwordResetCooldown.value = Math.max(0, passwordResetCooldown.value - 1)
+    if (passwordResetCooldown.value === 0) {
+      passwordResetSendCount.value = 0
+      if (passwordResetCooldownTimer) {
+        clearInterval(passwordResetCooldownTimer)
+        passwordResetCooldownTimer = null
+      }
+    }
+  }, 1000)
+}
+
+const clearPasswordResetCooldown = () => {
+  if (passwordResetCooldownTimer) clearInterval(passwordResetCooldownTimer)
+  passwordResetCooldownTimer = null
+  passwordResetCooldown.value = 0
+  passwordResetSendCount.value = 0
+}
+
+let passwordResetDeepLinkCleanup: Array<() => void> = []
+let passwordResetDeepLinkDisposed = false
+
+const finishPasswordResetInApp = () => {
+  isPasswordResetMode.value = false
+  authTab.value = 'login'
+  authPassword.value = ''
+  authPasswordConfirm.value = ''
+  authError.value = null
+  authMessage.value = locale.value === 'ru'
+    ? 'Пароль успешно изменён. Войдите с новым паролем.'
+    : 'Password updated successfully. Sign in with your new password.'
+  phase.value = 'auth'
+  clearPasswordResetCooldown()
+}
+
+const handlePasswordResetDeepLink = (value: string): boolean => {
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'jlj:' || parsed.hostname !== 'password-reset-success') return false
+    finishPasswordResetInApp()
+    return true
+  } catch {
+    return false
+  }
+}
+
+const collectPasswordResetDeepLinkUrls = (value: unknown): string[] => {
+  if (typeof value === 'string') return [value]
+  if (Array.isArray(value)) return value.flatMap(collectPasswordResetDeepLinkUrls)
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).flatMap(collectPasswordResetDeepLinkUrls)
+  }
+  return []
+}
+
+const consumePasswordResetWebReturn = () => {
+  if (typeof window === 'undefined') return
+  const url = new URL(window.location.href)
+  if (url.searchParams.get('password-reset') !== 'success') return
+  finishPasswordResetInApp()
+  url.searchParams.delete('password-reset')
+  window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+}
+
+const stopPasswordResetDeepLinkListener = () => {
+  passwordResetDeepLinkDisposed = true
+  passwordResetDeepLinkCleanup.splice(0).forEach((cleanup) => cleanup())
+}
+
+const setupPasswordResetDeepLinkListener = async () => {
+  if (typeof window === 'undefined') return
+  consumePasswordResetWebReturn()
+  if (!(window as any).__TAURI_INTERNALS__) return
+
+  passwordResetDeepLinkDisposed = false
+  const registerCleanup = (cleanup: () => void) => {
+    if (passwordResetDeepLinkDisposed) cleanup()
+    else passwordResetDeepLinkCleanup.push(cleanup)
+  }
+
+  try {
+    const { getCurrent, onOpenUrl } = await import('@tauri-apps/plugin-deep-link')
+    const parse = (value: string) => handlePasswordResetDeepLink(value)
+    const unlistenPromise = onOpenUrl((urls: string[]) => urls.forEach(parse))
+    unlistenPromise.then(registerCleanup).catch(() => undefined)
+    getCurrent().then((urls) => urls?.forEach(parse)).catch(() => undefined)
+
+    const { listen } = await import('@tauri-apps/api/event')
+    const singleInstanceUnlisten = await listen('single-instance', (event: { payload: unknown }) => {
+      collectPasswordResetDeepLinkUrls(event.payload).forEach(parse)
+    })
+    registerCleanup(singleInstanceUnlisten)
+  } catch (error) {
+    console.warn('[Auth] Unable to initialize password reset return link:', error)
+  }
 }
 
 const verificationCopy = (key: 'sent' | 'notConfirmed' | 'sendFailed' | 'checkFailed') => {
@@ -674,6 +806,7 @@ watch(isEmailVerificationPending, (pending) => {
 onBeforeUnmount(() => {
   if (emailVerificationPollTimer) clearInterval(emailVerificationPollTimer)
   if (verificationResendCooldownTimer) clearInterval(verificationResendCooldownTimer)
+  clearPasswordResetCooldown()
 })
 
 // ── Phase ──
@@ -1059,9 +1192,34 @@ const getPasswordValidationError = (password: string) => {
   return null
 }
 
+const switchAuthTab = (tab: 'login' | 'register') => {
+  authTab.value = tab
+  isPasswordResetMode.value = false
+  authError.value = null
+  authMessage.value = null
+}
+
+const openPasswordReset = () => {
+  authTab.value = 'login'
+  isPasswordResetMode.value = true
+  authError.value = null
+  authMessage.value = null
+}
+
+const closePasswordReset = () => {
+  isPasswordResetMode.value = false
+  authError.value = null
+  authMessage.value = null
+}
+
+const passwordResetMessage = () => locale.value === 'ru'
+  ? 'На указанный email отправлена ссылка для сброса пароля.'
+  : 'A password reset link has been sent to the specified email.'
+
 // ── Email/password login ──
 const doLogin = async () => {
   authError.value = null
+  authMessage.value = null
   authLoading.value = true
   try {
     const result = await signInWithEmailAndPassword(firebaseAuth, authEmail.value.trim(), authPassword.value)
@@ -1084,6 +1242,7 @@ const doLogin = async () => {
 // ── Email/password register ──
 const doRegister = async () => {
   authError.value = null
+  authMessage.value = null
   const email = authEmail.value.trim()
   if (!isValidEmail(email)) {
     authError.value = 'Email must be valid and contain @.'
@@ -1131,9 +1290,62 @@ const doRegister = async () => {
   }
 }
 
+// ── Password reset ──
+const requestPasswordReset = async () => {
+  authError.value = null
+  authMessage.value = null
+  if (passwordResetCooldown.value > 0) return
+  const email = authEmail.value.trim()
+
+  if (!isValidEmail(email)) {
+    authError.value = locale.value === 'ru'
+      ? 'Укажите корректный адрес email.'
+      : 'Enter a valid email address.'
+    return
+  }
+
+  authLoading.value = true
+  try {
+    const appCheckToken = await getFirebaseAppCheckToken()
+    const response = await fetch(`${accessWorkerUrl()}/v1/password-reset`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(appCheckToken ? { 'X-Firebase-AppCheck': appCheckToken } : {})
+      },
+      body: JSON.stringify({ email, locale: locale.value })
+    })
+    const payload = await response.json().catch(() => ({})) as { error?: unknown }
+    if (!response.ok) {
+      if (response.status === 429) startPasswordResetCooldown()
+      throw new Error(typeof payload.error === 'string' ? payload.error : `Password reset request failed: ${response.status}`)
+    }
+
+    passwordResetSendCount.value += 1
+    if (passwordResetSendCount.value >= PASSWORD_RESET_MAX_SENDS) {
+      startPasswordResetCooldown()
+    }
+    authMessage.value = passwordResetMessage()
+  } catch (error) {
+    if (passwordResetCooldown.value > 0) {
+      authError.value = locale.value === 'ru'
+        ? 'Лимит отправки достигнут. Подождите, пока закончится таймер.'
+        : 'The sending limit has been reached. Please wait for the timer.'
+    } else {
+      console.warn('[Auth] Unable to send password reset email:', error)
+      authError.value = locale.value === 'ru'
+        ? 'Не удалось отправить ссылку. Попробуйте ещё раз.'
+        : 'Unable to send the reset link. Please try again.'
+    }
+  } finally {
+    authLoading.value = false
+  }
+}
+
 // ── Google login ──
 const doGoogleLogin = async () => {
   authError.value = null
+  authMessage.value = null
   authLoading.value = true
   try {
     const isTauri = !!(window as any).__TAURI_INTERNALS__
@@ -1269,6 +1481,9 @@ const doSignOut = async () => {
   authPassword.value = ''
   authPasswordConfirm.value = ''
   authError.value = null
+  authMessage.value = null
+  isPasswordResetMode.value = false
+  clearPasswordResetCooldown()
   clearEmailVerificationPending()
   appBootStore.bootProgress = 0
   phase.value = 'auth'
@@ -1283,10 +1498,12 @@ onMounted(() => {
   }, 2200)
 
   startUpdateCheck()
+  void setupPasswordResetDeepLinkListener()
 })
 
 onBeforeUnmount(() => {
   isInitializationGradflowVisible.value = false
+  stopPasswordResetDeepLinkListener()
   clearUpdateProgressTimer()
   if (!startupIntroTimer) return
   clearTimeout(startupIntroTimer)

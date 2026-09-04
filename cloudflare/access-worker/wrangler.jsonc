@@ -26,6 +26,14 @@
         "limit": 3,
         "period": 60
       }
+    },
+    {
+      "name": "PASSWORD_RESET_RATE_LIMIT",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 2,
+        "period": 60
+      }
     }
   ],
   "vars": {

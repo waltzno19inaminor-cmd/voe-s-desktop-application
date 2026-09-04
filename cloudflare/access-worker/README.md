@@ -33,7 +33,8 @@ FIREBASE_APPCHECK_APP_IDS=1:79915571390:web:fe7659ef2933e1167826ef
 `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` во время сборки приложения. Worker в
 production настроен fail-closed: запросы к `/v1/redeem`, `/v1/trial`,
 `/v1/free` и `/v1/email-verification` требуют одновременно валидный Firebase
-ID token и App Check token.
+ID token и App Check token. Endpoint `/v1/password-reset` не требует входа в
+аккаунт, но при включённом production App Check требует App Check token.
 Не переключайте `FIREBASE_APPCHECK_ENFORCE` в `false` за пределами локальной
 отладки.
 
@@ -61,6 +62,20 @@ Resend в branded HTML-письме с кнопкой подтверждения
 
 После подтверждения клиент вызывает `reload()` у Firebase user и продолжает
 вход только когда `emailVerified` стал `true`.
+
+### Сброс пароля
+
+```text
+POST /v1/password-reset
+X-Firebase-AppCheck: FIREBASE_APPCHECK_TOKEN
+Content-Type: application/json
+
+{ "email": "operator@example.com", "locale": "ru" }
+```
+
+Worker создаёт одноразовый Firebase password-reset code, отправляет branded-письмо
+через Resend и показывает форму нового пароля на странице Worker. Для каждого IP
+и email разрешены две отправки за 60 секунд; третья попытка блокируется на 60 секунд.
 
 ### Создать ключи
 
