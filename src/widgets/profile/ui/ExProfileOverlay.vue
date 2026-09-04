@@ -460,7 +460,7 @@ const licenseVersionLabel = computed(() => {
   if (licenseLoading.value) return locale.value === 'ru' ? 'Проверка…' : 'Checking…'
   if (!licenseActivated.value) return locale.value === 'ru' ? 'Не активирована' : 'Not activated'
   if (licensePlan.value === 'free') return locale.value === 'ru' ? 'Бесплатная' : 'Free'
-  if (licensePlan.value === 'trial') return locale.value === 'ru' ? 'Пробная версия' : 'Trial version'
+  if (licensePlan.value === 'trial') return locale.value === 'ru' ? 'Пробная версия' : 'Trial'
   return locale.value === 'ru' ? 'Полная версия' : 'Full version'
 })
 
