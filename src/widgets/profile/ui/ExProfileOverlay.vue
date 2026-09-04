@@ -200,28 +200,30 @@
               <section v-else-if="activeTab === 'license'" class="max-w-3xl space-y-7">
                 <div class="max-w-2xl border nier-border-primary bg-black/[0.025] p-6 dark:bg-white/[0.025]">
                   <div class="flex items-start justify-between gap-6">
-                    <div class="space-y-3">
-                      <div class="text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">
-                        {{ locale === 'ru' ? 'Состояние лицензии' : 'License status' }}
+                    <div class="grid gap-6 sm:grid-cols-2">
+                      <div class="space-y-3">
+                        <div class="text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">
+                          {{ locale === 'ru' ? 'Тип версии' : 'Version type' }}
+                        </div>
+                        <div class="text-2xl font-serif nier-text-primary">
+                          {{ licenseVersionLabel }}
+                        </div>
                       </div>
-                      <div class="text-2xl font-serif nier-text-primary">
-                        {{ licenseLoading
-                          ? (locale === 'ru' ? 'Проверка…' : 'Checking…')
-                          : licenseActivated && licenseExpiresAt
-                            ? formatLicenseDate(licenseExpiresAt)
+                      <div class="space-y-3">
+                        <div class="text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">
+                          {{ locale === 'ru' ? 'Срок действия' : 'Validity period' }}
+                        </div>
+                        <div class="text-2xl font-serif nier-text-primary">
+                          {{ licenseTermLabel }}
+                        </div>
+                        <p class="text-[10px] font-mono uppercase tracking-[0.2em] opacity-55">
+                          {{ licenseLoading
+                            ? (locale === 'ru' ? 'Загрузка данных доступа' : 'Loading access data')
                             : licenseActivated
-                              ? (locale === 'ru' ? 'Бессрочно' : 'No expiration')
-                              : (locale === 'ru' ? 'Не активирована' : 'Not activated') }}
-                      </div>
-                      <p class="text-[10px] font-mono uppercase tracking-[0.2em] opacity-55">
-                        {{ licenseLoading
-                          ? (locale === 'ru' ? 'Загрузка данных доступа' : 'Loading access data')
-                          : licenseActivated && licenseExpiresAt
-                            ? (locale === 'ru' ? 'Доступен до' : 'Available until')
-                            : licenseActivated
-                              ? (locale === 'ru' ? 'Срок действия не ограничен' : 'Access has no expiration date')
+                              ? (locale === 'ru' ? 'Текущий доступ' : 'Current access')
                               : (locale === 'ru' ? 'Ключ активации не найден' : 'No activation key found') }}
-                      </p>
+                        </p>
+                      </div>
                     </div>
                     <span class="shrink-0 border px-3 py-2 text-[8px] font-mono uppercase tracking-[0.25em]"
                       :class="licenseExpired ? 'border-red-500/50 text-red-600 dark:text-red-400' : 'nier-border-primary opacity-65'">
@@ -352,6 +354,7 @@ import ExPanel from '~/shared/ui/ExPanel.vue'
 import { useThemeStore } from '~/features/store/useTheme'
 import ExUserStatusBadge from '~/entities/user/ui/ExUserStatusBadge.vue'
 import { db } from '~/shared/firebase.client'
+import { isAccessPlan, type AccessPlan } from '~/features/access/model/accessEntitlements'
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
@@ -429,6 +432,7 @@ type PatchInstallState = 'idle' | 'ready' | 'installing' | 'clearing' | 'success
 
 const activeTab = ref<ProfileOverlayTab>('profile')
 const licenseActivated = ref(false)
+const licensePlan = ref<AccessPlan>('none')
 const licenseExpiresAt = ref<number | null>(null)
 const licenseLoading = ref(false)
 const licenseExpired = computed(() => Boolean(licenseExpiresAt.value && Date.now() >= licenseExpiresAt.value))
@@ -452,10 +456,26 @@ const formatLicenseDate = (value: number) => new Intl.DateTimeFormat(
   { day: '2-digit', month: 'long', year: 'numeric' }
 ).format(new Date(value))
 
+const licenseVersionLabel = computed(() => {
+  if (licenseLoading.value) return locale.value === 'ru' ? 'Проверка…' : 'Checking…'
+  if (!licenseActivated.value) return locale.value === 'ru' ? 'Не активирована' : 'Not activated'
+  if (licensePlan.value === 'free') return locale.value === 'ru' ? 'Бесплатная версия' : 'Free version'
+  if (licensePlan.value === 'trial') return locale.value === 'ru' ? 'Пробная версия' : 'Trial version'
+  return locale.value === 'ru' ? 'Полная версия' : 'Full version'
+})
+
+const licenseTermLabel = computed(() => {
+  if (licenseLoading.value) return locale.value === 'ru' ? 'Проверка…' : 'Checking…'
+  if (!licenseActivated.value) return '—'
+  if (licenseExpiresAt.value) return formatLicenseDate(licenseExpiresAt.value)
+  return locale.value === 'ru' ? 'Не ограничено' : 'No expiration'
+})
+
 const loadLicenseState = () => {
   licenseUnsubscribe?.()
   licenseUnsubscribe = null
   licenseExpiresAt.value = null
+  licensePlan.value = 'none'
   licenseActivated.value = false
   const userId = String(authStore.user?.uid || '').trim()
   if (!props.open || !userId) {
@@ -466,10 +486,14 @@ const loadLicenseState = () => {
   licenseUnsubscribe = onSnapshot(doc(db, 'users', userId, 'access', 'state'), (snapshot) => {
     const data = snapshot.data()
     licenseActivated.value = data?.isActivated === true
+    licensePlan.value = licenseActivated.value
+      ? (isAccessPlan(data?.plan) ? data.plan : 'paid')
+      : 'none'
     const expiresAtMs = toMillis(data?.expiresAt)
     licenseExpiresAt.value = expiresAtMs > 0 ? expiresAtMs : null
     licenseLoading.value = false
   }, () => {
+    licensePlan.value = 'none'
     licenseExpiresAt.value = null
     licenseLoading.value = false
   })

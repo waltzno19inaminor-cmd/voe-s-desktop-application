@@ -74,7 +74,19 @@
 
     <header class="dashboard-top-bar absolute left-6 right-6 top-0 z-[200] flex h-[84px] items-center justify-between bg-black px-4 backdrop-blur-md lg:left-10 lg:right-10 lg:px-5">
       <div class="flex items-center gap-4">
-        <ExTag class="shrink-0">v{{ appVersion.toUpperCase() }}</ExTag>
+        <div class="flex items-center gap-2">
+          <ExTag class="shrink-0">v{{ appVersion.toUpperCase() }}</ExTag>
+          <button
+            type="button"
+            class="license-upgrade-button shrink-0 border px-2.5 py-1.5 text-[8px] font-mono uppercase tracking-[0.2em] transition-all duration-300"
+            :aria-label="locale === 'ru' ? 'Обновить лицензию' : 'Upgrade license'"
+            @click="requestAccessGate"
+          >
+            <span class="license-upgrade-button__label">
+              {{ locale === 'ru' ? 'ОБНОВИТЬ ЛИЦЕНЗИЮ' : 'UPGRADE LICENSE' }}
+            </span>
+          </button>
+        </div>
       </div>
 
       <div class="flex shrink-0 items-center gap-4 sm:gap-8">
@@ -348,7 +360,7 @@ const props = withDefaults(defineProps<{
   isMusicMuted: false
 })
 
-const emit = defineEmits(['navigate', 'signed-out', 'toggle-music'])
+const emit = defineEmits(['navigate', 'signed-out', 'toggle-music', 'request-access'])
 
 const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
@@ -446,6 +458,11 @@ const goProfile = () => {
 
 const closeProfileOverlay = () => {
   showProfileOverlay.value = false
+}
+
+const requestAccessGate = () => {
+  userMenuOpen.value = false
+  emit('request-access')
 }
 
 // Close on outside click
@@ -673,6 +690,42 @@ const handleDashboardCenterAfterLeave = (el: Element) => {
   display: block;
   height: 20px;
   width: 20px;
+}
+
+.license-upgrade-button {
+  background: #ffffff;
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.12);
+}
+
+.license-upgrade-button:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 0 22px rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+}
+
+.license-upgrade-button__label {
+  background: linear-gradient(
+    110deg,
+    #111111 0%,
+    #5b21b6 24%,
+    #ec4899 42%,
+    #111111 58%,
+    #2563eb 78%,
+    #111111 100%
+  );
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: license-upgrade-shimmer 3.2s linear infinite;
+}
+
+@keyframes license-upgrade-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
 }
 
 .dashboard-feedback-toggle {

@@ -13,23 +13,42 @@
 
     <ExInitialization v-if="showInitialization" @initiate="handleInitializationComplete" />
 
-    <ExAccessGate
-      v-if="showAccessGate"
-      :state="visibleAccessState"
-      :error="accessError"
-      :is-submitting="isActivatingAccess"
-      :is-trial-used="freeTrialUsed"
-      :lock-remaining-seconds="accessLockRemainingSeconds"
-      :is-account-blocked="isAccountBlocked"
-      :blocked-until="accountBlockedUntil"
-      :locale="locale"
-      @activate="activateAccess"
-      @start-trial="activateFreeTrial"
-      @start-free-plan="activateFreePlan"
-      @change-locale="setLocale"
-      @retry="retryAccessCheck"
-      @sign-out="handleAccessSignOut"
-    />
+    <Transition
+      name="access-gate-overlay"
+      mode="out-in"
+      appear
+      @before-enter="beginAccessGateAnimation"
+      @after-enter="finishAccessGateAnimation"
+      @before-leave="beginAccessGateAnimation"
+      @after-leave="finishAccessGateAnimation"
+    >
+      <div
+        v-if="showAccessGate"
+        class="access-gate-overlay fixed inset-0 z-[100000]"
+        :class="{ 'is-interaction-locked': isAccessGateAnimating }"
+        :inert="isAccessGateAnimating"
+        :aria-busy="isAccessGateAnimating"
+      >
+        <ExAccessGate
+          :state="visibleAccessState"
+          :error="accessError"
+          :is-submitting="isActivatingAccess"
+          :is-trial-used="freeTrialUsed"
+          :lock-remaining-seconds="accessLockRemainingSeconds"
+          :is-account-blocked="isAccountBlocked"
+          :blocked-until="accountBlockedUntil"
+          :is-upgrade-mode="accessGateRequested"
+          :locale="locale"
+          @activate="activateAccess"
+          @start-trial="activateFreeTrial"
+          @start-free-plan="activateFreePlan"
+          @change-locale="setLocale"
+          @retry="retryAccessCheck"
+          @sign-out="handleAccessSignOut"
+          @exit="exitAccessGate"
+        />
+      </div>
+    </Transition>
 
     <TesseractCanvas v-if="canEnterWorkspace && isTesseractEnabled" :is-dark="isDark" />
     <DesignVignette v-if="canEnterWorkspace" :is-dark="isDark" />
@@ -39,7 +58,7 @@
       ></div>
    
     <div
-      v-if="canEnterWorkspace"
+      v-if="canEnterWorkspace && !showAccessGate"
       class="relative z-10 flex inset-0 h-full min-h-0"
       :class="!activeTab ? 'items-start justify-center pt-0 pb-0' : (activeTab === 'forum' || activeTab === 'genesis' ? 'items-start justify-center py-0' : 'items-center justify-center py-20')"
     >
@@ -49,6 +68,7 @@
             <ExDashboard
               :is-music-muted="isDashboardMusicMuted"
               @navigate="handleDashboardNavigate"
+              @request-access="requestAccessGate"
               @signed-out="handleSignedOut"
               @toggle-music="toggleDashboardMusic"
             />
@@ -342,6 +362,10 @@ const isGenesisBottomBarHidden = ref(false)
 const isDashboardMusicMuted = ref(false)
 const isActivatingAccess = ref(false)
 const showSuccessOverlay = ref(false)
+const accessGateRequested = ref(false)
+const isAccessGateAnimating = ref(false)
+const ACCESS_GATE_LOCK_MS = 1000
+let accessGateAnimationTimer = null
 const {
   accessState,
   accessError,
@@ -368,7 +392,7 @@ const isInitializationGradflowVisible = useState('isInitializationGradflowVisibl
 const showAccessGate = computed(() => (
   hasInitialized.value
   && Boolean(authenticatedUserId.value)
-  && accessState.value !== 'granted'
+  && (accessState.value !== 'granted' || accessGateRequested.value)
 ))
 const isSharedGradflowVisible = computed(() => (
   isInitializationGradflowVisible.value || showAccessGate.value
@@ -513,7 +537,10 @@ const activateAccess = async (key) => {
   if (isActivatingAccess.value) return
   isActivatingAccess.value = true
   try {
-    if (await activateAccessKey(key)) showSuccessOverlay.value = true
+    if (await activateAccessKey(key)) {
+      accessGateRequested.value = false
+      showSuccessOverlay.value = true
+    }
   } finally {
     isActivatingAccess.value = false
   }
@@ -523,7 +550,10 @@ const activateFreeTrial = async () => {
   if (isActivatingAccess.value) return
   isActivatingAccess.value = true
   try {
-    if (await startFreeTrial()) showSuccessOverlay.value = true
+    if (await startFreeTrial()) {
+      accessGateRequested.value = false
+      showSuccessOverlay.value = true
+    }
   } finally {
     isActivatingAccess.value = false
   }
@@ -532,11 +562,34 @@ const activateFreeTrial = async () => {
 const activateFreePlan = async () => {
   if (isActivatingAccess.value) return
   isActivatingAccess.value = true
+  showSuccessOverlay.value = false
   try {
-    if (await startFreePlan()) showSuccessOverlay.value = true
+    if (await startFreePlan()) accessGateRequested.value = false
   } finally {
     isActivatingAccess.value = false
   }
+}
+
+const requestAccessGate = () => {
+  accessGateRequested.value = true
+}
+
+const exitAccessGate = () => {
+  accessGateRequested.value = false
+}
+
+const beginAccessGateAnimation = () => {
+  if (accessGateAnimationTimer) clearTimeout(accessGateAnimationTimer)
+  isAccessGateAnimating.value = true
+  accessGateAnimationTimer = setTimeout(finishAccessGateAnimation, ACCESS_GATE_LOCK_MS)
+}
+
+const finishAccessGateAnimation = () => {
+  if (accessGateAnimationTimer) {
+    clearTimeout(accessGateAnimationTimer)
+    accessGateAnimationTimer = null
+  }
+  isAccessGateAnimating.value = false
 }
 
 const getRouteMode = () => {
@@ -736,6 +789,7 @@ const handleSignedOut = () => {
   showBloom.value = true
   isNodeMapActive.value = false
   activeTab.value = ''
+  accessGateRequested.value = false
 
   router.replace({ path: '/' })
 }
@@ -749,9 +803,11 @@ const handleAccessSignOut = async () => {
 }
 
 onUnmounted(() => {
+  if (accessGateAnimationTimer) clearTimeout(accessGateAnimationTimer)
   isInitializationVisible.value = false
   isAccessGateVisible.value = false
   isAccessGradflowReady.value = false
+  accessGateRequested.value = false
   stopDashboardScore(false)
   stopAccessListener()
   notificationStore.unsubscribeFromNotifications()
@@ -768,6 +824,32 @@ onUnmounted(() => {
 
 .ethereal-void.is-access-gate-visible {
   background-color: transparent !important;
+}
+
+.access-gate-overlay {
+  isolation: isolate;
+}
+
+.access-gate-overlay-enter-active,
+.access-gate-overlay-leave-active {
+  pointer-events: auto;
+  transition: opacity 1500ms cubic-bezier(0.22, 1, 0.36, 1), filter 1500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.access-gate-overlay.is-interaction-locked * {
+  pointer-events: none !important;
+}
+
+.access-gate-overlay-enter-from,
+.access-gate-overlay-leave-to {
+  filter: blur(5px);
+  opacity: 0;
+}
+
+.access-gate-overlay-enter-to,
+.access-gate-overlay-leave-from {
+  filter: blur(0);
+  opacity: 1;
 }
 
 .workspace-shared-gradflow {

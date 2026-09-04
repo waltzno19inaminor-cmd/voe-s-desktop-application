@@ -113,12 +113,22 @@
           </button>
 
           <button
+            v-if="!isUpgradeMode"
             type="button"
             class="access-gate__free-plan"
             :disabled="isSubmitting || isLocked"
             @click="emit('startFreePlan')"
           >
             {{ isRussian ? 'ИСПОЛЬЗОВАТЬ БЕСПЛАТНУЮ ВЕРСИЮ' : 'USE FREE VERSION' }}
+          </button>
+          <button
+            v-else
+            type="button"
+            class="access-gate__free-plan"
+            :disabled="isSubmitting"
+            @click="emit('exit')"
+          >
+            {{ isRussian ? 'ВЫЙТИ' : 'EXIT' }}
           </button>
         </div>
         <button
@@ -156,6 +166,7 @@ const props = withDefaults(defineProps<{
   lockRemainingSeconds?: number
   isAccountBlocked?: boolean
   blockedUntil?: number | null
+  isUpgradeMode?: boolean
   locale?: string
 }>(), {
   error: '',
@@ -164,6 +175,7 @@ const props = withDefaults(defineProps<{
   lockRemainingSeconds: 0,
   isAccountBlocked: false,
   blockedUntil: null,
+  isUpgradeMode: false,
   locale: 'en'
 })
 
@@ -174,10 +186,12 @@ const emit = defineEmits<{
   changeLocale: [locale: 'ru' | 'en']
   retry: []
   signOut: []
+  exit: []
 }>()
 
 const accessKey = ref('')
 const isRussian = computed(() => props.locale === 'ru')
+const isUpgradeMode = computed(() => props.isUpgradeMode)
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
 const isAccountBlocked = computed(() => props.isAccountBlocked)
