@@ -103,7 +103,7 @@
 
         <div class="mt-5 flex flex-nowrap justify-center gap-3">
           <button
-            v-if="!isTrialUsed"
+            v-if="isTrialStatusKnown && !isTrialUsed"
             type="button"
             class="access-gate__trial"
             :disabled="isSubmitting || isLocked"
@@ -163,6 +163,7 @@ const props = withDefaults(defineProps<{
   error?: string
   isSubmitting?: boolean
   isTrialUsed?: boolean
+  isTrialStatusKnown?: boolean
   lockRemainingSeconds?: number
   isAccountBlocked?: boolean
   blockedUntil?: number | null
@@ -172,6 +173,7 @@ const props = withDefaults(defineProps<{
   error: '',
   isSubmitting: false,
   isTrialUsed: false,
+  isTrialStatusKnown: false,
   lockRemainingSeconds: 0,
   isAccountBlocked: false,
   blockedUntil: null,
@@ -194,6 +196,7 @@ const isRussian = computed(() => props.locale === 'ru')
 const isUpgradeMode = computed(() => props.isUpgradeMode)
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
+const isTrialStatusKnown = computed(() => props.isTrialStatusKnown)
 const isAccountBlocked = computed(() => props.isAccountBlocked)
 const blockedUntilText = computed(() => {
   if (!props.blockedUntil) return isRussian.value ? 'дальнейшего уведомления' : 'further notice'

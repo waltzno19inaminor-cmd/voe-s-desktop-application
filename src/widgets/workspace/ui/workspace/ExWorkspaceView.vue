@@ -34,6 +34,7 @@
           :error="accessError"
           :is-submitting="isActivatingAccess"
           :is-trial-used="freeTrialUsed"
+          :is-trial-status-known="freeTrialStatusKnown"
           :lock-remaining-seconds="accessLockRemainingSeconds"
           :is-account-blocked="isAccountBlocked"
           :blocked-until="accountBlockedUntil"
@@ -371,6 +372,7 @@ const {
   accessError,
   accessLockRemainingSeconds,
   freeTrialUsed,
+  freeTrialStatusKnown,
   isAccountBlocked,
   accountBlockedUntil,
   beginAccessListener,

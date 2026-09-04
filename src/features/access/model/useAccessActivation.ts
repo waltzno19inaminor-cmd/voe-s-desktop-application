@@ -26,6 +26,7 @@ const accessCapabilities = ref<AccessCapabilities>(NO_ACCESS_CAPABILITIES)
 const accessLockRemainingSeconds = ref(0)
 const accessAttemptFailedCount = ref(0)
 const freeTrialUsed = ref(false)
+const freeTrialStatusKnown = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const offlineAccessRestored = ref(false)
 const isAccountBlocked = ref(false)
@@ -381,6 +382,7 @@ export function useAccessActivation() {
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
+    freeTrialStatusKnown.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     clearAccessEntitlement()
@@ -453,6 +455,7 @@ export function useAccessActivation() {
       doc(db, 'users', normalizedUserId, 'accessTrials', 'first'),
       (snapshot) => {
         freeTrialUsed.value = snapshot.exists()
+        freeTrialStatusKnown.value = true
       },
       () => {
         // Do not show the trial button again merely because the network failed
@@ -478,6 +481,7 @@ export function useAccessActivation() {
     activeLockUntilMs = 0
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
+    freeTrialStatusKnown.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     accessState.value = 'checking'
@@ -648,6 +652,7 @@ export function useAccessActivation() {
     accessLockRemainingSeconds,
     accessAttemptFailedCount,
     freeTrialUsed,
+    freeTrialStatusKnown,
     isOffline,
     offlineAccessRestored,
     isAccountBlocked,

@@ -989,7 +989,8 @@ async function startFreeTrial(env: Env, userId: string) {
   const currentAccessExpiresAtMs = toMillis(currentAccess?.data.expiresAt)
   const hasActiveAccess = currentAccess?.data.isActivated === true
     && (!currentAccessExpiresAtMs || currentAccessExpiresAtMs > Date.now())
-  if (hasActiveAccess) {
+  const currentPlan = String(currentAccess?.data.plan || '')
+  if (hasActiveAccess && currentPlan !== 'free') {
     throw new AccessWorkerError('This account already has active access.', 400)
   }
 
