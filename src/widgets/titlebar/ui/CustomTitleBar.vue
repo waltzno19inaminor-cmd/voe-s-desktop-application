@@ -4,7 +4,7 @@
     v-show="!isFullscreen"
     @mousedown="startDrag"
     :class="{ 'is-initialization-visible': isInitializationVisible, 'is-access-gate-visible': isAccessGateVisible, 'is-access-gradflow-ready': isAccessGradflowReady }"
-    class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[99999] transition-colors"
+    class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[100001] transition-colors"
   >
     <div class="titlebar-surface" aria-hidden="true"></div>
     <div class="flex items-center h-full" @mousedown.stop>

@@ -32,6 +32,9 @@
         <p class="mt-4 max-w-md text-xs font-mono leading-relaxed text-white/70">
           {{ locale === 'ru' ? 'Ваше сообщение сохранено и передано в систему поддержки.' : 'Your message was saved and sent to the support system.' }}
         </p>
+        <button type="button" disabled class="mt-7 min-h-11 border border-white/45 bg-white/10 px-7 py-3 text-[10px] font-mono font-black uppercase tracking-[0.2em] text-white/60">
+          {{ locale === 'ru' ? 'ОТПРАВЛЕНО' : 'SENT' }}
+        </button>
         <button type="button" class="mt-8 border border-white bg-white px-6 py-3 text-[10px] font-mono font-black uppercase tracking-[0.24em] text-black transition-colors hover:bg-transparent hover:text-white" @click="emit('close')">
           {{ locale === 'ru' ? 'Закрыть' : 'Close' }}
         </button>

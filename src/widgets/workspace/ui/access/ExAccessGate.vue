@@ -84,14 +84,62 @@
         <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-5">
           {{ isRussian ? 'КЛЮЧ НЕ ПРИШЁЛ?' : 'DIDN\'T GET YOUR KEY?' }}
         </ExHeading>
-        <p class="access-gate__help-copy">
-          {{ isRussian
-            ? 'Напишите на почту gandr.trade@gmail.com с адреса, через который проводилась оплата.'
-            : 'Email gandr.trade@gmail.com from the address used to make the payment.' }}
-        </p>
-        <a class="access-gate__support-email" href="mailto:gandr.trade@gmail.com">
-          gandr.trade@gmail.com
-        </a>
+        <div v-if="supportRequestSubmitted" class="access-gate__support-success">
+          <p class="access-gate__help-copy">
+            {{ isRussian ? 'Обращение отправлено в поддержку.' : 'Your request has been sent to support.' }}
+          </p>
+          <button type="button" disabled class="access-gate__submit access-gate__support-submit">
+            {{ isRussian ? 'ОТПРАВЛЕНО' : 'SENT' }}
+          </button>
+        </div>
+        <form v-else class="access-gate__support-form" novalidate @submit.prevent="submitKeySupportRequest">
+          <label class="access-gate__support-label" for="patreon-account-email">
+            {{ isRussian ? 'ПОЧТА АККАУНТА PATREON' : 'PATREON ACCOUNT EMAIL' }}
+          </label>
+          <input
+            id="patreon-account-email"
+            v-model="patreonEmail"
+            class="access-gate__input access-gate__support-input"
+            type="email"
+            autocomplete="email"
+            maxlength="160"
+            :disabled="supportRequestSubmitting || supportRequestDailyLimitReached"
+            :placeholder="isRussian ? 'Почта, на которую оформлена подписка' : 'Email used for the subscription'"
+            :aria-invalid="Boolean(supportFieldErrors.patreonEmail)"
+            @input="supportFieldErrors.patreonEmail = ''"
+          >
+          <p v-if="supportFieldErrors.patreonEmail" class="access-gate__support-field-error">
+            {{ supportFieldErrors.patreonEmail }}
+          </p>
+
+          <label class="access-gate__support-label" for="patreon-payment-date">
+            {{ isRussian ? 'ДАТА ОПЛАТЫ' : 'PAYMENT DATE' }}
+          </label>
+          <input
+            id="patreon-payment-date"
+            v-model="paymentDate"
+            class="access-gate__input access-gate__support-input"
+            type="date"
+            :disabled="supportRequestSubmitting || supportRequestDailyLimitReached"
+            :aria-invalid="Boolean(supportFieldErrors.paymentDate)"
+            @input="supportFieldErrors.paymentDate = ''"
+          >
+          <p v-if="supportFieldErrors.paymentDate" class="access-gate__support-field-error">
+            {{ supportFieldErrors.paymentDate }}
+          </p>
+
+          <p v-if="supportRequestErrorText" class="access-gate__support-error" role="alert" aria-live="polite">
+            {{ supportRequestErrorText }}
+          </p>
+          <button
+            type="submit"
+            class="access-gate__submit access-gate__support-submit"
+            :disabled="supportRequestSubmitting || supportRequestDailyLimitReached"
+          >
+            <span v-if="supportRequestSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
+            {{ supportRequestSubmitting ? (isRussian ? 'ОТПРАВКА...' : 'SENDING...') : (isRussian ? 'ОТПРАВИТЬ ОБРАЩЕНИЕ' : 'SUBMIT REQUEST') }}
+          </button>
+        </form>
 
         <div class="access-gate__help-actions">
           <button type="button" class="access-gate__back" @click="helpView = 'purchase'">
@@ -113,16 +161,7 @@
                 : 'Full access to all app features for 7 days.' }}
             </p>
             <button
-              v-if="isUpgradeMode"
-              type="button"
-              class="access-gate__trial access-gate__trial--card access-gate__choice-action"
-              :disabled="isSubmitting"
-              @click="emit('exit')"
-            >
-              {{ isRussian ? 'ВЫЙТИ' : 'EXIT' }}
-            </button>
-            <button
-              v-else-if="isTrialStatusKnown && !isTrialUsed"
+              v-if="isTrialStatusKnown && !isTrialUsed"
               type="button"
               class="access-gate__trial access-gate__trial--card access-gate__choice-action"
               :disabled="isSubmitting || isLocked"
@@ -157,7 +196,7 @@
         </div>
 
         <button
-          v-if="!isUpgradeMode && (!isFreePlanStatusKnown || !isFreePlanUsed)"
+          v-if="accessMode === 'choices'"
           type="button"
           class="access-gate__free-continue"
           :disabled="isSubmitting || isLocked"
@@ -167,15 +206,9 @@
         </button>
 
         <div v-if="accessMode !== 'choices'" class="access-gate__key-panel">
-          <button type="button" class="access-gate__back access-gate__key-back" @click="accessMode = 'choices'">
-            {{ isRussian ? 'НАЗАД К ВЫБОРУ' : 'BACK TO OPTIONS' }}
-          </button>
           <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-7">
-            {{ isRussian ? 'АКТИВАЦИЯ ДОСТУПА' : 'ACCESS ACTIVATION' }}
+            {{ isRussian ? 'ВВЕДИТЕ КЛЮЧ' : 'ENTER KEY' }}
           </ExHeading>
-          <p class="access-gate__description">
-            {{ isRussian ? 'Введите ключ активации' : 'Enter your activation key.' }}
-          </p>
 
           <form class="mt-9" @submit.prevent="submit">
             <label class="sr-only" for="access-key-input">
@@ -208,6 +241,10 @@
               </button>
             </div>
           </form>
+
+          <button type="button" class="access-gate__back access-gate__key-back mt-6" @click="accessMode = 'choices'">
+            {{ isRussian ? 'НАЗАД К ВЫБОРУ' : 'BACK TO OPTIONS' }}
+          </button>
         </div>
 
         <p v-if="visibleError" class="access-gate__error mt-5" role="alert">{{ visibleError }}</p>
@@ -231,6 +268,8 @@ import { computed, ref } from 'vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import type { AccessActivationState } from '~/features/access/model/useAccessActivation'
 import { useThemeStore } from '~/features/store/useTheme'
+import { useDashboardFeedback } from '~/widgets/dashboard/model/useDashboardFeedback'
+import pkg from '../../../../../package.json'
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
@@ -241,24 +280,18 @@ const props = withDefaults(defineProps<{
   isSubmitting?: boolean
   isTrialUsed?: boolean
   isTrialStatusKnown?: boolean
-  isFreePlanUsed?: boolean
-  isFreePlanStatusKnown?: boolean
   lockRemainingSeconds?: number
   isAccountBlocked?: boolean
   blockedUntil?: number | null
-  isUpgradeMode?: boolean
   locale?: string
 }>(), {
   error: '',
   isSubmitting: false,
   isTrialUsed: false,
   isTrialStatusKnown: false,
-  isFreePlanUsed: false,
-  isFreePlanStatusKnown: false,
   lockRemainingSeconds: 0,
   isAccountBlocked: false,
   blockedUntil: null,
-  isUpgradeMode: false,
   locale: 'en'
 })
 
@@ -269,20 +302,35 @@ const emit = defineEmits<{
   changeLocale: [locale: 'ru' | 'en']
   retry: []
   signOut: []
-  exit: []
 }>()
 
 const accessKey = ref('')
 const accessMode = ref<'choices' | 'key'>('choices')
 const helpView = ref<'none' | 'purchase' | 'support'>('none')
+const patreonEmail = ref('')
+const paymentDate = ref('')
+const supportFieldErrors = ref({ patreonEmail: '', paymentDate: '' })
+const supportAppVersion = ref(String(pkg.version || ''))
 const isRussian = computed(() => props.locale === 'ru')
-const isUpgradeMode = computed(() => props.isUpgradeMode)
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
 const isTrialStatusKnown = computed(() => props.isTrialStatusKnown)
-const isFreePlanUsed = computed(() => props.isFreePlanUsed)
-const isFreePlanStatusKnown = computed(() => props.isFreePlanStatusKnown)
 const isAccountBlocked = computed(() => props.isAccountBlocked)
+const {
+  feedbackSubmitted: supportRequestSubmitted,
+  feedbackSubmitting: supportRequestSubmitting,
+  feedbackDailyLimitReached: supportRequestDailyLimitReached,
+  feedbackError: supportRequestError,
+  submitFeedbackRequest
+} = useDashboardFeedback(supportAppVersion)
+const supportRequestErrorText = computed(() => {
+  if (supportRequestDailyLimitReached.value) {
+    return isRussian.value
+      ? 'Вы уже отправляли обращение за последние 24 часа. Попробуйте позже.'
+      : 'You have already sent a request within the last 24 hours. Please try again later.'
+  }
+  return supportRequestError.value
+})
 const blockedUntilText = computed(() => {
   if (!props.blockedUntil) return isRussian.value ? 'дальнейшего уведомления' : 'further notice'
   return new Intl.DateTimeFormat(isRussian.value ? 'ru-RU' : 'en-GB', {
@@ -417,6 +465,26 @@ const formatKey = () => {
 const submit = () => {
   if (props.isSubmitting || isLocked.value || !accessKey.value) return
   emit('activate', accessKey.value)
+}
+
+const submitKeySupportRequest = async () => {
+  const email = patreonEmail.value.trim()
+  const date = paymentDate.value.trim()
+  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  supportFieldErrors.value = {
+    patreonEmail: validEmail ? '' : (isRussian.value ? 'Введите корректную почту Patreon.' : 'Enter a valid Patreon email.'),
+    paymentDate: date ? '' : (isRussian.value ? 'Укажите дату оплаты.' : 'Enter the payment date.')
+  }
+
+  if (!validEmail || !date) return
+
+  await submitFeedbackRequest({
+    type: '?',
+    title: isRussian.value ? 'Ключ доступа не получен' : 'Access key not received',
+    message: isRussian.value
+      ? `Почта аккаунта Patreon: ${email}\nДата оплаты: ${date}`
+      : `Patreon account email: ${email}\nPayment date: ${date}`
+  })
 }
 
 const openPatreon = async (event: MouseEvent) => {
@@ -695,7 +763,7 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate__input::placeholder {
   color: #171717;
-  font-size: 8px;
+  font-size: 10px;
   letter-spacing: 0.04em;
   opacity: 0.48;
 }
@@ -771,6 +839,47 @@ const openPatreon = async (event: MouseEvent) => {
   max-width: 31rem;
 }
 
+.access-gate__support-form {
+  margin: 2.5rem auto 0;
+  max-width: 30rem;
+  text-align: left;
+}
+
+.access-gate__support-label {
+  color: #171717;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  margin-top: 1.5rem;
+}
+
+.access-gate__support-label:first-child {
+  margin-top: 0;
+}
+
+.access-gate__support-input {
+  text-align: left;
+}
+
+.access-gate__support-field-error,
+.access-gate__support-error {
+  color: #8b1e1e;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.5;
+  margin-top: 0.55rem;
+}
+
+.access-gate__support-submit {
+  margin-top: 2rem;
+}
+
+.access-gate__support-success {
+  margin: 2.5rem auto 0;
+}
+
 .access-gate__help-actions {
   align-items: center;
   display: flex;
@@ -817,18 +926,6 @@ const openPatreon = async (event: MouseEvent) => {
   background: #171717;
   color: #ffffff;
   transform: translateY(-1px);
-}
-
-.access-gate__support-email {
-  color: #171717;
-  display: inline-block;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
-  font-weight: 900;
-  letter-spacing: 0.06em;
-  margin-top: 1.5rem;
-  text-decoration: underline;
-  text-underline-offset: 0.3rem;
 }
 
 .access-gate__submit:disabled {

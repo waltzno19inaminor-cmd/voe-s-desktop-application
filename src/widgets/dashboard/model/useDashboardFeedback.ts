@@ -6,10 +6,22 @@ import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { uploadToCloudinary } from '~/shared/lib/cloudinary'
 
-type FeedbackAttachment = {
+const FEEDBACK_WINDOW_MS = 24 * 60 * 60 * 1000
+const MAX_FEEDBACK_PER_WINDOW = 3
+
+export type FeedbackAttachment = {
   name: string
   url: string
   publicId: string
+}
+
+export type FeedbackType = 'feedback' | '?'
+
+export type FeedbackRequest = {
+  type: FeedbackType
+  title: string
+  message: string
+  attachments?: FeedbackAttachment[]
 }
 
 export function useDashboardFeedback(appVersion: Ref<string>) {
@@ -126,6 +138,85 @@ export function useDashboardFeedback(appVersion: Ref<string>) {
     feedbackAttachments.value.splice(index, 1)
   }
 
+  const submitFeedbackRequest = async ({ type, title, message, attachments = [] }: FeedbackRequest) => {
+    if (feedbackDailyLimitReached.value) return false
+
+    const firebaseUser = getAuth().currentUser
+    const userId = authStore.user?.uid || firebaseUser?.uid
+    if (!userId) {
+      feedbackError.value = locale.value === 'ru' ? 'Не удалось определить пользователя. Войдите в аккаунт и повторите попытку.' : 'Unable to identify the user. Sign in and try again.'
+      return false
+    }
+
+    feedbackError.value = ''
+    feedbackSubmitting.value = true
+    const feedbackRef = doc(collection(db, 'feedback'))
+    const feedbackLimitRef = doc(db, 'feedbackLimits', userId)
+
+    try {
+      await runTransaction(db, async transaction => {
+        const limitSnapshot = await transaction.get(feedbackLimitRef)
+        const limitData = limitSnapshot.data()
+        const lastSubmittedAt = limitData?.lastSubmittedAt
+        const storedWindowStartedAt = limitData?.windowStartedAt || lastSubmittedAt
+        const windowStartedAtMs = storedWindowStartedAt && typeof storedWindowStartedAt.toMillis === 'function'
+          ? storedWindowStartedAt.toMillis()
+          : 0
+        const hasActiveWindow = windowStartedAtMs > 0 && Date.now() - windowStartedAtMs < FEEDBACK_WINDOW_MS
+        const storedCount = Number.isInteger(limitData?.submissionCount)
+          ? Number(limitData.submissionCount)
+          : (limitSnapshot.exists() && hasActiveWindow ? 1 : 0)
+        const nextSubmissionCount = hasActiveWindow ? storedCount + 1 : 1
+
+        if (nextSubmissionCount > MAX_FEEDBACK_PER_WINDOW) {
+          throw new Error('FEEDBACK_DAILY_LIMIT')
+        }
+
+        transaction.set(feedbackRef, {
+          type,
+          title,
+          message,
+          attachments: attachments.map(({ name, url, publicId }) => ({ name, url, publicId })),
+          userId,
+          user: {
+            displayName: authStore.user?.displayName || firebaseUser?.displayName || null,
+            email: authStore.user?.email || firebaseUser?.email || null
+          },
+          source: 'dashboard',
+          appVersion: appVersion.value,
+          status: 'new',
+          createdAt: serverTimestamp()
+        })
+
+        transaction.set(feedbackLimitRef, {
+          userId,
+          windowStartedAt: hasActiveWindow ? storedWindowStartedAt : serverTimestamp(),
+          submissionCount: nextSubmissionCount,
+          lastSubmittedAt: serverTimestamp(),
+          lastFeedbackId: feedbackRef.id
+        })
+      })
+      feedbackSubmitted.value = true
+      return true
+    } catch (error) {
+      console.error('[ExDashboardFeedback] Feedback write failed:', error)
+      if (error instanceof Error && error.message === 'FEEDBACK_DAILY_LIMIT') {
+        feedbackDailyLimitReached.value = true
+        feedbackError.value = locale.value === 'ru'
+          ? 'Вы уже отправили 3 обращения за последние 24 часа. Новая отправка будет доступна позже.'
+          : 'You have already sent 3 requests within the last 24 hours. You can send another one later.'
+      } else {
+        feedbackError.value = locale.value === 'ru'
+          ? 'Не удалось сохранить отзыв. Попробуйте еще раз.'
+          : 'Could not save the feedback. Please try again.'
+      }
+    } finally {
+      feedbackSubmitting.value = false
+    }
+
+    return false
+  }
+
   const submitFeedback = async () => {
     if (feedbackDailyLimitReached.value) return
 
@@ -146,70 +237,12 @@ export function useDashboardFeedback(appVersion: Ref<string>) {
       return
     }
 
-    const firebaseUser = getAuth().currentUser
-    const userId = authStore.user?.uid || firebaseUser?.uid
-    if (!userId) {
-      feedbackError.value = locale.value === 'ru' ? 'Не удалось определить пользователя. Войдите в аккаунт и повторите попытку.' : 'Unable to identify the user. Sign in and try again.'
-      return
-    }
-
-    feedbackError.value = ''
-    feedbackSubmitting.value = true
-    const feedbackRef = doc(collection(db, 'feedback'))
-    const feedbackLimitRef = doc(db, 'feedbackLimits', userId)
-
-    try {
-      await runTransaction(db, async transaction => {
-        const limitSnapshot = await transaction.get(feedbackLimitRef)
-
-        if (limitSnapshot.exists()) {
-          const lastSubmittedAt = limitSnapshot.data().lastSubmittedAt
-          if (
-            lastSubmittedAt &&
-            typeof lastSubmittedAt.toMillis === 'function' &&
-            Date.now() - lastSubmittedAt.toMillis() < 24 * 60 * 60 * 1000
-          ) {
-            throw new Error('FEEDBACK_DAILY_LIMIT')
-          }
-        }
-
-        transaction.set(feedbackRef, {
-          title,
-          message,
-          attachments: feedbackAttachments.value.map(({ name, url, publicId }) => ({ name, url, publicId })),
-          userId,
-          user: {
-            displayName: authStore.user?.displayName || firebaseUser?.displayName || null,
-            email: authStore.user?.email || firebaseUser?.email || null
-          },
-          source: 'dashboard',
-          appVersion: appVersion.value,
-          status: 'new',
-          createdAt: serverTimestamp()
-        })
-
-        transaction.set(feedbackLimitRef, {
-          userId,
-          lastSubmittedAt: serverTimestamp(),
-          lastFeedbackId: feedbackRef.id
-        })
-      })
-      feedbackSubmitted.value = true
-    } catch (error) {
-      console.error('[ExDashboardFeedback] Feedback write failed:', error)
-      if (error instanceof Error && error.message === 'FEEDBACK_DAILY_LIMIT') {
-        feedbackDailyLimitReached.value = true
-        feedbackError.value = locale.value === 'ru'
-          ? 'Вы уже отправляли отзыв за последние 24 часа. Новая отправка будет доступна позже.'
-          : 'You have already submitted feedback within the last 24 hours. You can send another one later.'
-      } else {
-        feedbackError.value = locale.value === 'ru'
-          ? 'Не удалось сохранить отзыв. Попробуйте еще раз.'
-          : 'Could not save the feedback. Please try again.'
-      }
-    } finally {
-      feedbackSubmitting.value = false
-    }
+    await submitFeedbackRequest({
+      type: 'feedback',
+      title,
+      message,
+      attachments: feedbackAttachments.value
+    })
   }
 
   onUnmounted(() => {
@@ -231,6 +264,7 @@ export function useDashboardFeedback(appVersion: Ref<string>) {
     handleFeedbackAttachment,
     removeFeedbackAttachment,
     submitFeedback,
+    submitFeedbackRequest,
     resetFeedbackForm
   }
 }

@@ -35,12 +35,9 @@
           :is-submitting="isActivatingAccess"
           :is-trial-used="freeTrialUsed"
           :is-trial-status-known="freeTrialStatusKnown"
-          :is-free-plan-used="freePlanUsed"
-          :is-free-plan-status-known="freePlanStatusKnown"
           :lock-remaining-seconds="accessLockRemainingSeconds"
           :is-account-blocked="isAccountBlocked"
           :blocked-until="accountBlockedUntil"
-          :is-upgrade-mode="accessGateRequested"
           :locale="locale"
           @activate="activateAccess"
           @start-trial="activateFreeTrial"
@@ -48,7 +45,6 @@
           @change-locale="setLocale"
           @retry="retryAccessCheck"
           @sign-out="handleAccessSignOut"
-          @exit="exitAccessGate"
         />
       </div>
     </Transition>
@@ -377,6 +373,7 @@ const {
   accessLockRemainingSeconds,
   freeTrialUsed,
   freeTrialStatusKnown,
+  freePlanUsed,
   isAccountBlocked,
   accountBlockedUntil,
   beginAccessListener,
@@ -398,7 +395,7 @@ const isInitializationGradflowVisible = useState('isInitializationGradflowVisibl
 const showAccessGate = computed(() => (
   hasInitialized.value
   && Boolean(authenticatedUserId.value)
-  && (accessState.value !== 'granted' || accessGateRequested.value)
+  && (accessGateRequested.value || accessState.value === 'requires_key' || accessState.value === 'error')
 ))
 const isSharedGradflowVisible = computed(() => (
   isInitializationGradflowVisible.value || showAccessGate.value
@@ -567,6 +564,12 @@ const activateFreeTrial = async () => {
 
 const activateFreePlan = async () => {
   if (isActivatingAccess.value) return
+
+  if (accessPlan.value === 'free' || freePlanUsed.value) {
+    accessGateRequested.value = false
+    return
+  }
+
   isActivatingAccess.value = true
   showSuccessOverlay.value = false
   try {
@@ -578,10 +581,6 @@ const activateFreePlan = async () => {
 
 const requestAccessGate = () => {
   accessGateRequested.value = true
-}
-
-const exitAccessGate = () => {
-  accessGateRequested.value = false
 }
 
 const beginAccessGateAnimation = () => {
