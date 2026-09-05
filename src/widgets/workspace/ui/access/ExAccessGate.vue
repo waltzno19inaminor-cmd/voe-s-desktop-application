@@ -85,14 +85,11 @@
           {{ isRussian ? 'КЛЮЧ НЕ ПРИШЁЛ?' : 'DIDN\'T GET YOUR KEY?' }}
         </ExHeading>
         <div v-if="supportRequestSubmitted" class="access-gate__support-success">
-          <p class="access-gate__help-copy">
-            {{ isRussian ? 'Обращение отправлено в поддержку.' : 'Your request has been sent to support.' }}
-          </p>
-          <button type="button" disabled class="access-gate__submit access-gate__support-submit">
-            {{ isRussian ? 'ОТПРАВЛЕНО' : 'SENT' }}
+          <button type="button" disabled class="access-gate__submit access-gate__support-submit access-gate__support-sent">
+            {{ isRussian ? 'Отправлено' : 'Sent' }}
           </button>
         </div>
-        <form v-else class="access-gate__support-form" novalidate @submit.prevent="submitKeySupportRequest">
+        <form id="key-support-form" v-else class="access-gate__support-form" novalidate @submit.prevent="submitKeySupportRequest">
           <label class="access-gate__support-label" for="patreon-account-email">
             {{ isRussian ? 'ПОЧТА АККАУНТА PATREON' : 'PATREON ACCOUNT EMAIL' }}
           </label>
@@ -131,17 +128,23 @@
           <p v-if="supportRequestErrorText" class="access-gate__support-error" role="alert" aria-live="polite">
             {{ supportRequestErrorText }}
           </p>
+        </form>
+
+        <div v-if="!supportRequestSubmitted" class="access-gate__support-actions">
+          <button type="button" class="access-gate__back" @click="helpView = 'purchase'">
+            {{ isRussian ? 'НАЗАД' : 'BACK' }}
+          </button>
           <button
             type="submit"
+            form="key-support-form"
             class="access-gate__submit access-gate__support-submit"
             :disabled="supportRequestSubmitting || supportRequestDailyLimitReached"
           >
             <span v-if="supportRequestSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
             {{ supportRequestSubmitting ? (isRussian ? 'ОТПРАВКА...' : 'SENDING...') : (isRussian ? 'ОТПРАВИТЬ ОБРАЩЕНИЕ' : 'SUBMIT REQUEST') }}
           </button>
-        </form>
-
-        <div class="access-gate__help-actions">
+        </div>
+        <div v-else class="access-gate__help-actions">
           <button type="button" class="access-gate__back" @click="helpView = 'purchase'">
             {{ isRussian ? 'НАЗАД' : 'BACK' }}
           </button>
@@ -873,11 +876,32 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__support-submit {
-  margin-top: 2rem;
+  margin-top: 0;
 }
 
 .access-gate__support-success {
   margin: 2.5rem auto 0;
+  max-width: 30rem;
+}
+
+.access-gate__support-sent {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #171717;
+  opacity: 1 !important;
+}
+
+.access-gate__support-actions {
+  display: flex;
+  gap: 0.85rem;
+  margin: 2rem auto 0;
+  max-width: 30rem;
+}
+
+.access-gate__support-actions .access-gate__support-submit,
+.access-gate__support-actions .access-gate__back {
+  flex: 1 1 0;
+  width: auto;
 }
 
 .access-gate__help-actions {
