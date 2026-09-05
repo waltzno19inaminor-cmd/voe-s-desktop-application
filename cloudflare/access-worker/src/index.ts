@@ -730,6 +730,12 @@ async function processPatreonRenewal(
       || (redemptionPath && documents.get(redemptionPath))
       || (userRedeemedKeyPath && documents.get(userRedeemedKeyPath))
   )
+  const currentActivatedKeyId = String(state?.data.activatedKeyId || '').trim()
+  const patreonKeyId = String(latestGrant.data.keyId || '').trim()
+  const hasNewerPaidKey = state?.data.source === 'key'
+    && state?.data.plan === 'paid'
+    && currentActivatedKeyId
+    && currentActivatedKeyId !== patreonKeyId
   const currentEffectiveExpiryMs = toMillis(state?.data.expiresAt) || 0
   const storedPaidThroughMs = toMillis(latestGrant.data.paidThroughAt) || 0
   const previousPaidThroughMs = storedPaidThroughMs
@@ -766,7 +772,7 @@ async function processPatreonRenewal(
     }
   ]
 
-  if (linkedUserId && hasRedeemedPatreonKey) {
+  if (linkedUserId && hasRedeemedPatreonKey && !hasNewerPaidKey) {
     writes.push({
       update: {
         name: firestoreDocumentName(env, accessStatePath),
@@ -1486,12 +1492,21 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
 
   if (!latestKeyDocument) throw new AccessWorkerError('Invalid or inactive access key.', 400)
   const accessKey = decodeAccessKeyRecord(latestKeyDocument)
+  const currentAccess = documents.get(accessStatePath)
+  const currentActivatedKeyId = String(currentAccess?.data.activatedKeyId || '').trim()
+  const hasDifferentPaidKey = currentAccess?.data.source === 'key'
+    && currentAccess?.data.plan === 'paid'
+    && currentActivatedKeyId
+    && currentActivatedKeyId !== accessKey.id
 
   // Check status and key redemption deadline even for an idempotent retry.
   // Otherwise a disabled/expired key could be used to restore access.
   assertAccessKeyCanBeRedeemed(accessKey, { ignoreRedemptionLimit: Boolean(existingRedemption) })
 
   if (existingRedemption) {
+    if (hasDifferentPaidKey) {
+      throw new AccessWorkerError('A newer access key is already active for this account.', 409)
+    }
     const existingExpiresAtMs = toMillis(existingRedemption.data.expiresAt)
     if (existingExpiresAtMs && existingExpiresAtMs <= Date.now()) {
       throw new AccessWorkerError('This access period has expired. Please use a new access key.', 400)
