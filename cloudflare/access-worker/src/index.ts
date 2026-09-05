@@ -116,6 +116,9 @@ interface PatreonMemberGrantInput {
   fullName: string
   eventType: string
   amountCents: number
+  lastChargeDate: string | null
+  lastChargeStatus: string | null
+  pledgeCadenceMonths: number
 }
 
 interface RotationBatchRecord {
@@ -148,6 +151,7 @@ const MAX_EXPIRED_ACCESS_CLEANUP_BATCHES = 20
 const ACCESS_GRANT = 'full_access'
 const ROTATION_MONTHS = [2, 4, 6, 8, 10, 12]
 const PATREON_KEY_LABEL = 'patreon-subscription'
+const PATREON_RENEWAL_GRACE_DAYS = 7
 const FREE_TRIAL_DAYS = 7
 const FREE_PLAN_ID = 'default'
 const ACCESS_CAPABILITIES = [
@@ -408,7 +412,8 @@ async function handlePatreonWebhook(request: Request, env: Env) {
       ok: true,
       alreadyIssued: true,
       grantId: grant.grantId,
-      keyId: grant.keyId
+      keyId: grant.keyId,
+      renewed: grant.renewed
     }
   }
   if (!grant.key) {
@@ -429,7 +434,8 @@ async function handlePatreonWebhook(request: Request, env: Env) {
     issued: true,
     grantId: grant.grantId,
     keyId: grant.keyId,
-    email: grantInput.email
+    email: grantInput.email,
+    renewed: grant.renewed
   }
 }
 
@@ -527,13 +533,25 @@ function parsePatreonMemberGrantInput(payload: PatreonWebhookPayload, eventType:
       || email.split('@')[0]
   ).trim()
 
+  const rawPledgeCadenceMonths = Number(attributes.pledge_cadence || 1)
+  const pledgeCadenceMonths = Number.isInteger(rawPledgeCadenceMonths)
+    && rawPledgeCadenceMonths >= 1
+    && rawPledgeCadenceMonths <= 12
+    ? rawPledgeCadenceMonths
+    : 1
+  const lastChargeDate = normalizePatreonDate(attributes.last_charge_date)
+  const lastChargeStatus = String(attributes.last_charge_status || '').trim() || null
+
   return {
     memberId: member.id,
     userId: String(getRelationshipId(member, 'user') || includedUser?.id || member.id),
     email,
     fullName,
     eventType,
-    amountCents
+    amountCents,
+    lastChargeDate,
+    lastChargeStatus,
+    pledgeCadenceMonths
   }
 }
 
@@ -554,6 +572,7 @@ function getRelationshipId(resource: PatreonResource, relationshipName: string):
 async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput): Promise<{
   created: boolean
   emailSent: boolean
+  renewed: boolean
   grantId: string
   keyId: string
   key: string
@@ -562,6 +581,8 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
   const grantPath = `patreonAccessGrants/${grantId}`
   const existingGrant = await getFirestoreDocument(env, grantPath)
   if (existingGrant) {
+    await ensurePatreonKeyDuration(env, existingGrant, input.pledgeCadenceMonths)
+    const renewed = await processPatreonRenewal(env, existingGrant, input)
     const emailSent = existingGrant.data.emailSent === true
     const keyId = String(existingGrant.data.keyId || '')
     const encryptedKeys = String(existingGrant.data.encryptedKeys || '')
@@ -573,6 +594,7 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
     return {
       created: false,
       emailSent,
+      renewed,
       grantId,
       keyId,
       key
@@ -587,7 +609,7 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
     count: 1,
     maxRedemptions: 1,
     expiresAt: null,
-    durationMonths: 3,
+    durationMonths: input.pledgeCadenceMonths,
     label: PATREON_KEY_LABEL
   }
 
@@ -603,6 +625,14 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
           fullName: input.fullName,
           eventType: input.eventType,
           amountCents: input.amountCents,
+          lastChargeDate: input.lastChargeDate,
+          lastChargeStatus: input.lastChargeStatus,
+          lastSuccessfulChargeDate: isPatreonChargeSuccessful(input.lastChargeStatus)
+            ? input.lastChargeDate
+            : null,
+          pledgeCadenceMonths: input.pledgeCadenceMonths,
+          paidThroughAt: null,
+          graceUntil: null,
           keyId: entry.id,
           encryptedKeys: encrypted.ciphertext,
           encryptionIv: encrypted.iv,
@@ -619,10 +649,205 @@ async function createPatreonAccessGrant(env: Env, input: PatreonMemberGrantInput
   return {
     created: true,
     emailSent: false,
+    renewed: false,
     grantId,
     keyId: entry.id,
     key: entry.key
   }
+}
+
+async function ensurePatreonKeyDuration(
+  env: Env,
+  grant: FirestoreDocument,
+  durationMonths: number
+): Promise<void> {
+  const keyId = String(grant.data.keyId || '').trim()
+  if (!keyId) return
+
+  const keyDocument = await getFirestoreDocument(env, `accessKeys/${keyId}`)
+  if (!keyDocument || Number(keyDocument.data.redeemedCount || 0) > 0) return
+  if (Number(keyDocument.data.durationMonths || 0) === durationMonths) return
+
+  await commitFirestoreWrites(env, [{
+    update: {
+      name: firestoreDocumentName(env, `accessKeys/${keyId}`),
+      fields: encodeFields({ durationMonths })
+    },
+    updateMask: { fieldPaths: ['durationMonths'] },
+    currentDocument: keyDocument.updateTime ? { updateTime: keyDocument.updateTime } : undefined
+  }])
+}
+
+async function processPatreonRenewal(
+  env: Env,
+  existingGrant: FirestoreDocument,
+  input: PatreonMemberGrantInput
+): Promise<boolean> {
+  const grantPath = `patreonAccessGrants/${existingGrant.id}`
+  const storedSuccessfulChargeDate = normalizePatreonDate(existingGrant.data.lastSuccessfulChargeDate)
+  const incomingChargeDate = input.lastChargeDate
+  const incomingChargeDateMs = toMillis(incomingChargeDate)
+
+  // A member update can be caused by profile or pledge changes. Only a new,
+  // successful charge can extend access.
+  if (!incomingChargeDate || !incomingChargeDateMs || !isPatreonChargeSuccessful(input.lastChargeStatus)) {
+    await updatePatreonGrantChargeMetadata(env, existingGrant, input)
+    return false
+  }
+
+  if (storedSuccessfulChargeDate && incomingChargeDateMs <= (toMillis(storedSuccessfulChargeDate) || 0)) {
+    await updatePatreonGrantChargeMetadata(env, existingGrant, input)
+    return false
+  }
+
+  let linkedUserId = String(existingGrant.data.firebaseUserId || '').trim()
+  if (!linkedUserId) {
+    linkedUserId = await findFirebaseUserIdByEmail(env, input.email)
+  }
+
+  const transaction = await beginFirestoreTransaction(env)
+  const accessStatePath = linkedUserId ? `users/${linkedUserId}/access/state` : ''
+  const freePlanPath = linkedUserId ? `users/${linkedUserId}/accessFreePlans/${FREE_PLAN_ID}` : ''
+  const redemptionPath = linkedUserId
+    ? `accessKeys/${String(existingGrant.data.keyId || '')}/redemptions/${linkedUserId}`
+    : ''
+  const userRedeemedKeyPath = linkedUserId
+    ? `users/${linkedUserId}/redeemedKeys/${String(existingGrant.data.keyId || '')}`
+    : ''
+  const paths = [grantPath, accessStatePath, freePlanPath, redemptionPath, userRedeemedKeyPath].filter(Boolean)
+  const documents = await batchGetDocuments(env, transaction, paths)
+  const latestGrant = documents.get(grantPath)
+  if (!latestGrant) return false
+
+  const latestSuccessfulChargeDate = normalizePatreonDate(latestGrant.data.lastSuccessfulChargeDate)
+  if (latestSuccessfulChargeDate && incomingChargeDateMs <= (toMillis(latestSuccessfulChargeDate) || 0)) {
+    return false
+  }
+
+  const state = accessStatePath ? documents.get(accessStatePath) : null
+  const hasRedeemedPatreonKey = Boolean(
+    state
+      || (redemptionPath && documents.get(redemptionPath))
+      || (userRedeemedKeyPath && documents.get(userRedeemedKeyPath))
+  )
+  const currentEffectiveExpiryMs = toMillis(state?.data.expiresAt) || 0
+  const storedPaidThroughMs = toMillis(latestGrant.data.paidThroughAt) || 0
+  const previousPaidThroughMs = storedPaidThroughMs
+    || (currentEffectiveExpiryMs ? Math.max(0, currentEffectiveExpiryMs - patreonGracePeriodMs()) : 0)
+  const anchorMs = Math.max(previousPaidThroughMs, incomingChargeDateMs)
+  const paidThroughMs = addUtcMonths(new Date(anchorMs), input.pledgeCadenceMonths).getTime()
+  const graceUntilMs = paidThroughMs + patreonGracePeriodMs()
+
+  const grantFields = {
+    firebaseUserId: linkedUserId || undefined,
+    email: input.email,
+    fullName: input.fullName,
+    eventType: input.eventType,
+    amountCents: input.amountCents,
+    lastChargeDate: input.lastChargeDate,
+    lastChargeStatus: input.lastChargeStatus,
+    lastSuccessfulChargeDate: input.lastChargeDate,
+    pledgeCadenceMonths: input.pledgeCadenceMonths,
+    paidThroughAt: new Date(paidThroughMs),
+    graceUntil: new Date(graceUntilMs)
+  }
+  const encodedGrantFields = encodeFields(grantFields)
+  const writes: FirestoreWrite[] = [
+    {
+      update: {
+        name: firestoreDocumentName(env, grantPath),
+        fields: encodedGrantFields
+      },
+      updateMask: {
+        fieldPaths: Object.keys(encodedGrantFields)
+      },
+      updateTransforms: [{ fieldPath: 'lastRenewedAt', setToServerValue: 'REQUEST_TIME' }],
+      currentDocument: latestGrant.updateTime ? { updateTime: latestGrant.updateTime } : undefined
+    }
+  ]
+
+  if (linkedUserId && hasRedeemedPatreonKey) {
+    writes.push({
+      update: {
+        name: firestoreDocumentName(env, accessStatePath),
+        fields: encodeFields({
+          isActivated: true,
+          grant: ACCESS_GRANT,
+          plan: 'paid',
+          capabilities: capabilitiesForPlan('paid'),
+          hasFreePlan: state?.data.hasFreePlan === true || Boolean(freePlanPath && documents.get(freePlanPath)),
+          expiresAt: new Date(graceUntilMs),
+          source: 'key',
+          activatedKeyId: latestGrant.data.keyId || null
+        })
+      },
+      updateMask: {
+        fieldPaths: [
+          'isActivated',
+          'grant',
+          'plan',
+          'capabilities',
+          'hasFreePlan',
+          'expiresAt',
+          'source',
+          'activatedKeyId'
+        ]
+      }
+    })
+  }
+
+  for (const documentPath of [redemptionPath, userRedeemedKeyPath]) {
+    if (!documentPath || !documents.get(documentPath)) continue
+    writes.push({
+      update: {
+        name: firestoreDocumentName(env, documentPath),
+        fields: encodeFields({ expiresAt: new Date(graceUntilMs) })
+      },
+      updateMask: { fieldPaths: ['expiresAt'] }
+    })
+  }
+
+  await commitFirestoreTransaction(env, transaction, writes)
+  return true
+}
+
+async function updatePatreonGrantChargeMetadata(
+  env: Env,
+  existingGrant: FirestoreDocument,
+  input: PatreonMemberGrantInput
+): Promise<void> {
+  const grantPath = `patreonAccessGrants/${existingGrant.id}`
+  const fields = {
+    email: input.email,
+    fullName: input.fullName,
+    eventType: input.eventType,
+    amountCents: input.amountCents,
+    lastChargeDate: input.lastChargeDate,
+    lastChargeStatus: input.lastChargeStatus,
+    pledgeCadenceMonths: input.pledgeCadenceMonths
+  }
+  await commitFirestoreWrites(env, [{
+    update: {
+      name: firestoreDocumentName(env, grantPath),
+      fields: encodeFields(fields)
+    },
+    updateMask: { fieldPaths: Object.keys(fields) },
+    currentDocument: existingGrant.updateTime ? { updateTime: existingGrant.updateTime } : undefined
+  }])
+}
+
+function patreonGracePeriodMs(): number {
+  return PATREON_RENEWAL_GRACE_DAYS * 24 * 60 * 60 * 1000
+}
+
+function isPatreonChargeSuccessful(status: string | null): boolean {
+  return ['paid', 'success', 'successful', 'succeeded'].includes(String(status || '').trim().toLowerCase())
+}
+
+function normalizePatreonDate(value: unknown): string | null {
+  const text = String(value || '').trim()
+  if (!text || !Number.isFinite(Date.parse(text))) return null
+  return new Date(text).toISOString()
 }
 
 async function markPatreonGrantEmailSent(env: Env, grantId: string): Promise<void> {
@@ -1237,13 +1462,20 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
   const keyDocument = await findAccessKeyByHash(env, keyHash)
   if (!keyDocument) throw new AccessWorkerError('Invalid or inactive access key.', 400)
 
+  const patreonGrant = await findPatreonGrantByKeyId(env, keyDocument.id)
+
   const transaction = await beginFirestoreTransaction(env)
   const keyPath = `accessKeys/${keyDocument.id}`
   const redemptionPath = `${keyPath}/redemptions/${userId}`
   const accessStatePath = `users/${userId}/access/state`
   const freePlanPath = `users/${userId}/accessFreePlans/${FREE_PLAN_ID}`
   const userPath = `users/${userId}`
-  const documents = await batchGetDocuments(env, transaction, [keyPath, redemptionPath, accessStatePath, freePlanPath, userPath])
+  const patreonGrantPath = patreonGrant?.path || ''
+  const documents = await batchGetDocuments(
+    env,
+    transaction,
+    [keyPath, redemptionPath, accessStatePath, freePlanPath, userPath, patreonGrantPath].filter(Boolean)
+  )
   const latestKeyDocument = documents.get(keyPath)
   const existingRedemption = documents.get(redemptionPath)
   const hasFreePlan = Boolean(documents.get(freePlanPath))
@@ -1277,7 +1509,16 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
     }
   }
 
-  const accessExpiresAtMs = resolveAccessExpiresAt(accessKey, new Date())
+  const initialPaidThroughMs = resolveAccessExpiresAt(accessKey, new Date())
+  const storedPatreonPaidThroughMs = patreonGrant
+    ? toMillis(documents.get(patreonGrant.path)?.data.paidThroughAt) || 0
+    : 0
+  const paidThroughMs = patreonGrant
+    ? Math.max(initialPaidThroughMs || 0, storedPatreonPaidThroughMs) || null
+    : initialPaidThroughMs
+  const accessExpiresAtMs = patreonGrant
+    ? paidThroughMs === null ? null : paidThroughMs + patreonGracePeriodMs()
+    : paidThroughMs
 
   const accessKeyFields = encodeFields({
     ...latestKeyDocument.data,
@@ -1321,6 +1562,21 @@ async function redeemAccessKey(env: Env, userId: string, rawKey: string) {
     },
     createUserAccessStateWrite(env, userId, accessKey, accessExpiresAtMs, 'key', 'paid', hasFreePlan)
   ]
+
+  if (patreonGrant && documents.get(patreonGrant.path)) {
+    writes.push({
+      update: {
+        name: firestoreDocumentName(env, patreonGrant.path),
+        fields: encodeFields({
+          firebaseUserId: userId,
+          paidThroughAt: paidThroughMs ? new Date(paidThroughMs) : null,
+          graceUntil: accessExpiresAtMs ? new Date(accessExpiresAtMs) : null
+        })
+      },
+      updateMask: { fieldPaths: ['firebaseUserId', 'paidThroughAt', 'graceUntil'] },
+      currentDocument: patreonGrant.updateTime ? { updateTime: patreonGrant.updateTime } : undefined
+    })
+  }
 
   await commitFirestoreTransaction(env, transaction, writes)
   return {
@@ -2091,6 +2347,68 @@ async function findAccessKeyByHash(env: Env, keyHash: string): Promise<Firestore
   const documents = parseFirestoreQueryResponse(await response.text())
   if (documents.length > 1) throw new Error('Multiple access keys share the same hash.')
   return documents[0] || null
+}
+
+async function findPatreonGrantByKeyId(env: Env, keyId: string): Promise<{ path: string; updateTime?: string } | null> {
+  const token = await getGoogleAccessToken(env)
+  const response = await fetch(`${firestoreBaseUrl(env)}/documents:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'patreonAccessGrants' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'keyId' },
+            op: 'EQUAL',
+            value: { stringValue: keyId }
+          }
+        },
+        limit: 2
+      }
+    })
+  })
+  if (!response.ok) throw new Error(`Firestore Patreon grant lookup failed: ${response.status}`)
+
+  const documents = parseFirestoreQueryResponse(await response.text())
+  if (documents.length > 1) throw new Error('Multiple Patreon grants share the same access key.')
+  const document = documents[0]
+  if (!document) return null
+  return {
+    path: document.name.split('/documents/')[1] || '',
+    updateTime: document.updateTime
+  }
+}
+
+async function findFirebaseUserIdByEmail(env: Env, email: string): Promise<string> {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!isEmailLike(normalizedEmail)) return ''
+
+  const token = await getGoogleAccessToken(env)
+  const response = await fetch(`${firestoreBaseUrl(env)}/documents:runQuery`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      structuredQuery: {
+        from: [{ collectionId: 'users' }],
+        where: {
+          fieldFilter: {
+            field: { fieldPath: 'email' },
+            op: 'EQUAL',
+            value: { stringValue: normalizedEmail }
+          }
+        },
+        limit: 2
+      }
+    })
+  })
+  if (!response.ok) throw new Error(`Firestore user lookup failed: ${response.status}`)
+
+  const documents = parseFirestoreQueryResponse(await response.text())
+  if (documents.length > 1) throw new Error('Multiple Firebase users share the same email.')
+  const document = documents[0]
+  if (!document || !/^users\/[^/]+$/.test(document.name.split('/documents/')[1] || '')) return ''
+  return document.id
 }
 
 function parseFirestoreQueryResponse(body: string): FirestoreDocument[] {

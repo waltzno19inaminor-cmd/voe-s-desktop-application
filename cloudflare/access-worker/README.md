@@ -130,18 +130,18 @@ Worker выдаёт постоянный тариф `free`. Сейчас его 
 
 Активация ограничена Cloudflare rate limit: максимум 5 попыток за 60 секунд с одного IP.
 
-### Patreon → одноразовый ключ → email
+### Patreon → ключ с продлением → email
 
 OAuth callback URL для Patreon client:
 
 ```text
-https://exgenesis-access-worker.waltzno19inaminor.workers.dev/patreon/callback
+https://auth.gandr.site/patreon/callback
 ```
 
 Webhook URL для Patreon:
 
 ```text
-https://exgenesis-access-worker.waltzno19inaminor.workers.dev/patreon/webhook
+https://auth.gandr.site/patreon/webhook
 ```
 
 В Patreon webhook включите события:
@@ -162,11 +162,13 @@ email present
 После webhook Worker:
 
 1. проверяет `X-Patreon-Signature` через HMAC-MD5 и `PATREON_WEBHOOK_SECRET`;
-2. создаёт один access key с `maxRedemptions: 1`;
+2. создаёт один access key с `maxRedemptions: 1` и сроком подписки из `pledge_cadence` (для месячной подписки — ровно 1 месяц);
 3. сохраняет выдачу в `patreonAccessGrants/{memberId}` и временно хранит исходный ключ в зашифрованном виде;
 4. отправляет ключ на Patreon email через Resend.
 
-Повторный webhook для того же Patreon member не создаст новый ключ. Если письмо не успело отправиться, Worker повторно отправит тот же зашифрованный ключ.
+Повторный webhook для того же Patreon member не создаёт новый ключ. Если приходит новое успешное списание, срок уже активированного доступа продлевается на новый период, а тот же ключ остаётся у пользователя. Продление дедуплицируется по `last_charge_date`, поэтому повторная доставка одного webhook не продлевает доступ несколько раз.
+
+Для задержек webhook используется 7-дневное grace-окно после оплаченного периода. Если новое успешное списание приходит в это окно, доступ восстанавливается/продлевается от предыдущей оплаченной даты. Если продления нет, после grace-окна доступ деактивируется автоматически.
 
 ### Отключить ключ
 
