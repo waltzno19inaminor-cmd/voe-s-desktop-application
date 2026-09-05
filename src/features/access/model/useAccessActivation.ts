@@ -27,6 +27,8 @@ const accessLockRemainingSeconds = ref(0)
 const accessAttemptFailedCount = ref(0)
 const freeTrialUsed = ref(false)
 const freeTrialStatusKnown = ref(false)
+const freePlanUsed = ref(false)
+const freePlanStatusKnown = ref(false)
 const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : false)
 const offlineAccessRestored = ref(false)
 const isAccountBlocked = ref(false)
@@ -35,6 +37,7 @@ let accessUnsubscribe: (() => void) | null = null
 let userUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
 let accessTrialUnsubscribe: (() => void) | null = null
+let accessFreePlanUnsubscribe: (() => void) | null = null
 let accessLockTimer: ReturnType<typeof setInterval> | null = null
 let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let accountBlockExpiryTimer: ReturnType<typeof setTimeout> | null = null
@@ -370,12 +373,14 @@ export function useAccessActivation() {
     userUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
     accessTrialUnsubscribe?.()
+    accessFreePlanUnsubscribe?.()
     stopAccessExpiryTimer()
     stopAccountBlockExpiryTimer()
     accessUnsubscribe = null
     userUnsubscribe = null
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
+    accessFreePlanUnsubscribe = null
     activeUserId = normalizedUserId
     isAccountBlocked.value = false
     accountBlockedUntil.value = null
@@ -383,6 +388,8 @@ export function useAccessActivation() {
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
     freeTrialStatusKnown.value = false
+    freePlanUsed.value = false
+    freePlanStatusKnown.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     clearAccessEntitlement()
@@ -462,6 +469,17 @@ export function useAccessActivation() {
         // after we have already learned that the account used it.
       }
     )
+
+    accessFreePlanUnsubscribe = onSnapshot(
+      doc(db, 'users', normalizedUserId, 'accessFreePlans', 'default'),
+      (snapshot) => {
+        freePlanUsed.value = snapshot.exists()
+        freePlanStatusKnown.value = true
+      },
+      () => {
+        // Keep the last known value if the network temporarily fails.
+      }
+    )
   }
 
   const stopAccessListener = () => {
@@ -469,10 +487,12 @@ export function useAccessActivation() {
     userUnsubscribe?.()
     accessAttemptsUnsubscribe?.()
     accessTrialUnsubscribe?.()
+    accessFreePlanUnsubscribe?.()
     accessUnsubscribe = null
     userUnsubscribe = null
     accessAttemptsUnsubscribe = null
     accessTrialUnsubscribe = null
+    accessFreePlanUnsubscribe = null
     stopAccessExpiryTimer()
     stopAccountBlockExpiryTimer()
     activeUserId = ''
@@ -482,6 +502,8 @@ export function useAccessActivation() {
     accessAttemptFailedCount.value = 0
     freeTrialUsed.value = false
     freeTrialStatusKnown.value = false
+    freePlanUsed.value = false
+    freePlanStatusKnown.value = false
     accessLockRemainingSeconds.value = 0
     accessError.value = ''
     accessState.value = 'checking'
@@ -634,6 +656,8 @@ export function useAccessActivation() {
       }
 
       await applyGrantedResponse(payload, currentUser.uid)
+      freePlanUsed.value = true
+      freePlanStatusKnown.value = true
       return true
     } catch {
       accessError.value = 'Unable to reach the access service. Please try again.'
@@ -653,6 +677,8 @@ export function useAccessActivation() {
     accessAttemptFailedCount,
     freeTrialUsed,
     freeTrialStatusKnown,
+    freePlanUsed,
+    freePlanStatusKnown,
     isOffline,
     offlineAccessRestored,
     isAccountBlocked,

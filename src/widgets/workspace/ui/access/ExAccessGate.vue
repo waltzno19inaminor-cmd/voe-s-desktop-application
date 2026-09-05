@@ -24,8 +24,15 @@
         EN
       </button>
     </div>
+    <button
+      type="button"
+      class="access-gate__sign-out-corner fixed right-8 top-14 z-[100] border border-black px-4 py-2 text-[8px] font-mono uppercase tracking-[0.4em] text-black opacity-30 transition-all duration-300 hover:opacity-100"
+      @click="emit('signOut')"
+    >
+      {{ isRussian ? 'Выйти' : 'Sign Out' }}
+    </button>
 
-    <div class="access-gate__panel w-full max-w-[34rem] overflow-visible relative z-10">
+    <div class="access-gate__panel w-full max-w-[54rem] overflow-visible relative z-10">
       <div class="px-7 py-9 sm:px-11 sm:py-12">
 
       <div v-if="state === 'checking'" class="flex min-h-48 flex-col items-center justify-center text-center">
@@ -46,91 +53,164 @@
         <p class="access-gate__blocked-note">
           {{ isRussian ? 'Если вы считаете это ошибкой, обратитесь в поддержку.' : 'If you believe this is a mistake, please contact support.' }}
         </p>
-        <button type="button" class="access-gate__sign-out mt-8" @click="emit('signOut')">
-          {{ isRussian ? 'ВЫЙТИ ИЗ АККАУНТА' : 'SIGN OUT' }}
-        </button>
+      </div>
+
+      <div v-else-if="helpView === 'purchase'" class="access-gate__help text-center">
+        <p class="access-gate__eyebrow">{{ isRussian ? 'ПОЛУЧЕНИЕ КЛЮЧА' : 'GET YOUR ACCESS KEY' }}</p>
+        <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-5">
+          {{ isRussian ? 'ОПЛАТИТЕ ПОДПИСКУ' : 'PURCHASE A SUBSCRIPTION' }}
+        </ExHeading>
+        <p class="access-gate__help-copy">
+          {{ isRussian
+            ? 'Для получения ключа оплатите подписку на Patreon. После оплаты ключ будет отправлен на почту вашего аккаунта Patreon.'
+            : 'To receive an access key, purchase a Patreon subscription. After payment, the key will be sent to the email address of your Patreon account.' }}
+        </p>
+
+        <div class="access-gate__help-actions">
+          <button type="button" class="access-gate__patreon access-gate__help-button" @click="openPatreon">
+            {{ isRussian ? 'ПРИОБРЕСТИ' : 'PURCHASE' }}
+          </button>
+          <button type="button" class="access-gate__support-link" @click="helpView = 'support'">
+            {{ isRussian ? 'НЕ ПОЛУЧИЛИ КЛЮЧ?' : 'DIDN\'T RECEIVE YOUR KEY?' }}
+          </button>
+          <button type="button" class="access-gate__back" @click="helpView = 'none'">
+            {{ isRussian ? 'НАЗАД' : 'BACK' }}
+          </button>
+        </div>
+      </div>
+
+      <div v-else-if="helpView === 'support'" class="access-gate__help text-center">
+        <p class="access-gate__eyebrow">{{ isRussian ? 'ПОДДЕРЖКА' : 'SUPPORT' }}</p>
+        <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-5">
+          {{ isRussian ? 'КЛЮЧ НЕ ПРИШЁЛ?' : 'DIDN\'T GET YOUR KEY?' }}
+        </ExHeading>
+        <p class="access-gate__help-copy">
+          {{ isRussian
+            ? 'Напишите на почту gandr.trade@gmail.com с адреса, через который проводилась оплата.'
+            : 'Email gandr.trade@gmail.com from the address used to make the payment.' }}
+        </p>
+        <a class="access-gate__support-email" href="mailto:gandr.trade@gmail.com">
+          gandr.trade@gmail.com
+        </a>
+
+        <div class="access-gate__help-actions">
+          <button type="button" class="access-gate__back" @click="helpView = 'purchase'">
+            {{ isRussian ? 'НАЗАД' : 'BACK' }}
+          </button>
+        </div>
       </div>
 
       <div v-else class="text-center">
-        <ExHeading level="h1" variant="cinematic" class="access-gate__title">
-          {{ isRussian ? 'АКТИВАЦИЯ ДОСТУПА' : 'ACCESS ACTIVATION' }}
-        </ExHeading>
-        <p class="access-gate__description">
-          {{ isRussian
-            ? 'Введите ключ активации'
-            : 'Enter your activation key.' }}
-        </p>
-
-        <form class="mt-9" @submit.prevent="submit">
-          <label class="sr-only" for="access-key-input">
-            {{ isRussian ? 'Ключ доступа' : 'Access key' }}
-          </label>
-          <input
-            id="access-key-input"
-            v-model="accessKey"
-            class="access-gate__input"
-            autocomplete="off"
-            autocapitalize="characters"
-            spellcheck="false"
-            maxlength="48"
-            :disabled="isSubmitting || isLocked"
-            :placeholder="isRussian ? 'EXG-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX' : 'EXG-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX'"
-            @input="formatKey"
-          >
-
-          <p v-if="visibleError" class="access-gate__error mt-4" role="alert">{{ visibleError }}</p>
-
-          <div class="access-gate__actions mt-6">
+        <div v-if="accessMode === 'choices'" class="access-gate__choice-grid">
+          <article class="access-gate__choice-card access-gate__choice-card--trial">
+            <span class="access-gate__choice-index">01 / TRIAL</span>
+            <ExHeading level="h2" variant="cinematic" class="access-gate__choice-title">
+              {{ isRussian ? 'ПРОБНАЯ ВЕРСИЯ · 7 ДНЕЙ' : '7-DAY TRIAL VERSION' }}
+            </ExHeading>
+            <p class="access-gate__choice-description">
+              {{ isRussian
+                ? 'Полный доступ ко всем возможностям приложения на 7 дней.'
+                : 'Full access to all app features for 7 days.' }}
+            </p>
             <button
-              type="submit"
-              class="access-gate__submit"
-              :disabled="isSubmitting || isLocked || !accessKey"
+              v-if="isUpgradeMode"
+              type="button"
+              class="access-gate__trial access-gate__trial--card access-gate__choice-action"
+              :disabled="isSubmitting"
+              @click="emit('exit')"
             >
-              <span v-if="isSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
-              <span>{{ isSubmitting ? (isRussian ? 'АКТИВАЦИЯ...' : 'ACTIVATING...') : (isRussian ? 'АКТИВИРОВАТЬ' : 'ACTIVATE') }}</span>
+              {{ isRussian ? 'ВЫЙТИ' : 'EXIT' }}
             </button>
-            <a
-              :href="PATREON_URL"
-              target="_blank"
-              rel="noreferrer"
-              class="access-gate__patreon"
-              @click="openPatreon"
+            <button
+              v-else-if="isTrialStatusKnown && !isTrialUsed"
+              type="button"
+              class="access-gate__trial access-gate__trial--card access-gate__choice-action"
+              :disabled="isSubmitting || isLocked"
+              @click="emit('startTrial')"
             >
-              {{ isRussian ? 'НЕТ КЛЮЧА?' : 'NO KEY?' }}
-            </a>
-          </div>
-        </form>
+              {{ isRussian ? 'НАЧАТЬ ПРОБНЫЙ ПЕРИОД' : 'START 7-DAY TRIAL' }}
+            </button>
+            <button
+              v-else-if="isTrialStatusKnown && isTrialUsed"
+              type="button"
+              class="access-gate__choice-status access-gate__choice-status--button"
+              disabled
+            >
+              {{ isRussian ? 'УЖЕ АКТИВИРОВАНО' : 'ALREADY ACTIVATED' }}
+            </button>
+          </article>
 
-        <div class="mt-5 flex flex-nowrap justify-center gap-3">
-          <button
-            v-if="isTrialStatusKnown && !isTrialUsed"
-            type="button"
-            class="access-gate__trial"
-            :disabled="isSubmitting || isLocked"
-            @click="emit('startTrial')"
-          >
-            {{ isRussian ? 'ПОПРОБОВАТЬ · 7 ДНЕЙ' : 'START TRIAL · 7 DAYS' }}
-          </button>
-
-          <button
-            v-if="!isUpgradeMode"
-            type="button"
-            class="access-gate__free-plan"
-            :disabled="isSubmitting || isLocked"
-            @click="emit('startFreePlan')"
-          >
-            {{ isRussian ? 'ИСПОЛЬЗОВАТЬ БЕСПЛАТНУЮ ВЕРСИЮ' : 'USE FREE VERSION' }}
-          </button>
-          <button
-            v-else
-            type="button"
-            class="access-gate__free-plan"
-            :disabled="isSubmitting"
-            @click="emit('exit')"
-          >
-            {{ isRussian ? 'ВЫЙТИ' : 'EXIT' }}
-          </button>
+          <article class="access-gate__choice-card access-gate__choice-card--key">
+            <span class="access-gate__choice-index">02 / KEY</span>
+            <ExHeading level="h2" variant="cinematic" class="access-gate__choice-title">
+              {{ isRussian ? 'У МЕНЯ ЕСТЬ КЛЮЧ' : 'I HAVE A KEY' }}
+            </ExHeading>
+            <p class="access-gate__choice-description">
+              {{ isRussian
+                ? 'Активируйте полную версию приложения с помощью ключа.'
+                : 'Activate the full version of the app with your access key.' }}
+            </p>
+            <button type="button" class="access-gate__submit access-gate__choice-action" @click="accessMode = 'key'">
+              {{ isRussian ? 'ВВЕСТИ КЛЮЧ' : 'ENTER KEY' }}
+            </button>
+          </article>
         </div>
+
+        <button
+          v-if="!isUpgradeMode && (!isFreePlanStatusKnown || !isFreePlanUsed)"
+          type="button"
+          class="access-gate__free-continue"
+          :disabled="isSubmitting || isLocked"
+          @click="emit('startFreePlan')"
+        >
+          {{ isRussian ? 'ПРОДОЛЖИТЬ С БЕСПЛАТНОЙ ВЕРСИЕЙ' : 'CONTINUE WITH FREE VERSION' }}
+        </button>
+
+        <div v-if="accessMode !== 'choices'" class="access-gate__key-panel">
+          <button type="button" class="access-gate__back access-gate__key-back" @click="accessMode = 'choices'">
+            {{ isRussian ? 'НАЗАД К ВЫБОРУ' : 'BACK TO OPTIONS' }}
+          </button>
+          <ExHeading level="h1" variant="cinematic" class="access-gate__title mt-7">
+            {{ isRussian ? 'АКТИВАЦИЯ ДОСТУПА' : 'ACCESS ACTIVATION' }}
+          </ExHeading>
+          <p class="access-gate__description">
+            {{ isRussian ? 'Введите ключ активации' : 'Enter your activation key.' }}
+          </p>
+
+          <form class="mt-9" @submit.prevent="submit">
+            <label class="sr-only" for="access-key-input">
+              {{ isRussian ? 'Ключ доступа' : 'Access key' }}
+            </label>
+            <input
+              id="access-key-input"
+              v-model="accessKey"
+              class="access-gate__input"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              maxlength="48"
+              :disabled="isSubmitting || isLocked"
+              :placeholder="isRussian ? 'EXG-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX' : 'EXG-XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX'"
+              @input="formatKey"
+            >
+
+            <div class="access-gate__actions mt-6">
+              <button
+                type="submit"
+                class="access-gate__submit"
+                :disabled="isSubmitting || isLocked || !accessKey"
+              >
+                <span v-if="isSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
+                <span>{{ isSubmitting ? (isRussian ? 'АКТИВАЦИЯ...' : 'ACTIVATING...') : (isRussian ? 'АКТИВИРОВАТЬ' : 'ACTIVATE') }}</span>
+              </button>
+              <button type="button" class="access-gate__patreon" @click="helpView = 'purchase'">
+                {{ isRussian ? 'НЕТ КЛЮЧА?' : 'NO KEY?' }}
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <p v-if="visibleError" class="access-gate__error mt-5" role="alert">{{ visibleError }}</p>
         <button
           v-if="state === 'error'"
           type="button"
@@ -140,9 +220,6 @@
           {{ isRussian ? 'ПОВТОРИТЬ ПРОВЕРКУ' : 'RETRY CHECK' }}
         </button>
 
-        <button type="button" class="access-gate__sign-out mt-8" @click="emit('signOut')">
-          {{ isRussian ? 'ВЫЙТИ ИЗ АККАУНТА' : 'SIGN OUT' }}
-        </button>
       </div>
       </div>
     </div>
@@ -164,6 +241,8 @@ const props = withDefaults(defineProps<{
   isSubmitting?: boolean
   isTrialUsed?: boolean
   isTrialStatusKnown?: boolean
+  isFreePlanUsed?: boolean
+  isFreePlanStatusKnown?: boolean
   lockRemainingSeconds?: number
   isAccountBlocked?: boolean
   blockedUntil?: number | null
@@ -174,6 +253,8 @@ const props = withDefaults(defineProps<{
   isSubmitting: false,
   isTrialUsed: false,
   isTrialStatusKnown: false,
+  isFreePlanUsed: false,
+  isFreePlanStatusKnown: false,
   lockRemainingSeconds: 0,
   isAccountBlocked: false,
   blockedUntil: null,
@@ -192,11 +273,15 @@ const emit = defineEmits<{
 }>()
 
 const accessKey = ref('')
+const accessMode = ref<'choices' | 'key'>('choices')
+const helpView = ref<'none' | 'purchase' | 'support'>('none')
 const isRussian = computed(() => props.locale === 'ru')
 const isUpgradeMode = computed(() => props.isUpgradeMode)
 const isLocked = computed(() => props.lockRemainingSeconds > 0)
 const isTrialUsed = computed(() => props.isTrialUsed)
 const isTrialStatusKnown = computed(() => props.isTrialStatusKnown)
+const isFreePlanUsed = computed(() => props.isFreePlanUsed)
+const isFreePlanStatusKnown = computed(() => props.isFreePlanStatusKnown)
 const isAccountBlocked = computed(() => props.isAccountBlocked)
 const blockedUntilText = computed(() => {
   if (!props.blockedUntil) return isRussian.value ? 'дальнейшего уведомления' : 'further notice'
@@ -403,6 +488,174 @@ const openPatreon = async (event: MouseEvent) => {
   color: #171717;
 }
 
+.access-gate__choice-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 2.5rem auto 0;
+  max-width: 46rem;
+}
+
+.access-gate__choice-card {
+  align-items: stretch;
+  border: 1px solid rgba(23, 23, 23, 0.55);
+  display: flex;
+  flex-direction: column;
+  min-height: 27rem;
+  padding: 2.25rem;
+  text-align: left;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease;
+  will-change: transform;
+}
+
+.access-gate__choice-card:hover {
+  box-shadow: 0 1.25rem 2.5rem rgba(23, 23, 23, 0.12);
+  transform: scale(1.025);
+}
+
+.access-gate__choice-card--trial {
+  background: #171717;
+  border-color: #171717;
+  color: #ffffff;
+}
+
+.access-gate__choice-card--key {
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.access-gate__choice-index {
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  opacity: 0.58;
+}
+
+.access-gate__choice-card--trial .access-gate__choice-index,
+.access-gate__choice-card--trial .access-gate__choice-description {
+  color: #ffffff;
+}
+
+.access-gate__choice-card--trial .access-gate__choice-title {
+  color: #ffffff !important;
+}
+
+.access-gate__choice-title {
+  color: #000000 !important;
+  font-size: clamp(1.35rem, 3.5vw, 2rem) !important;
+  letter-spacing: 0.08em !important;
+  line-height: 1.08 !important;
+  margin-top: 2rem;
+}
+
+.access-gate__choice-description {
+  color: #171717;
+  font-size: 13px;
+  line-height: 1.65;
+  margin-top: 1.1rem;
+  max-width: 19rem;
+}
+
+.access-gate__choice-action {
+  margin-top: auto;
+  min-height: 3rem;
+}
+
+.access-gate__choice-status {
+  align-items: center;
+  border: 1px solid rgba(23, 23, 23, 0.28);
+  color: #171717;
+  display: flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  justify-content: center;
+  letter-spacing: 0.12em;
+  line-height: 1.5;
+  margin-top: auto;
+  min-height: 3rem;
+  padding: 0.75rem;
+  text-align: center;
+}
+
+.access-gate__choice-card--trial .access-gate__choice-status {
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #ffffff;
+}
+
+.access-gate__trial--card {
+  min-height: 3rem;
+  width: 100%;
+}
+
+.access-gate__choice-card--trial .access-gate__trial--card {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.65);
+  color: #ffffff;
+}
+
+.access-gate__choice-card--trial .access-gate__trial--card:hover:not(:disabled) {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #171717;
+}
+
+.access-gate__choice-status--button {
+  appearance: none;
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #ffffff !important;
+  cursor: default;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  width: 100%;
+}
+
+.access-gate__free-continue {
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(23, 23, 23, 0.52);
+  color: #171717;
+  display: inline-flex;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  justify-content: center;
+  letter-spacing: 0.16em;
+  margin: 1.5rem auto 0;
+  min-height: 2.85rem;
+  padding: 0.75rem 1.6rem;
+  text-align: center;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease;
+}
+
+.access-gate__free-continue:hover:not(:disabled) {
+  background: #171717;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.access-gate__free-continue:disabled {
+  cursor: default;
+  opacity: 0.38;
+}
+
+.access-gate__key-panel {
+  margin: 0 auto;
+  max-width: 34rem;
+}
+
+.access-gate__key-back {
+  width: auto;
+}
+
+.access-gate__sign-out-corner {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
 .access-gate__blocked-note {
   color: #171717;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -504,6 +757,80 @@ const openPatreon = async (event: MouseEvent) => {
   transform: translateY(-1px);
 }
 
+.access-gate__help {
+  margin: 0 auto;
+  max-width: 34rem;
+}
+
+.access-gate__help-copy {
+  color: #171717;
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
+  font-weight: 700;
+  line-height: 1.65;
+  margin: 2rem auto 0;
+  max-width: 31rem;
+}
+
+.access-gate__help-actions {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 2.5rem auto 0;
+  max-width: 22rem;
+}
+
+.access-gate__help-button,
+.access-gate__support-link,
+.access-gate__back {
+  min-height: 3rem;
+  width: 100%;
+}
+
+.access-gate__help-button {
+  background: #171717;
+  border-color: #171717;
+  color: #ffffff;
+}
+
+.access-gate__help-button:hover {
+  background: #303030;
+  border-color: #303030;
+  color: #ffffff;
+}
+
+.access-gate__support-link,
+.access-gate__back {
+  background: transparent;
+  border: 1px solid rgba(23, 23, 23, 0.62);
+  color: #171717;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  padding: 0.8rem 1rem;
+  transition: background-color 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.access-gate__support-link:hover,
+.access-gate__back:hover {
+  background: #171717;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.access-gate__support-email {
+  color: #171717;
+  display: inline-block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  margin-top: 1.5rem;
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
+}
+
 .access-gate__submit:disabled {
   cursor: default;
   opacity: 0.38;
@@ -525,22 +852,11 @@ const openPatreon = async (event: MouseEvent) => {
 .access-gate__trial:hover:not(:disabled) { background: #252525; border-color: #252525; }
 .access-gate__trial:disabled { cursor: default; opacity: 0.28; }
 
-.access-gate__free-plan {
-  background: transparent;
-  border: 1px solid rgba(23, 23, 23, 0.55);
-  color: #171717;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  padding: 0.72rem 1rem;
-  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
-}
-
-.access-gate__free-plan:hover:not(:disabled) { background: #171717; color: #ffffff; }
-.access-gate__free-plan:disabled { cursor: default; opacity: 0.28; }
-
 @media (max-width: 520px) {
+  .access-gate__choice-grid {
+    grid-template-columns: 1fr;
+  }
+
   .access-gate__actions {
     grid-template-columns: 1fr;
   }
@@ -563,23 +879,6 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__retry:hover {
-  opacity: 1;
-}
-
-.access-gate__sign-out {
-  background: transparent;
-  border: 0;
-  color: #171717;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.2em;
-  opacity: 0.5;
-  padding: 0.5rem 0.75rem;
-  transition: opacity 180ms ease;
-}
-
-.access-gate__sign-out:hover {
   opacity: 1;
 }
 

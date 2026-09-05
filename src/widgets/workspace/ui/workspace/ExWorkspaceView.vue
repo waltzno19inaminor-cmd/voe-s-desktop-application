@@ -35,6 +35,8 @@
           :is-submitting="isActivatingAccess"
           :is-trial-used="freeTrialUsed"
           :is-trial-status-known="freeTrialStatusKnown"
+          :is-free-plan-used="freePlanUsed"
+          :is-free-plan-status-known="freePlanStatusKnown"
           :lock-remaining-seconds="accessLockRemainingSeconds"
           :is-account-blocked="isAccountBlocked"
           :blocked-until="accountBlockedUntil"
