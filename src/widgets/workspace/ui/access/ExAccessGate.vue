@@ -32,7 +32,7 @@
       {{ isRussian ? 'Выйти' : 'Sign Out' }}
     </button>
 
-    <div class="access-gate__panel w-full max-w-[54rem] overflow-visible relative z-10">
+    <div class="access-gate__panel w-full max-w-[66rem] overflow-visible relative z-10">
       <div class="px-7 py-9 sm:px-11 sm:py-12">
 
       <div v-if="state === 'checking'" class="flex min-h-48 flex-col items-center justify-center text-center">
@@ -158,11 +158,12 @@
             <ExHeading level="h2" variant="cinematic" class="access-gate__choice-title">
               {{ isRussian ? 'ПРОБНАЯ ВЕРСИЯ · 7 ДНЕЙ' : '7-DAY TRIAL VERSION' }}
             </ExHeading>
-            <p class="access-gate__choice-description">
-              {{ isRussian
-                ? 'Полный доступ ко всем возможностям приложения на 7 дней.'
-                : 'Full access to all app features for 7 days.' }}
-            </p>
+            <ul class="access-gate__choice-description">
+              <li>{{ isRussian ? 'Полный доступ ко всем функциям' : 'Full access to all features' }}</li>
+              <li>{{ isRussian ? 'Все инструменты и модули доступны' : 'All tools and modules included' }}</li>
+              <li>{{ isRussian ? '7 дней использования без ограничений' : '7 days with no restrictions' }}</li>
+              <li>{{ isRussian ? 'Оплата не требуется' : 'No payment required' }}</li>
+            </ul>
             <button
               v-if="isTrialStatusKnown && !isTrialUsed"
               type="button"
@@ -189,8 +190,8 @@
             </ExHeading>
             <p class="access-gate__choice-description">
               {{ isRussian
-                ? 'Активируйте полную версию приложения с помощью ключа.'
-                : 'Activate the full version of the app with your access key.' }}
+                ? 'Введите ключ, отправленный на email аккаунта Patreon после оплаты подписки.'
+                : 'Enter the key sent to your Patreon account email after payment.' }}
             </p>
             <button type="button" class="access-gate__submit access-gate__choice-action" @click="accessMode = 'key'">
               {{ isRussian ? 'ВВЕСТИ КЛЮЧ' : 'ENTER KEY' }}
@@ -564,35 +565,53 @@ const openPatreon = async (event: MouseEvent) => {
   gap: 1rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 2.5rem auto 0;
-  max-width: 46rem;
+  max-width: 58rem;
 }
 
 .access-gate__choice-card {
   align-items: stretch;
-  border: 1px solid rgba(23, 23, 23, 0.55);
+  border: 1px solid transparent;
   display: flex;
   flex-direction: column;
-  min-height: 27rem;
+  isolation: isolate;
+  min-height: 31rem;
   padding: 2.25rem;
+  position: relative;
   text-align: left;
-  transform: scale(1);
-  transform-origin: center;
-  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease;
-  will-change: transform;
 }
 
-.access-gate__choice-card:hover {
+.access-gate__choice-card::before {
+  background: #ffffff;
+  border: 1px solid rgba(23, 23, 23, 0.55);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  transform: scale(1);
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 360ms ease;
+  z-index: -1;
+}
+
+.access-gate__choice-card:hover::before {
   box-shadow: 0 1.25rem 2.5rem rgba(23, 23, 23, 0.12);
   transform: scale(1.025);
 }
 
 .access-gate__choice-card--trial {
-  background: #171717;
-  border-color: #171717;
+  background: transparent;
   color: #ffffff;
 }
 
 .access-gate__choice-card--key {
+  background: transparent;
+}
+
+.access-gate__choice-card--trial::before {
+  background: #171717;
+  border-color: #171717;
+}
+
+.access-gate__choice-card--key::before {
   background: rgba(255, 255, 255, 0.34);
 }
 
@@ -624,10 +643,28 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate__choice-description {
   color: #171717;
-  font-size: 13px;
+  display: grid;
+  font-size: 16px;
+  font-weight: 600;
+  gap: 0.85rem;
+  letter-spacing: 0.015em;
   line-height: 1.65;
+  list-style: none;
   margin-top: 1.1rem;
-  max-width: 19rem;
+  max-width: 24rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+.access-gate__choice-description li {
+  position: relative;
+  padding-left: 1.2rem;
+}
+
+.access-gate__choice-description li::before {
+  content: '—';
+  left: 0;
+  position: absolute;
+  top: 0;
 }
 
 .access-gate__choice-action {
