@@ -1,14 +1,20 @@
 <template>
   <Teleport to="body">
-    <Transition name="fade-blur">
-      <div v-if="isOpen" 
-           class="fixed inset-0 z-[10050] flex flex-col items-center justify-center p-4 sm:p-8 overflow-hidden bg-black/40 backdrop-blur-md"
+    <Transition name="activation-success">
+      <div v-if="isOpen"
+           class="activation-success fixed inset-0 z-[10050] flex flex-col items-center justify-center overflow-hidden p-4 sm:p-8"
            @click.self="closeOverlay">
-        
+
+        <!-- Static darkened workspace behind the congratulations card. -->
+        <div class="activation-success__shade" aria-hidden="true"></div>
+
         <ExPanel 
           variant="light" 
-          class="relative w-full max-w-xl group z-10 mx-auto"
+          :show-corners="false"
+          class="activation-success__panel relative z-10 mx-auto w-full max-w-xl text-[#141414] dark:text-black"
         >
+          <ExGothicCorners variant="light" :opacity="0.9" class="text-white" />
+
           <!-- BACKGROUND DECORATIONS -->
           <div class="absolute inset-0 pointer-events-none overflow-hidden select-none z-0 opacity-20 dark:opacity-40">
             <div class="absolute -top-20 -right-20 w-64 h-64 sm:w-96 sm:h-96 border nier-border-primary rounded-full animate-[spin_60s_linear_infinite]">
@@ -51,6 +57,7 @@ import { computed } from 'vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExHeading from '~/shared/ui/ExHeading.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
+import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 
 const { locale } = useI18n()
 const themeStore = useThemeStore()
@@ -68,15 +75,63 @@ const closeOverlay = () => {
 </script>
 
 <style scoped>
-.fade-blur-enter-active, .fade-blur-leave-active {
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+.activation-success-enter-active,
+.activation-success-leave-active {
+  transition: none;
 }
-.fade-blur-enter-from, .fade-blur-leave-to {
-  opacity: 0;
-  backdrop-filter: blur(0px);
-}
-.fade-blur-enter-to, .fade-blur-leave-from {
-  opacity: 1;
+
+.activation-success__shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+.activation-success__panel {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
+  animation: activation-success-panel-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.activation-success-leave-active .activation-success__panel {
+  animation: activation-success-panel-out 300ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+@keyframes activation-success-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes activation-success-panel-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+    filter: blur(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .activation-success__panel {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
 }
 </style>

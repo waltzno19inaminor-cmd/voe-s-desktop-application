@@ -552,10 +552,10 @@ const activateAccess = async (key) => {
 const activateFreeTrial = async () => {
   if (isActivatingAccess.value) return
   isActivatingAccess.value = true
+  showSuccessOverlay.value = false
   try {
     if (await startFreeTrial()) {
       accessGateRequested.value = false
-      showSuccessOverlay.value = true
     }
   } finally {
     isActivatingAccess.value = false
