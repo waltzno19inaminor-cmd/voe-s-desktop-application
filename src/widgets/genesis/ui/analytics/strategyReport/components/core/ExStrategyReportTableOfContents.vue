@@ -8,6 +8,10 @@ const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
 const label = (en: string, ru: string) => isRu.value ? ru : en
 const sections = strategyReportSections
+
+defineEmits<{
+  select: [sectionId: string]
+}>()
 </script>
 
 <template>
@@ -21,7 +25,13 @@ const sections = strategyReportSections
     </div>
 
     <nav class="mt-10 space-y-2" :aria-label="label('Report contents', 'Оглавление отчёта')">
-      <a v-for="section in sections" :key="section.id" :href="`#report-section-${section.id}`" class="group grid grid-cols-[3rem_minmax(0,1fr)] gap-5 px-4 py-5 transition-colors hover:bg-white/[0.035] sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-8">
+      <a
+        v-for="section in sections"
+        :key="section.id"
+        :href="`#report-section-${section.id}`"
+        class="group grid grid-cols-[3rem_minmax(0,1fr)] gap-5 px-4 py-5 transition-colors hover:bg-white/[0.035] sm:grid-cols-[4rem_minmax(0,1fr)] sm:gap-8"
+        @click.prevent="$emit('select', section.id)"
+      >
         <span class="font-mono text-[11px] font-semibold tracking-[0.2em] text-white/65">{{ section.page }}</span>
         <span class="min-w-0">
           <span class="block text-base font-medium uppercase tracking-[0.14em] text-white/90 transition-opacity group-hover:opacity-60 sm:text-lg">{{ isRu ? section.title.ru : section.title.en }}</span>

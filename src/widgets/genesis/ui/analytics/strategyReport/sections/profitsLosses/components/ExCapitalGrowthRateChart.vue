@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { buildCapitalAssetPerformance, buildCapitalSidePerformance, buildCapitalGrowthRate, type CapitalAssetPerformance } from '../analytics/capitalGrowthRate'
 
@@ -56,9 +56,12 @@ const minGrowthRate = computed(() => points.value.length ? Math.min(...points.va
 const startingCapital = computed(() => Number.isFinite(props.initialCapital) && Math.abs(props.initialCapital as number) > 1e-9
   ? Math.abs(props.initialCapital as number)
   : 1000)
-const totalCapitalGrowth = computed(() => points.value.length
-  ? ((points.value[points.value.length - 1].equity - startingCapital.value) / startingCapital.value) * 100
-  : 0)
+const totalCapitalGrowth = computed(() => {
+  const lastPoint = points.value[points.value.length - 1]
+  return lastPoint
+    ? ((lastPoint.equity - startingCapital.value) / startingCapital.value) * 100
+    : 0
+})
 const pnlValues = computed(() => props.trades
   .map(trade => Number(props.getTradePnl(trade)))
   .filter(value => Number.isFinite(value)))
@@ -107,8 +110,9 @@ type AssetHeatmapArea = {
 type AssetHeatmapBlock = AssetHeatmapArea & {
   fill: string
   textColor: string
-  showTicker: boolean
-  showResult: boolean
+  resultStr: string
+  tickerFontSize: number
+  resultFontSize: number
 }
 const splitAssetHeatmap = (
   assets: CapitalAssetPerformance[],
@@ -157,6 +161,32 @@ const splitAssetHeatmap = (
 const topAssetPerformance = computed(() => assetPerformance.value.slice(0, 10))
 const topAssetPnlMin = computed(() => Math.min(0, ...topAssetPerformance.value.map(asset => asset.pnl)))
 const topAssetPnlMax = computed(() => Math.max(0, ...topAssetPerformance.value.map(asset => asset.pnl)))
+
+const bestAssetId = computed(() => {
+  if (assetPerformance.value.length < 2) return null
+  const best = assetPerformance.value.reduce((current, item) =>
+    item.pnl > current.pnl || (item.pnl === current.pnl && (item.winRate ?? 0) > (current.winRate ?? 0))
+      ? item
+      : current
+  )
+  return best.id
+})
+const worstAssetId = computed(() => {
+  if (assetPerformance.value.length < 2) return null
+  const worst = assetPerformance.value.reduce((current, item) =>
+    item.pnl < current.pnl || (item.pnl === current.pnl && (item.winRate ?? 100) < (current.winRate ?? 100))
+      ? item
+      : current
+  )
+  return worst.id
+})
+
+const assetRowClass = (asset: CapitalAssetPerformance) => {
+  if (asset.id === bestAssetId.value) return 'bg-white/[0.14] hover:bg-white/[0.18] border-white/20'
+  if (asset.id === worstAssetId.value) return 'bg-white/[0.04] hover:bg-white/[0.07] border-white/5 opacity-75'
+  return 'hover:bg-white/[0.04] border-white/5 bg-white/[0.02]'
+}
+
 const assetHeatmapColor = (pnl: number) => {
   const range = Math.max(topAssetPnlMax.value - topAssetPnlMin.value, 1e-9)
   const ratio = (pnl - topAssetPnlMin.value) / range
@@ -167,19 +197,91 @@ const assetHeatmapTextColor = (pnl: number) => {
   const range = Math.max(topAssetPnlMax.value - topAssetPnlMin.value, 1e-9)
   return (pnl - topAssetPnlMin.value) / range > 0.62 ? '#111111' : '#FFFFFF'
 }
+const heatmapContainerRef = ref<HTMLElement | null>(null)
+const heatmapRealWidth = ref(960)
+const heatmapRealHeight = ref(352)
+
+let heatmapResizeObserver: ResizeObserver | null = null
+
+onMounted(() => {
+  if (heatmapContainerRef.value && typeof ResizeObserver !== 'undefined') {
+    heatmapResizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          const { width, height } = entry.contentRect
+          if (width > 0) heatmapRealWidth.value = Math.round(width)
+          if (height > 0) heatmapRealHeight.value = Math.round(height)
+        }
+      }
+    })
+    heatmapResizeObserver.observe(heatmapContainerRef.value)
+  }
+})
+
+onUnmounted(() => {
+  if (heatmapResizeObserver) {
+    heatmapResizeObserver.disconnect()
+    heatmapResizeObserver = null
+  }
+})
+
+const computeHeatmapBlock = (area: AssetHeatmapArea): AssetHeatmapBlock => {
+  const fill = assetHeatmapColor(area.asset.pnl)
+  const textColor = assetHeatmapTextColor(area.asset.pnl)
+  const nameLen = Math.max(1, area.asset.asset.length)
+  const resultStr = `${moneyFormatted(area.asset.pnl)} · ${formattedFrequency(area.asset.frequency)}`
+  const resultLen = Math.max(1, resultStr.length)
+
+  // Real rendered pixel dimensions of this tile inside the container
+  const tilePixelW = (area.width / assetHeatmapWidth) * heatmapRealWidth.value
+  const tilePixelH = (area.height / assetHeatmapHeight) * heatmapRealHeight.value
+
+  const availW = Math.max(4, tilePixelW - 6)
+  const availH = Math.max(4, tilePixelH - 4)
+
+  // Maximum font size permitted by width
+  const maxTickerByW = availW / (nameLen * 0.60)
+  const maxResultByW = availW / (resultLen * 0.60)
+
+  // Smooth geometric scaling based on the block's physical pixel area
+  const areaScale = Math.sqrt(tilePixelW * tilePixelH)
+  const targetTicker = Math.min(18, Math.max(5.5, areaScale * 0.11))
+  const targetResult = Math.min(12, Math.max(4.2, targetTicker * 0.72))
+
+  let tickerFontSize = Math.min(targetTicker, maxTickerByW)
+  let resultFontSize = Math.min(targetResult, maxResultByW)
+
+  if (resultFontSize > tickerFontSize * 0.85) {
+    resultFontSize = tickerFontSize * 0.85
+  }
+
+  // Maximum font size permitted by height
+  const totalHNeeded = tickerFontSize * 1.15 + resultFontSize * 1.15 + 2
+  if (totalHNeeded > availH) {
+    const hScale = Math.max(0.2, (availH - 2) / (tickerFontSize * 1.15 + resultFontSize * 1.15))
+    tickerFontSize *= hScale
+    resultFontSize *= hScale
+  }
+
+  tickerFontSize = Math.max(5, Math.round(tickerFontSize * 10) / 10)
+  resultFontSize = Math.max(3.8, Math.round(resultFontSize * 10) / 10)
+
+  return {
+    ...area,
+    fill,
+    textColor,
+    resultStr,
+    tickerFontSize,
+    resultFontSize
+  }
+}
 const assetHeatmapBlocks = computed<AssetHeatmapBlock[]>(() => splitAssetHeatmap(
   topAssetPerformance.value,
   0,
   0,
   assetHeatmapWidth,
   assetHeatmapHeight
-).map(area => ({
-  ...area,
-  fill: assetHeatmapColor(area.asset.pnl),
-  textColor: assetHeatmapTextColor(area.asset.pnl),
-  showTicker: area.width >= Math.max(58, area.asset.asset.length * 13 + 16) && area.height >= 38,
-  showResult: area.width >= Math.max(132, (moneyFormatted(area.asset.pnl).length + formattedFrequency(area.asset.frequency).length + 3) * 8 + 16) && area.height >= 78
-})))
+).map(computeHeatmapBlock))
 const handleAssetHeatmapHover = (event: MouseEvent, asset: CapitalAssetPerformance) => {
   assetHeatmapTooltip.value = asset
   assetHeatmapTooltipPosition.value = { x: event.clientX, y: event.clientY }
@@ -294,7 +396,7 @@ const clearChartHover = () => {
           <line :x1="profitLossBaselineX" :x2="profitLossBaselineX" :y1="profitLossPadding.top - 8" :y2="profitLossChartHeight - profitLossPadding.bottom + 2" stroke="white" stroke-opacity="0.42" stroke-dasharray="4 5" />
           <g v-for="(item, index) in profitLossItems" :key="item.key">
             <line :x1="profitLossBaselineX" :x2="profitLossChartWidth - profitLossPadding.right" :y1="profitLossYFor(index) + profitLossBarHeight / 2" :y2="profitLossYFor(index) + profitLossBarHeight / 2" stroke="white" stroke-opacity="0.06" />
-            <text :x="profitLossLabelX(item.value, item.label)" :y="profitLossYFor(index) - 8" text-anchor="middle" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
+            <text :x="profitLossBaselineX" :y="profitLossYFor(index) - 8" text-anchor="start" fill="white" fill-opacity="0.82" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="15" font-weight="600">{{ item.label }}</text>
             <rect :x="profitLossBaselineX" :y="profitLossYFor(index)" :width="profitLossXFor(item.value) - profitLossBaselineX" :height="profitLossBarHeight" :fill="item.color" fill-opacity="0.78" />
             <text :x="profitLossXFor(item.value) + 10" :y="profitLossYFor(index) + profitLossBarHeight / 2 + 5" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ moneyFormatted(item.value) }}</text>
           </g>
@@ -325,21 +427,95 @@ const clearChartHover = () => {
       <div class="font-serif text-[12px] uppercase tracking-[0.2em] text-white/75">{{ label('IV · Heatmap of the 10 most frequent assets', 'IV · Тепловая карта 10 наиболее частых активов') }}</div>
       <div class="mt-2 font-serif text-sm text-white/55 sm:text-base">{{ label('The map shows the 10 assets used most often in trades; tile size shows frequency, while grayscale shows the relative net result.', 'Карта показывает 10 активов, которые чаще всего использовались в сделках: размер плитки — частоту, оттенок серого — относительный чистый результат.') }}</div>
       <div class="mt-5 bg-white/[0.025] p-3 sm:p-5">
-        <svg :viewBox="`0 0 ${assetHeatmapWidth} ${assetHeatmapHeight}`" class="h-[22rem] w-full" preserveAspectRatio="none" role="img" :aria-label="label('Asset heatmap by net result', 'Тепловая карта активов по чистому результату')">
-          <g
+        <div
+          ref="heatmapContainerRef"
+          class="relative h-[22rem] w-full overflow-hidden bg-black"
+          role="img"
+          :aria-label="label('Asset heatmap by net result', 'Тепловая карта активов по чистому результату')"
+        >
+          <div
             v-for="block in assetHeatmapBlocks"
             :key="block.asset.id"
-            class="cursor-default"
-            :transform="`translate(${block.x} ${block.y})`"
+            class="absolute box-border flex cursor-default select-none flex-col items-center justify-center overflow-hidden p-0.5 text-center transition-opacity hover:opacity-90"
+            :style="{
+              left: `${(block.x / assetHeatmapWidth) * 100}%`,
+              top: `${(block.y / assetHeatmapHeight) * 100}%`,
+              width: `${(block.width / assetHeatmapWidth) * 100}%`,
+              height: `${(block.height / assetHeatmapHeight) * 100}%`,
+              backgroundColor: block.fill,
+              color: block.textColor,
+              border: '1px solid #111111'
+            }"
             @mouseenter="handleAssetHeatmapHover($event, block.asset)"
             @mousemove="handleAssetHeatmapHover($event, block.asset)"
             @mouseleave="clearAssetHeatmapHover"
           >
-            <rect :width="block.width" :height="block.height" :fill="block.fill" stroke="#111111" stroke-width="2" shape-rendering="crispEdges" />
-            <text v-if="block.showTicker" :x="block.width / 2" :y="block.showResult ? block.height / 2 - 8 : block.height / 2 + 5" text-anchor="middle" :fill="block.textColor" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="21" font-weight="700" letter-spacing="0.04em">{{ block.asset.asset }}</text>
-            <text v-if="block.showResult" :x="block.width / 2" :y="block.height / 2 + 19" text-anchor="middle" :fill="block.textColor" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="600">{{ moneyFormatted(block.asset.pnl) }} · {{ formattedFrequency(block.asset.frequency) }}</text>
-          </g>
-        </svg>
+            <span
+              class="block whitespace-nowrap font-mono font-bold leading-none tracking-[0.02em]"
+              :style="{ fontSize: `${block.tickerFontSize}px` }"
+            >
+              {{ block.asset.asset }}
+            </span>
+            <span
+              class="mt-0.5 block whitespace-nowrap font-mono font-medium opacity-90 leading-none tracking-tight"
+              :style="{ fontSize: `${block.resultFontSize}px` }"
+            >
+              {{ block.resultStr }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="mt-8">
+        <div class="grid grid-cols-12 items-center gap-2 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white/50 border-b border-white/10">
+          <div class="col-span-3">{{ label('Asset', 'Актив') }}</div>
+          <div class="col-span-3">{{ label('Trades', 'Сделки') }}</div>
+          <div class="col-span-2 text-right">{{ label('Result', 'Результат') }}</div>
+          <div class="col-span-2 text-right">{{ label('Win Rate', 'Win Rate') }}</div>
+          <div class="col-span-2 text-right">{{ label('Return', 'Доходность') }}</div>
+        </div>
+
+        <div class="mt-1 space-y-1">
+          <div
+            v-for="asset in assetPerformance"
+            :key="asset.id"
+            class="grid grid-cols-12 items-center gap-2 border px-4 py-2.5 font-mono text-xs transition-colors"
+            :class="assetRowClass(asset)"
+          >
+            <div
+              class="col-span-3 font-bold tracking-wide"
+              :class="asset.id === bestAssetId ? 'text-white' : asset.id === worstAssetId ? 'text-white/60' : 'text-white/90'"
+            >
+              {{ asset.asset }}
+            </div>
+            <div
+              class="col-span-3"
+              :class="asset.id === bestAssetId ? 'text-white/90' : asset.id === worstAssetId ? 'text-white/50' : 'text-white/70'"
+            >
+              {{ asset.trades }}
+              <span :class="asset.id === bestAssetId ? 'text-white/65' : 'text-white/40'">
+                ({{ formattedFrequency(asset.frequency) }})
+              </span>
+            </div>
+            <div
+              class="col-span-2 text-right font-semibold"
+              :class="asset.id === bestAssetId ? 'text-white font-bold' : asset.id === worstAssetId ? 'text-white/60' : asset.pnl > 0 ? 'text-white' : 'text-white/65'"
+            >
+              {{ moneyFormatted(asset.pnl) }}
+            </div>
+            <div
+              class="col-span-2 text-right font-medium"
+              :class="asset.id === bestAssetId ? 'text-white font-bold' : asset.id === worstAssetId ? 'text-white/60' : 'text-white/85'"
+            >
+              {{ asset.winRate === null ? '—' : `${formatted(asset.winRate)}%` }}
+            </div>
+            <div
+              class="col-span-2 text-right font-semibold"
+              :class="asset.id === bestAssetId ? 'text-white font-bold' : asset.id === worstAssetId ? 'text-white/60' : asset.returnRate > 0 ? 'text-white' : 'text-white/65'"
+            >
+              {{ formattedSignedPercent(asset.returnRate) }}
+            </div>
+          </div>
+        </div>
       </div>
       <Teleport to="body">
         <div v-if="assetHeatmapTooltip" class="pointer-events-none fixed z-[2147483647] -translate-y-full border border-white/35 bg-black/95 px-4 py-3 font-mono text-[11px] font-semibold leading-relaxed text-white shadow-[0_10px_30px_rgba(0,0,0,0.55)]" :style="{ left: `${assetHeatmapTooltipPosition.x}px`, top: `${assetHeatmapTooltipPosition.y - 14}px` }" role="tooltip">

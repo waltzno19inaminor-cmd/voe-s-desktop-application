@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRefs } from 'vue'
+import { computed, nextTick, onMounted, ref, toRefs, watch } from 'vue'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import { buildEquityStabilityMap } from './robustnessEquityMap/equityStabilityMap'
 import ExStrategyReportCover from './strategyReport/components/core/ExStrategyReportCover.vue'
@@ -24,6 +24,41 @@ const { strategyMetrics, filteredTrades, strategyName } = toRefs(props)
 const getTradePnlFn = (trade: any) => getTradeCashPnl(trade, strategyMetrics.value?.initialDeposit || 1000)
 const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value, getTradePnlFn, strategyMetrics.value?.initialDeposit || 1000))
 const selectedSectionId = ref<string | null>(null)
+const scrollAreaRef = ref<HTMLElement | null>(null)
+
+const scrollToTop = () => {
+  if (scrollAreaRef.value) {
+    scrollAreaRef.value.scrollTop = 0
+  }
+}
+
+const handleSelectSection = (sectionId: string | null) => {
+  selectedSectionId.value = sectionId
+  nextTick(() => {
+    scrollToTop()
+    requestAnimationFrame(() => {
+      scrollToTop()
+    })
+  })
+}
+
+watch(selectedSectionId, () => {
+  nextTick(() => {
+    scrollToTop()
+    requestAnimationFrame(() => {
+      scrollToTop()
+    })
+  })
+})
+
+onMounted(() => {
+  nextTick(() => {
+    scrollToTop()
+    requestAnimationFrame(() => {
+      scrollToTop()
+    })
+  })
+})
 </script>
 
 <template>
@@ -32,10 +67,10 @@ const selectedSectionId = ref<string | null>(null)
       <div class="mt-[4vh] flex h-[calc(100%_-_4vh)] min-h-0 w-full gap-6 bg-black xl:gap-10">
         <ExStrategyReportSideNavigation
           :selected-section-id="selectedSectionId"
-          @select="selectedSectionId = $event"
+          @select="handleSelectSection"
         />
 
-        <div class="report-scroll-area min-h-0 min-w-0 flex-1 overflow-y-auto pb-20">
+        <div ref="scrollAreaRef" class="report-scroll-area min-h-0 min-w-0 flex-1 overflow-y-auto pb-20">
         <ExStrategyReportCover
           v-if="!selectedSectionId"
           :strategy-name="strategyName"

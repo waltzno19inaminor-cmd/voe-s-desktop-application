@@ -100,13 +100,13 @@ const riskRewardPoints = computed(() => props.trades.map((trade, index) => {
 }))
 const profitableRiskRewardValues = computed(() => riskRewardPoints.value
   .map(point => point.riskReward)
-  .filter((value): value is number => Number.isFinite(value) && value > 0))
+  .filter((value): value is number => typeof value === 'number' && Number.isFinite(value) && value > 0))
 const medianProfitableRiskReward = computed(() => medianOf(profitableRiskRewardValues.value))
 const riskRewardAuditScaleMax = computed(() => Math.max(1, medianProfitableRiskReward.value) * 1.15)
 const riskRewardAuditBarWidth = (value: number) => value / riskRewardAuditScaleMax.value * riskPlotWidth
 const riskRewardValues = computed(() => riskRewardPoints.value
   .map(point => point.riskReward)
-  .filter((value): value is number => Number.isFinite(value)))
+  .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)))
 const riskRewardDomain = computed(() => {
   if (!riskRewardValues.value.length) return { min: -1, max: 1 }
   const min = Math.min(0, ...riskRewardValues.value)
@@ -248,7 +248,7 @@ const positionTimePoints = computed(() => props.trades.map((trade, index) => ({
 })))
 const positionSizeValues = computed(() => positionTimePoints.value
   .map(point => point.positionSize)
-  .filter((value): value is number => Number.isFinite(value)))
+  .filter((value): value is number => typeof value === 'number' && Number.isFinite(value)))
 const configuredInitialCapital = computed(() => {
   const value = Number(props.initialCapital)
   return Number.isFinite(value) && value > 0 ? value : 1000
@@ -476,15 +476,15 @@ const clearDurationProfitHover = () => {
             <line v-if="riskBudgetX !== null" :x1="riskBudgetX" :x2="riskBudgetX" y1="22" y2="306" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 5" />
             <text v-if="riskBudgetX !== null" :x="riskBudgetX" y="14" text-anchor="middle" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" font-weight="700">{{ formatMoney(configuredRiskBudget || 0) }}</text>
 
-            <text :x="riskBaselineX + riskBarWidth(medianPlannedRisk) / 2" y="48" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск по стоп-лоссу (медианный)' : 'Stop-loss risk (median)' }}</text>
+            <text :x="riskBaselineX" y="48" text-anchor="start" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск по стоп-лоссу (медианный)' : 'Stop-loss risk (median)' }}</text>
             <rect :x="riskBaselineX" y="58" :width="riskBarWidth(medianPlannedRisk)" height="42" fill="#f1f1f1" fill-opacity="0.88" />
             <text :x="riskBaselineX + riskBarWidth(medianPlannedRisk) + 10" y="85" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianPlannedRisk ? formatMoney(medianPlannedRisk) : '—' }}</text>
 
-            <text :x="riskBaselineX + riskBarWidth(medianRealizedLoss) / 2" y="128" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Фактический убыток (медианный)' : 'Realized loss (median)' }}</text>
+            <text :x="riskBaselineX" y="128" text-anchor="start" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Фактический убыток (медианный)' : 'Realized loss (median)' }}</text>
             <rect :x="riskBaselineX" y="138" :width="riskBarWidth(medianRealizedLoss)" height="42" fill="#64748b" fill-opacity="0.88" />
             <text :x="riskBaselineX + riskBarWidth(medianRealizedLoss) + 10" y="165" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianRealizedLoss ? formatMoney(medianRealizedLoss) : '—' }}</text>
 
-            <text :x="riskBaselineX + riskRewardAuditBarWidth(medianProfitableRiskReward) / 2" y="208" text-anchor="middle" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск / Награда по прибыльным сделкам (медианный)' : 'Risk / Reward on profitable trades (median)' }}</text>
+            <text :x="riskBaselineX" y="208" text-anchor="start" fill="white" fill-opacity="0.9" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700">{{ isRu ? 'Риск / Награда по прибыльным сделкам (медианный)' : 'Risk / Reward on profitable trades (median)' }}</text>
             <rect :x="riskBaselineX" y="218" :width="riskRewardAuditBarWidth(medianProfitableRiskReward)" height="42" fill="#94a3b8" fill-opacity="0.88" />
             <text :x="riskBaselineX + riskRewardAuditBarWidth(medianProfitableRiskReward) + 10" y="245" text-anchor="start" fill="white" fill-opacity="0.95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" font-weight="700">{{ medianProfitableRiskReward ? `+${medianProfitableRiskReward.toFixed(2)}R` : '—' }}</text>
 
