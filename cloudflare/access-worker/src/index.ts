@@ -3,6 +3,7 @@ interface Env {
   ACCESS_KEY_ENCRYPTION_KEY: string
   ACCESS_ADMIN_TOKEN: string
   ACCESS_REDEEM_RATE_LIMIT: RateLimit
+  ENTITLEMENT_CHECK_RATE_LIMIT: RateLimit
   EMAIL_VERIFICATION_RATE_LIMIT: RateLimit
   PASSWORD_RESET_RATE_LIMIT: RateLimit
   FIREBASE_PROJECT_ID: string
@@ -169,6 +170,12 @@ type AccessCapability = typeof ACCESS_CAPABILITIES[number]
 type AccessPlan = 'free' | 'trial' | 'paid'
 type AccessCapabilities = Record<AccessCapability, boolean>
 type AccessSource = 'key' | 'trial' | 'free'
+const FREE_PLAN_DISABLED_CAPABILITIES = new Set<AccessCapability>([
+  'broker.binance',
+  'broker.bybit',
+  'broker.kraken',
+  'broker.interactiveBrokers'
+])
 const LICENSE_PLANS = {
   '1m': 1,
   '3m': 3,
@@ -188,13 +195,10 @@ function fullAccessCapabilities(): AccessCapabilities {
 
 function capabilitiesForPlan(plan: AccessPlan): AccessCapabilities {
   if (plan !== 'free') return fullAccessCapabilities()
-  return {
-    ...fullAccessCapabilities(),
-    'broker.binance': false,
-    'broker.bybit': false,
-    'broker.kraken': false,
-    'broker.interactiveBrokers': false
-  }
+  return Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [
+    capability,
+    !FREE_PLAN_DISABLED_CAPABILITIES.has(capability)
+  ])) as AccessCapabilities
 }
 
 export default {
@@ -266,6 +270,12 @@ export default {
         await enforceRedeemRateLimit(request, env, identity.uid)
         requireVerifiedEmail(identity)
         return jsonResponse(await startFreePlan(env, identity.uid), 201)
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/entitlement/check') {
+        const identity = await requireFirebaseIdentity(request, env)
+        await enforceEntitlementCheckRateLimit(request, env, identity.uid)
+        return jsonResponse(await checkCurrentEntitlement(env, identity.uid))
       }
 
       if (request.method === 'POST' && url.pathname === '/v1/email-verification') {
@@ -1660,6 +1670,7 @@ async function startFreeTrial(env: Env, userId: string) {
   const hasActiveAccess = currentAccess?.data.isActivated === true
     && (!currentAccessExpiresAtMs || currentAccessExpiresAtMs > Date.now())
   const currentPlan = String(currentAccess?.data.plan || '')
+  const hasFreePlan = currentAccess?.data.hasFreePlan === true || currentPlan === 'free'
   if (hasActiveAccess && currentPlan !== 'free') {
     throw new AccessWorkerError('This account already has active access.', 400)
   }
@@ -1679,7 +1690,7 @@ async function startFreeTrial(env: Env, userId: string) {
       updateTransforms: [{ fieldPath: 'activatedAt', setToServerValue: 'REQUEST_TIME' }],
       currentDocument: { exists: false }
     },
-    createUserAccessStateWrite(env, userId, trialKey, expiresAt.getTime(), 'trial', 'trial')
+    createUserAccessStateWrite(env, userId, trialKey, expiresAt.getTime(), 'trial', 'trial', hasFreePlan)
   ])
   return {
     activated: true,
@@ -1744,6 +1755,58 @@ async function startFreePlan(env: Env, userId: string) {
   }
 }
 
+function normalizeStoredCapabilities(value: unknown, plan: AccessPlan): AccessCapabilities {
+  const policy = capabilitiesForPlan(plan)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return policy
+
+  const stored = value as Record<string, unknown>
+  return Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [
+    capability,
+    policy[capability] === true && stored[capability] !== false
+  ])) as AccessCapabilities
+}
+
+async function checkCurrentEntitlement(env: Env, userId: string) {
+  const checkedAt = new Date()
+  const [accessDocument, userDocument] = await Promise.all([
+    getFirestoreDocument(env, `users/${userId}/access/state`),
+    getFirestoreDocument(env, `users/${userId}`)
+  ])
+  const accessData = accessDocument?.data
+  const expiresAtMs = toMillis(accessData?.expiresAt) || 0
+  const isExpired = expiresAtMs > 0 && expiresAtMs <= checkedAt.getTime()
+  const isBlocked = isUserCurrentlyBlocked(userDocument?.data)
+  const shouldRestoreFreePlan = isExpired && accessData?.hasFreePlan === true
+  const isActivated = accessData?.isActivated === true && (!isExpired || shouldRestoreFreePlan) && !isBlocked
+
+  if (!isActivated) {
+    return {
+      verified: true,
+      isActivated: false,
+      plan: 'none',
+      capabilities: Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [capability, false])),
+      expiresAt: expiresAtMs ? new Date(expiresAtMs).toISOString() : null,
+      checkedAt: checkedAt.toISOString()
+    }
+  }
+
+  const storedPlan = String(accessData?.plan || '')
+  const plan: AccessPlan = shouldRestoreFreePlan
+    ? 'free'
+    : storedPlan === 'free' || storedPlan === 'trial' || storedPlan === 'paid'
+      ? storedPlan
+      : 'paid'
+
+  return {
+    verified: true,
+    isActivated: true,
+    plan,
+    capabilities: normalizeStoredCapabilities(accessData?.capabilities, plan),
+    expiresAt: shouldRestoreFreePlan || !expiresAtMs ? null : new Date(expiresAtMs).toISOString(),
+    checkedAt: checkedAt.toISOString()
+  }
+}
+
 async function enforceRedeemRateLimit(request: Request, env: Env, userId: string): Promise<void> {
   const [ipOutcome, userOutcome] = await Promise.all([
     env.ACCESS_REDEEM_RATE_LIMIT.limit({ key: `ip:${getRedeemRateLimitKey(request)}` }),
@@ -1751,6 +1814,16 @@ async function enforceRedeemRateLimit(request: Request, env: Env, userId: string
   ])
   if (!ipOutcome.success || !userOutcome.success) {
     throw new AccessWorkerError('Too many activation attempts. Please try again later.', 429)
+  }
+}
+
+async function enforceEntitlementCheckRateLimit(request: Request, env: Env, userId: string): Promise<void> {
+  const [ipOutcome, userOutcome] = await Promise.all([
+    env.ENTITLEMENT_CHECK_RATE_LIMIT.limit({ key: `ip:${getRedeemRateLimitKey(request)}` }),
+    env.ENTITLEMENT_CHECK_RATE_LIMIT.limit({ key: `user:${userId}` })
+  ])
+  if (!ipOutcome.success || !userOutcome.success) {
+    throw new AccessWorkerError('Too many entitlement checks. Please try again later.', 429)
   }
 }
 

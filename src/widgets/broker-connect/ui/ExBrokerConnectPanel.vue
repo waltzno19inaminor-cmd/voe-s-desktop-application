@@ -16,24 +16,37 @@
             <!-- TOPBAR BROKER SELECTOR -->
             <div class="flex items-center justify-between border-b border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] px-8 py-4 shrink-0">
               <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pr-4 pb-2">
-                <button v-for="broker in availableBrokers"
+                <button v-for="broker in brokers"
                         :key="broker.id"
                         class="group flex items-center gap-3 px-5 py-2.5 border transition-colors shrink-0 relative"
-                        :class="selectedBrokerId === broker.id
-                          ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
-                          : 'border-black/10 bg-white/40 text-black/55 hover:border-black/10 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/45 dark:hover:border-white/10 dark:hover:text-white'"
-                        @click="selectedBrokerId = broker.id">
+                        :class="isBrokerLocked(broker.id)
+                          ? 'border-black/10 bg-black/[0.015] text-black/30 hover:border-black/25 hover:text-black/55 dark:border-white/10 dark:bg-white/[0.015] dark:text-white/25 dark:hover:border-white/25 dark:hover:text-white/50'
+                          : selectedBrokerId === broker.id
+                            ? 'border-black bg-black text-white dark:border-white dark:bg-white dark:text-black'
+                            : 'border-black/10 bg-white/40 text-black/55 hover:border-black/10 hover:text-black dark:border-white/10 dark:bg-white/[0.02] dark:text-white/45 dark:hover:border-white/10 dark:hover:text-white'"
+                        :aria-label="isBrokerLocked(broker.id)
+                          ? `${broker.label}: ${isRu ? 'доступно в полной версии' : 'available in the full version'}`
+                          : broker.label"
+                        @click="selectBroker(broker.id)">
                   <div class="absolute -top-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
                   <div class="absolute -bottom-px -left-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
                   <div class="absolute -top-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
                   <div class="absolute -bottom-px -right-px w-1 h-1 nier-bg-inverted opacity-0 transition-opacity" :class="selectedBrokerId === broker.id ? 'opacity-100' : 'opacity-0'"></div>
                   
                   <img :src="`/brokers/${broker.logoId || broker.id}.svg`" class="w-5 h-5 object-contain transition-all"
-                       :class="selectedBrokerId === broker.id ? 'grayscale-0 opacity-100' : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'" :alt="broker.label" />
+                       :class="isBrokerLocked(broker.id)
+                         ? 'grayscale opacity-35 group-hover:opacity-60'
+                         : selectedBrokerId === broker.id
+                           ? 'grayscale-0 opacity-100'
+                           : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'" :alt="broker.label" />
                   <div class="flex flex-col items-start">
                     <span class="font-mono text-[10px] font-black uppercase tracking-[0.14em]">{{ broker.label }}</span>
+                    <span v-if="isBrokerLocked(broker.id)"
+                          class="mt-1 border border-current/30 px-1.5 py-0.5 font-mono text-[6px] font-black uppercase tracking-[0.28em] opacity-80">
+                      FULL
+                    </span>
                   </div>
-                  <span v-if="isBrokerActiveForTopbar(broker.id)" class="absolute top-1.5 right-1.5 z-10 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
+                  <span v-if="!isBrokerLocked(broker.id) && isBrokerActiveForTopbar(broker.id)" class="absolute top-1.5 right-1.5 z-10 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
                 </button>
               </div>
             </div>
@@ -411,12 +424,15 @@
         </div>
       </ExPanel>
     </div>
+
+    <ExPaywallOverlay :is-open="showFullAccessPaywall" @close="showFullAccessPaywall = false" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import type { DiaryEntry } from '~/entities/diary/model/diary.types'
 import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
@@ -492,7 +508,7 @@ const STORAGE_KEY = 'broker_connections_v1'
 const tradeStore = useStrategyTradesStore()
 const { locale } = useI18n()
 const isRu = computed(() => locale.value === 'ru')
-const { canAccess } = useAccessActivation()
+const { canAccess, authorizeCapability } = useAccessActivation()
 
 const brokerCapabilities: Record<BrokerId, AccessCapability> = {
   metatrader5: 'broker.metatrader5',
@@ -503,6 +519,7 @@ const brokerCapabilities: Record<BrokerId, AccessCapability> = {
 }
 
 const isBrokerAllowed = (brokerId: BrokerId) => canAccess(brokerCapabilities[brokerId])
+const isBrokerLocked = (brokerId: BrokerId) => !isBrokerAllowed(brokerId)
 
 const brokers = computed<BrokerDefinition[]>(() => [
   {
@@ -571,9 +588,8 @@ const brokers = computed<BrokerDefinition[]>(() => [
   },
 ])
 
-const availableBrokers = computed(() => brokers.value.filter((broker) => isBrokerAllowed(broker.id)))
-
 const selectedBrokerId = ref<BrokerId>('metatrader5')
+const showFullAccessPaywall = ref(false)
 const connectionMap = ref<Record<string, SavedConnection>>({})
 const formState = reactive<Record<string, string>>({})
 const activationState = ref<'idle' | 'loading'>('idle')
@@ -703,12 +719,34 @@ const isBrokerActiveForTopbar = (brokerId: BrokerId) => {
 
 
 const selectedBroker = computed(() => {
-  // The workspace is removed immediately when access is revoked, but retain a
-  // safe fallback for the short reactive interval before this panel unmounts.
-  return (availableBrokers.value.find(broker => broker.id === selectedBrokerId.value)
-    || availableBrokers.value[0]
+  return (brokers.value.find(broker => broker.id === selectedBrokerId.value)
     || brokers.value[0]) as BrokerDefinition
 })
+
+const selectBroker = (brokerId: BrokerId) => {
+  if (isBrokerLocked(brokerId)) {
+    // A normal click on a FULL broker is presentation-only. Entitlement is
+    // checked deeper only if protected broker logic is actually invoked.
+    showFullAccessPaywall.value = true
+    return
+  }
+
+  selectedBrokerId.value = brokerId
+}
+
+const ensureBrokerAccess = async (brokerId: BrokerId): Promise<boolean> => {
+  const allowed = brokerId === 'metatrader5'
+    ? isBrokerAllowed(brokerId)
+    : await authorizeCapability(brokerCapabilities[brokerId])
+  if (allowed) return true
+
+  showFullAccessPaywall.value = true
+  statusTone.value = 'error'
+  statusMessage.value = isRu.value
+    ? 'Этот брокер доступен только в полной версии.'
+    : 'This broker is available in the full version only.'
+  return false
+}
 
 const selectedImportStrategyName = computed(() => {
   return tradeStore.strategies.find(strategy => strategy.id === importTargetStrategyId.value)?.name || 'Main Diary'
@@ -927,13 +965,7 @@ const persistConnections = async () => {
 }
 
 const saveCurrentConnection = async () => {
-  if (!isBrokerAllowed(selectedBroker.value.id)) {
-    statusTone.value = 'error'
-    statusMessage.value = isRu.value
-      ? 'Этот брокер недоступен в вашем плане.'
-      : 'This broker is not available in your plan.'
-    return
-  }
+  if (!await ensureBrokerAccess(selectedBroker.value.id)) return
   const credentials = getSavedCredentialsForCurrentSelection()
   const key = getStorageKeyForBrokerSelection(selectedBroker.value.id)
   const existing = connectionMap.value[key]
@@ -979,13 +1011,7 @@ const migrateKrakenFuturesConnection = async () => {
 }
 
 const handlePrimaryAction = async () => {
-  if (!isBrokerAllowed(selectedBroker.value.id)) {
-    statusTone.value = 'error'
-    statusMessage.value = isRu.value
-      ? 'Этот брокер недоступен в вашем плане.'
-      : 'This broker is not available in your plan.'
-    return
-  }
+  if (!await ensureBrokerAccess(selectedBroker.value.id)) return
 
   if (isSelectedBrokerActive.value) {
     await deactivateCurrentConnection()
@@ -996,7 +1022,8 @@ const handlePrimaryAction = async () => {
 }
 
 const handleManualSync = async () => {
-  if (!isSelectedBrokerActive.value || !isBrokerAllowed(selectedBroker.value.id)) return
+  if (!isSelectedBrokerActive.value) return
+  if (!await ensureBrokerAccess(selectedBroker.value.id)) return
   activationState.value = 'loading'
   try {
     const key = getStorageKeyForBrokerSelection(selectedBroker.value.id)
@@ -1099,6 +1126,7 @@ const setBrokerEnvironment = (environment: BrokerEnvironment) => {
 }
 
 const activateCurrentConnection = async () => {
+  if (!await ensureBrokerAccess(selectedBroker.value.id)) return
   if (!canActivateSelected.value) return
 
   activationState.value = 'loading'
@@ -1164,6 +1192,7 @@ const activateCurrentConnection = async () => {
 }
 
 const importBybitTrades = async (credentials: BybitCredentials) => {
+  if (!await ensureBrokerAccess('bybit')) return
   statusMessage.value = 'Fetching closed trades from Bybit...'
   const [spotResponse, linearResponse, inverseResponse] = await Promise.allSettled([
     getBybitOrderHistory(credentials, { category: 'spot', limit: 50 }),
@@ -1258,6 +1287,7 @@ const importBybitTrades = async (credentials: BybitCredentials) => {
 }
 
 const importKrakenTrades = async (credentials: KrakenCredentials) => {
+  if (!await ensureBrokerAccess('kraken')) return
   statusMessage.value = 'Fetching trade history from Kraken...'
   const response = await getKrakenTradesHistory(credentials, { type: 'all', trades: true })
   const krakenTrades = Object.entries(response.trades || {}).map(([tradeId, trade]) => ({
@@ -1306,6 +1336,7 @@ const importKrakenTrades = async (credentials: KrakenCredentials) => {
 }
 
 const importKrakenFuturesTrades = async (credentials: KrakenCredentials) => {
+  if (!await ensureBrokerAccess('kraken')) return
   statusMessage.value = 'Fetching futures fills from Kraken...'
   const response = await getKrakenFuturesFills(credentials)
   const fills = response.fills || []
@@ -1882,9 +1913,9 @@ watch(selectedBrokerId, (brokerId) => {
   }
 })
 
-watch(availableBrokers, (available) => {
-  if (available.some((broker) => broker.id === selectedBrokerId.value)) return
-  selectedBrokerId.value = available[0]?.id || 'metatrader5'
+watch(() => isBrokerAllowed(selectedBrokerId.value), (isAllowed) => {
+  if (isAllowed) return
+  selectedBrokerId.value = 'metatrader5'
 }, { immediate: true })
 
 onMounted(async () => {

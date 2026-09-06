@@ -24,17 +24,28 @@ const fullAccessCapabilities = (): AccessCapabilities => Object.freeze(
 
 export const NO_ACCESS_CAPABILITIES = noAccessCapabilities()
 
+// Add future paid-only features here. The Worker has the same deny-list and
+// remains the authoritative policy for entitlement checks.
+export const FREE_PLAN_DISABLED_CAPABILITIES = [
+  'broker.binance',
+  'broker.bybit',
+  'broker.kraken',
+  'broker.interactiveBrokers'
+] as const satisfies readonly AccessCapability[]
+
+const freePlanDisabledCapabilities = new Set<AccessCapability>(FREE_PLAN_DISABLED_CAPABILITIES)
+const freeAccessCapabilities = (): AccessCapabilities => Object.freeze(
+  Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [
+    capability,
+    !freePlanDisabledCapabilities.has(capability)
+  ])) as Record<AccessCapability, boolean>
+)
+
 // This is deliberately the UI mirror of the policy enforced by the access
 // Worker. It is not a security boundary: every server-side operation with a
 // paid-only cost or effect must enforce the same capability on the server.
 export const CAPABILITIES_BY_PLAN: Readonly<Record<Exclude<AccessPlan, 'none'>, AccessCapabilities>> = Object.freeze({
-  free: Object.freeze({
-    ...fullAccessCapabilities(),
-    'broker.binance': false,
-    'broker.bybit': false,
-    'broker.kraken': false,
-    'broker.interactiveBrokers': false
-  }),
+  free: freeAccessCapabilities(),
   trial: fullAccessCapabilities(),
   paid: fullAccessCapabilities()
 })
@@ -48,12 +59,12 @@ export function capabilitiesForPlan(plan: AccessPlan): AccessCapabilities {
 }
 
 export function normalizeAccessCapabilities(value: unknown, plan: AccessPlan): AccessCapabilities {
-  const fallback = capabilitiesForPlan(plan)
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const policy = capabilitiesForPlan(plan)
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return policy
 
   const raw = value as Record<string, unknown>
   return Object.freeze(Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [
     capability,
-    raw[capability] === true
+    policy[capability] === true && raw[capability] !== false
   ])) as Record<AccessCapability, boolean>)
 }

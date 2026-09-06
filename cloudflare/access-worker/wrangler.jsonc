@@ -20,6 +20,14 @@
       }
     },
     {
+      "name": "ENTITLEMENT_CHECK_RATE_LIMIT",
+      "namespace_id": "1004",
+      "simple": {
+        "limit": 6,
+        "period": 60
+      }
+    },
+    {
       "name": "EMAIL_VERIFICATION_RATE_LIMIT",
       "namespace_id": "1002",
       "simple": {

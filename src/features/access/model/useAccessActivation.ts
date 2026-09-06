@@ -19,6 +19,9 @@ const MAX_ACCESS_KEY_ATTEMPTS = 5
 const ACCESS_KEY_LOCK_MS = 15 * 60 * 1000
 const OFFLINE_ACCESS_CACHE_KEY = 'access_activation_offline_v2'
 const OFFLINE_ACCESS_GRACE_MS = 30 * 24 * 60 * 60 * 1000
+const ENTITLEMENT_VERIFICATION_CACHE_KEY = 'access_entitlement_verification_v1'
+export const ENTITLEMENT_RECHECK_MS = 15 * 24 * 60 * 60 * 1000
+const ENTITLEMENT_CHECK_FAILURE_COOLDOWN_MS = 60 * 1000
 const accessState = ref<AccessActivationState>('checking')
 const accessError = ref('')
 const accessPlan = ref<AccessPlan>('none')
@@ -44,6 +47,10 @@ let accountBlockExpiryTimer: ReturnType<typeof setTimeout> | null = null
 let activeUserId = ''
 let activeLockUntilMs = 0
 let networkListenersAttached = false
+let entitlementVerificationCache: CachedEntitlementVerification | null = null
+let entitlementVerificationLoadPromise: Promise<CachedEntitlementVerification | null> | null = null
+let entitlementCheckPromise: Promise<CachedEntitlementVerification | null> | null = null
+let entitlementCheckRetryAt = 0
 
 type CachedAccessState = {
   userId: string
@@ -52,6 +59,24 @@ type CachedAccessState = {
   plan: Exclude<AccessPlan, 'none'>
   capabilities: AccessCapabilities
   expiresAt?: number | null
+}
+
+type CachedEntitlementVerification = {
+  userId: string
+  verifiedAt: number
+  isActivated: boolean
+  plan: AccessPlan
+  capabilities: AccessCapabilities
+  expiresAt: number | null
+}
+
+type EntitlementCheckPayload = {
+  verified?: unknown
+  isActivated?: unknown
+  plan?: unknown
+  capabilities?: unknown
+  expiresAt?: unknown
+  checkedAt?: unknown
 }
 
 function getAccessWorkerUrl(): string {
@@ -76,6 +101,86 @@ function clearAccessEntitlement() {
 function setAccessEntitlement(plan: Exclude<AccessPlan, 'none'>, capabilities?: unknown) {
   accessPlan.value = plan
   accessCapabilities.value = normalizeAccessCapabilities(capabilities, plan)
+}
+
+function normalizeEntitlementVerification(
+  payload: EntitlementCheckPayload,
+  userId: string
+): CachedEntitlementVerification | null {
+  if (payload.verified !== true) return null
+
+  const plan: AccessPlan = isAccessPlan(payload.plan) ? payload.plan : 'none'
+  const isActivated = payload.isActivated === true && plan !== 'none'
+  const expiresAtMs = toMillis(payload.expiresAt)
+  const verifiedAtMs = toMillis(payload.checkedAt) || Date.now()
+
+  return {
+    userId,
+    verifiedAt: verifiedAtMs,
+    isActivated,
+    plan,
+    capabilities: isActivated
+      ? normalizeAccessCapabilities(payload.capabilities, plan)
+      : NO_ACCESS_CAPABILITIES,
+    expiresAt: expiresAtMs > 0 ? expiresAtMs : null
+  }
+}
+
+function isEntitlementVerificationUsable(
+  value: unknown,
+  userId: string
+): value is CachedEntitlementVerification {
+  if (!value || typeof value !== 'object') return false
+  const cached = value as Partial<CachedEntitlementVerification>
+  if (cached.userId !== userId) return false
+  if (!Number.isFinite(cached.verifiedAt) || !cached.verifiedAt) return false
+  if (cached.verifiedAt > Date.now() + ENTITLEMENT_CHECK_FAILURE_COOLDOWN_MS) return false
+  if (Date.now() - cached.verifiedAt > ENTITLEMENT_RECHECK_MS) return false
+  if (cached.expiresAt && Date.now() >= cached.expiresAt) return false
+  if (cached.plan !== 'none' && !isAccessPlan(cached.plan)) return false
+  if (!cached.capabilities || typeof cached.capabilities !== 'object') return false
+  return true
+}
+
+async function loadEntitlementVerification(userId: string): Promise<CachedEntitlementVerification | null> {
+  if (entitlementVerificationCache?.userId === userId) return entitlementVerificationCache
+  if (entitlementVerificationLoadPromise) return entitlementVerificationLoadPromise
+
+  entitlementVerificationLoadPromise = loadFromDisk<CachedEntitlementVerification>(ENTITLEMENT_VERIFICATION_CACHE_KEY)
+    .then((cached) => {
+      entitlementVerificationCache = isEntitlementVerificationUsable(cached, userId)
+        ? {
+            ...cached,
+            capabilities: normalizeAccessCapabilities(cached.capabilities, cached.plan)
+          }
+        : null
+      return entitlementVerificationCache
+    })
+    .finally(() => {
+      entitlementVerificationLoadPromise = null
+    })
+
+  return entitlementVerificationLoadPromise
+}
+
+async function persistEntitlementVerification(verification: CachedEntitlementVerification): Promise<void> {
+  entitlementVerificationCache = verification
+  await saveToDisk(ENTITLEMENT_VERIFICATION_CACHE_KEY, verification)
+}
+
+async function rememberGrantedWorkerResponse(
+  payload: { plan?: unknown; capabilities?: unknown; expiresAt?: unknown },
+  userId: string
+): Promise<void> {
+  const plan = isAccessPlan(payload.plan) ? payload.plan : 'paid'
+  await persistEntitlementVerification({
+    userId,
+    verifiedAt: Date.now(),
+    isActivated: true,
+    plan,
+    capabilities: normalizeAccessCapabilities(payload.capabilities, plan),
+    expiresAt: toMillis(payload.expiresAt) || null
+  })
 }
 
 function resolveAccessPlan(data: Record<string, unknown> | undefined): Exclude<AccessPlan, 'none'> {
@@ -355,14 +460,106 @@ function applyGrantedResponse(payload: { plan?: unknown; capabilities?: unknown;
   accessState.value = 'granted'
   offlineAccessRestored.value = false
   const expiresAtMs = toMillis(payload.expiresAt)
-  return persistGrantedAccess(userId, plan, accessCapabilities.value, expiresAtMs || undefined)
-    .then(() => scheduleAccessExpiry(userId, expiresAtMs))
+  return Promise.all([
+    persistGrantedAccess(userId, plan, accessCapabilities.value, expiresAtMs || undefined),
+    rememberGrantedWorkerResponse(payload, userId)
+  ]).then(() => scheduleAccessExpiry(userId, expiresAtMs))
 }
 
 export function useAccessActivation() {
   const canAccess = (capability: AccessCapability) => (
     accessState.value === 'granted' && accessCapabilities.value[capability] === true
   )
+
+  const checkCurrentEntitlement = async (): Promise<CachedEntitlementVerification | null> => {
+    if (entitlementCheckPromise) return entitlementCheckPromise
+    if (Date.now() < entitlementCheckRetryAt) return null
+
+    const currentUser = auth.currentUser
+    if (!currentUser || currentUser.uid !== activeUserId || isOffline.value) return null
+    const requestUserId = currentUser.uid
+    const isRequestUserCurrent = () => (
+      activeUserId === requestUserId && auth.currentUser?.uid === requestUserId
+    )
+
+    const requestPromise = (async () => {
+      try {
+        const idToken = await currentUser.getIdToken(true)
+        const response = await fetch(`${getAccessWorkerUrl()}/v1/entitlement/check`, {
+          method: 'POST',
+          headers: await getAccessRequestHeaders(idToken)
+        })
+        if (!isRequestUserCurrent()) return null
+        if (!response.ok) {
+          entitlementCheckRetryAt = Date.now() + ENTITLEMENT_CHECK_FAILURE_COOLDOWN_MS
+          return null
+        }
+
+        const payload = await response.json().catch(() => ({})) as EntitlementCheckPayload
+        if (!isRequestUserCurrent()) return null
+        const verification = normalizeEntitlementVerification(payload, currentUser.uid)
+        if (!verification) {
+          entitlementCheckRetryAt = Date.now() + ENTITLEMENT_CHECK_FAILURE_COOLDOWN_MS
+          return null
+        }
+
+        await persistEntitlementVerification(verification)
+        if (!isRequestUserCurrent()) return null
+        entitlementCheckRetryAt = 0
+        if (verification.isActivated && isAccessPlan(verification.plan)) {
+          setAccessEntitlement(verification.plan, verification.capabilities)
+          accessState.value = 'granted'
+          accessError.value = ''
+          await persistGrantedAccess(
+            currentUser.uid,
+            verification.plan,
+            verification.capabilities,
+            verification.expiresAt
+          )
+          scheduleAccessExpiry(currentUser.uid, verification.expiresAt || 0)
+        } else {
+          accessState.value = 'requires_key'
+          clearAccessEntitlement()
+          offlineAccessRestored.value = false
+          await removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch(() => {})
+        }
+
+        return verification
+      } catch {
+        // A protected operation fails closed. There is deliberately no retry
+        // loop here, so a bug cannot flood the Worker or Firestore.
+        if (isRequestUserCurrent()) {
+          entitlementCheckRetryAt = Date.now() + ENTITLEMENT_CHECK_FAILURE_COOLDOWN_MS
+        }
+        return null
+      }
+    })()
+
+    entitlementCheckPromise = requestPromise
+    try {
+      return await requestPromise
+    } finally {
+      if (entitlementCheckPromise === requestPromise) entitlementCheckPromise = null
+    }
+  }
+
+  const authorizeCapability = async (capability: AccessCapability): Promise<boolean> => {
+    const currentUser = auth.currentUser
+    if (!currentUser || currentUser.uid !== activeUserId || accessState.value !== 'granted') return false
+
+    const cached = await loadEntitlementVerification(currentUser.uid)
+    const cacheMatchesCurrentPlan = cached?.plan === accessPlan.value
+    if (cached && cacheMatchesCurrentPlan && isEntitlementVerificationUsable(cached, currentUser.uid)) {
+      return canAccess(capability) && cached.isActivated && cached.capabilities[capability] === true
+    }
+
+    const verification = await checkCurrentEntitlement()
+    return Boolean(
+      verification?.isActivated
+      && verification.capabilities[capability] === true
+      && canAccess(capability)
+    )
+  }
 
   const beginAccessListener = (userId?: string | null, options: { force?: boolean } = {}) => {
     const normalizedUserId = String(userId || '').trim()
@@ -382,6 +579,10 @@ export function useAccessActivation() {
     accessTrialUnsubscribe = null
     accessFreePlanUnsubscribe = null
     activeUserId = normalizedUserId
+    entitlementVerificationCache = null
+    entitlementVerificationLoadPromise = null
+    entitlementCheckPromise = null
+    entitlementCheckRetryAt = 0
     isAccountBlocked.value = false
     accountBlockedUntil.value = null
     activeLockUntilMs = 0
@@ -496,6 +697,10 @@ export function useAccessActivation() {
     stopAccessExpiryTimer()
     stopAccountBlockExpiryTimer()
     activeUserId = ''
+    entitlementVerificationCache = null
+    entitlementVerificationLoadPromise = null
+    entitlementCheckPromise = null
+    entitlementCheckRetryAt = 0
     isAccountBlocked.value = false
     accountBlockedUntil.value = null
     activeLockUntilMs = 0
@@ -673,6 +878,8 @@ export function useAccessActivation() {
     accessPlan,
     accessCapabilities,
     canAccess,
+    authorizeCapability,
+    checkCurrentEntitlement,
     accessLockRemainingSeconds,
     accessAttemptFailedCount,
     freeTrialUsed,

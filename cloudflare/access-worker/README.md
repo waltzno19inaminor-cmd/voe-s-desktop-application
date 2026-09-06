@@ -32,7 +32,7 @@ FIREBASE_APPCHECK_APP_IDS=1:79915571390:web:fe7659ef2933e1167826ef
 Для production включите Firebase App Check для этого Web App и задайте
 `VITE_RECAPTCHA_ENTERPRISE_SITE_KEY` во время сборки приложения. Worker в
 production настроен fail-closed: запросы к `/v1/redeem`, `/v1/trial`,
-`/v1/free` и `/v1/email-verification` требуют одновременно валидный Firebase
+`/v1/free`, `/v1/entitlement/check` и `/v1/email-verification` требуют одновременно валидный Firebase
 ID token и App Check token. Endpoint `/v1/password-reset` не требует входа в
 аккаунт, но при включённом production App Check требует App Check token.
 Не переключайте `FIREBASE_APPCHECK_ENFORCE` в `false` за пределами локальной
@@ -127,6 +127,27 @@ Worker выдаёт постоянный тариф `free`. Сейчас его 
 
 Если пользователь бесплатного плана позднее активирует платный ключ, Worker
 сохраняет бесплатный тариф как fallback и восстановит его после истечения ключа.
+
+### Проверить права
+
+```text
+POST /v1/entitlement/check
+Authorization: Bearer FIREBASE_ID_TOKEN
+X-Firebase-AppCheck: FIREBASE_APPCHECK_TOKEN
+```
+
+Endpoint ничего не записывает и возвращает актуальные `plan`, `capabilities` и
+`expiresAt`. Десктопный клиент вызывает его лениво перед закрытой операцией и
+кэширует успешную проверку на 15 дней; запуск приложения сам по себе запрос не
+создаёт. Параллельные проверки объединяются в одну, после сетевой ошибки действует
+минутный cooldown, а Worker допускает не более шести проверок за 60 секунд для
+каждого IP и Firebase UID. Одна серверная проверка читает два документа Firestore.
+
+Для добавления нового ограничения сначала добавьте capability в `ACCESS_CAPABILITIES`,
+затем включите её в `FREE_PLAN_DISABLED_CAPABILITIES` одновременно в Worker и
+клиентском `accessEntitlements.ts`. UI использует capability только для отображения;
+операция обязана отдельно вызывать `authorizeCapability`, а серверная операция —
+проверять ту же capability на своей стороне.
 
 Активация ограничена Cloudflare rate limit: максимум 5 попыток за 60 секунд с одного IP.
 
