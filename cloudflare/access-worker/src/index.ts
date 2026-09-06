@@ -162,6 +162,7 @@ const ACCESS_CAPABILITIES = [
   'broker.bybit',
   'broker.kraken',
   'broker.interactiveBrokers',
+  'reports.scenariosConditions',
   'analytics.advanced',
   'genesis.matrix',
   'data.export'
@@ -174,7 +175,8 @@ const FREE_PLAN_DISABLED_CAPABILITIES = new Set<AccessCapability>([
   'broker.binance',
   'broker.bybit',
   'broker.kraken',
-  'broker.interactiveBrokers'
+  'broker.interactiveBrokers',
+  'reports.scenariosConditions'
 ])
 const LICENSE_PLANS = {
   '1m': 1,

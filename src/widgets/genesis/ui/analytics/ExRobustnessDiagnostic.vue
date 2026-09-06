@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, toRefs, watch } from 'vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl'
 import { buildEquityStabilityMap } from './robustnessEquityMap/equityStabilityMap'
 import ExStrategyReportCover from './strategyReport/components/core/ExStrategyReportCover.vue'
@@ -11,6 +12,8 @@ import ExRiskExecutionSection from './strategyReport/sections/riskExecution/ExRi
 import ExScenariosConditionsSection from './strategyReport/sections/scenariosConditions/ExScenariosConditionsSection.vue'
 import ExDrawdownsSection from './strategyReport/sections/drawdowns/ExDrawdownsSection.vue'
 import ExRobustnessDiagnosticsSection from './strategyReport/sections/robustness/ExRobustnessDiagnosticsSection.vue'
+import ExPaywallOverlay from '../common/ExPaywallOverlay.vue'
+import { strategyReportSections } from './strategyReport/strategyReportSections'
 
 const props = defineProps<{
   diagnosticStats: any
@@ -25,6 +28,15 @@ const getTradePnlFn = (trade: any) => getTradeCashPnl(trade, strategyMetrics.val
 const equityModel = computed(() => buildEquityStabilityMap(filteredTrades.value, getTradePnlFn, strategyMetrics.value?.initialDeposit || 1000))
 const selectedSectionId = ref<string | null>(null)
 const scrollAreaRef = ref<HTMLElement | null>(null)
+const showPaywall = ref(false)
+const { canAccess } = useAccessActivation()
+const isSectionAllowed = (sectionId: string) => {
+  const section = strategyReportSections.find(item => item.id === sectionId)
+  return !section?.capability || canAccess(section.capability)
+}
+const lockedSectionIds = computed(() => strategyReportSections
+  .filter(section => section.capability && !canAccess(section.capability))
+  .map(section => section.id))
 
 const scrollToTop = () => {
   if (scrollAreaRef.value) {
@@ -33,6 +45,11 @@ const scrollToTop = () => {
 }
 
 const handleSelectSection = (sectionId: string | null) => {
+  if (sectionId && !isSectionAllowed(sectionId)) {
+    showPaywall.value = true
+    return
+  }
+
   selectedSectionId.value = sectionId
   nextTick(() => {
     scrollToTop()
@@ -51,6 +68,12 @@ watch(selectedSectionId, () => {
   })
 })
 
+watch(lockedSectionIds, (lockedIds) => {
+  if (selectedSectionId.value && lockedIds.includes(selectedSectionId.value)) {
+    selectedSectionId.value = null
+  }
+})
+
 onMounted(() => {
   nextTick(() => {
     scrollToTop()
@@ -67,6 +90,7 @@ onMounted(() => {
       <div class="mt-[4vh] flex h-[calc(100%_-_4vh)] min-h-0 w-full gap-6 bg-black xl:gap-10">
         <ExStrategyReportSideNavigation
           :selected-section-id="selectedSectionId"
+          :locked-section-ids="lockedSectionIds"
           @select="handleSelectSection"
         />
 
@@ -102,7 +126,7 @@ onMounted(() => {
         />
 
         <ExScenariosConditionsSection
-          v-if="selectedSectionId === 'scenarios-conditions'"
+          v-if="selectedSectionId === 'scenarios-conditions' && isSectionAllowed('scenarios-conditions')"
           :trades="filteredTrades"
           :get-trade-pnl="getTradePnlFn"
           :initial-capital="strategyMetrics?.initialDeposit || 1000"
@@ -124,6 +148,7 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
   </div>
 </template>
 

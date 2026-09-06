@@ -1,8 +1,11 @@
+import type { AccessCapability } from '~/features/access/model/accessEntitlements'
+
 export type StrategyReportSection = {
   id: string
   page: string
   title: { en: string; ru: string }
   description: { en: string; ru: string }
+  capability?: AccessCapability
 }
 
 export const strategyReportSections: StrategyReportSection[] = [
@@ -28,7 +31,8 @@ export const strategyReportSections: StrategyReportSection[] = [
     id: 'scenarios-conditions',
     page: '04',
     title: { en: 'Scenarios & Conditions', ru: 'Сценарии и условия' },
-    description: { en: 'Results grouped by the context recorded in trades.', ru: 'Результаты в разрезе контекста, записанного в сделках.' }
+    description: { en: 'Results grouped by the context recorded in trades.', ru: 'Результаты в разрезе контекста, записанного в сделках.' },
+    capability: 'reports.scenariosConditions'
   },
   {
     id: 'drawdowns',

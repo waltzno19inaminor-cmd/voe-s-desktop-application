@@ -5,6 +5,7 @@ export const ACCESS_CAPABILITIES = [
   'broker.bybit',
   'broker.kraken',
   'broker.interactiveBrokers',
+  'reports.scenariosConditions',
   'analytics.advanced',
   'genesis.matrix',
   'data.export'
@@ -30,7 +31,8 @@ export const FREE_PLAN_DISABLED_CAPABILITIES = [
   'broker.binance',
   'broker.bybit',
   'broker.kraken',
-  'broker.interactiveBrokers'
+  'broker.interactiveBrokers',
+  'reports.scenariosConditions'
 ] as const satisfies readonly AccessCapability[]
 
 const freePlanDisabledCapabilities = new Set<AccessCapability>(FREE_PLAN_DISABLED_CAPABILITIES)

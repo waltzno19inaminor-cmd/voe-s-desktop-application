@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { buildCapitalGrowthBreakdown, type CapitalGrowthRateGroup } from '../profitsLosses/analytics/capitalGrowthRate'
 import ExStrategyReportPageNumber from '../../components/auxiliary/ExStrategyReportPageNumber.vue'
@@ -13,9 +14,22 @@ const props = defineProps<{
 }>()
 
 const { locale } = useI18n()
+const { canAccess, authorizeCapability } = useAccessActivation()
+const sectionCapability = 'reports.scenariosConditions' as const
+const hasSectionAccess = computed(() => canAccess(sectionCapability))
 const isRu = computed(() => locale.value === 'ru')
 const label = (en: string, ru: string) => isRu.value ? ru : en
-const breakdown = computed(() => buildCapitalGrowthBreakdown(props.trades, props.getTradePnl, props.initialCapital || 1000))
+const breakdown = computed(() => buildCapitalGrowthBreakdown(
+  hasSectionAccess.value ? props.trades : [],
+  props.getTradePnl,
+  props.initialCapital || 1000
+))
+
+onMounted(() => {
+  // The report container prevents normal free-plan mounting. This deeper
+  // check only runs if protected section logic is invoked around that UI gate.
+  if (!hasSectionAccess.value) void authorizeCapability(sectionCapability)
+})
 type BreakdownRow = CapitalGrowthRateGroup & { kind: 'scenario' | 'condition' }
 const breakdownRows = computed<BreakdownRow[]>(() => [
   ...breakdown.value.scenarios.map(item => ({ ...item, kind: 'scenario' as const })),
@@ -160,7 +174,7 @@ const breakdownRowClass = (item: BreakdownRow) => {
 </script>
 
 <template>
-  <section id="report-section-scenarios-conditions" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
+  <section v-if="hasSectionAccess" id="report-section-scenarios-conditions" class="min-h-screen px-[clamp(1.5rem,7vw,8rem)] py-16 text-white sm:py-24">
     <div class="mx-auto max-w-5xl">
       <ExStrategyReportPageNumber page="04" total="06" />
       <div class="mt-12">

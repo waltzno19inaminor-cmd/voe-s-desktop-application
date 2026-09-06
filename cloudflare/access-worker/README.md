@@ -121,9 +121,10 @@ X-Firebase-AppCheck: FIREBASE_APPCHECK_TOKEN
 ```
 
 Worker выдаёт постоянный тариф `free`. Сейчас его серверная policy разрешает
-всё, кроме интеграций Binance, Bybit, Kraken и Interactive Brokers; MetaTrader
-5 остаётся доступен. Список прав сохраняется в `access/state.capabilities` и
-должен повторно проверяться каждым серверным endpoint с платной функцией.
+всё, кроме интеграций Binance, Bybit, Kraken и Interactive Brokers, а также
+раздела Reports «Сценарии и условия»; MetaTrader 5 остаётся доступен. Список
+прав сохраняется в `access/state.capabilities` и должен повторно проверяться
+каждым серверным endpoint с платной функцией.
 
 Если пользователь бесплатного плана позднее активирует платный ключ, Worker
 сохраняет бесплатный тариф как fallback и восстановит его после истечения ключа.
