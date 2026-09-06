@@ -15,7 +15,7 @@
             
             <!-- TOPBAR BROKER SELECTOR -->
             <div class="flex items-center justify-between border-b border-black/10 bg-black/[0.02] dark:border-white/10 dark:bg-white/[0.02] px-8 py-4 shrink-0">
-              <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pr-4 pb-2">
+              <div class="flex items-center gap-4 overflow-x-auto custom-scrollbar pb-2 pl-1 pr-4 pt-3">
                 <button v-for="broker in brokers"
                         :key="broker.id"
                         class="group flex items-center gap-3 px-5 py-2.5 border transition-colors shrink-0 relative"
@@ -41,11 +41,11 @@
                            : 'grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100'" :alt="broker.label" />
                   <div class="flex flex-col items-start">
                     <span class="font-mono text-[10px] font-black uppercase tracking-[0.14em]">{{ broker.label }}</span>
-                    <span v-if="isBrokerLocked(broker.id)"
-                          class="mt-1 border border-current/30 px-1.5 py-0.5 font-mono text-[6px] font-black uppercase tracking-[0.28em] opacity-80">
-                      FULL
-                    </span>
                   </div>
+                  <span v-if="isBrokerLocked(broker.id)"
+                        class="broker-full-badge pointer-events-none absolute -right-2 -top-2 z-20 px-1.5 py-0.5 font-mono text-[6px] font-black uppercase tracking-[0.28em]">
+                    <span class="broker-full-badge__label">FULL</span>
+                  </span>
                   <span v-if="!isBrokerLocked(broker.id) && isBrokerActiveForTopbar(broker.id)" class="absolute top-1.5 right-1.5 z-10 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
                 </button>
               </div>
@@ -1923,3 +1923,39 @@ onMounted(async () => {
   await loadConnections()
 })
 </script>
+
+<style scoped>
+.broker-full-badge {
+  background: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+.broker-full-badge__label {
+  background: linear-gradient(
+    110deg,
+    #111111 0%,
+    #5b21b6 24%,
+    #ec4899 42%,
+    #111111 58%,
+    #2563eb 78%,
+    #111111 100%
+  );
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: broker-full-badge-shimmer 3.2s linear infinite;
+}
+
+@keyframes broker-full-badge-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .broker-full-badge__label {
+    animation: none;
+  }
+}
+</style>
