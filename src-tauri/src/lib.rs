@@ -1,4 +1,6 @@
-use tauri::{Emitter, Manager};
+use tauri::Manager;
+#[cfg(not(target_os = "macos"))]
+use tauri::Emitter;
 
 mod audio_recorder;
 mod avatar_cache;
@@ -15,15 +17,18 @@ pub mod payload_update;
 pub fn run() {
     // Tauri requires single-instance to be the first plugin so Windows/Linux
     // deep-link command-line arguments can be forwarded to the running app.
-    let builder = tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
-            let _ = app.emit("single-instance", (args, cwd));
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-        }))
-        .plugin(tauri_plugin_deep_link::init());
+    let builder = tauri::Builder::default();
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+        let _ = app.emit("single-instance", (args, cwd));
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }));
+
+    let builder = builder.plugin(tauri_plugin_deep_link::init());
     let builder = patch::register_patch_protocol(builder);
 
     let app = builder

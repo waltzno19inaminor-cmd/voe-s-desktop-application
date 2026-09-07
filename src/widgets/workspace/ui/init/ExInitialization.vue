@@ -207,7 +207,7 @@
             </div>
           </div>
           <button
-            @click="startBoot"
+            @click="startBoot()"
             class="w-full py-3 font-mono text-[9px] tracking-[0.5em] uppercase font-black transition-all duration-300 hover:opacity-90"
             :style="primaryButtonStyle"
           >{{ locale === 'ru' ? 'Продолжить' : 'Continue' }}</button>
@@ -429,9 +429,9 @@ const activePayloadVersion = ref<string | null>(null)
 const appVersion = computed(() => activePayloadVersion.value || installedNativeVersion.value)
 
 const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
-  const normalize = (value: string) => value.replace(/^[vV]/, '').trim().split('+')[0]
-  const [remoteCore, remotePrerelease = ''] = normalize(remoteVer).split('-', 2)
-  const [currentCore, currentPrerelease = ''] = normalize(currentVer).split('-', 2)
+  const normalize = (value: string) => ((value || '').replace(/^[vV]/, '').trim().split('+')[0]) || ''
+  const [remoteCore = '', remotePrerelease = ''] = normalize(remoteVer).split('-', 2)
+  const [currentCore = '', currentPrerelease = ''] = normalize(currentVer).split('-', 2)
   const remoteParts = remoteCore.split('.').map(part => Number.parseInt(part, 10) || 0)
   const currentParts = currentCore.split('.').map(part => Number.parseInt(part, 10) || 0)
   const length = Math.max(remoteParts.length, currentParts.length)
@@ -1150,8 +1150,11 @@ const startUpdateCheck = async () => {
   }
 }
 
-const startBoot = async (options: { skipEmailVerificationCheck?: boolean } = {}) => {
-  if (!options.skipEmailVerificationCheck && !(await refreshEmailVerification())) {
+const startBoot = async (options: { skipEmailVerificationCheck?: boolean } | unknown = {}) => {
+  const opts = (options && typeof options === 'object' && 'skipEmailVerificationCheck' in options)
+    ? (options as { skipEmailVerificationCheck?: boolean })
+    : {}
+  if (!opts.skipEmailVerificationCheck && !(await refreshEmailVerification())) {
     phase.value = 'auth'
     return
   }
@@ -1374,7 +1377,9 @@ const doGoogleLogin = async () => {
 
         const cleanup = () => {
           window.clearTimeout(timeoutId)
-          cleanupCallbacks.splice(0).forEach((cleanupCallback) => cleanupCallback())
+          cleanupCallbacks.splice(0).forEach((cleanupCallback) => {
+            try { cleanupCallback() } catch {}
+          })
         }
 
         const finish = (value: string) => {
@@ -1391,28 +1396,46 @@ const doGoogleLogin = async () => {
           reject(error)
         }
 
-        const parseDeepLinkUrl = (url: string) => {
+        const extractParam = (targetUrl: string, paramName: string): string | null => {
+          try {
+            const u = new URL(targetUrl)
+            const val = u.searchParams.get(paramName)
+            if (val) return val
+          } catch {}
+          const match = targetUrl.match(new RegExp(`[?&]${paramName}=([^&#]*)`))
+          return match && match[1] ? decodeURIComponent(match[1]) : null
+        }
+
+        const parseDeepLinkUrl = (rawUrl: string) => {
+          if (!rawUrl || typeof rawUrl !== 'string') return
+          const url = rawUrl.trim()
+          console.log('[Google Auth] Checking URL candidate:', url)
           if (!url.startsWith(reversedClientId)) return
 
           try {
-            const parsedUrl = new URL(url)
-            const error = parsedUrl.searchParams.get('error')
-            const authorizationCode = parsedUrl.searchParams.get('code')
-            const returnedState = parsedUrl.searchParams.get('state')
+            const authErrorParam = extractParam(url, 'error')
+            const authCode = extractParam(url, 'code')
+            const authStateParam = extractParam(url, 'state')
 
-            if (error) {
-              fail(new Error(`Google Error: ${error}`))
+            console.log('[Google Auth] Parsed deep link -> code:', authCode ? '***' : null, 'state:', authStateParam, 'error:', authErrorParam)
+
+            if (authErrorParam) {
+              fail(new Error(`Google Error: ${authErrorParam}`))
               return
             }
 
-            if (returnedState !== oauthState) {
-              fail(new Error('Google login callback state mismatch.'))
+            // If state does not match, ignore the URL (stale/cached from previous attempts)
+            if (authStateParam !== oauthState) {
+              console.warn('[Google Auth] Ignoring callback with non-matching state:', authStateParam, 'expected:', oauthState)
               return
             }
 
-            if (authorizationCode) finish(authorizationCode)
+            if (authCode) {
+              console.log('[Google Auth] Valid authorization code received!')
+              finish(authCode)
+            }
           } catch (error) {
-            fail(error)
+            console.warn('[Google Auth] Error parsing deep link URL:', error)
           }
         }
 
@@ -1425,38 +1448,85 @@ const doGoogleLogin = async () => {
           return []
         }
 
-        onOpenUrl((urls: string[]) => {
-          urls.forEach(parseDeepLinkUrl)
-        })
+        const handleUrlsPayload = (payload: unknown) => {
+          if (!payload) return
+          const urls = collectDeepLinkUrls(payload)
+          if (urls.length > 0) {
+            console.log('[Google Auth] Received deep link payload URLs:', urls)
+            urls.forEach(parseDeepLinkUrl)
+          }
+        }
+
+        onOpenUrl(handleUrlsPayload)
           .then((unlisten) => {
             if (settled) unlisten()
             else cleanupCallbacks.push(unlisten)
           })
-          .catch(fail)
+          .catch((err) => {
+            console.warn('[Google Auth] onOpenUrl registration warning:', err)
+          })
 
-        // Handles Windows cold starts where the callback URL was supplied as
-        // the process argument before the JavaScript listener was attached.
-        getCurrent()
-          .then((urls) => urls?.forEach(parseDeepLinkUrl))
-          .catch(fail)
+        // Poll getCurrent periodically while waiting for login
+        const pollInterval = window.setInterval(() => {
+          getCurrent().then(handleUrlsPayload).catch(() => {})
+        }, 600)
+        cleanupCallbacks.push(() => window.clearInterval(pollInterval))
+
+        // Check on window focus when user returns from browser
+        const onFocus = () => {
+          console.log('[Google Auth] Window focused, polling getCurrent()...')
+          getCurrent().then(handleUrlsPayload).catch(() => {})
+        }
+        window.addEventListener('focus', onFocus)
+        cleanupCallbacks.push(() => window.removeEventListener('focus', onFocus))
 
         import('@tauri-apps/api/event')
           .then(({ listen }) => listen('single-instance', (event: { payload: unknown }) => {
-            collectDeepLinkUrls(event.payload).forEach(parseDeepLinkUrl)
+            console.log('[Google Auth] single-instance event received:', event.payload)
+            handleUrlsPayload(event.payload)
           }))
           .then((unlisten) => {
             if (settled) unlisten()
             else cleanupCallbacks.push(unlisten)
           })
-          .catch(fail)
+          .catch((err) => {
+            console.warn('[Google Auth] single-instance listener warning:', err)
+          })
 
+        console.log('[Google Auth] Opening authUrl in default browser...')
         open(authUrl).catch(fail)
       })
 
-      const data = await (await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code, client_id: clientId, redirect_uri: redirectUri, grant_type: 'authorization_code', code_verifier: codeVerifier }) })).json()
-      const credential = GoogleAuthProvider.credential(data.id_token, data.access_token)
+      console.log('[Google Auth] Exchanging authorization code for token...')
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code',
+          code_verifier: codeVerifier
+        })
+      })
+
+      const tokenData = await tokenResponse.json().catch(() => ({}))
+
+      if (!tokenResponse.ok) {
+        const errorDescription = tokenData.error_description || tokenData.error || `HTTP ${tokenResponse.status}`
+        console.error('[Google Auth] Token exchange failed:', tokenData)
+        throw new Error(`Google token exchange failed: ${errorDescription}`)
+      }
+
+      if (!tokenData.id_token && !tokenData.access_token) {
+        throw new Error('Google did not return id_token or access_token')
+      }
+
+      console.log('[Google Auth] Token exchange successful, signing in to Firebase...')
+      const credential = GoogleAuthProvider.credential(tokenData.id_token, tokenData.access_token)
       const result = await signInWithCredential(firebaseAuth, credential)
       const user = result.user
+      console.log('[Google Auth] Firebase sign-in successful:', user.email)
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
       await ensureUserDocument(user)
     } else {
@@ -1467,6 +1537,7 @@ const doGoogleLogin = async () => {
     }
     await startBoot()
   } catch (error) {
+    console.error('[Google Auth] Login process failed:', error)
     authError.value = authFailureMessage(error, 'google')
   } finally {
     authLoading.value = false
