@@ -329,18 +329,18 @@ const genesisModeItems = [
 const genesisBottomTooltip = (key) => {
   const ru = {
     dashboard: 'Тактическая панель',
-    diary: 'Кривая капитала',
-    matrix: 'Матрица генезиса',
-    log: 'Журнал генезиса',
+    diary: 'Капитал',
+    matrix: 'Менеджер стратегий',
+    log: 'Журнал сделок',
     language: 'Язык интерфейса',
     hide: 'Скрыть панель',
     show: 'Показать панель'
   }
   const en = {
     dashboard: 'Tactical Dashboard',
-    diary: 'Ex Equity Curve 3D',
-    matrix: 'Ex Genesis Matrix',
-    log: 'Ex Genesis Log',
+    diary: 'Capital',
+    matrix: 'Strategies',
+    log: 'Journal',
     language: 'Interface Language',
     hide: 'Hide Bar',
     show: 'Show Bar'

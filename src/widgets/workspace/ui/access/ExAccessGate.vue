@@ -154,33 +154,42 @@
       <div v-else class="text-center">
         <div v-if="accessMode === 'choices'" class="access-gate__choice-grid">
           <article class="access-gate__choice-card access-gate__choice-card--trial">
-            <span class="access-gate__choice-index">01 / TRIAL</span>
+            <span class="access-gate__choice-index">{{ isRussian ? '01 / ПОДПИСКА' : '01 / SUBSCRIPTION' }}</span>
             <ExHeading level="h2" variant="cinematic" class="access-gate__choice-title">
-              {{ isRussian ? 'ПРОБНАЯ ВЕРСИЯ · 7 ДНЕЙ' : '7-DAY TRIAL VERSION' }}
+              {{ isRussian ? 'ПОДПИСКА НА ПОЛНУЮ ВЕРСИЮ' : 'FULL VERSION SUBSCRIPTION' }}
             </ExHeading>
-            <ul class="access-gate__choice-description">
-              <li>{{ isRussian ? 'Полный доступ ко всем функциям' : 'Full access to all features' }}</li>
-              <li>{{ isRussian ? 'Все инструменты и модули доступны' : 'All tools and modules included' }}</li>
-              <li>{{ isRussian ? '7 дней использования без ограничений' : '7 days with no restrictions' }}</li>
-              <li>{{ isRussian ? 'Оплата не требуется' : 'No payment required' }}</li>
-            </ul>
-            <button
-              v-if="isTrialStatusKnown && !isTrialUsed"
-              type="button"
-              class="access-gate__trial access-gate__trial--card access-gate__choice-action"
-              :disabled="isSubmitting || isLocked"
-              @click="emit('startTrial')"
-            >
-              {{ isRussian ? 'НАЧАТЬ ПРОБНЫЙ ПЕРИОД' : 'START 7-DAY TRIAL' }}
-            </button>
-            <button
-              v-else-if="isTrialStatusKnown && isTrialUsed"
-              type="button"
-              class="access-gate__choice-status access-gate__choice-status--button"
-              disabled
-            >
-              {{ isRussian ? 'УЖЕ АКТИВИРОВАНО' : 'ALREADY ACTIVATED' }}
-            </button>
+            <p class="access-gate__choice-description">
+              {{ isRussian
+                ? 'Оплатите подписку на Patreon и получите ключ на почту. В случае автопродления подписки ключ останется активен.'
+                : 'Subscribe on Patreon to receive your key by email. With automatic subscription renewal, the key remains active.' }}
+            </p>
+            <p class="access-gate__choice-note">
+              {{ isRussian
+                ? 'Лицензия действует 30 дней с момента активации.'
+                : 'The license is valid for 30 days from the moment of activation.' }}
+            </p>
+            <div class="access-gate__choice-action-group">
+              <button
+                v-if="isTrialStatusKnown && !isTrialUsed"
+                type="button"
+                class="access-gate__trial access-gate__trial--card access-gate__choice-action"
+                :disabled="isSubmitting || isLocked"
+                @click="emit('startTrial')"
+              >
+                {{ isRussian ? 'НАЧАТЬ ПРОБНЫЙ ПЕРИОД (7 ДНЕЙ)' : 'START 7-DAY TRIAL' }}
+              </button>
+              <button
+                v-else-if="isTrialStatusKnown && isTrialUsed"
+                type="button"
+                class="access-gate__choice-status access-gate__choice-status--button"
+                disabled
+              >
+                {{ isRussian ? 'ПРОБНЫЙ ПЕРИОД ИСПОЛЬЗОВАН' : 'TRIAL ALREADY USED' }}
+              </button>
+              <button type="button" class="access-gate__patreon access-gate__choice-action" @click="openPatreon">
+                {{ isRussian ? 'КУПИТЬ КЛЮЧ НА PATREON ↗' : 'BUY KEY ON PATREON ↗' }}
+              </button>
+            </div>
           </article>
 
           <article class="access-gate__choice-card access-gate__choice-card--key">
@@ -240,8 +249,8 @@
                 <span v-if="isSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
                 <span>{{ isSubmitting ? (isRussian ? 'АКТИВАЦИЯ...' : 'ACTIVATING...') : (isRussian ? 'АКТИВИРОВАТЬ' : 'ACTIVATE') }}</span>
               </button>
-              <button type="button" class="access-gate__patreon" @click="helpView = 'purchase'">
-                {{ isRussian ? 'НЕТ КЛЮЧА?' : 'NO KEY?' }}
+              <button type="button" class="access-gate__patreon" @click="openPatreon">
+                {{ isRussian ? 'КУПИТЬ КЛЮЧ НА PATREON ↗' : 'BUY KEY ON PATREON ↗' }}
               </button>
             </div>
           </form>
@@ -625,7 +634,8 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__choice-card--trial .access-gate__choice-index,
-.access-gate__choice-card--trial .access-gate__choice-description {
+.access-gate__choice-card--trial .access-gate__choice-description,
+.access-gate__choice-card--trial .access-gate__choice-note {
   color: #ffffff;
 }
 
@@ -644,32 +654,53 @@ const openPatreon = async (event: MouseEvent) => {
 .access-gate__choice-description {
   color: #171717;
   display: grid;
-  font-size: 16px;
-  font-weight: 600;
-  gap: 0.85rem;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  gap: 0.75rem;
   letter-spacing: 0.015em;
-  line-height: 1.65;
+  line-height: 1.5;
   list-style: none;
-  margin-top: 1.1rem;
-  max-width: 24rem;
+  margin-top: 1.25rem;
+  max-width: 26rem;
   -webkit-font-smoothing: antialiased;
 }
 
 .access-gate__choice-description li {
   position: relative;
-  padding-left: 1.2rem;
+  padding-left: 1.3rem;
 }
 
-.access-gate__choice-description li::before {
-  content: '—';
-  left: 0;
-  position: absolute;
-  top: 0;
+.access-gate__choice-note {
+  color: #171717;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  line-height: 1.45;
+  margin-top: auto;
+  margin-bottom: 0.85rem;
+  opacity: 0.75;
+  -webkit-font-smoothing: antialiased;
 }
 
 .access-gate__choice-action {
   margin-top: auto;
   min-height: 3rem;
+}
+
+.access-gate__choice-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: auto;
+  width: 100%;
+}
+
+.access-gate__choice-action-group .access-gate__choice-action,
+.access-gate__choice-action-group .access-gate__choice-status {
+  margin-top: 0;
+  width: 100%;
 }
 
 .access-gate__choice-status {
@@ -838,9 +869,18 @@ const openPatreon = async (event: MouseEvent) => {
 
 .access-gate__patreon {
   align-items: center;
-  background: transparent;
-  border: 1px solid rgba(23, 23, 23, 0.72);
-  color: #171717;
+  background: linear-gradient(
+    110deg,
+    #dcdbff 0%,
+    #c3adff 24%,
+    #dcdbff 42%,
+    #c3adff 58%,
+    #dcdbff 78%,
+    #c3adff 100%
+  );
+  background-size: 250% 100%;
+  border: 1px solid rgba(195, 173, 255, 0.9);
+  color: #121212;
   display: inline-flex;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 9px;
@@ -849,7 +889,8 @@ const openPatreon = async (event: MouseEvent) => {
   letter-spacing: 0.16em;
   min-height: 2.85rem;
   padding: 0.75rem 1rem;
-  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease, transform 180ms ease;
+  box-shadow: 0 0 16px rgba(195, 173, 255, 0.25);
+  transition: background-position 400ms ease, box-shadow 300ms ease, transform 180ms ease, border-color 200ms ease;
   white-space: nowrap;
 }
 
@@ -859,8 +900,9 @@ const openPatreon = async (event: MouseEvent) => {
 }
 
 .access-gate__patreon:hover {
-  background: #ffffff;
+  background-position: 100% 0;
   border-color: #ffffff;
+  box-shadow: 0 0 24px rgba(195, 173, 255, 0.45);
   color: #000000;
   transform: translateY(-1px);
 }

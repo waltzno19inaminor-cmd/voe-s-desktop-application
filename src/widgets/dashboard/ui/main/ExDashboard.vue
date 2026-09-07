@@ -713,7 +713,7 @@ const handleDashboardCenterAfterLeave = (el: Element) => {
     110deg,
     #111111 0%,
     #5b21b6 24%,
-    #ec4899 42%,
+    #beb4f4 42%,
     #111111 58%,
     #2563eb 78%,
     #111111 100%
