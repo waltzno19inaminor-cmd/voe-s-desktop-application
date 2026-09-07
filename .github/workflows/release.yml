@@ -2,9 +2,6 @@ name: "publish"
 
 on:
   push:
-    branches:
-      - release
-      - release-demo
     tags:
       - '*'
   workflow_dispatch:
@@ -102,84 +99,3 @@ jobs:
           releaseDraft: false
           prerelease: ${{ needs.resolve-channel.outputs.channel == 'release-demo' }}
           args: ${{ matrix.args }} ${{ needs.resolve-channel.outputs.tauri_config }}
-
-  publish-payload:
-    needs:
-      - resolve-channel
-      - publish-tauri
-    permissions:
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: install frontend dependencies
-        run: npm install
-
-      - name: resolve payload compatibility versions
-        id: versions
-        shell: bash
-        env:
-          REQUESTED_PAYLOAD_VERSION: ${{ inputs.payload_version }}
-          REQUESTED_MINIMUM_NATIVE_VERSION: ${{ inputs.minimum_native_version }}
-        run: |
-          payload_version="$REQUESTED_PAYLOAD_VERSION"
-          minimum_native_version="$REQUESTED_MINIMUM_NATIVE_VERSION"
-          if [[ -z "$payload_version" ]]; then
-            payload_version="$(node -p "require('./package.json').version")"
-          fi
-          if [[ -z "$minimum_native_version" ]]; then
-            minimum_native_version="$(node -p "require('./src-tauri/tauri.conf.json').version")"
-          fi
-          echo "payload_version=$payload_version" >> "$GITHUB_OUTPUT"
-          echo "minimum_native_version=$minimum_native_version" >> "$GITHUB_OUTPUT"
-
-      - name: restore payload signing key
-        shell: bash
-        env:
-          HOTFIX_PRIVATE_KEY: ${{ secrets.HOTFIX_PRIVATE_KEY }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/jlj-payload"
-          printf "%s" "$HOTFIX_PRIVATE_KEY" > "$RUNNER_TEMP/jlj-payload/jlj-hotfix.key"
-
-      - name: build frontend payload
-        env:
-          NUXT_PUBLIC_PAYLOAD_MANIFEST_URL: https://github.com/jorudr/JLJ/releases/download/${{ needs.resolve-channel.outputs.channel }}/payload-manifest.json
-          VITE_ACCESS_WORKER_URL: https://auth.gandr.site
-          VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
-        run: npm run build
-
-      - name: create signed payload
-        shell: bash
-        env:
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.HOTFIX_PRIVATE_KEY_PASSWORD }}
-        run: |
-          mkdir -p dist/payload
-          npm run payload:manifest -- \
-            --channel "${{ needs.resolve-channel.outputs.channel }}" \
-            --version "${{ steps.versions.outputs.payload_version }}" \
-            --minimum-native-version "${{ steps.versions.outputs.minimum_native_version }}" \
-            --platform any \
-            --dir .output/public \
-            --base-url "https://github.com/jorudr/JLJ/releases/download/${{ needs.resolve-channel.outputs.channel }}/" \
-            --tauri-signer-key-path "$RUNNER_TEMP/jlj-payload/jlj-hotfix.key" \
-            --out dist/payload/payload-manifest.json
-
-      - name: upload payload to channel release
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_CHANNEL: ${{ needs.resolve-channel.outputs.channel }}
-        run: |
-          gh release upload "$RELEASE_CHANNEL" \
-            dist/payload/payload-manifest.json \
-            dist/payload/payload-manifest.json.minisig \
-            dist/payload/payload-manifest.json.sig \
-            dist/payload/payload.zip \
-            dist/payload/patch.zip \
-            --clobber
