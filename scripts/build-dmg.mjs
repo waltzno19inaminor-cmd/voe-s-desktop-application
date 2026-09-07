@@ -8,6 +8,7 @@ const rootDir = path.resolve(__dirname, '..');
 
 const pdfSource = path.join(rootDir, "public/readme/CAN'T OPEN(КАК ОТКРЫТЬ).pdf");
 const appCandidates = [
+  path.join(rootDir, 'src-tauri/target/universal-apple-darwin/release/bundle/macos/J.L.JÖRMUNGANDR.app'),
   path.join(rootDir, 'src-tauri/target/release/bundle/macos/J.L.JÖRMUNGANDR.app'),
   path.join(rootDir, 'target/release/bundle/macos/J.L.JÖRMUNGANDR.app'),
   path.join(rootDir, 'src-tauri/target/release/bundle/macos/jlj.app'),

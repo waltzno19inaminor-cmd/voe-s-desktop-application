@@ -56,7 +56,7 @@ jobs:
       matrix:
         include:
           - platform: "macos-latest"
-            args: "--target universal-apple-darwin"
+            args: "--target universal-apple-darwin --bundles app"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -99,3 +99,16 @@ jobs:
           releaseDraft: false
           prerelease: ${{ needs.resolve-channel.outputs.channel == 'release-demo' }}
           args: ${{ matrix.args }} ${{ needs.resolve-channel.outputs.tauri_config }}
+
+      - name: package DMG with PDF instructions
+        run: npm run build:dmg
+
+      - name: upload custom DMG
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_CHANNEL: ${{ needs.resolve-channel.outputs.channel }}
+        run: |
+          gh release upload "$RELEASE_CHANNEL" \
+            "dist-dmg/J.L.JÖRMUNGANDR_Installer.dmg" \
+            --clobber
