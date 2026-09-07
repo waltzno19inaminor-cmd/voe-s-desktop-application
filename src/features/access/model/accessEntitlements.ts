@@ -9,6 +9,8 @@ export const ACCESS_CAPABILITIES = [
   'analytics.scenariosConditions',
   'diary.genesisTree',
   'diary.capitalForecast',
+  'trade.nodeMapping',
+  'trade.advancedPatterns',
   'trade.ohlcAnalysis',
   'matrix.strategyVersions',
   'matrix.multipleBoards',
@@ -42,6 +44,8 @@ export const FREE_PLAN_DISABLED_CAPABILITIES = [
   'analytics.scenariosConditions',
   'diary.genesisTree',
   'diary.capitalForecast',
+  'trade.nodeMapping',
+  'trade.advancedPatterns',
   'trade.ohlcAnalysis',
   'matrix.strategyVersions',
   'matrix.multipleBoards'

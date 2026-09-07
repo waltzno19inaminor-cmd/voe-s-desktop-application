@@ -32,8 +32,11 @@ const props = defineProps<{
 
 const { locale } = useI18n()
 const tradeStore = useStrategyTradesStore()
-const { canAccess } = useAccessActivation()
+const { canAccess, authorizeCapability } = useAccessActivation()
+const hasNodeMappingAccess = computed(() => canAccess('trade.nodeMapping'))
 const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const nodeMappingAuthorized = ref(false)
+const showNodeMappingPaywall = ref(false)
 const showOhlcPaywall = ref(false)
 const isForecastMode = computed(() => props.mode === 'forecast')
 const isForecastLoading = ref(true)
@@ -41,6 +44,20 @@ const forecastTab = ref<'summary' | 'settings'>('summary')
 const forecastIncludeAverageRR = ref(false)
 const activeEntryFormTab = ref<'main' | 'advanced' | 'metrics' | 'notes' | 'images'>('main')
 const activeProjectionMode = ref<'core' | 'mapping' | 'chart'>('core')
+
+const openNodeMapping = async () => {
+  if (!hasNodeMappingAccess.value) {
+    showNodeMappingPaywall.value = true
+    return
+  }
+
+  nodeMappingAuthorized.value = await authorizeCapability('trade.nodeMapping')
+  if (!nodeMappingAuthorized.value) {
+    showNodeMappingPaywall.value = true
+    return
+  }
+  activeProjectionMode.value = 'mapping'
+}
 
 const openOhlcChart = () => {
   if (!hasOhlcAccess.value) {
@@ -585,9 +602,9 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                   <button
                     type="button"
                     :aria-label="locale === 'ru' ? 'Второй режим' : 'Second mode'"
-                    class="grid h-11 w-12 place-items-center border-r border-black/10 transition-colors dark:border-white/10"
+                    class="relative grid h-11 w-12 place-items-center border-r border-black/10 transition-colors dark:border-white/10"
                     :class="activeProjectionMode === 'mapping' ? 'nier-bg-inverted nier-text-primary' : 'nier-text-primary opacity-45 hover:opacity-100'"
-                    @click="activeProjectionMode = 'mapping'"
+                    @click="openNodeMapping"
                   >
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M7 6l10 6-10 6M7 6v12" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter" />
@@ -595,6 +612,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                       <circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="1.6" />
                       <circle cx="7" cy="18" r="2" stroke="currentColor" stroke-width="1.6" />
                     </svg>
+                    <ExFullAccessBadge v-if="!hasNodeMappingAccess" />
                   </button>
           <button
             type="button"
@@ -612,7 +630,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
         </div>
 
         <ExTacticalNodeMap
-          v-if="activeProjectionMode === 'mapping' && !isMainDiaryTrade"
+          v-if="activeProjectionMode === 'mapping' && hasNodeMappingAccess && nodeMappingAuthorized && !isMainDiaryTrade"
           :is-open="true"
           :is-dark="Boolean(props.isDark)"
           :trade="analysisTrade"
@@ -621,7 +639,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
         />
 
         <div
-          v-else-if="activeProjectionMode === 'mapping'"
+          v-else-if="activeProjectionMode === 'mapping' && hasNodeMappingAccess && nodeMappingAuthorized"
           class="absolute inset-0 flex items-center justify-center px-10 text-center"
         >
           <p class="max-w-2xl text-sm font-mono uppercase leading-relaxed tracking-[0.16em] text-white/60">
@@ -1036,6 +1054,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
       </div>
     </div>
   </div>
+  <ExPaywallOverlay :is-open="showNodeMappingPaywall" @close="showNodeMappingPaywall = false" />
   <ExPaywallOverlay :is-open="showOhlcPaywall" @close="showOhlcPaywall = false" />
   </div>
 

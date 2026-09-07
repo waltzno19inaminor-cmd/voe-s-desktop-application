@@ -166,6 +166,8 @@ const ACCESS_CAPABILITIES = [
   'analytics.scenariosConditions',
   'diary.genesisTree',
   'diary.capitalForecast',
+  'trade.nodeMapping',
+  'trade.advancedPatterns',
   'trade.ohlcAnalysis',
   'matrix.strategyVersions',
   'matrix.multipleBoards',
@@ -186,6 +188,8 @@ const FREE_PLAN_DISABLED_CAPABILITIES = new Set<AccessCapability>([
   'analytics.scenariosConditions',
   'diary.genesisTree',
   'diary.capitalForecast',
+  'trade.nodeMapping',
+  'trade.advancedPatterns',
   'trade.ohlcAnalysis',
   'matrix.strategyVersions',
   'matrix.multipleBoards'

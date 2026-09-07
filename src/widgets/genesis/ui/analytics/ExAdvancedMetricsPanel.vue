@@ -14,6 +14,8 @@ import { buildTradeGeneratedInTradeAnalysis } from '~/widgets/genesis/model/gene
 import { useTradeAnalysisMetrics } from './metrics'
 import ExScorePatternsPanel from './ExScorePatternsPanel.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 
 interface AdvancedMetricsPanelProps {
   trade?: any
@@ -27,8 +29,10 @@ const props = withDefaults(defineProps<AdvancedMetricsPanelProps>(), {
 })
 
 const { locale } = useI18n()
-const { canAccess } = useAccessActivation()
+const { canAccess, authorizeCapability } = useAccessActivation()
+const hasAdvancedPatternsAccess = computed(() => canAccess('trade.advancedPatterns'))
 const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const advancedPatternsAuthorized = ref(false)
 const ohlcMetricKeys = new Set([
   'meaningfulLossTime',
   'meaningfulProfitTime',
@@ -41,7 +45,24 @@ const ohlcMetricKeys = new Set([
   'adverseBeforeProfit'
 ])
 const activeAdvancedTab = ref<'general' | 'patterns'>('general')
+const showPatternsPaywall = ref(false)
 const isRequiredConditionsExpanded = ref(false)
+
+const selectAdvancedTab = async (tab: 'general' | 'patterns') => {
+  if (tab === 'patterns' && !hasAdvancedPatternsAccess.value) {
+    showPatternsPaywall.value = true
+    return
+  }
+
+  if (tab === 'patterns') {
+    advancedPatternsAuthorized.value = await authorizeCapability('trade.advancedPatterns')
+    if (!advancedPatternsAuthorized.value) {
+      showPatternsPaywall.value = true
+      return
+    }
+  }
+  activeAdvancedTab.value = tab
+}
 
 const formatDisplayLabel = (value: unknown) => String(value ?? '').replace(/_/g, ' ')
 
@@ -599,7 +620,9 @@ const tradeScoreBreakdown = computed(() => {
     percentile,
     rawScore: score?.rawScore ?? getNormalizedPnl(trade),
     patternMode: highScore ? 'high' : 'low',
-    patterns: buildScorePatterns(scoredPool)
+    patterns: hasAdvancedPatternsAccess.value && advancedPatternsAuthorized.value
+      ? buildScorePatterns(scoredPool)
+      : []
   }
 })
 
@@ -918,11 +941,15 @@ const advancedTabs = computed(() => {
         :class="activeAdvancedTab === tab.id
           ? 'border-black bg-black/5 font-bold shadow-sm dark:border-white dark:bg-white/5'
           : 'nier-border-primary text-black/50 hover:border-black/30 dark:text-white/50 dark:hover:border-white/30'"
-        @click="activeAdvancedTab = tab.id"
+        @click="selectAdvancedTab(tab.id)"
       >
         <div v-if="activeAdvancedTab === tab.id" class="h-1.5 w-1.5 rotate-45 nier-bg-inverted animate-pulse"></div>
         <span class="text-[10px] font-mono uppercase tracking-wider">{{ tab.label }}</span>
-        <span class="rounded-full bg-black/10 px-1.5 py-0.5 text-[8px] font-mono opacity-60 dark:bg-white/10">{{ tab.count }}</span>
+        <span
+          v-if="tab.id !== 'patterns' || advancedPatternsAuthorized"
+          class="rounded-full bg-black/10 px-1.5 py-0.5 text-[8px] font-mono opacity-60 dark:bg-white/10"
+        >{{ tab.count }}</span>
+        <ExFullAccessBadge v-if="tab.id === 'patterns' && !hasAdvancedPatternsAccess" />
       </button>
     </div>
 
@@ -1034,9 +1061,10 @@ const advancedTabs = computed(() => {
     </div>
 
     <ExScorePatternsPanel
-      v-else
+      v-else-if="hasAdvancedPatternsAccess && advancedPatternsAuthorized"
       :patterns="tradeScoreBreakdown.patterns"
       :pattern-mode="tradeScoreBreakdown.patternMode"
     />
+    <ExPaywallOverlay :is-open="showPatternsPaywall" @close="showPatternsPaywall = false" />
   </div>
 </template>
