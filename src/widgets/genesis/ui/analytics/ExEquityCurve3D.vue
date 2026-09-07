@@ -391,7 +391,7 @@
     <!-- WINRATE TARGET MENU MODAL -->
     <Teleport to="body">
       <Transition name="protocol-slide">
-        <div v-if="!isTradeEntryOpen && showWinrateMenu"
+        <div v-if="!isTradeEntryOpen && showWinrateMenu && hasScenarioConditionAccess"
              @click.self="showWinrateMenu = false"
              class="fixed inset-0 z-[10005] flex items-center justify-center p-20 backdrop-blur-md bg-black/60">
           
@@ -751,7 +751,7 @@
           <!-- SELECT TARGET -->
           <button
             v-if="!showMetricsPanel && !showCalendarMode"
-            @click="showWinrateMenu = true; showWinrateCurve = false"
+            @click="openScenarioConditionMenu"
             :aria-label="isRu ? 'Выбор сценариев и условий' : 'Select scenarios and conditions'"
             class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
             :class="showWinrateMenu ? 'border-white/30 bg-white/10 text-white' : ''"
@@ -760,6 +760,7 @@
               <path d="M5 21V4"/>
               <path d="M5 4c4-3 7 3 14 0v9c-7 3-10-3-14 0"/>
             </svg>
+            <ExFullAccessBadge v-if="!hasScenarioConditionAccess" />
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
               {{ isRu ? '[ ВЫБОР СЦЕНАРИЕВ И УСЛОВИЙ ]' : '[ SELECT SCENARIOS AND CONDITIONS ]' }}
             </span>
@@ -1037,6 +1038,8 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from '../common/ExPaywallOverlay.vue'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
 import ExCalendarMode from '../diary/ExCalendarMode.vue'
 import ExEquityCurveMetricsPanel from './ExEquityCurveMetricsPanel.vue'
@@ -1079,6 +1082,8 @@ const themeStore = useThemeStore()
 const tradeStore = useStrategyTradesStore()
 const appBootStore = useAppBootStore()
 const matrixState = useMatrixState()
+const { canAccess } = useAccessActivation()
+const hasScenarioConditionAccess = computed(() => canAccess('analytics.scenariosConditions'))
 
 const GRADFLOW_CURVE_COLORS = [
   { r: 2, g: 145, b: 135 },
@@ -1366,6 +1371,15 @@ const winrateTargetFilters: { id: 'all' | 'scenario' | 'condition', label: strin
   { id: 'condition', label: 'CONDITION' }
 ]
 
+const openScenarioConditionMenu = () => {
+  showWinrateCurve.value = false
+  if (!hasScenarioConditionAccess.value) {
+    showPaywall.value = true
+    return
+  }
+  showWinrateMenu.value = true
+}
+
 interface WinrateTargetNode {
   id: string
   name: string
@@ -1407,7 +1421,7 @@ const getFilteredTrades = (sId: string = selectedStrategyId.value, ignoreWinrate
 
   baseTrades = baseTrades.filter(isClosedTradeForMetrics)
 
-  if (!ignoreWinrateFilter && selectedWinrateNodeId.value && sId === selectedStrategyId.value) {
+  if (hasScenarioConditionAccess.value && !ignoreWinrateFilter && selectedWinrateNodeId.value && sId === selectedStrategyId.value) {
     return baseTrades.filter((t: any) => tradeMatchesWinrateTarget(t, selectedWinrateNodeId.value!))
   }
   return baseTrades

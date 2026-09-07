@@ -9,6 +9,9 @@ import ExTradeNoteListItem from './ExTradeNoteListItem.vue'
 import ExTradeImageEntry from './ExTradeImageEntry.vue'
 import ExPatternForecastPanel from '../analytics/ExPatternForecastPanel.vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import {
   getTradeDurationMs,
   getTradePnl,
@@ -29,12 +32,23 @@ const props = defineProps<{
 
 const { locale } = useI18n()
 const tradeStore = useStrategyTradesStore()
+const { canAccess } = useAccessActivation()
+const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const showOhlcPaywall = ref(false)
 const isForecastMode = computed(() => props.mode === 'forecast')
 const isForecastLoading = ref(true)
 const forecastTab = ref<'summary' | 'settings'>('summary')
 const forecastIncludeAverageRR = ref(false)
 const activeEntryFormTab = ref<'main' | 'advanced' | 'metrics' | 'notes' | 'images'>('main')
 const activeProjectionMode = ref<'core' | 'mapping' | 'chart'>('core')
+
+const openOhlcChart = () => {
+  if (!hasOhlcAccess.value) {
+    showOhlcPaywall.value = true
+    return
+  }
+  activeProjectionMode.value = 'chart'
+}
 const isCreatingTradeNote = ref(false)
 const tradeNoteDraft = ref('')
 const isPersistingArchive = ref(false)
@@ -585,14 +599,15 @@ const tradeEntryThemeStyle = computed(() => props.isDark
           <button
             type="button"
             :aria-label="locale === 'ru' ? 'График' : 'Chart'"
-            class="grid h-11 w-12 place-items-center transition-colors"
+            class="relative grid h-11 w-12 place-items-center transition-colors"
             :class="activeProjectionMode === 'chart' ? 'nier-bg-inverted nier-text-primary' : 'nier-text-primary opacity-45 hover:opacity-100'"
-            @click="activeProjectionMode = 'chart'"
+            @click="openOhlcChart"
           >
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" />
               <path d="M5 8h4v7H5zM15 6h4v10h-4z" fill="currentColor" />
             </svg>
+            <ExFullAccessBadge v-if="!hasOhlcAccess" />
           </button>
         </div>
 
@@ -1021,6 +1036,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
       </div>
     </div>
   </div>
+  <ExPaywallOverlay :is-open="showOhlcPaywall" @close="showOhlcPaywall = false" />
   </div>
 
 </template>

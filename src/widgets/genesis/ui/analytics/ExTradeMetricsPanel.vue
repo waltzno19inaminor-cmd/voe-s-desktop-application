@@ -13,6 +13,7 @@ import {
 import { getTradePlannedStopRiskDollars } from '~/widgets/genesis/model/tradeRisk'
 import { isClosedTradeForMetrics } from '~/widgets/genesis/model/tradePnl'
 import { buildTradeGeneratedInTradeAnalysis } from '~/widgets/genesis/model/generatedInTradeAnalysis'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 interface TradeMetricsPanelProps {
   trade?: any
@@ -29,6 +30,19 @@ const props = withDefaults(defineProps<TradeMetricsPanelProps>(), {
 })
 
 const { locale } = useI18n()
+const { canAccess } = useAccessActivation()
+const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const ohlcMetricKeys = new Set([
+  'meaningfulLossTime',
+  'meaningfulProfitTime',
+  'maxMeaningfulDrawdown',
+  'maxFavorableExcursion',
+  'profitCaptureRatio',
+  'pricePathShape',
+  'firstImpulseDirection',
+  'entryHeat',
+  'adverseBeforeProfit'
+])
 const activeMetricTab = ref('all')
 
 const parsePositiveNumber = (value: unknown): number | null => {
@@ -59,8 +73,12 @@ const tradeStudyMetrics = computed<Record<string, any>>(() => {
 const inTradeStudyContext = computed(() => {
   const trade = props.trade || {}
   const metrics = tradeStudyMetrics.value || {}
-  const generatedMarketData = metrics.generatedMarketData || trade.generatedMarketData || null
-  const generated: Record<string, any> = buildTradeGeneratedInTradeAnalysis(trade) || {}
+  const generatedMarketData = hasOhlcAccess.value
+    ? (metrics.generatedMarketData || trade.generatedMarketData || null)
+    : null
+  const generated: Record<string, any> = hasOhlcAccess.value
+    ? (buildTradeGeneratedInTradeAnalysis(trade) || {})
+    : {}
   const direction = String(trade.side || trade.direction || generated.direction || '').toLowerCase()
   const isShort = direction === 'short'
   const adverseToggleKey = isShort ? 'priceRoseAboveEntryShort' : 'priceDroppedBelowEntryLong'
@@ -186,7 +204,7 @@ const derivedStatsContext = computed(() => {
 })
 
 const metricsData = computed(() => {
-  return useTradeAnalysisMetrics(
+  const result = useTradeAnalysisMetrics(
     props.trade,
     {
       ...(props.strategyStatsContext || {}),
@@ -201,6 +219,16 @@ const metricsData = computed(() => {
     'advanced',
     activeMetricTab.value
   )
+
+  if (hasOhlcAccess.value) return result
+
+  const metrics = result.metrics.filter(metric => !ohlcMetricKeys.has(String(metric.key)))
+  const counts = {
+    ...result.counts,
+    all: Math.max(0, (result.counts.all || 0) - ohlcMetricKeys.size),
+    in_trade: Math.max(0, (result.counts.in_trade || 0) - ohlcMetricKeys.size)
+  }
+  return { metrics, counts }
 })
 
 const activeMetricList = computed(() => metricsData.value.metrics)

@@ -539,6 +539,7 @@ import { loadFromDisk, saveToDisk } from '~/shared/diskStorage'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 const genesisTrades = useGenesisTrades()
 const genesisMatrix = useGenesisMatrixData()
@@ -568,6 +569,7 @@ const emit = defineEmits<{
 }>()
 
 const { locale } = useI18n()
+const { canAccess, authorizeCapability } = useAccessActivation()
 
 const loading = ref(false)
 const forecast = ref<PatternForecastResult>(createEmptyPatternForecast())
@@ -623,6 +625,13 @@ const persistPatternForecastSnapshot = async (result: PatternForecastResult) => 
 
 const refreshForecast = async () => {
   if (!props.visible) return
+  if (!canAccess('diary.capitalForecast')) {
+    const authorized = await authorizeCapability('diary.capitalForecast')
+    if (!authorized) {
+      emit('loading-change', false)
+      return
+    }
+  }
 
   const nextRequestId = requestId + 1
   requestId = nextRequestId

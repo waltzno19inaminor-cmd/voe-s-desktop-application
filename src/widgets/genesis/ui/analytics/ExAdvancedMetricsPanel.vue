@@ -13,6 +13,7 @@ import { buildTradeProfitabilityScoreIndex } from '~/widgets/genesis/model/trade
 import { buildTradeGeneratedInTradeAnalysis } from '~/widgets/genesis/model/generatedInTradeAnalysis'
 import { useTradeAnalysisMetrics } from './metrics'
 import ExScorePatternsPanel from './ExScorePatternsPanel.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 interface AdvancedMetricsPanelProps {
   trade?: any
@@ -26,6 +27,19 @@ const props = withDefaults(defineProps<AdvancedMetricsPanelProps>(), {
 })
 
 const { locale } = useI18n()
+const { canAccess } = useAccessActivation()
+const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const ohlcMetricKeys = new Set([
+  'meaningfulLossTime',
+  'meaningfulProfitTime',
+  'maxMeaningfulDrawdown',
+  'maxFavorableExcursion',
+  'profitCaptureRatio',
+  'pricePathShape',
+  'firstImpulseDirection',
+  'entryHeat',
+  'adverseBeforeProfit'
+])
 const activeAdvancedTab = ref<'general' | 'patterns'>('general')
 const isRequiredConditionsExpanded = ref(false)
 
@@ -350,7 +364,9 @@ const scoreCohortMetricRows = (trade: any) => {
   const velocity = Number.isFinite(durationHours) && durationHours > 0
     ? getNormalizedPnl(trade) / durationHours
     : undefined
-  const generated: Record<string, any> = buildTradeGeneratedInTradeAnalysis(trade) || {}
+  const generated: Record<string, any> = hasOhlcAccess.value
+    ? (buildTradeGeneratedInTradeAnalysis(trade) || {})
+    : {}
   const metricResult = useTradeAnalysisMetrics(
     trade,
     {
@@ -373,7 +389,9 @@ const scoreCohortMetricRows = (trade: any) => {
   const legacyMetricRows = metricResult.metrics
     .filter((metric) => {
       const metricId = String(metric.key)
-      return !duplicatedMetricIds.has(metricId) && !excludedScorePatternMetricIds.has(metricId)
+      return !duplicatedMetricIds.has(metricId)
+        && !excludedScorePatternMetricIds.has(metricId)
+        && (hasOhlcAccess.value || !ohlcMetricKeys.has(metricId))
     })
     .map((metric) => ({
       id: metric.key,

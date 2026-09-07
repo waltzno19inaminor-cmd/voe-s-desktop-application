@@ -78,7 +78,7 @@
 
       <!-- STRATEGY TREE LAYER -->
       <div
-        v-if="hasOpenedGenesisTree"
+        v-if="hasOpenedGenesisTree && hasGenesisTreeAccess"
         v-show="viewType === 'tree'"
         class="absolute inset-0 z-40 overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
@@ -919,6 +919,7 @@
                     <path d="M12 4v5M6 15v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M6 15v3M18 15v3" />
                     <circle cx="12" cy="4" r="2" /><circle cx="6" cy="19" r="2" /><circle cx="18" cy="19" r="2" />
                   </svg>
+                  <ExFullAccessBadge v-if="!hasGenesisTreeAccess" />
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                     {{ locale === 'ru' ? 'Дерево Генезиса' : 'Genesis tree' }}
                   </span>
@@ -933,6 +934,7 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6">
                     <path d="M3 17l5-5 4 4 8-9" /><path d="M17 7h3v3" />
                   </svg>
+                  <ExFullAccessBadge v-if="!canOpenCapitalForecast" />
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                     {{ locale === 'ru' ? 'ПРОГНОЗ' : 'FORECAST' }}
                   </span>
@@ -1229,6 +1231,8 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/common/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import ExPatternForecastPanel from '~/widgets/genesis/ui/analytics/ExPatternForecastPanel.vue'
 import { PATTERN_FORECAST_LIMITS } from '~/widgets/genesis/model/patternForecast'
 import { buildTradeProfitabilityScoreIndex, getTradePnlForScore } from '~/widgets/genesis/model/tradeProfitabilityScore'
@@ -1266,6 +1270,8 @@ useDomI18n(container, 'genesis.dom')
 const numberLocale = computed(() => locale.value === 'ru' ? 'ru-RU' : 'en-US')
 const openTradeText = () => locale.value === 'ru' ? 'НЕЗАКР. СД.' : 'OPEN TRD.'
 const authStore = useAuthStore()
+const { canAccess, authorizeCapability } = useAccessActivation()
+const hasGenesisTreeAccess = computed(() => canAccess('diary.genesisTree'))
 const {
   nodes: matrixStateNodes,
   connections: matrixStateConnections,
@@ -1523,7 +1529,7 @@ watch(isHudVisible, (val) => {
 })
 const showPaywall = ref(false)
 const canOpenCapitalForecast = computed(() => {
-  return true
+  return canAccess('diary.capitalForecast')
 })
 
 const openNodeMap = () => {
@@ -2312,6 +2318,10 @@ const closeToolsMenu = () => {
 }
 
 const openProjectionView = (nextView: 'distribution' | 'tree') => {
+  if (nextView === 'tree' && !hasGenesisTreeAccess.value) {
+    showPaywall.value = true
+    return
+  }
   if (nextView === 'distribution' && viewType.value !== 'distribution') {
     previousProjectionView.value = viewType.value
   }
@@ -2371,7 +2381,15 @@ const openComplianceFromMenu = () => {
   showComplianceStatus.value = shouldOpen
 }
 
-const acceptCapitalForecastIntro = () => {
+const acceptCapitalForecastIntro = async () => {
+  if (!canOpenCapitalForecast.value) {
+    const authorized = await authorizeCapability('diary.capitalForecast')
+    if (!authorized) {
+      showCapitalForecastIntro.value = false
+      showPaywall.value = true
+      return
+    }
+  }
   showCapitalForecastIntro.value = false
   showCapitalForecast.value = false
   viewType.value = 'timeTree'

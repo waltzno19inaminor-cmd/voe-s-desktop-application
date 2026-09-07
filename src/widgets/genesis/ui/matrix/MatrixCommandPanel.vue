@@ -280,7 +280,7 @@
           <div v-if="state.activeMenuCategory.value === 'LOGIC' && !state.isScenarioContext.value" class="flex space-x-6 pointer-events-auto">
             <ExNTtooltip v-for="type in skillTypes" :key="type.label" :title="matrixNodeTypeLabel(t, type.type)">
               <template #trigger>
-                <button @click="state.setPendingNode(type)"
+                <button @click="handleLogicNodeClick(type)"
                         class="group relative w-12 h-12 border border-nier-border-light dark:border-nier-border-dark flex items-center justify-center transition-all hover:border-nier-text-light dark:hover:border-nier-text-dark hover:scale-110 bg-nier-text-light/5 dark:bg-nier-text-dark/5 backdrop-blur-md">
                    <svg class="w-6 h-6 opacity-40 group-hover:opacity-100 transition-opacity text-nier-text-light dark:text-nier-text-dark" 
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -293,6 +293,7 @@
                       </g>
                       <rect v-else-if="type.type === 'image'" x="3" y="3" width="18" height="18" rx="2" />
                    </svg>
+                   <ExFullAccessBadge v-if="type.type === 'strategy' && state.currentPageHasStrategy() && multipleBoardsLocked" />
                    <!-- Corner decorations -->
                    <div class="absolute top-0 left-0 w-1.5 h-1.5 border-t border-l border-nier-text-light dark:border-nier-text-dark opacity-20"></div>
                    <div class="absolute bottom-0 right-0 w-1.5 h-1.5 border-b border-r border-nier-text-light dark:border-nier-text-dark opacity-20"></div>
@@ -665,6 +666,7 @@ import ExConfigSetter from '~/widgets/genesis/ui/common/ExConfigSetter.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { GENESIS_EMOTION_LIBRARY } from '~/widgets/genesis/model/emotionLibrary'
 import { matrixText, matrixNodeTypeLabel } from '../../model/matrix/matrixLabels'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 
 const props = defineProps<{
   state: ReturnType<typeof useMatrixState>
@@ -675,11 +677,20 @@ const props = defineProps<{
   activeWire: any
   isZoneToolActive: boolean
   selectedZoneType: string
+  multipleBoardsLocked?: boolean
 }>()
 
-const emit = defineEmits(['personal-contextmenu', 'activate-zone'])
+const emit = defineEmits(['personal-contextmenu', 'activate-zone', 'paid-feature-click'])
 
 const { locale, t } = useI18n()
+
+const handleLogicNodeClick = (type: { type: string }) => {
+  if (type.type === 'strategy' && props.state.currentPageHasStrategy() && props.multipleBoardsLocked) {
+    emit('paid-feature-click')
+    return
+  }
+  props.state.setPendingNode(type)
+}
 
 const isClearPanelOpen = ref(false)
 const isMenuContentVisible = ref(false)

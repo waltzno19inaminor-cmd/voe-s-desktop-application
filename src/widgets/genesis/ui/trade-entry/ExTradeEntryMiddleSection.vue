@@ -29,6 +29,9 @@ import ExAssetPickerMenu from '~/shared/ui/ExAssetPickerMenu.vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis';
 import { getTradeResultPercent, resolveTradeBalanceBefore } from '~/widgets/genesis/model/metrics';
+import { useAccessActivation } from '~/features/access/model/useAccessActivation';
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue';
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue';
 
 const genesisTrades = useGenesisTrades();
 const genesisMatrix = useGenesisMatrixData();
@@ -104,6 +107,16 @@ const noteText = ref("");
 const editingContentNoteId = ref(null);
 const expandedNoteIds = ref([]);
 const activeProjectionMode = ref('core');
+const { canAccess } = useAccessActivation();
+const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'));
+const showOhlcPaywall = ref(false);
+const openOhlcChart = () => {
+  if (!hasOhlcAccess.value) {
+    showOhlcPaywall.value = true;
+    return;
+  }
+  activeProjectionMode.value = 'chart';
+};
 const activeEntryFormTab = ref('main');
 const activeJournalImageIndex = ref(null);
 const isArchivePersisting = computed(() => tradeState.commitState?.value === 'loading');
@@ -1168,14 +1181,15 @@ const summarySelectedEmotions = computed(() => {
                   <button
                     type="button"
                     :aria-label="locale === 'ru' ? 'График' : 'Chart'"
-                    class="grid h-11 w-12 place-items-center transition-colors"
+                    class="relative grid h-11 w-12 place-items-center transition-colors"
                     :class="activeProjectionMode === 'chart' ? 'nier-bg-inverted nier-text-primary' : 'nier-text-primary opacity-45 hover:opacity-100'"
-                    @click="activeProjectionMode = 'chart'"
+                    @click="openOhlcChart"
                   >
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" />
                       <path d="M5 8h4v7H5zM15 6h4v10h-4z" fill="currentColor" />
                     </svg>
+                    <ExFullAccessBadge v-if="!hasOhlcAccess" />
                   </button>
                 </div>
                </div>
@@ -1379,6 +1393,6 @@ const summarySelectedEmotions = computed(() => {
           </div>
         </Transition>
       </div>
+      <ExPaywallOverlay :is-open="showOhlcPaywall" @close="showOhlcPaywall = false" />
     </div>
-
 </template>

@@ -5,12 +5,18 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { buildGeneratedInTradeAnalysis as calculateGeneratedInTradeAnalysis } from '~/widgets/genesis/model/generatedInTradeAnalysis'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 const genesisTrades = useGenesisTrades()
 const genesisMatrix = useGenesisMatrixData()
 
 
 const { locale } = useI18n()
+const { canAccess, authorizeCapability } = useAccessActivation()
+const hasOhlcAccess = computed(() => canAccess('trade.ohlcAnalysis'))
+const showPaywall = ref(false)
 
 const {
   side,
@@ -378,10 +384,11 @@ const generateMarketDataButtonLabel = computed(() => {
 })
 
 const canGenerateMarketData = computed(() => {
-  return Boolean(selectedTradeAsset.value && tradeTimeRange.value && availableTimeframeOptions.value.length) && !isGeneratedMarketDataRangeTooShort.value && !isGeneratedMarketDataRangeTooLong.value && commitState?.value !== 'loading' && generationState.value !== 'loading' && !isApiCooldownActive.value
+  return hasOhlcAccess.value && Boolean(selectedTradeAsset.value && tradeTimeRange.value && availableTimeframeOptions.value.length) && !isGeneratedMarketDataRangeTooShort.value && !isGeneratedMarketDataRangeTooLong.value && commitState?.value !== 'loading' && generationState.value !== 'loading' && !isApiCooldownActive.value
 })
 
 const generatedChartCandles = computed(() => {
+  if (!hasOhlcAccess.value) return []
   if (!props.readOnly && !availableTimeframeIds.value.has(activeGeneratedTimeframe.value)) return []
   return generatedMarketData.value?.[activeGeneratedTimeframe.value] || []
 })
@@ -1751,6 +1758,7 @@ const getStoredGeneratedMarketData = () => {
 }
 
 const hydrateGeneratedChartFromMetrics = () => {
+  if (!hasOhlcAccess.value) return false
   if (generatedChartClearedManually.value) return false
 
   const stored = getStoredGeneratedMarketData()
@@ -1807,6 +1815,13 @@ const startApiErrorCooldown = () => {
 }
 
 const generateMarketData = async () => {
+  if (!hasOhlcAccess.value) {
+    const authorized = await authorizeCapability('trade.ohlcAnalysis')
+    if (!authorized) {
+      showPaywall.value = true
+      return
+    }
+  }
   if (!canGenerateMarketData.value) return
 
   generatedChartClearedManually.value = false
@@ -2403,7 +2418,21 @@ onBeforeUnmount(() => {
 
 <template>
   <section
-    v-if="isChartSurface"
+    v-if="isChartSurface && !hasOhlcAccess"
+    class="flex h-full min-h-[420px] w-full flex-col items-center justify-center px-8 text-center"
+  >
+    <button
+      type="button"
+      class="relative h-14 border border-white/25 px-8 text-[10px] font-mono font-black uppercase tracking-[0.28em] text-white/65 transition-colors hover:border-white/50 hover:text-white"
+      @click="showPaywall = true"
+    >
+      {{ locale === 'ru' ? 'РЫНОЧНЫЙ OHLC-ГРАФИК' : 'MARKET OHLC CHART' }}
+      <ExFullAccessBadge />
+    </button>
+  </section>
+
+  <section
+    v-else-if="isChartSurface"
     :class="generatedChartCandles.length ? 'relative flex h-full min-h-0 w-full flex-col overflow-visible text-white' : 'flex h-full min-h-[420px] w-full flex-col'"
   >
     <div v-if="!generatedChartCandles.length" class="flex min-h-0 flex-1 flex-col items-center justify-center px-8 text-center">
@@ -2728,4 +2757,6 @@ onBeforeUnmount(() => {
       </div>
     </Transition>
   </Teleport>
+
+  <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
 </template>

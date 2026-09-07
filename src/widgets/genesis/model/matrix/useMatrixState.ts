@@ -3,6 +3,7 @@ import { saveToDisk, loadFromDisk } from '@/shared/diskStorage'
 import { useAppBootStore } from '~/features/store/useAppBoot'
 import { getMatrixStrategyName, isStrategyNode } from './useMatrixStrategies'
 import { useMatrixChangeTree, type MatrixChangeEvent } from './useMatrixChangeTree'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 export const STORAGE_KEY = 'genesis_matrix_v2'
 const MATRIX_LEGACY_HEAVY_BACKUP_KEY = `${STORAGE_KEY}_legacy_heavy_backup`
@@ -406,6 +407,7 @@ function normalizeAnonymousStrategyVersion(anonymous: any, fallback: any = {}): 
 
 export function useMatrixState() {
   const changeTree = useMatrixChangeTree(activePageId)
+  const { canAccess, authorizeCapability } = useAccessActivation()
   const forceUpdate = () => updateKey.value++
   const selectedStrategyVersion = computed(() => (
     strategyVersions.value.find(version => version.id === selectedStrategyVersionId.value) || null
@@ -608,7 +610,7 @@ export function useMatrixState() {
     saveMatrixData()
   }
 
-  function addMatrixPage(name?: string) {
+  function addMatrixPageUnchecked(name?: string) {
     syncActivePageFromRoot()
     const page = createMatrixPage(name || `Strategy Page ${matrixPages.value.length + 1}`)
     matrixPages.value.push(page)
@@ -616,6 +618,14 @@ export function useMatrixState() {
     applyPage(page)
     saveMatrixData()
     return page
+  }
+
+  async function addMatrixPage(name?: string) {
+    if (!canAccess('matrix.multipleBoards')) {
+      const authorized = await authorizeCapability('matrix.multipleBoards')
+      if (!authorized) return null
+    }
+    return addMatrixPageUnchecked(name)
   }
 
   function removeMatrixPage(pageId: string) {
@@ -890,7 +900,11 @@ export function useMatrixState() {
     if (isStrategyNode(config)) {
       if (activeContextId.value) return
       if (currentPageHasStrategy()) {
-        const nextPage = addMatrixPage(`Strategy Page ${matrixPages.value.length + 1}`)
+        if (!canAccess('matrix.multipleBoards')) {
+          void authorizeCapability('matrix.multipleBoards')
+          return
+        }
+        const nextPage = addMatrixPageUnchecked(`Strategy Page ${matrixPages.value.length + 1}`)
         const newStrategyNode: Node = {
           id: 'node-' + Math.random().toString(36).substr(2, 9),
           label: config.label || 'Strategy',
@@ -946,7 +960,11 @@ export function useMatrixState() {
       ? { type: config, label: config.toUpperCase(), params: {} }
       : config;
     if (isStrategyNode(nextConfig) && currentPageHasStrategy()) {
-      addMatrixPage(`Strategy Page ${matrixPages.value.length + 1}`)
+      if (!canAccess('matrix.multipleBoards')) {
+        void authorizeCapability('matrix.multipleBoards')
+        return
+      }
+      addMatrixPageUnchecked(`Strategy Page ${matrixPages.value.length + 1}`)
     }
 
     if (lastSelectedId.value) {
@@ -1555,6 +1573,10 @@ export function useMatrixState() {
   }
 
   async function createStrategyVersion() {
+    if (!canAccess('matrix.strategyVersions')) {
+      const authorized = await authorizeCapability('matrix.strategyVersions')
+      if (!authorized) return
+    }
     const currentSnapshot = captureStrategySnapshot()
     if (strategyVersions.value.length > 0) {
       const selectedVersion = selectedStrategyVersion.value
@@ -1587,6 +1609,10 @@ export function useMatrixState() {
   }
 
   async function updateSelectedStrategyVersion() {
+    if (!canAccess('matrix.strategyVersions')) {
+      const authorized = await authorizeCapability('matrix.strategyVersions')
+      if (!authorized) return
+    }
     const selectedId = selectedStrategyVersionId.value
     const versionIndex = strategyVersions.value.findIndex(version => version.id === selectedId)
     if (versionIndex === -1) return
@@ -1605,6 +1631,10 @@ export function useMatrixState() {
   }
 
   async function clearStrategyVersionChanges() {
+    if (!canAccess('matrix.strategyVersions')) {
+      const authorized = await authorizeCapability('matrix.strategyVersions')
+      if (!authorized) return
+    }
     const version = selectedStrategyVersion.value
     if (!version) return
     delete version.draft
@@ -1614,6 +1644,10 @@ export function useMatrixState() {
   }
 
   async function selectStrategyVersion(versionId: string | null) {
+    if (!canAccess('matrix.strategyVersions')) {
+      const authorized = await authorizeCapability('matrix.strategyVersions')
+      if (!authorized) return
+    }
     if (versionId === null) {
       selectedStrategyVersionId.value = null
       const snapshot = anonymousStrategyVersion.value?.snapshot
@@ -1635,6 +1669,10 @@ export function useMatrixState() {
   }
 
   async function removeStrategyVersion(versionId: string) {
+    if (!canAccess('matrix.strategyVersions')) {
+      const authorized = await authorizeCapability('matrix.strategyVersions')
+      if (!authorized) return
+    }
     const versionIndex = strategyVersions.value.findIndex(version => version.id === versionId)
     if (versionIndex === -1) return
 

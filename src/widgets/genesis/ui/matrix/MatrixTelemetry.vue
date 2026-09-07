@@ -38,14 +38,17 @@
            </svg>
        </ExGenesisHudButton>
        <div v-if="canCreateStrategyVersion || (hasSelectedStrategyVersion && hasStrategyVersionChanges)" class="mx-1 h-px w-7 bg-white/15"></div>
-       <ExGenesisHudButton v-if="canCreateStrategyVersion" class="!border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-create')">
+       <ExGenesisHudButton v-if="canCreateStrategyVersion" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-create')">
            <Icon name="lucide:bookmark-plus" class="w-4 h-4" />
+           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
-       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="!border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="$emit('strategy-version-update')">
+       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-update')">
            <Icon name="lucide:refresh-cw" class="w-4 h-4" />
+           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
-       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="$emit('strategy-version-clear')">
+       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-clear')">
            <Icon name="lucide:undo-2" class="w-4 h-4" />
+           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
      </ExGenesisHudPanel>
   </div>
@@ -81,6 +84,7 @@
                 @click="openVersionReviewFromMenu"
               >
                 <Icon name="lucide:history" class="h-6 w-6" />
+                <ExFullAccessBadge v-if="strategyVersionsLocked" />
                 <span
                   v-if="strategyVersions.length"
                   class="absolute right-1/2 top-1/2 flex h-4 min-w-4 translate-x-5 -translate-y-5 items-center justify-center bg-white px-1 font-mono text-[7px] leading-none text-black"
@@ -187,6 +191,7 @@ import ExGenesisHudFlyout from '../common/ExGenesisHudFlyout.vue'
 import ExMatrixGitPanel from './ExMatrixGitPanel.vue'
 import ExMatrixVersionReview from './ExMatrixVersionReview.vue'
 import type { MatrixStrategyVersion } from '../../model/matrix/useMatrixState'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 
 const props = defineProps<{
   viewState: { scale: number }
@@ -196,6 +201,7 @@ const props = defineProps<{
   hasSelectedStrategyVersion?: boolean
   hasStrategyVersionChanges?: boolean
   strategyVersions?: MatrixStrategyVersion[]
+  strategyVersionsLocked?: boolean
   gitPanelOpen: boolean
 }>()
 
@@ -206,6 +212,7 @@ const emit = defineEmits([
   'strategy-version-create',
   'strategy-version-update',
   'strategy-version-clear',
+  'paid-feature-click',
   'close-context-menus'
 ])
 
@@ -270,7 +277,19 @@ function openManualFromMenu() {
 
 function openVersionReviewFromMenu() {
   closeToolsMenu()
+  if (props.strategyVersionsLocked) {
+    emit('paid-feature-click')
+    return
+  }
   openVersionReview()
+}
+
+function handleVersionAction(event: 'strategy-version-create' | 'strategy-version-update' | 'strategy-version-clear') {
+  if (props.strategyVersionsLocked) {
+    emit('paid-feature-click')
+    return
+  }
+  emit(event)
 }
 
 const manualSectionsEn = [

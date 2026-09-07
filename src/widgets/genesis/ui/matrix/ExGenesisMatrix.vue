@@ -20,9 +20,10 @@
           {{ getPageLabel(page, index) }}
         </span>
       </button>
-      <button @click="state.addMatrixPage()"
-              class="h-9 w-9 border border-nier-border-light dark:border-nier-border-dark bg-nier-white/80 dark:bg-nier-black/80 backdrop-blur-xl text-[14px] font-mono font-black opacity-50 hover:opacity-100 transition-all">
+      <button @click="handleAddMatrixPage"
+              class="relative h-9 w-9 border border-nier-border-light dark:border-nier-border-dark bg-nier-white/80 dark:bg-nier-black/80 backdrop-blur-xl text-[14px] font-mono font-black opacity-50 hover:opacity-100 transition-all">
         +
+        <ExFullAccessBadge v-if="!hasMultipleBoardsAccess" />
       </button>
     </div>
     
@@ -118,11 +119,13 @@
                        :has-selected-strategy-version="!!state.selectedStrategyVersion.value"
                        :has-strategy-version-changes="state.hasStrategyVersionChanges.value"
                        :strategy-versions="state.strategyVersions.value"
+                       :strategy-versions-locked="!hasStrategyVersionsAccess"
                        :git-panel-open="isGitPanelOpen"
                        @reset-view="canvas.resetView" @update-scale="(s) => state.viewState.value.scale = s"
-                       @strategy-version-create="state.createStrategyVersion"
-                       @strategy-version-update="state.updateSelectedStrategyVersion"
+                       @strategy-version-create="handleCreateStrategyVersion"
+                       @strategy-version-update="handleUpdateStrategyVersion"
                        @strategy-version-clear="clearStrategyVersionChanges"
+                       @paid-feature-click="showPaywall = true"
                        @git-panel-state="isGitPanelOpen = $event"
                        @close-context-menus="closeContextMenus" />
 
@@ -177,8 +180,10 @@
                           :active-wire="canvas.activeWire.value"
                           :is-zone-tool-active="zoneTools.isZoneToolActive.value"
                           :selected-zone-type="zoneTools.selectedZoneType.value"
+                          :multiple-boards-locked="!hasMultipleBoardsAccess"
                           @activate-zone="zoneTools.activateZoneTool"
-                          @personal-contextmenu="menu.handlePersonalCondContextMenu" />
+                          @personal-contextmenu="menu.handlePersonalCondContextMenu"
+                          @paid-feature-click="showPaywall = true" />
 
       <!-- CONTEXT MENUS -->
       <MatrixContextMenus :state="state" :menu="menu" :is-dark="isDark" 
@@ -271,6 +276,8 @@
         </Transition>
       </Teleport>
 
+      <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
+
     </div>
   </div>
 </template>
@@ -287,6 +294,9 @@ import ExDrawingPanel from '~/shared/ui/ExDrawingPanel.vue'
 import MatrixCommandPanel from './MatrixCommandPanel.vue'
 import MatrixContextMenus from './MatrixContextMenus.vue'
 import MatrixConnections from './MatrixConnections.vue'
+import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
+import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 import { useMatrixState, type Zone } from '../../model/matrix/useMatrixState'
 import { useMatrixCanvas, isTextEditingTarget } from '../../model/matrix/useMatrixCanvas'
@@ -326,8 +336,40 @@ const undoManager = useExGenesisMatrixUndo()
 const isGitPanelOpen = ref(false)
 const activeFilePreviewNode = ref<any | null>(null)
 const { t } = useI18n()
+const { canAccess } = useAccessActivation()
+const showPaywall = ref(false)
+const hasStrategyVersionsAccess = computed(() => canAccess('matrix.strategyVersions'))
+const hasMultipleBoardsAccess = computed(() => canAccess('matrix.multipleBoards'))
+
+const handleAddMatrixPage = () => {
+  if (!hasMultipleBoardsAccess.value) {
+    showPaywall.value = true
+    return
+  }
+  void state.addMatrixPage()
+}
+
+const handleCreateStrategyVersion = () => {
+  if (!hasStrategyVersionsAccess.value) {
+    showPaywall.value = true
+    return
+  }
+  void state.createStrategyVersion()
+}
+
+const handleUpdateStrategyVersion = () => {
+  if (!hasStrategyVersionsAccess.value) {
+    showPaywall.value = true
+    return
+  }
+  void state.updateSelectedStrategyVersion()
+}
 
 const clearStrategyVersionChanges = async () => {
+  if (!hasStrategyVersionsAccess.value) {
+    showPaywall.value = true
+    return
+  }
   await state.clearStrategyVersionChanges()
   undoManager.resetSnapshot()
 }
