@@ -20,10 +20,10 @@
           {{ getPageLabel(page, index) }}
         </span>
       </button>
-      <button @click="handleAddMatrixPage"
+      <button v-if="hasMultipleBoardsAccess"
+              @click="handleAddMatrixPage"
               class="relative h-9 w-9 border border-nier-border-light dark:border-nier-border-dark bg-nier-white/80 dark:bg-nier-black/80 backdrop-blur-xl text-[14px] font-mono font-black opacity-50 hover:opacity-100 transition-all">
         +
-        <ExFullAccessBadge v-if="!hasMultipleBoardsAccess" />
       </button>
     </div>
     
@@ -294,7 +294,6 @@ import ExDrawingPanel from '~/shared/ui/ExDrawingPanel.vue'
 import MatrixCommandPanel from './MatrixCommandPanel.vue'
 import MatrixContextMenus from './MatrixContextMenus.vue'
 import MatrixConnections from './MatrixConnections.vue'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 

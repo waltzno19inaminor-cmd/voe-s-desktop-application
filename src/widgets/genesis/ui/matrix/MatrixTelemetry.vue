@@ -37,18 +37,15 @@
              <path d="M4 7h16M4 12h16M4 17h16" />
            </svg>
        </ExGenesisHudButton>
-       <div v-if="canCreateStrategyVersion || (hasSelectedStrategyVersion && hasStrategyVersionChanges)" class="mx-1 h-px w-7 bg-white/15"></div>
-       <ExGenesisHudButton v-if="canCreateStrategyVersion" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-create')">
+       <div v-if="!strategyVersionsLocked && (canCreateStrategyVersion || (hasSelectedStrategyVersion && hasStrategyVersionChanges))" class="mx-1 h-px w-7 bg-white/15"></div>
+       <ExGenesisHudButton v-if="!strategyVersionsLocked && canCreateStrategyVersion" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('createVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-create')">
            <Icon name="lucide:bookmark-plus" class="w-4 h-4" />
-           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
-       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-update')">
+       <ExGenesisHudButton v-if="!strategyVersionsLocked && hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative !border-white !bg-neutral-100 !text-black hover:!border-white hover:!bg-neutral-100 hover:!text-black" :tooltip="matrixToolLabel('updateVersion')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-update')">
            <Icon name="lucide:refresh-cw" class="w-4 h-4" />
-           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
-       <ExGenesisHudButton v-if="hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-clear')">
+       <ExGenesisHudButton v-if="!strategyVersionsLocked && hasSelectedStrategyVersion && hasStrategyVersionChanges" class="relative" :tooltip="matrixToolLabel('clearChanges')" tooltip-position="right" @click.stop="handleVersionAction('strategy-version-clear')">
            <Icon name="lucide:undo-2" class="w-4 h-4" />
-           <ExFullAccessBadge v-if="strategyVersionsLocked" />
        </ExGenesisHudButton>
      </ExGenesisHudPanel>
   </div>
@@ -63,7 +60,7 @@
       >
         <div class="relative w-full max-w-xl">
           <ExPanel class="tools-menu-panel w-full" noPadding variant="light" :show-corners="true">
-            <div class="grid grid-cols-2 gap-0 p-4 [&>button]:!h-14">
+            <div class="grid gap-0 p-4 [&>button]:!h-14" :class="strategyVersionsLocked ? 'grid-cols-1' : 'grid-cols-2'">
               <button
                 type="button"
                 class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
@@ -79,12 +76,12 @@
               </button>
 
               <button
+                v-if="!strategyVersionsLocked"
                 type="button"
                 class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
                 @click="openVersionReviewFromMenu"
               >
                 <Icon name="lucide:history" class="h-6 w-6" />
-                <ExFullAccessBadge v-if="strategyVersionsLocked" />
                 <span
                   v-if="strategyVersions.length"
                   class="absolute right-1/2 top-1/2 flex h-4 min-w-4 translate-x-5 -translate-y-5 items-center justify-center bg-white px-1 font-mono text-[7px] leading-none text-black"
@@ -173,8 +170,9 @@
     </Transition>
   </Teleport>
 
-  <ExMatrixGitPanel :is-open="gitPanelOpen" @close="setGitPanelOpen(false)" />
+  <ExMatrixGitPanel v-if="!strategyVersionsLocked" :is-open="gitPanelOpen" @close="setGitPanelOpen(false)" />
   <ExMatrixVersionReview
+    v-if="!strategyVersionsLocked"
     :is-open="isVersionReviewOpen"
     :versions="strategyVersions"
     @close="isVersionReviewOpen = false"
@@ -191,7 +189,6 @@ import ExGenesisHudFlyout from '../common/ExGenesisHudFlyout.vue'
 import ExMatrixGitPanel from './ExMatrixGitPanel.vue'
 import ExMatrixVersionReview from './ExMatrixVersionReview.vue'
 import type { MatrixStrategyVersion } from '../../model/matrix/useMatrixState'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 
 const props = defineProps<{
   viewState: { scale: number }
