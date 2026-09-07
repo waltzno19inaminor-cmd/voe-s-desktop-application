@@ -125,7 +125,7 @@
                        @strategy-version-create="handleCreateStrategyVersion"
                        @strategy-version-update="handleUpdateStrategyVersion"
                        @strategy-version-clear="clearStrategyVersionChanges"
-                       @paid-feature-click="showPaywall = true"
+                       @paid-feature-click="openFeaturePaywall('matrix.strategyVersions')"
                        @git-panel-state="isGitPanelOpen = $event"
                        @close-context-menus="closeContextMenus" />
 
@@ -183,7 +183,7 @@
                           :multiple-boards-locked="!hasMultipleBoardsAccess"
                           @activate-zone="zoneTools.activateZoneTool"
                           @personal-contextmenu="menu.handlePersonalCondContextMenu"
-                          @paid-feature-click="showPaywall = true" />
+                          @paid-feature-click="openFeaturePaywall('matrix.multipleBoards')" />
 
       <!-- CONTEXT MENUS -->
       <MatrixContextMenus :state="state" :menu="menu" :is-dark="isDark" 
@@ -276,7 +276,11 @@
         </Transition>
       </Teleport>
 
-      <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
+      <ExPaywallOverlay
+        :is-open="showPaywall"
+        :capability="paywallCapability"
+        @close="showPaywall = false"
+      />
 
     </div>
   </div>
@@ -296,6 +300,7 @@ import MatrixContextMenus from './MatrixContextMenus.vue'
 import MatrixConnections from './MatrixConnections.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
+import type { AccessCapability } from '~/features/access/model/accessEntitlements'
 
 import { useMatrixState, type Zone } from '../../model/matrix/useMatrixState'
 import { useMatrixCanvas, isTextEditingTarget } from '../../model/matrix/useMatrixCanvas'
@@ -337,12 +342,17 @@ const activeFilePreviewNode = ref<any | null>(null)
 const { t } = useI18n()
 const { canAccess } = useAccessActivation()
 const showPaywall = ref(false)
+const paywallCapability = ref<AccessCapability>('matrix.strategyVersions')
+const openFeaturePaywall = (capability: AccessCapability) => {
+  paywallCapability.value = capability
+  showPaywall.value = true
+}
 const hasStrategyVersionsAccess = computed(() => canAccess('matrix.strategyVersions'))
 const hasMultipleBoardsAccess = computed(() => canAccess('matrix.multipleBoards'))
 
 const handleAddMatrixPage = () => {
   if (!hasMultipleBoardsAccess.value) {
-    showPaywall.value = true
+    openFeaturePaywall('matrix.multipleBoards')
     return
   }
   void state.addMatrixPage()
@@ -350,7 +360,7 @@ const handleAddMatrixPage = () => {
 
 const handleCreateStrategyVersion = () => {
   if (!hasStrategyVersionsAccess.value) {
-    showPaywall.value = true
+    openFeaturePaywall('matrix.strategyVersions')
     return
   }
   void state.createStrategyVersion()
@@ -358,7 +368,7 @@ const handleCreateStrategyVersion = () => {
 
 const handleUpdateStrategyVersion = () => {
   if (!hasStrategyVersionsAccess.value) {
-    showPaywall.value = true
+    openFeaturePaywall('matrix.strategyVersions')
     return
   }
   void state.updateSelectedStrategyVersion()
@@ -366,7 +376,7 @@ const handleUpdateStrategyVersion = () => {
 
 const clearStrategyVersionChanges = async () => {
   if (!hasStrategyVersionsAccess.value) {
-    showPaywall.value = true
+    openFeaturePaywall('matrix.strategyVersions')
     return
   }
   await state.clearStrategyVersionChanges()

@@ -42,7 +42,6 @@
                   <div class="flex flex-col items-start">
                     <span class="font-mono text-[10px] font-black uppercase tracking-[0.14em]">{{ broker.label }}</span>
                   </div>
-                  <ExFullAccessBadge v-if="isBrokerLocked(broker.id)" />
                   <span v-if="!isBrokerLocked(broker.id) && isBrokerActiveForTopbar(broker.id)" class="absolute top-1.5 right-1.5 z-10 h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"></span>
                 </button>
               </div>
@@ -422,14 +421,17 @@
       </ExPanel>
     </div>
 
-    <ExPaywallOverlay :is-open="showFullAccessPaywall" @close="showFullAccessPaywall = false" />
+    <ExPaywallOverlay
+      :is-open="showFullAccessPaywall"
+      :capability="paywallCapability"
+      @close="showFullAccessPaywall = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import ExPanel from '~/shared/ui/ExPanel.vue'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import type { DiaryEntry } from '~/entities/diary/model/diary.types'
@@ -588,6 +590,7 @@ const brokers = computed<BrokerDefinition[]>(() => [
 
 const selectedBrokerId = ref<BrokerId>('metatrader5')
 const showFullAccessPaywall = ref(false)
+const paywallCapability = ref<AccessCapability>('broker.binance')
 const connectionMap = ref<Record<string, SavedConnection>>({})
 const formState = reactive<Record<string, string>>({})
 const activationState = ref<'idle' | 'loading'>('idle')
@@ -723,8 +726,9 @@ const selectedBroker = computed(() => {
 
 const selectBroker = (brokerId: BrokerId) => {
   if (isBrokerLocked(brokerId)) {
-    // A normal click on a FULL broker is presentation-only. Entitlement is
+    // A normal click on a locked broker is presentation-only. Entitlement is
     // checked deeper only if protected broker logic is actually invoked.
+    paywallCapability.value = brokerCapabilities[brokerId]
     showFullAccessPaywall.value = true
     return
   }
@@ -738,6 +742,7 @@ const ensureBrokerAccess = async (brokerId: BrokerId): Promise<boolean> => {
     : await authorizeCapability(brokerCapabilities[brokerId])
   if (allowed) return true
 
+  paywallCapability.value = brokerCapabilities[brokerId]
   showFullAccessPaywall.value = true
   statusTone.value = 'error'
   statusMessage.value = isRu.value

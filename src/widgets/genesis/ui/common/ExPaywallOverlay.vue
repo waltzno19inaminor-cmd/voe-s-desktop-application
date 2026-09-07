@@ -15,13 +15,36 @@
         <!-- Main Panel -->
         <ExPanel 
           variant="light" 
-          :title="locale === 'ru' ? 'ПОЛНЫЙ ДОСТУП' : 'FULL ACCESS'" 
-          class="relative w-full max-w-2xl shadow-[0_0_100px_rgba(255,66,77,0.1)] group z-10 border-white/10"
+          :title="featureContent.title"
+          class="relative w-full max-w-3xl shadow-[0_0_100px_rgba(255,66,77,0.1)] group z-10 border-white/10"
         >
-          <div class="flex flex-col items-center w-full h-full relative z-10">
+          <div class="flex w-full flex-col items-center relative z-10">
+            <div class="w-full border-b border-white/10 pb-6 text-center">
+              <span class="font-mono text-[8px] font-black uppercase tracking-[0.42em] text-[#FF424D]">
+                {{ locale === 'ru' ? 'ДОСТУПНО ПО ПОДПИСКЕ' : 'AVAILABLE WITH SUBSCRIPTION' }}
+              </span>
+              <p class="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-white/65">
+                {{ featureContent.summary }}
+              </p>
+            </div>
+
+            <div class="my-6 grid w-full gap-2 sm:grid-cols-3">
+              <div
+                v-for="(benefit, index) in featureContent.benefits"
+                :key="benefit"
+                class="relative min-h-24 border border-white/10 bg-white/[0.025] px-4 pb-4 pt-7"
+              >
+                <span class="absolute left-4 top-3 font-mono text-[7px] font-black tracking-[0.28em] text-white/25">
+                  0{{ index + 1 }}
+                </span>
+                <p class="font-mono text-[9px] font-bold uppercase leading-relaxed tracking-[0.12em] text-white/70">
+                  {{ benefit }}
+                </p>
+              </div>
+            </div>
             
             <!-- Action Area -->
-            <div class="w-full flex flex-col sm:flex-row items-center gap-4 mt-2">
+            <div class="flex w-full flex-col items-center gap-4 sm:flex-row">
               <button
                 @click="openPatreon"
                 class="relative flex-1 group/btn w-full overflow-hidden border border-[#FF424D]/50 hover:border-[#FF424D] bg-[#FF424D]/5 hover:bg-[#FF424D]/15 transition-all duration-500 py-5 px-6 flex items-center justify-center gap-4"
@@ -41,8 +64,8 @@
               </button>
             </div>
             
-            <p class="text-[9px] font-mono tracking-widest text-white/40 uppercase mt-8 text-center max-w-md leading-relaxed">
-              {{ locale === 'ru' ? 'После оформления подписки полный доступ к продвинутым инструментам будет открыт автоматически.' : 'Access to all advanced tools and the analytical matrix will be unlocked immediately upon subscription.' }}
+            <p class="mt-7 max-w-md text-center font-mono text-[8px] uppercase leading-relaxed tracking-widest text-white/35">
+              {{ locale === 'ru' ? 'Доступ откроется автоматически после активации подписки.' : 'Access unlocks automatically after subscription activation.' }}
             </p>
 
           </div>
@@ -53,15 +76,150 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { open } from '@tauri-apps/plugin-shell'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import type { AccessCapability } from '~/features/access/model/accessEntitlements'
 
 const { locale } = useI18n()
 
-defineProps<{
+const props = defineProps<{
   isOpen: boolean
+  capability?: AccessCapability
 }>()
+
+type LocalizedFeatureContent = {
+  title: { ru: string; en: string }
+  summary: { ru: string; en: string }
+  benefits: { ru: [string, string, string]; en: [string, string, string] }
+}
+
+const featureContentByCapability: Partial<Record<AccessCapability, LocalizedFeatureContent>> = {
+  'broker.binance': {
+    title: { ru: 'ПОДКЛЮЧЕНИЕ BINANCE', en: 'BINANCE CONNECTION' },
+    summary: { ru: 'Переносите историю сделок Binance в журнал без ручного ввода.', en: 'Bring your Binance trade history into the journal without manual entry.' },
+    benefits: {
+      ru: ['Импорт сделок с биржи', 'Единая история в журнале', 'Меньше ручной работы'],
+      en: ['Import exchange trades', 'One journal history', 'Less manual work']
+    }
+  },
+  'broker.bybit': {
+    title: { ru: 'ПОДКЛЮЧЕНИЕ BYBIT', en: 'BYBIT CONNECTION' },
+    summary: { ru: 'Синхронизируйте сделки Bybit и анализируйте их вместе с остальным журналом.', en: 'Sync Bybit trades and analyze them together with the rest of your journal.' },
+    benefits: {
+      ru: ['Импорт закрытых сделок', 'Синхронизация истории', 'Общий торговый журнал'],
+      en: ['Import closed trades', 'History synchronization', 'Unified trading journal']
+    }
+  },
+  'broker.kraken': {
+    title: { ru: 'ПОДКЛЮЧЕНИЕ KRAKEN', en: 'KRAKEN CONNECTION' },
+    summary: { ru: 'Добавляйте сделки Kraken в журнал и сохраняйте аналитику в одном месте.', en: 'Add Kraken trades to your journal and keep analysis in one place.' },
+    benefits: {
+      ru: ['Импорт истории Kraken', 'Spot и Futures контекст', 'Единая база сделок'],
+      en: ['Kraken history import', 'Spot and Futures context', 'One trade database']
+    }
+  },
+  'broker.interactiveBrokers': {
+    title: { ru: 'ПОДКЛЮЧЕНИЕ IBKR', en: 'IBKR CONNECTION' },
+    summary: { ru: 'Загружайте отчёты Interactive Brokers и ведите журнал без повторного заполнения сделок.', en: 'Load Interactive Brokers reports and journal trades without entering them again.' },
+    benefits: {
+      ru: ['Импорт через Flex Query', 'Автоматизация журнала', 'Анализ в общей системе'],
+      en: ['Flex Query import', 'Automated journaling', 'Analysis in one system']
+    }
+  },
+  'reports.scenariosConditions': {
+    title: { ru: 'СЦЕНАРИИ И УСЛОВИЯ', en: 'SCENARIOS & CONDITIONS' },
+    summary: { ru: 'Узнайте, в каком рыночном контексте стратегия действительно работает.', en: 'See which market context actually makes your strategy work.' },
+    benefits: {
+      ru: ['Сравнение сценариев', 'Эффективность условий', 'Поиск сильных комбинаций'],
+      en: ['Compare scenarios', 'Measure condition impact', 'Find strong combinations']
+    }
+  },
+  'analytics.scenariosConditions': {
+    title: { ru: 'ФИЛЬТР СЦЕНАРИЕВ', en: 'SCENARIO FILTERING' },
+    summary: { ru: 'Изолируйте нужный сценарий или условие прямо на кривой капитала.', en: 'Isolate a scenario or condition directly on the equity curve.' },
+    benefits: {
+      ru: ['Отдельная кривая результата', 'Сравнение торгового контекста', 'Быстрая проверка гипотез'],
+      en: ['Focused result curve', 'Compare trading context', 'Test hypotheses quickly']
+    }
+  },
+  'diary.genesisTree': {
+    title: { ru: 'ДЕРЕВО ГЕНЕЗИСА', en: 'GENESIS TREE' },
+    summary: { ru: 'Смотрите структуру торговли как связанную систему, а не набор отдельных сделок.', en: 'View your trading as a connected system instead of isolated trades.' },
+    benefits: {
+      ru: ['Связи между сделками', 'Визуальная структура развития', 'Поиск повторяющихся ветвей'],
+      en: ['Connections between trades', 'Visual evolution structure', 'Find recurring branches']
+    }
+  },
+  'diary.capitalForecast': {
+    title: { ru: 'ПРОГНОЗ КАПИТАЛА', en: 'CAPITAL FORECAST' },
+    summary: { ru: 'Оцените возможную траекторию капитала на основе вашей реальной статистики.', en: 'Estimate possible capital paths from your actual trading statistics.' },
+    benefits: {
+      ru: ['Несколько горизонтов прогноза', 'Диапазон возможных исходов', 'Оценка риска будущей серии'],
+      en: ['Multiple forecast horizons', 'Range of possible outcomes', 'Future sequence risk']
+    }
+  },
+  'trade.nodeMapping': {
+    title: { ru: 'NODE MAPPING', en: 'NODE MAPPING' },
+    summary: { ru: 'Разберите сделку в контексте стратегии, сценария и фактического исполнения.', en: 'Break down a trade through its strategy, scenario, and actual execution.' },
+    benefits: {
+      ru: ['Карта элементов сделки', 'Связь с логикой стратегии', 'Быстрый поиск слабого звена'],
+      en: ['Trade element map', 'Strategy logic connection', 'Find the weak link quickly']
+    }
+  },
+  'trade.advancedPatterns': {
+    title: { ru: 'ПАТТЕРНЫ СДЕЛОК', en: 'TRADE PATTERNS' },
+    summary: { ru: 'Находите общие признаки, которые повторяются в сильных и слабых сделках.', en: 'Find traits that repeat across your strongest and weakest trades.' },
+    benefits: {
+      ru: ['Группировка по Trade Score', 'Повторяющиеся диапазоны метрик', 'Различия сильных и слабых сделок'],
+      en: ['Trade Score cohorts', 'Recurring metric ranges', 'Strong versus weak trades']
+    }
+  },
+  'trade.ohlcAnalysis': {
+    title: { ru: 'OHLC-АНАЛИЗ СДЕЛКИ', en: 'TRADE OHLC ANALYSIS' },
+    summary: { ru: 'Восстановите движение цены внутри сделки и оцените качество входа и выхода.', en: 'Reconstruct price movement inside a trade and evaluate entry and exit quality.' },
+    benefits: {
+      ru: ['Свечной график сделки', 'MFE и глубина просадки', 'Анализ пути цены'],
+      en: ['Trade candlestick chart', 'MFE and drawdown depth', 'Price-path analysis']
+    }
+  },
+  'matrix.strategyVersions': {
+    title: { ru: 'ВЕРСИИ СТРАТЕГИИ', en: 'STRATEGY VERSIONS' },
+    summary: { ru: 'Фиксируйте этапы развития стратегии и безопасно возвращайтесь к прошлой структуре.', en: 'Capture strategy evolution and safely return to an earlier structure.' },
+    benefits: {
+      ru: ['Снимки структуры', 'Сравнение изменений', 'Обновление и откат версий'],
+      en: ['Structure snapshots', 'Change comparison', 'Update and restore versions']
+    }
+  },
+  'matrix.multipleBoards': {
+    title: { ru: 'НЕСКОЛЬКО ДОСОК', en: 'MULTIPLE BOARDS' },
+    summary: { ru: 'Разделяйте независимые стратегии по собственным рабочим пространствам.', en: 'Keep independent strategies in their own workspaces.' },
+    benefits: {
+      ru: ['Отдельная доска для стратегии', 'Чистая структура проектов', 'Быстрое переключение'],
+      en: ['One board per strategy', 'Clean project structure', 'Fast switching']
+    }
+  }
+}
+
+const fallbackContent: LocalizedFeatureContent = {
+  title: { ru: 'РАСШИРЕННЫЙ ИНСТРУМЕНТ', en: 'ADVANCED TOOL' },
+  summary: { ru: 'Откройте расширенные инструменты анализа и развития торговой системы.', en: 'Unlock advanced tools for analyzing and developing your trading system.' },
+  benefits: {
+    ru: ['Глубже анализ', 'Больше рабочих инструментов', 'Единая система развития'],
+    en: ['Deeper analysis', 'More workflow tools', 'One development system']
+  }
+}
+
+const featureContent = computed(() => {
+  const source = (props.capability && featureContentByCapability[props.capability]) || fallbackContent
+  const language = locale.value === 'ru' ? 'ru' : 'en'
+  return {
+    title: source.title[language],
+    summary: source.summary[language],
+    benefits: source.benefits[language]
+  }
+})
 
 const emit = defineEmits(['close'])
 

@@ -5,7 +5,6 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 import { buildGeneratedInTradeAnalysis as calculateGeneratedInTradeAnalysis } from '~/widgets/genesis/model/generatedInTradeAnalysis'
 import ExPanel from '~/shared/ui/ExPanel.vue'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
@@ -2427,7 +2426,6 @@ onBeforeUnmount(() => {
       @click="showPaywall = true"
     >
       {{ locale === 'ru' ? 'РЫНОЧНЫЙ OHLC-ГРАФИК' : 'MARKET OHLC CHART' }}
-      <ExFullAccessBadge />
     </button>
   </section>
 
@@ -2758,5 +2756,9 @@ onBeforeUnmount(() => {
     </Transition>
   </Teleport>
 
-  <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
+  <ExPaywallOverlay
+    :is-open="showPaywall"
+    capability="trade.ohlcAnalysis"
+    @close="showPaywall = false"
+  />
 </template>

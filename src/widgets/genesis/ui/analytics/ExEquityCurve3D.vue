@@ -760,7 +760,6 @@
               <path d="M5 21V4"/>
               <path d="M5 4c4-3 7 3 14 0v9c-7 3-10-3-14 0"/>
             </svg>
-            <ExFullAccessBadge v-if="!hasScenarioConditionAccess" />
             <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap border border-white/20 bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
               {{ isRu ? '[ ВЫБОР СЦЕНАРИЕВ И УСЛОВИЙ ]' : '[ SELECT SCENARIOS AND CONDITIONS ]' }}
             </span>
@@ -1015,7 +1014,11 @@
         :forecast-strategy-name="selectedStrategy?.name || 'MAIN DIARY'"
       />
     </Transition>
-    <ExPaywallOverlay :isOpen="showPaywall && !isTradeEntryOpen" @close="showPaywall = false" />
+    <ExPaywallOverlay
+      :isOpen="showPaywall && !isTradeEntryOpen"
+      capability="analytics.scenariosConditions"
+      @close="showPaywall = false"
+    />
   </div>
 </template>
 
@@ -1038,7 +1041,6 @@ import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from '../common/ExPaywallOverlay.vue'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPanel.vue'
 import ExCalendarMode from '../diary/ExCalendarMode.vue'

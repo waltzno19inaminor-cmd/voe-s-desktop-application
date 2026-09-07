@@ -148,7 +148,11 @@ onMounted(() => {
         </div>
       </div>
     </div>
-    <ExPaywallOverlay :is-open="showPaywall" @close="showPaywall = false" />
+    <ExPaywallOverlay
+      :is-open="showPaywall"
+      capability="reports.scenariosConditions"
+      @close="showPaywall = false"
+    />
   </div>
 </template>
 

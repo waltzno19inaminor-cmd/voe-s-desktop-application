@@ -10,7 +10,6 @@ import ExTradeImageEntry from './ExTradeImageEntry.vue'
 import ExPatternForecastPanel from '../analytics/ExPatternForecastPanel.vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import {
   getTradeDurationMs,
@@ -612,7 +611,6 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                       <circle cx="17" cy="12" r="2" stroke="currentColor" stroke-width="1.6" />
                       <circle cx="7" cy="18" r="2" stroke="currentColor" stroke-width="1.6" />
                     </svg>
-                    <ExFullAccessBadge v-if="!hasNodeMappingAccess" />
                   </button>
           <button
             type="button"
@@ -625,7 +623,6 @@ const tradeEntryThemeStyle = computed(() => props.isDark
               <path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" />
               <path d="M5 8h4v7H5zM15 6h4v10h-4z" fill="currentColor" />
             </svg>
-            <ExFullAccessBadge v-if="!hasOhlcAccess" />
           </button>
         </div>
 
@@ -1054,8 +1051,16 @@ const tradeEntryThemeStyle = computed(() => props.isDark
       </div>
     </div>
   </div>
-  <ExPaywallOverlay :is-open="showNodeMappingPaywall" @close="showNodeMappingPaywall = false" />
-  <ExPaywallOverlay :is-open="showOhlcPaywall" @close="showOhlcPaywall = false" />
+  <ExPaywallOverlay
+    :is-open="showNodeMappingPaywall"
+    capability="trade.nodeMapping"
+    @close="showNodeMappingPaywall = false"
+  />
+  <ExPaywallOverlay
+    :is-open="showOhlcPaywall"
+    capability="trade.ohlcAnalysis"
+    @close="showOhlcPaywall = false"
+  />
   </div>
 
 </template>

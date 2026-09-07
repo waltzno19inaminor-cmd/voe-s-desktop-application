@@ -30,7 +30,6 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis';
 import { getTradeResultPercent, resolveTradeBalanceBefore } from '~/widgets/genesis/model/metrics';
 import { useAccessActivation } from '~/features/access/model/useAccessActivation';
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue';
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue';
 
 const genesisTrades = useGenesisTrades();
@@ -1189,7 +1188,6 @@ const summarySelectedEmotions = computed(() => {
                       <path d="M7 4v16M17 4v16" stroke="currentColor" stroke-width="1.6" stroke-linecap="square" />
                       <path d="M5 8h4v7H5zM15 6h4v10h-4z" fill="currentColor" />
                     </svg>
-                    <ExFullAccessBadge v-if="!hasOhlcAccess" />
                   </button>
                 </div>
                </div>
@@ -1393,6 +1391,10 @@ const summarySelectedEmotions = computed(() => {
           </div>
         </Transition>
       </div>
-      <ExPaywallOverlay :is-open="showOhlcPaywall" @close="showOhlcPaywall = false" />
+      <ExPaywallOverlay
+        :is-open="showOhlcPaywall"
+        capability="trade.ohlcAnalysis"
+        @close="showOhlcPaywall = false"
+      />
     </div>
 </template>

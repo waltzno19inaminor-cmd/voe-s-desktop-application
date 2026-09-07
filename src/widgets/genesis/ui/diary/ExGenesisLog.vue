@@ -919,7 +919,6 @@
                     <path d="M12 4v5M6 15v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M6 15v3M18 15v3" />
                     <circle cx="12" cy="4" r="2" /><circle cx="6" cy="19" r="2" /><circle cx="18" cy="19" r="2" />
                   </svg>
-                  <ExFullAccessBadge v-if="!hasGenesisTreeAccess" />
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                     {{ locale === 'ru' ? 'Дерево Генезиса' : 'Genesis tree' }}
                   </span>
@@ -934,7 +933,6 @@
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6">
                     <path d="M3 17l5-5 4 4 8-9" /><path d="M17 7h3v3" />
                   </svg>
-                  <ExFullAccessBadge v-if="!canOpenCapitalForecast" />
                   <span class="pointer-events-none absolute left-1/2 top-full z-20 -translate-x-1/2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono font-bold uppercase tracking-widest text-black opacity-0 shadow-xl transition-opacity group-hover:opacity-100">
                     {{ locale === 'ru' ? 'ПРОГНОЗ' : 'FORECAST' }}
                   </span>
@@ -1199,7 +1197,11 @@
     </Transition>
   </Teleport>
 
-  <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
+  <ExPaywallOverlay
+    :isOpen="showPaywall"
+    :capability="paywallCapability"
+    @close="showPaywall = false"
+  />
 
   </div>
 </template>
@@ -1231,8 +1233,8 @@ import { useI18n } from '~/shared/i18n/useI18n'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/common/ExTradeShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
+import type { AccessCapability } from '~/features/access/model/accessEntitlements'
 import ExPatternForecastPanel from '~/widgets/genesis/ui/analytics/ExPatternForecastPanel.vue'
 import { PATTERN_FORECAST_LIMITS } from '~/widgets/genesis/model/patternForecast'
 import { buildTradeProfitabilityScoreIndex, getTradePnlForScore } from '~/widgets/genesis/model/tradeProfitabilityScore'
@@ -1528,6 +1530,11 @@ watch(isHudVisible, (val) => {
   emit('hudState', val)
 })
 const showPaywall = ref(false)
+const paywallCapability = ref<AccessCapability>('diary.genesisTree')
+const openFeaturePaywall = (capability: AccessCapability) => {
+  paywallCapability.value = capability
+  showPaywall.value = true
+}
 const canOpenCapitalForecast = computed(() => {
   return canAccess('diary.capitalForecast')
 })
@@ -2319,7 +2326,7 @@ const closeToolsMenu = () => {
 
 const openProjectionView = (nextView: 'distribution' | 'tree') => {
   if (nextView === 'tree' && !hasGenesisTreeAccess.value) {
-    showPaywall.value = true
+    openFeaturePaywall('diary.genesisTree')
     return
   }
   if (nextView === 'distribution' && viewType.value !== 'distribution') {
@@ -2356,7 +2363,7 @@ const exitTreeView = () => {
 
 const toggleCapitalForecast = () => {
   if (!canOpenCapitalForecast.value) {
-    showPaywall.value = true
+    openFeaturePaywall('diary.capitalForecast')
     return
   }
 
@@ -2386,7 +2393,7 @@ const acceptCapitalForecastIntro = async () => {
     const authorized = await authorizeCapability('diary.capitalForecast')
     if (!authorized) {
       showCapitalForecastIntro.value = false
-      showPaywall.value = true
+      openFeaturePaywall('diary.capitalForecast')
       return
     }
   }

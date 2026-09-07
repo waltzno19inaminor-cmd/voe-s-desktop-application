@@ -60,7 +60,7 @@
       >
         <div class="relative w-full max-w-xl">
           <ExPanel class="tools-menu-panel w-full" noPadding variant="light" :show-corners="true">
-            <div class="grid gap-0 p-4 [&>button]:!h-14" :class="strategyVersionsLocked ? 'grid-cols-1' : 'grid-cols-2'">
+            <div class="grid grid-cols-2 gap-0 p-4 [&>button]:!h-14">
               <button
                 type="button"
                 class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
@@ -76,7 +76,6 @@
               </button>
 
               <button
-                v-if="!strategyVersionsLocked"
                 type="button"
                 class="group relative flex h-20 items-center justify-center border-0 bg-transparent text-white/55 transition-all hover:bg-white/5 hover:text-white"
                 @click="openVersionReviewFromMenu"

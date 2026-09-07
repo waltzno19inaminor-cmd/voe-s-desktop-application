@@ -14,7 +14,6 @@ import { buildTradeGeneratedInTradeAnalysis } from '~/widgets/genesis/model/gene
 import { useTradeAnalysisMetrics } from './metrics'
 import ExScorePatternsPanel from './ExScorePatternsPanel.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 
 interface AdvancedMetricsPanelProps {
@@ -949,7 +948,6 @@ const advancedTabs = computed(() => {
           v-if="tab.id !== 'patterns' || advancedPatternsAuthorized"
           class="rounded-full bg-black/10 px-1.5 py-0.5 text-[8px] font-mono opacity-60 dark:bg-white/10"
         >{{ tab.count }}</span>
-        <ExFullAccessBadge v-if="tab.id === 'patterns' && !hasAdvancedPatternsAccess" />
       </button>
     </div>
 
@@ -1065,6 +1063,10 @@ const advancedTabs = computed(() => {
       :patterns="tradeScoreBreakdown.patterns"
       :pattern-mode="tradeScoreBreakdown.patternMode"
     />
-    <ExPaywallOverlay :is-open="showPatternsPaywall" @close="showPatternsPaywall = false" />
+    <ExPaywallOverlay
+      :is-open="showPatternsPaywall"
+      capability="trade.advancedPatterns"
+      @close="showPatternsPaywall = false"
+    />
   </div>
 </template>

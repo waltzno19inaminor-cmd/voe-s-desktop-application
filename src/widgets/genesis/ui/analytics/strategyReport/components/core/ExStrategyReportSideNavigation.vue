@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
-import ExFullAccessBadge from '~/shared/ui/ExFullAccessBadge.vue'
 import { strategyReportSections } from '../../strategyReportSections'
 
 const { locale } = useI18n()
@@ -45,7 +44,6 @@ const isLocked = (sectionId: string) => props.lockedSectionIds?.includes(section
             : undefined"
           @click.prevent="emit('select', section.id)"
         >
-          <ExFullAccessBadge v-if="isLocked(section.id)" />
           <span class="shrink-0 pt-0.5 font-mono text-[10px] font-semibold tracking-[0.16em] text-white/45 group-hover:text-white/80">{{ section.page }}</span>
           <span class="min-w-0">
             <span class="block font-mono text-[11px] font-semibold leading-snug tracking-[0.06em] text-white/78 group-hover:text-white">{{ isRu ? section.title.ru : section.title.en }}</span>

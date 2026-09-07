@@ -156,7 +156,11 @@
 
     </Transition>
 
-    <ExPaywallOverlay :isOpen="showPaywall" @close="showPaywall = false" />
+    <ExPaywallOverlay
+      :isOpen="showPaywall"
+      capability="genesis.matrix"
+      @close="showPaywall = false"
+    />
   </div>
 </template>
 

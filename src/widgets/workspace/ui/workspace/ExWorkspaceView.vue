@@ -269,7 +269,12 @@
        </Transition>
     </div>
 
-    <ExPaywallOverlay v-if="canEnterWorkspace" :isOpen="showPaywall" @close="showPaywall = false" />
+    <ExPaywallOverlay
+      v-if="canEnterWorkspace"
+      :isOpen="showPaywall"
+      capability="workspace"
+      @close="showPaywall = false"
+    />
     <ExActivationSuccessOverlay v-if="canEnterWorkspace" :isOpen="showSuccessOverlay" @close="showSuccessOverlay = false" />
   </div>
 </template>
