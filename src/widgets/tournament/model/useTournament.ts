@@ -501,16 +501,15 @@ export async function registerForTournament(userId: string, userEmail?: string, 
 
   const targetEventId = eventId || allTournaments.value[0]?.id || 'apex_protocol_2026'
   const targetSeasonId = seasonId || openedSeason.value?.id
-  if (!targetSeasonId) {
-    throw new Error('An opened season is required before registering for a tournament.')
-  }
 
   const participantRef = doc(db, 'tournaments', targetEventId, 'participants', userId)
-  const leaderboardRef = doc(db, 'tournaments', targetEventId, 'seasons', targetSeasonId, 'leaderboard', userId)
+  const leaderboardRef = targetSeasonId
+    ? doc(db, 'tournaments', targetEventId, 'seasons', targetSeasonId, 'leaderboard', userId)
+    : null
   const registrationBatch = writeBatch(db)
   const [participantSnapshot, leaderboardSnapshot] = await Promise.all([
     getDoc(participantRef),
-    getDoc(leaderboardRef)
+    leaderboardRef ? getDoc(leaderboardRef) : Promise.resolve(null)
   ])
   let hasPendingWrites = false
 
@@ -525,7 +524,7 @@ export async function registerForTournament(userId: string, userEmail?: string, 
     hasPendingWrites = true
   }
 
-  if (!leaderboardSnapshot.exists()) {
+  if (leaderboardRef && leaderboardSnapshot && !leaderboardSnapshot.exists()) {
     registrationBatch.set(leaderboardRef, {
       userId,
       points: 0,
