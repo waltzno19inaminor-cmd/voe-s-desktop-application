@@ -45,7 +45,7 @@
             
             <button 
              @click="closeOverlay"
-             class="mt-7 max-w-md text-center font-mono text-xs leading-relaxed tracking-widest text-white/55 hover:text-white/65 transition-colors">
+             class="mt-7 max-w-md text-center font-black text-xs leading-relaxed tracking-widest text-white/55 hover:text-white/65 transition-colors">
                {{ locale === 'ru' ? 'Позже' : 'Later' }}
             </button>
 
@@ -62,6 +62,7 @@ import { open } from '@tauri-apps/plugin-shell'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import type { AccessCapability } from '~/features/access/model/accessEntitlements'
+import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
 const { locale } = useI18n()
 
@@ -137,14 +138,15 @@ const featureDescription = computed(() => {
   return source[locale.value === 'ru' ? 'ru' : 'en']
 })
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'request-access'])
+
+const { requestAccessGate } = useAccessActivation()
 
 const openPatreon = async () => {
-  try {
-    await open('https://www.patreon.com/cw/jlgandr')
-  } catch (error) {
-    console.error('Failed to open external link', error)
-  }
+  emit('close') 
+
+  requestAccessGate()
+
 }
 
 const closeOverlay = () => {

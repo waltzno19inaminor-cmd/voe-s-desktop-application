@@ -367,7 +367,6 @@ const isGenesisBottomBarHidden = ref(false)
 const isDashboardMusicMuted = ref(false)
 const isActivatingAccess = ref(false)
 const showSuccessOverlay = ref(false)
-const accessGateRequested = ref(false)
 const isAccessGateAnimating = ref(false)
 const ACCESS_GATE_LOCK_MS = 1000
 let accessGateAnimationTimer = null
@@ -386,7 +385,10 @@ const {
   retryAccessCheck,
   activateAccessKey,
   activateFreeTrial: startFreeTrial,
-  activateFreePlan: startFreePlan
+  activateFreePlan: startFreePlan,
+  accessGateRequested,
+  requestAccessGate,
+  closeAccessGate
 } = useAccessActivation()
 useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 
@@ -584,9 +586,7 @@ const activateFreePlan = async () => {
   }
 }
 
-const requestAccessGate = () => {
-  accessGateRequested.value = true
-}
+
 
 const beginAccessGateAnimation = () => {
   if (accessGateAnimationTimer) clearTimeout(accessGateAnimationTimer)

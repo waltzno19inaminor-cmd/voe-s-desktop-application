@@ -36,14 +36,15 @@ const isOffline = ref(typeof navigator !== 'undefined' ? !navigator.onLine : fal
 const offlineAccessRestored = ref(false)
 const isAccountBlocked = ref(false)
 const accountBlockedUntil = ref<number | null>(null)
+const accessGateRequested = ref(false)
 let accessUnsubscribe: (() => void) | null = null
 let userUnsubscribe: (() => void) | null = null
 let accessAttemptsUnsubscribe: (() => void) | null = null
 let accessTrialUnsubscribe: (() => void) | null = null
 let accessFreePlanUnsubscribe: (() => void) | null = null
-let accessLockTimer: ReturnType<typeof setInterval> | null = null
-let accessExpiryTimer: ReturnType<typeof setTimeout> | null = null
-let accountBlockExpiryTimer: ReturnType<typeof setTimeout> | null = null
+let accessLockTimer: ReturnType<typeof setInterval> | number | null = null
+let accessExpiryTimer: ReturnType<typeof setTimeout> | number | null = null
+let accountBlockExpiryTimer: ReturnType<typeof setTimeout> | number | null = null
 let activeUserId = ''
 let activeLockUntilMs = 0
 let networkListenersAttached = false
@@ -77,6 +78,12 @@ type EntitlementCheckPayload = {
   capabilities?: unknown
   expiresAt?: unknown
   checkedAt?: unknown
+}
+const requestAccessGate = () => {
+  accessGateRequested.value = true
+}
+const closeAccessGate = () => {
+  accessGateRequested.value = false
 }
 
 function getAccessWorkerUrl(): string {
@@ -150,9 +157,9 @@ async function loadEntitlementVerification(userId: string): Promise<CachedEntitl
     .then((cached) => {
       entitlementVerificationCache = isEntitlementVerificationUsable(cached, userId)
         ? {
-            ...cached,
-            capabilities: normalizeAccessCapabilities(cached.capabilities, cached.plan)
-          }
+          ...cached,
+          capabilities: normalizeAccessCapabilities(cached.capabilities, cached.plan)
+        }
         : null
       return entitlementVerificationCache
     })
@@ -521,7 +528,7 @@ export function useAccessActivation() {
           accessState.value = 'requires_key'
           clearAccessEntitlement()
           offlineAccessRestored.value = false
-          await removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch(() => {})
+          await removeFromDisk(OFFLINE_ACCESS_CACHE_KEY).catch(() => { })
         }
 
         return verification
@@ -895,6 +902,9 @@ export function useAccessActivation() {
     retryAccessCheck,
     activateAccessKey,
     activateFreeTrial,
-    activateFreePlan
+    activateFreePlan,
+    accessGateRequested,
+    requestAccessGate,
+    closeAccessGate
   }
 }
