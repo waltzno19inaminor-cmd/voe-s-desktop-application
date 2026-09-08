@@ -1,6 +1,6 @@
 import { useAuthStore } from "~/entities/user/auth.store";
 import { onAuthStateChanged, getRedirectResult } from "firebase/auth";
-import { auth as firebaseAuth } from "~/shared/firebase.client";
+import { auth as firebaseAuth, isDesktopAuth } from "~/shared/firebase.client";
 import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
 import { syncGoogleProfile } from '~/entities/user/model/sync-google-profile'
 
@@ -16,8 +16,9 @@ export const useAuthInit = async () => {
         window.addEventListener('offline', updateNetworkState)
     }
     
-    // Check for redirect result (for Tauri/Mobile flows)
-    getRedirectResult(firebaseAuth).then(async (result) => {
+    // Only browser Firebase redirects use this resolver. Desktop Google OAuth
+    // is completed by signInWithCredential after the native deep link arrives.
+    if (!isDesktopAuth) getRedirectResult(firebaseAuth).then(async (result) => {
         if (result && result.user) {
             const user = result.user
              auth.setUser({

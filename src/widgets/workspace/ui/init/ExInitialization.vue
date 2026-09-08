@@ -821,8 +821,6 @@ onBeforeUnmount(() => {
 const phase = ref<'update' | 'auth' | 'boot' | 'ready'>('update')
 
 import { useAppBootStore } from '~/features/store/useAppBoot'
-import { getCachedAvatarUrl } from '~/entities/user/model/user-avatar'
-import { syncGoogleProfile } from '~/entities/user/model/sync-google-profile'
 
 const appBootStore = useAppBootStore()
 
@@ -1180,18 +1178,6 @@ const startBoot = async (options: { skipEmailVerificationCheck?: boolean } | unk
 }
 
 // ── Helpers ──
-const ensureUserDocument = async (user: any) => {
-  await syncGoogleProfile(user)
-  await authStore.setUser({
-    uid: user.uid,
-    email: user.email,
-    displayName: user.displayName,
-    photoURL: user.photoURL,
-    avatarUrl: await getCachedAvatarUrl(user.photoURL).catch(() => null),
-    joinedAt: user.metadata.creationTime ?? null
-  })
-}
-
 const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 
 const getPasswordValidationError = (password: string) => {
@@ -1355,9 +1341,13 @@ const requestPasswordReset = async () => {
 
 // ── Google login ──
 const doGoogleLogin = async () => {
+  if (authLoading.value) return
   authError.value = null
   authMessage.value = null
   authLoading.value = true
+  const progress = (ru: string, en: string) => {
+    authMessage.value = locale.value === 'ru' ? ru : en
+  }
   try {
     const isTauri = !!(window as any).__TAURI_INTERNALS__
     if (isTauri) {
@@ -1369,7 +1359,10 @@ const doGoogleLogin = async () => {
       const redirectUri = `${reversedClientId}:/oauth2callback`
       const scope = 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid'
 
-      const rand = (n: number) => { let s = ''; const c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'; for (let i = 0; i < n; i++) s += c[Math.floor(Math.random() * c.length)]; return s }
+      const rand = (n: number) => {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+        return Array.from(crypto.getRandomValues(new Uint8Array(n)), byte => alphabet[byte & 63]).join('')
+      }
       const b64url = (buf: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
       const codeVerifier = rand(128)
       const codeChallenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier)))
@@ -1380,7 +1373,9 @@ const doGoogleLogin = async () => {
         let settled = false
         const cleanupCallbacks: Array<() => void> = []
         const timeoutId = window.setTimeout(() => {
-          fail(new Error('Login timed out.'))
+          fail(new Error(locale.value === 'ru'
+            ? 'Это приложение не получило ответ Google за 3 минуты. Проверьте, не открылось ли другое окно или другая копия приложения.'
+            : 'This application did not receive the Google callback within 3 minutes. Check whether another window or copy of the app opened.'))
         }, 180000)
 
         const cleanup = () => {
@@ -1417,24 +1412,24 @@ const doGoogleLogin = async () => {
         const parseDeepLinkUrl = (rawUrl: string) => {
           if (!rawUrl || typeof rawUrl !== 'string') return
           const url = rawUrl.trim()
-          console.log('[Google Auth] Checking URL candidate:', url)
-          if (!url.startsWith(reversedClientId)) return
+          try {
+            const parsed = new URL(url)
+            if (parsed.protocol !== `${reversedClientId}:` || parsed.pathname !== '/oauth2callback') return
+          } catch { return }
 
           try {
             const authErrorParam = extractParam(url, 'error')
             const authCode = extractParam(url, 'code')
             const authStateParam = extractParam(url, 'state')
 
-            console.log('[Google Auth] Parsed deep link -> code:', authCode ? '***' : null, 'state:', authStateParam, 'error:', authErrorParam)
-
-            if (authErrorParam) {
-              fail(new Error(`Google Error: ${authErrorParam}`))
+            // If state does not match, ignore the URL (stale/cached from previous attempts)
+            if (authStateParam !== oauthState) {
+              console.warn('[Google Auth] Ignoring a callback for another login attempt')
               return
             }
 
-            // If state does not match, ignore the URL (stale/cached from previous attempts)
-            if (authStateParam !== oauthState) {
-              console.warn('[Google Auth] Ignoring callback with non-matching state:', authStateParam, 'expected:', oauthState)
+            if (authErrorParam) {
+              fail(new Error(authErrorParam === 'access_denied' ? 'Google sign-in was cancelled.' : 'Google rejected the sign-in request.'))
               return
             }
 
@@ -1460,7 +1455,6 @@ const doGoogleLogin = async () => {
           if (!payload) return
           const urls = collectDeepLinkUrls(payload)
           if (urls.length > 0) {
-            console.log('[Google Auth] Received deep link payload URLs:', urls)
             urls.forEach(parseDeepLinkUrl)
           }
         }
@@ -1479,22 +1473,21 @@ const doGoogleLogin = async () => {
           })
 
         // Poll getCurrent periodically while waiting for login
-        const pollInterval = window.setInterval(() => {
-          getCurrent().then(handleUrlsPayload).catch(() => {})
-        }, 600)
+        const checkCurrent = () => getCurrent().then(handleUrlsPayload).catch(() => {
+          fail(new Error('Unable to read the Google callback from the application.'))
+        })
+        const pollInterval = window.setInterval(checkCurrent, 600)
         cleanupCallbacks.push(() => window.clearInterval(pollInterval))
 
         // Check on window focus when user returns from browser
         const onFocus = () => {
-          console.log('[Google Auth] Window focused, polling getCurrent()...')
-          getCurrent().then(handleUrlsPayload).catch(() => {})
+          void checkCurrent()
         }
         window.addEventListener('focus', onFocus)
         cleanupCallbacks.push(() => window.removeEventListener('focus', onFocus))
 
         import('@tauri-apps/api/event')
           .then(({ listen }) => listen('single-instance', (event: { payload: unknown }) => {
-            console.log('[Google Auth] single-instance event received:', event.payload)
             handleUrlsPayload(event.payload)
           }))
           .then((unlisten) => {
@@ -1509,6 +1502,7 @@ const doGoogleLogin = async () => {
           if (settled) return
           console.log('[Google Auth] Opening authUrl in default browser...')
           try {
+            progress('Ожидание ответа Google из браузера…', 'Waiting for Google to return from the browser…')
             await open(authUrl)
           } catch (error) {
             fail(error)
@@ -1517,24 +1511,35 @@ const doGoogleLogin = async () => {
       })
 
       console.log('[Google Auth] Exchanging authorization code for token...')
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          code,
-          client_id: clientId,
-          redirect_uri: redirectUri,
-          grant_type: 'authorization_code',
-          code_verifier: codeVerifier
+      progress('Ответ Google получен. Завершение авторизации…', 'Google callback received. Completing authorization…')
+      const tokenAbort = new AbortController()
+      const tokenTimeout = window.setTimeout(() => tokenAbort.abort(), 30000)
+      let tokenData: { id_token?: string; access_token?: string }
+      try {
+        const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+          signal: tokenAbort.signal,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            code,
+            client_id: clientId,
+            redirect_uri: redirectUri,
+            grant_type: 'authorization_code',
+            code_verifier: codeVerifier
+          })
         })
-      })
 
-      const tokenData = await tokenResponse.json().catch(() => ({}))
+        const responseData = await tokenResponse.json().catch(() => ({}))
 
-      if (!tokenResponse.ok) {
-        const errorDescription = tokenData.error_description || tokenData.error || `HTTP ${tokenResponse.status}`
-        console.error('[Google Auth] Token exchange failed:', tokenData)
-        throw new Error(`Google token exchange failed: ${errorDescription}`)
+        if (!tokenResponse.ok) {
+          throw new Error(`Google token exchange failed (HTTP ${tokenResponse.status}). Please start sign-in again.`)
+        }
+        tokenData = responseData
+      } catch (error) {
+        if (tokenAbort.signal.aborted) throw new Error('Google token exchange timed out after 30 seconds.')
+        throw error
+      } finally {
+        window.clearTimeout(tokenTimeout)
       }
 
       if (!tokenData.id_token && !tokenData.access_token) {
@@ -1542,31 +1547,28 @@ const doGoogleLogin = async () => {
       }
 
       console.log('[Google Auth] Token exchange successful, signing in to Firebase...')
+      progress('Google подтвердил вход. Подключение к учётной записи…', 'Google sign-in confirmed. Connecting to your account…')
       const credential = GoogleAuthProvider.credential(tokenData.id_token, tokenData.access_token)
       const result = await signInWithCredential(firebaseAuth, credential)
       const user = result.user
-      console.log('[Google Auth] Firebase sign-in successful:', user.email)
+      console.log('[Google Auth] Firebase sign-in successful')
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
-      try {
-        await ensureUserDocument(user)
-      } catch (error) {
-        // Authentication is complete at this point. A blocked Firestore write
-        // (for example App Check in a packaged WebView) must not strand the
-        // user on the sign-in screen.
-        console.warn('[Google Auth] Profile synchronization failed:', error)
-      }
+      // useAuthInit already syncs the profile and avatar in the background.
+      // Firestore writes can remain pending while offline; catching rejections
+      // does not bound that wait. Never make them a prerequisite for login.
     } else {
       const result = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
       const user = result.user
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
-      await ensureUserDocument(user)
     }
+    progress('Вход выполнен. Загрузка приложения…', 'Signed in. Loading the application…')
     await startBoot()
   } catch (error) {
     console.error('[Google Auth] Login process failed:', error)
     authError.value = authFailureMessage(error, 'google')
   } finally {
     authLoading.value = false
+    authMessage.value = null
   }
 }
 

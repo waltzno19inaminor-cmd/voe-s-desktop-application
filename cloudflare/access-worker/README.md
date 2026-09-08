@@ -12,6 +12,7 @@ ACCESS_KEY_ENCRYPTION_KEY
 ACCESS_ADMIN_TOKEN
 FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
+FIREBASE_APPCHECK_CHALLENGE_SECRET
 PATREON_CLIENT_ID
 PATREON_CLIENT_SECRET
 PATREON_REDIRECT_URI
@@ -37,6 +38,21 @@ ID token и App Check token. Endpoint `/v1/password-reset` не требует �
 аккаунт, но при включённом production App Check требует App Check token.
 Не переключайте `FIREBASE_APPCHECK_ENFORCE` в `false` за пределами локальной
 отладки.
+
+Для macOS/Windows Tauri Worker также предоставляет `POST /v1/app-check/token`.
+Клиент получает короткий challenge, подписывает его локальным ключом установки,
+а Worker обменивает custom token через Firebase App Check API. Перед первым
+deployment создайте отдельный secret:
+
+```bash
+openssl rand -base64 32 | npx wrangler secret put FIREBASE_APPCHECK_CHALLENGE_SECRET
+npx wrangler deploy
+```
+
+Не вставляйте это значение в frontend или `.env`: оно должно существовать только
+в Cloudflare Worker. После deployment packaged Tauri-приложение автоматически
+использует custom provider для Auth, Firestore, Storage и собственных запросов с
+`X-Firebase-AppCheck`; браузер продолжает использовать reCAPTCHA Enterprise.
 
 `FIREBASE_CLIENT_EMAIL` должен принадлежать service account с доступом к
 Firestore. Для branded-писем подтверждения email ему также нужен permission

@@ -10,6 +10,7 @@ interface Env {
   FIREBASE_PROJECT_NUMBER: string
   FIREBASE_APPCHECK_ENFORCE: string
   FIREBASE_APPCHECK_APP_IDS: string
+  FIREBASE_APPCHECK_CHALLENGE_SECRET?: string
   FIREBASE_CLIENT_EMAIL: string
   FIREBASE_PRIVATE_KEY: string
   PATREON_CLIENT_ID: string
@@ -82,6 +83,14 @@ interface FirebaseJwk extends JsonWebKey {
   kid?: string
 }
 
+interface DesktopAppCheckInput {
+  appId?: unknown
+  platform?: unknown
+  publicKey?: unknown
+  challenge?: unknown
+  signature?: unknown
+}
+
 interface CreateKeysInput {
   count: number
   maxRedemptions: number
@@ -132,11 +141,14 @@ interface RotationBatchRecord {
 
 const GOOGLE_API_SCOPES = [
   'https://www.googleapis.com/auth/datastore',
-  'https://www.googleapis.com/auth/identitytoolkit'
+  'https://www.googleapis.com/auth/identitytoolkit',
+  'https://www.googleapis.com/auth/cloud-platform'
 ].join(' ')
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
 const FIREBASE_JWKS_ENDPOINT = 'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
 const FIREBASE_APPCHECK_JWKS_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1/jwks'
+const FIREBASE_APPCHECK_TOKEN_EXCHANGE_ENDPOINT = 'https://firebaseappcheck.googleapis.com/v1'
+const FIREBASE_APPCHECK_CUSTOM_TOKEN_AUDIENCE = 'https://firebaseappcheck.googleapis.com/google.firebase.appcheck.v1.TokenExchangeService'
 const FIREBASE_SEND_OOB_CODE_ENDPOINT = 'https://identitytoolkit.googleapis.com/v1/projects'
 const EMAIL_VERIFICATION_PAGE_URL = 'https://auth.gandr.site/email-verify'
 const PASSWORD_RESET_PAGE_URL = 'https://auth.gandr.site/password-reset'
@@ -207,6 +219,98 @@ let cachedGoogleToken: { value: string; expiresAtMs: number } | null = null
 let cachedFirebaseJwks: { keys: FirebaseJwk[]; expiresAtMs: number } | null = null
 let cachedFirebaseAppCheckJwks: { keys: FirebaseJwk[]; expiresAtMs: number } | null = null
 
+async function issueDesktopAppCheckToken(
+  env: Env,
+  input: DesktopAppCheckInput
+): Promise<{ challenge: string } | { token: string; expiresAt: number }> {
+  const appId = typeof input.appId === 'string' ? input.appId.trim() : ''
+  const platform = input.platform === 'windows' || input.platform === 'macos' ? input.platform : ''
+  const publicKey = input.publicKey && typeof input.publicKey === 'object' ? input.publicKey as JsonWebKey : null
+  const allowedAppIds = configuredAppCheckAppIds(env)
+  if (!appId || !platform || !publicKey || (allowedAppIds.size > 0 && !allowedAppIds.has(appId))) {
+    throw new AccessWorkerError('Invalid desktop App Check application.', 403)
+  }
+
+  const challenge = typeof input.challenge === 'string' ? input.challenge : ''
+  const signature = typeof input.signature === 'string' ? input.signature : ''
+  if (!challenge || !signature) return { challenge: await createDesktopAppCheckChallenge(env, platform) }
+
+  await verifyDesktopAppCheckProof(env, challenge, signature, publicKey, platform)
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const customToken = await createFirebaseAppCheckCustomToken(env, appId, nowSeconds)
+  const exchangeUrl = `${FIREBASE_APPCHECK_TOKEN_EXCHANGE_ENDPOINT}/projects/${encodeURIComponent(env.FIREBASE_PROJECT_NUMBER)}/apps/${encodeURIComponent(appId)}:exchangeCustomToken`
+  const response = await fetch(exchangeUrl, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${await getGoogleAccessToken(env)}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ customToken, limitedUse: false })
+  })
+  const payload = await readJsonResponse(response) as { token?: string; ttl?: string }
+  if (!response.ok || !payload.token) throw new AccessWorkerError(`Unable to exchange desktop App Check token (${response.status}).`, 503)
+  const ttlSeconds = Math.max(1800, Math.min(7 * 24 * 60 * 60, Number.parseFloat(String(payload.ttl || '3600')) || 3600))
+  return { token: payload.token, expiresAt: nowSeconds + ttlSeconds }
+}
+
+async function createDesktopAppCheckChallenge(env: Env, platform: string): Promise<string> {
+  const issuedAt = Math.floor(Date.now() / 1000)
+  const nonce = base64UrlEncodeBytes(crypto.getRandomValues(new Uint8Array(32)))
+  const body = base64UrlEncodeText(JSON.stringify({ nonce, issuedAt, platform }))
+  const secret = env.FIREBASE_APPCHECK_CHALLENGE_SECRET || env.ACCESS_KEY_PEPPER
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body))
+  return `${body}.${base64UrlEncodeBytes(new Uint8Array(mac))}`
+}
+
+async function verifyDesktopAppCheckProof(
+  env: Env,
+  challenge: string,
+  signatureBase64: string,
+  publicKey: JsonWebKey,
+  expectedPlatform: string
+): Promise<void> {
+  const [body, encodedMac] = challenge.split('.')
+  if (!body || !encodedMac) throw new AccessWorkerError('Invalid App Check challenge.', 401)
+  const decoded = decodeJwtPart<{ nonce?: string; issuedAt?: number; platform?: string }>(body)
+  const now = Math.floor(Date.now() / 1000)
+  if (!decoded.nonce || decoded.platform !== expectedPlatform || !Number.isFinite(decoded.issuedAt) || Math.abs(now - decoded.issuedAt!) > 300) {
+    throw new AccessWorkerError('Expired App Check challenge.', 401)
+  }
+  const secret = env.FIREBASE_APPCHECK_CHALLENGE_SECRET || env.ACCESS_KEY_PEPPER
+  const macKey = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify'])
+  const macValid = await crypto.subtle.verify('HMAC', macKey, toArrayBuffer(base64UrlDecode(encodedMac)), new TextEncoder().encode(body))
+  if (!macValid) throw new AccessWorkerError('Invalid App Check challenge.', 401)
+  let signature: Uint8Array
+  try {
+    signature = Uint8Array.from(atob(signatureBase64), (character) => character.charCodeAt(0))
+  } catch {
+    throw new AccessWorkerError('Invalid App Check signature.', 401)
+  }
+  const verifyKey = await crypto.subtle.importKey('jwk', publicKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'])
+  const valid = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, verifyKey, toArrayBuffer(signature), new TextEncoder().encode(challenge))
+  if (!valid) throw new AccessWorkerError('Invalid App Check signature.', 401)
+}
+
+async function createFirebaseAppCheckCustomToken(env: Env, appId: string, nowSeconds: number): Promise<string> {
+  const header = base64UrlEncodeText(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
+  const payload = base64UrlEncodeText(JSON.stringify({
+    iss: env.FIREBASE_CLIENT_EMAIL,
+    sub: env.FIREBASE_CLIENT_EMAIL,
+    app_id: appId,
+    aud: FIREBASE_APPCHECK_CUSTOM_TOKEN_AUDIENCE,
+    iat: nowSeconds,
+    exp: nowSeconds + 300
+  }))
+  const unsignedToken = `${header}.${payload}`
+  const signature = await crypto.subtle.sign(
+    { name: 'RSASSA-PKCS1-v1_5' },
+    await importPrivateKey(env.FIREBASE_PRIVATE_KEY),
+    new TextEncoder().encode(unsignedToken)
+  )
+  return `${unsignedToken}.${base64UrlEncodeBytes(new Uint8Array(signature))}`
+}
+
 function fullAccessCapabilities(): AccessCapabilities {
   return Object.fromEntries(ACCESS_CAPABILITIES.map((capability) => [capability, true])) as AccessCapabilities
 }
@@ -228,6 +332,11 @@ export default {
     try {
       if (request.method === 'GET' && url.pathname === '/health') {
         return jsonResponse({ ok: true })
+      }
+
+      if (request.method === 'POST' && url.pathname === '/v1/app-check/token') {
+        const input = await readJsonBody<DesktopAppCheckInput>(request)
+        return jsonResponse(await issueDesktopAppCheckToken(env, input))
       }
 
       if (request.method === 'GET' && url.pathname === '/email-verify') {

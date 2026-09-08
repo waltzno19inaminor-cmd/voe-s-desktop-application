@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getToken, initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from "firebase/app-check";
-import { browserLocalPersistence, getAuth, setPersistence } from "firebase/auth";
+import { CustomProvider, getToken, initializeAppCheck, ReCaptchaEnterpriseProvider, type AppCheck } from "firebase/app-check";
+import { browserLocalPersistence, getAuth, initializeAuth, setPersistence } from "firebase/auth";
 import { getFirestore, initializeFirestore, persistentLocalCache, type Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -15,10 +15,76 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+export const isDesktopAuth = typeof window !== 'undefined'
+    && Boolean((window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__);
+
 const appCheckSiteKey = String(import.meta.env.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY || '').trim();
+const appCheckWorkerUrl = String(import.meta.env.VITE_ACCESS_WORKER_URL || 'https://auth.gandr.site').trim().replace(/\/$/, '');
+const firebaseAppId = firebaseConfig.appId;
 let appCheckInstance: AppCheck | null = null;
 
-if (typeof window !== 'undefined' && appCheckSiteKey) {
+type DesktopAppCheckKeyMaterial = { privateKey: JsonWebKey; publicKey: JsonWebKey };
+const DESKTOP_APPCHECK_KEY_STORAGE = 'jlj.desktop.app-check-key.v1';
+
+async function getDesktopAppCheckKeyMaterial(): Promise<DesktopAppCheckKeyMaterial> {
+    const stored = window.localStorage.getItem(DESKTOP_APPCHECK_KEY_STORAGE);
+    if (stored) {
+        try {
+            const parsed = JSON.parse(stored) as DesktopAppCheckKeyMaterial;
+            if (parsed.privateKey?.kty === 'EC' && parsed.publicKey?.kty === 'EC') return parsed;
+        } catch { /* Generate a new key below. */ }
+    }
+    const pair = await crypto.subtle.generateKey(
+        { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']
+    ) as CryptoKeyPair;
+    const material = {
+        privateKey: await crypto.subtle.exportKey('jwk', pair.privateKey),
+        publicKey: await crypto.subtle.exportKey('jwk', pair.publicKey)
+    } satisfies DesktopAppCheckKeyMaterial;
+    window.localStorage.setItem(DESKTOP_APPCHECK_KEY_STORAGE, JSON.stringify(material));
+    return material;
+}
+
+async function getDesktopAppCheckToken() {
+    const keyMaterial = await getDesktopAppCheckKeyMaterial();
+    const privateKey = await crypto.subtle.importKey(
+        'jwk', keyMaterial.privateKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']
+    );
+    const requestToken = async (body: Record<string, unknown>) => {
+        const response = await fetch(`${appCheckWorkerUrl}/v1/app-check/token`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+        });
+        const payload = await response.json().catch(() => ({})) as {
+            challenge?: string; token?: string; expiresAt?: number; error?: string;
+        };
+        if (!response.ok) throw new Error(payload.error || `App Check token request failed (${response.status})`);
+        return payload;
+    };
+    const platform = navigator.userAgent.includes('Windows') ? 'windows' : 'macos';
+    const base = { appId: firebaseAppId, platform, publicKey: keyMaterial.publicKey };
+    const challengeResponse = await requestToken(base);
+    if (!challengeResponse.challenge) throw new Error('App Check challenge was not returned.');
+    const signature = await crypto.subtle.sign(
+        { name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(challengeResponse.challenge)
+    );
+    const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)));
+    const tokenResponse = await requestToken({ ...base, challenge: challengeResponse.challenge, signature: signatureBase64 });
+    if (!tokenResponse.token || !Number.isFinite(tokenResponse.expiresAt)) throw new Error('App Check token response is invalid.');
+    return { token: tokenResponse.token, expireTimeMillis: tokenResponse.expiresAt * 1000 };
+}
+
+// The packaged Tauri WebView uses the custom `tauri://localhost` origin, which
+// is not a browser domain that reCAPTCHA Enterprise can attest. Firebase Auth
+// would then fail its credential request with auth/network-request-failed.
+// Desktop authentication uses the native OAuth PKCE flow, while the Firebase
+// SDK still receives a token from the desktop custom provider below. Browser
+// builds keep the existing reCAPTCHA Enterprise protection.
+if (typeof window !== 'undefined' && isDesktopAuth) {
+    appCheckInstance = initializeAppCheck(app, {
+        provider: new CustomProvider({ getToken: getDesktopAppCheckToken }),
+        isTokenAutoRefreshEnabled: true
+    });
+} else if (typeof window !== 'undefined' && appCheckSiteKey) {
     // A development token must be registered for this exact Firebase app.
     // It is never enabled in production builds.
     if (import.meta.env.DEV) {
@@ -45,7 +111,14 @@ export async function getFirebaseAppCheckToken(): Promise<string | null> {
     }
 }
 
-export const auth = getAuth(app);
+// Native OAuth receives a Google credential through a system deep link.
+// getAuth() also installs the browser popup/redirect resolver, which starts a
+// cross-origin iframe proactively in Safari/WKWebView. That iframe is not part
+// of native sign-in and can block Auth initialization on a custom-scheme origin.
+// Keep the same local persistence so existing desktop sessions are preserved.
+export const auth = isDesktopAuth
+    ? initializeAuth(app, { persistence: browserLocalPersistence })
+    : getAuth(app);
 let dbInstance: Firestore;
 
 if (typeof window !== 'undefined') {
@@ -70,7 +143,7 @@ export const fireStorage = getStorage(app);
 // Keep an already authenticated operator signed in across app restarts.
 // This is intentionally only the Firebase session; offline entitlement is
 // handled separately and is restored only for this persisted user.
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && !isDesktopAuth) {
     void setPersistence(auth, browserLocalPersistence).catch((error) => {
         console.warn('[Firebase] Unable to enable local auth persistence:', error);
     });
