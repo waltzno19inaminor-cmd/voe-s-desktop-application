@@ -58,35 +58,13 @@
         :strategy-name="selectedStrategy?.name || selectedStrategyId"
       />
     </Transition>
-    <!-- TOP-CENTER WARNING BANNER (teleported to body) -->
-    <Teleport to="body">
-      <Transition name="robustness-warn">
-        <div v-if="!isTradeEntryOpen && showRobustnessWarning"
-             class="fixed top-6 inset-x-0 flex justify-center z-[2147483647] pointer-events-none">
-          <div class="px-5 py-4 shadow-[0_12px_48px_rgba(220,38,38,0.55)] border border-red-400/30 flex items-start gap-3"
-               style="background-color:#dc2626; min-width:340px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="w-5 h-5 shrink-0 mt-0.5 text-white">
-              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <div>
-              <div class="text-[11px] font-mono font-black uppercase tracking-[0.3em] text-white leading-none mb-1.5">Insufficient Data</div>
-              <div class="text-[11px] font-mono text-red-100 leading-snug">
-                <template v-if="isRu">
-                  Для составления отчёта необходимо минимум <span class="font-bold text-white">20 сделок</span>.
-                  В этой стратегии <span class="font-bold text-white">{{ diagnosticStats.pnls?.length ?? 0 }}</span>.
-                </template>
-                <template v-else>
-                  At least <span class="font-bold text-white">20 trades</span> are required to compile the report.
-                  This strategy has <span class="font-bold text-white">{{ diagnosticStats.pnls?.length ?? 0 }}</span>.
-                </template>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ExErrorAlert
+      :visible="!isTradeEntryOpen && showRobustnessWarning"
+      :title="isRu ? 'Недостаточно данных' : 'Insufficient Data'"
+      :message="isRu
+        ? `Для составления отчёта необходимо минимум 20 сделок. В этой стратегии ${diagnosticStats.pnls?.length ?? 0}.`
+        : `At least 20 trades are required to compile the report. This strategy has ${diagnosticStats.pnls?.length ?? 0}.`"
+    />
 
     <Teleport to="body">
       <Transition name="tooltip-dist-fade">
@@ -1039,6 +1017,7 @@ import ExButton from '~/shared/ui/ExButton.vue'
 import ExNTtooltip from '~/shared/ui/ExNTtooltip.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExTooltip from '~/shared/ui/ExTooltip.vue'
+import ExErrorAlert from '~/shared/ui/ExErrorAlert.vue'
 import ExEquityCurveSimulator from './ExEquityCurveSimulator.vue'
 import ExPaywallOverlay from '../common/ExPaywallOverlay.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
@@ -4624,21 +4603,6 @@ canvas {
 .explanation-takeover-leave-to {
   opacity: 0;
   transform: translateY(8px);
-}
-
-.robustness-warn-enter-active {
-  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.robustness-warn-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.robustness-warn-enter-from {
-  opacity: 0;
-  transform: translateY(-20px);
-}
-.robustness-warn-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
 }
 
 /* Hide number input arrows */

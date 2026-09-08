@@ -16,6 +16,11 @@
       <div class="absolute top-0 left-0 w-full h-full bg-[linear-gradient(to_bottom,transparent_0%,rgba(0,0,0,0.5)_100%)]"></div>
     </div> -->
     <DesignVignette v-if="!isDark" :is-dark="isDark" />
+    <ExErrorAlert
+      :visible="Boolean(authError)"
+      :title="locale === 'ru' ? 'Ошибка' : 'Error'"
+      :message="authError || ''"
+    />
 
     <!-- ── LANGUAGE SWITCH (top-left) ── -->
     <div
@@ -232,18 +237,6 @@
             >{{ locale === 'ru' ? 'Регистрация' : 'Register' }}</button>
           </div>
 
-          <Transition name="fade-quick">
-            <div v-if="authError" class="border border-red-500/40 bg-red-500/10 px-4 py-2" role="status">
-              <span class="text-[10px] text-red-400">{{ authError }}</span>
-            </div>
-          </Transition>
-
-          <Transition name="fade-quick">
-            <div v-if="authMessage" class="border border-black/20 bg-black/[0.04] px-4 py-2" role="status" aria-live="polite">
-              <span class="text-[14px] font-semibold leading-6 text-black">{{ authMessage }}</span>
-            </div>
-          </Transition>
-
           <!-- Form -->
           <form @submit.prevent="isPasswordResetMode ? requestPasswordReset() : (authTab === 'login' ? doLogin() : doRegister())" class="flex flex-col space-y-4">
             <div class="flex flex-col">
@@ -387,6 +380,8 @@ import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
 import pkg from '../../../../../package.json'
 import { useI18n } from '~/shared/i18n/useI18n'
+import ExErrorAlert from '~/shared/ui/ExErrorAlert.vue'
+import { getAuthFailureMessage } from '~/features/auth/authFailureMessage'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import {
   signInWithEmailAndPassword,
@@ -512,7 +507,6 @@ const authEmail = ref('')
 const authPassword = ref('')
 const authPasswordConfirm = ref('')
 const authError = ref<string | null>(null)
-const authMessage = ref<string | null>(null)
 const authLoading = ref(false)
 const isPasswordResetMode = ref(false)
 const PASSWORD_RESET_MAX_SENDS = 2
@@ -578,9 +572,6 @@ const finishPasswordResetInApp = () => {
   authPassword.value = ''
   authPasswordConfirm.value = ''
   authError.value = null
-  authMessage.value = locale.value === 'ru'
-    ? 'Пароль успешно изменён. Войдите с новым паролем.'
-    : 'Password updated successfully. Sign in with your new password.'
   phase.value = 'auth'
   clearPasswordResetCooldown()
 }
@@ -661,42 +652,6 @@ const verificationCopy = (key: 'sent' | 'notConfirmed' | 'sendFailed' | 'checkFa
     checkFailed: 'Unable to check email verification. Please try again.'
   }
   return (locale.value === 'ru' ? ru : en)[key]
-}
-
-const authFailureMessage = (error: unknown, action: 'login' | 'register' | 'google' = 'login') => {
-  const code = typeof error === 'object' && error && 'code' in error
-    ? String((error as { code?: unknown }).code || '')
-    : ''
-  const detail = error instanceof Error ? error.message.trim() : ''
-  const ru = {
-    'auth/email-already-in-use': 'Этот email уже зарегистрирован. Перейдите на вкладку «Вход».',
-    'auth/invalid-email': 'Укажите корректный адрес email.',
-    'auth/weak-password': 'Пароль недостаточно надёжный. Используйте не менее 8 символов.',
-    'auth/wrong-password': 'Неверный email или пароль.',
-    'auth/user-not-found': 'Неверный email или пароль.',
-    'auth/invalid-credential': 'Неверный email или пароль.',
-    'auth/too-many-requests': 'Слишком много попыток. Попробуйте немного позже.'
-  } as Record<string, string>
-  const en = {
-    'auth/email-already-in-use': 'This email is already registered. Switch to the Sign in tab.',
-    'auth/invalid-email': 'Enter a valid email address.',
-    'auth/weak-password': 'This password is not strong enough. Use at least 8 characters.',
-    'auth/wrong-password': 'Incorrect email or password.',
-    'auth/user-not-found': 'Incorrect email or password.',
-    'auth/invalid-credential': 'Incorrect email or password.',
-    'auth/too-many-requests': 'Too many attempts. Please try again shortly.'
-  } as Record<string, string>
-  const fallback = locale.value === 'ru'
-    ? (action === 'register' ? 'Не удалось создать аккаунт. Попробуйте ещё раз.' : 'Что-то пошло не так. Попробуйте ещё раз.')
-    : (action === 'register' ? 'Unable to create the account. Please try again.' : 'Something went wrong. Please try again.')
-  const mappedMessage = (locale.value === 'ru' ? ru : en)[code]
-  if (mappedMessage) return mappedMessage
-  if (action === 'google' && detail) {
-    return locale.value === 'ru'
-      ? `Не удалось войти через Google: ${detail}`
-      : `Google sign-in failed: ${detail}`
-  }
-  return fallback
 }
 
 async function requestVerificationEmail(isResend = false): Promise<boolean> {
@@ -1193,30 +1148,22 @@ const switchAuthTab = (tab: 'login' | 'register') => {
   authTab.value = tab
   isPasswordResetMode.value = false
   authError.value = null
-  authMessage.value = null
 }
 
 const openPasswordReset = () => {
   authTab.value = 'login'
   isPasswordResetMode.value = true
   authError.value = null
-  authMessage.value = null
 }
 
 const closePasswordReset = () => {
   isPasswordResetMode.value = false
   authError.value = null
-  authMessage.value = null
 }
-
-const passwordResetMessage = () => locale.value === 'ru'
-  ? 'На указанный email отправлена ссылка для сброса пароля.'
-  : 'A password reset link has been sent to the specified email.'
 
 // ── Email/password login ──
 const doLogin = async () => {
   authError.value = null
-  authMessage.value = null
   authLoading.value = true
   try {
     const result = await signInWithEmailAndPassword(firebaseAuth, authEmail.value.trim(), authPassword.value)
@@ -1230,7 +1177,7 @@ const doLogin = async () => {
     })
     await startBoot()
   } catch (error) {
-    authError.value = authFailureMessage(error, 'login')
+    authError.value = getAuthFailureMessage(error, locale.value, 'login')
   } finally {
     authLoading.value = false
   }
@@ -1239,7 +1186,6 @@ const doLogin = async () => {
 // ── Email/password register ──
 const doRegister = async () => {
   authError.value = null
-  authMessage.value = null
   const email = authEmail.value.trim()
   if (!isValidEmail(email)) {
     authError.value = 'Email must be valid and contain @.'
@@ -1281,7 +1227,7 @@ const doRegister = async () => {
     setEmailVerificationPending(user.email)
     await requestVerificationEmail()
   } catch (error) {
-    authError.value = authFailureMessage(error, 'register')
+    authError.value = getAuthFailureMessage(error, locale.value, 'register')
   } finally {
     authLoading.value = false
   }
@@ -1290,7 +1236,6 @@ const doRegister = async () => {
 // ── Password reset ──
 const requestPasswordReset = async () => {
   authError.value = null
-  authMessage.value = null
   if (passwordResetCooldown.value > 0) return
   const email = authEmail.value.trim()
 
@@ -1322,7 +1267,6 @@ const requestPasswordReset = async () => {
     if (passwordResetSendCount.value >= PASSWORD_RESET_MAX_SENDS) {
       startPasswordResetCooldown()
     }
-    authMessage.value = passwordResetMessage()
   } catch (error) {
     if (passwordResetCooldown.value > 0) {
       authError.value = locale.value === 'ru'
@@ -1343,11 +1287,7 @@ const requestPasswordReset = async () => {
 const doGoogleLogin = async () => {
   if (authLoading.value) return
   authError.value = null
-  authMessage.value = null
   authLoading.value = true
-  const progress = (ru: string, en: string) => {
-    authMessage.value = locale.value === 'ru' ? ru : en
-  }
   try {
     const isTauri = !!(window as any).__TAURI_INTERNALS__
     if (isTauri) {
@@ -1434,7 +1374,6 @@ const doGoogleLogin = async () => {
             }
 
             if (authCode) {
-              console.log('[Google Auth] Valid authorization code received!')
               finish(authCode)
             }
           } catch (error) {
@@ -1500,9 +1439,7 @@ const doGoogleLogin = async () => {
 
         void deepLinkListenerReady.then(async () => {
           if (settled) return
-          console.log('[Google Auth] Opening authUrl in default browser...')
           try {
-            progress('Ожидание ответа Google из браузера…', 'Waiting for Google to return from the browser…')
             await open(authUrl)
           } catch (error) {
             fail(error)
@@ -1510,8 +1447,6 @@ const doGoogleLogin = async () => {
         })
       })
 
-      console.log('[Google Auth] Exchanging authorization code for token...')
-      progress('Ответ Google получен. Завершение авторизации…', 'Google callback received. Completing authorization…')
       const tokenAbort = new AbortController()
       const tokenTimeout = window.setTimeout(() => tokenAbort.abort(), 30000)
       let tokenData: { id_token?: string; access_token?: string }
@@ -1546,12 +1481,9 @@ const doGoogleLogin = async () => {
         throw new Error('Google did not return id_token or access_token')
       }
 
-      console.log('[Google Auth] Token exchange successful, signing in to Firebase...')
-      progress('Google подтвердил вход. Подключение к учётной записи…', 'Google sign-in confirmed. Connecting to your account…')
       const credential = GoogleAuthProvider.credential(tokenData.id_token, tokenData.access_token)
       const result = await signInWithCredential(firebaseAuth, credential)
       const user = result.user
-      console.log('[Google Auth] Firebase sign-in successful')
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
       // useAuthInit already syncs the profile and avatar in the background.
       // Firestore writes can remain pending while offline; catching rejections
@@ -1561,14 +1493,12 @@ const doGoogleLogin = async () => {
       const user = result.user
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
     }
-    progress('Вход выполнен. Загрузка приложения…', 'Signed in. Loading the application…')
     await startBoot()
   } catch (error) {
     console.error('[Google Auth] Login process failed:', error)
-    authError.value = authFailureMessage(error, 'google')
+    authError.value = getAuthFailureMessage(error, locale.value, 'google')
   } finally {
     authLoading.value = false
-    authMessage.value = null
   }
 }
 
@@ -1580,7 +1510,6 @@ const doSignOut = async () => {
   authPassword.value = ''
   authPasswordConfirm.value = ''
   authError.value = null
-  authMessage.value = null
   isPasswordResetMode.value = false
   clearPasswordResetCooldown()
   clearEmailVerificationPending()
