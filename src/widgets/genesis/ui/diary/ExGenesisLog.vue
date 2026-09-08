@@ -76,6 +76,14 @@
           />
       </div>
 
+      <ExAssetGraph
+        v-if="viewType === 'assetGraph' && !showNodeMap && !isTradeEntryOpen"
+        :is-dark="isDark"
+        :trades="currentTrades"
+        :initial-deposit="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+        :locale="locale"
+      />
+
       <!-- STRATEGY TREE LAYER -->
       <div
         v-if="hasOpenedGenesisTree && hasGenesisTreeAccess"
@@ -681,6 +689,19 @@
     >
       <ExGenesisHudPanel>
         <button
+          type="button"
+          class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
+          :class="viewType === 'assetGraph' ? 'border-white/30 bg-white/10 text-white' : ''"
+          :aria-label="locale === 'ru' ? 'Граф активов' : 'Asset graph'"
+          :aria-pressed="viewType === 'assetGraph'"
+          @click="activateBottomView(viewType === 'assetGraph' ? 'timeTree' : 'assetGraph')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" /><circle cx="4" cy="5" r="2" /><circle cx="20" cy="6" r="2" /><circle cx="7" cy="21" r="2" /><path d="m6 7 3 3m6-1 3-2m-8 9-2 3" />
+          </svg>
+          <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono uppercase text-black opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">{{ locale === 'ru' ? 'Граф активов' : 'Asset graph' }}</span>
+        </button>
+        <button
           v-if="showTimeTreeTradeDetails"
           type="button"
           class="group relative flex h-10 w-10 items-center justify-center border border-white bg-white text-black transition-all hover:bg-white/85"
@@ -1226,6 +1247,7 @@ import ExTradeEntryBottomBar from '~/widgets/genesis/ui/trade-entry/ExTradeEntry
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
 import ExTradeEntryVersionButton from '~/widgets/genesis/ui/trade-entry/ExTradeEntryVersionButton.vue'
 import ExTradeForceGraph from '~/widgets/genesis/ui/analytics/ExTradeForceGraph.vue'
+import ExAssetGraph from '~/widgets/genesis/ui/assetGraph/ExAssetGraph.vue'
 import ExTrades from '~/widgets/genesis/ui/common/ExTrades.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/diary/ExVerticalTradeList.vue'
 import ExGenesisTree from '~/widgets/genesis/tree/ui/ExGenesisTree.vue'
@@ -1410,7 +1432,7 @@ const downloadCardPng = async () => {
   }
 }
 
-const viewType = ref<'cube' | 'timeTree' | 'distribution' | 'tree'>('timeTree')
+const viewType = ref<'cube' | 'timeTree' | 'distribution' | 'tree' | 'assetGraph'>('timeTree')
 const hasOpenedGenesisTree = ref(false)
 const genesisTreeRef = ref<any>(null)
 const isGenesisTreePresetPanelOpen = ref(false)
@@ -1506,7 +1528,7 @@ const closeNavigationOverlays = (keepProtocol = false) => {
   if (showTimeTreeTradeDetails.value) closeTimeTreeTradeDetails()
 }
 
-const activateBottomView = (nextView: 'cube' | 'timeTree') => {
+const activateBottomView = (nextView: 'cube' | 'timeTree' | 'assetGraph') => {
   closeNavigationOverlays()
   viewType.value = nextView
 }
@@ -2060,7 +2082,7 @@ const getTradeNodeColor = (node: TradeNode) => {
 }
 
 const distributionMetricMode = ref<'pnl' | 'score'>('pnl')
-const previousProjectionView = ref<'cube' | 'timeTree' | 'tree'>('cube')
+const previousProjectionView = ref<'cube' | 'timeTree' | 'tree' | 'assetGraph'>('cube')
 
 const distributionClosedTrades = computed(() => {
   return filteredTrades.value.filter(isClosedDiaryTrade)
