@@ -667,6 +667,7 @@ const authFailureMessage = (error: unknown, action: 'login' | 'register' | 'goog
   const code = typeof error === 'object' && error && 'code' in error
     ? String((error as { code?: unknown }).code || '')
     : ''
+  const detail = error instanceof Error ? error.message.trim() : ''
   const ru = {
     'auth/email-already-in-use': 'Этот email уже зарегистрирован. Перейдите на вкладку «Вход».',
     'auth/invalid-email': 'Укажите корректный адрес email.',
@@ -688,7 +689,14 @@ const authFailureMessage = (error: unknown, action: 'login' | 'register' | 'goog
   const fallback = locale.value === 'ru'
     ? (action === 'register' ? 'Не удалось создать аккаунт. Попробуйте ещё раз.' : 'Что-то пошло не так. Попробуйте ещё раз.')
     : (action === 'register' ? 'Unable to create the account. Please try again.' : 'Something went wrong. Please try again.')
-  return (locale.value === 'ru' ? ru : en)[code] || fallback
+  const mappedMessage = (locale.value === 'ru' ? ru : en)[code]
+  if (mappedMessage) return mappedMessage
+  if (action === 'google' && detail) {
+    return locale.value === 'ru'
+      ? `Не удалось войти через Google: ${detail}`
+      : `Google sign-in failed: ${detail}`
+  }
+  return fallback
 }
 
 async function requestVerificationEmail(isResend = false): Promise<boolean> {
@@ -1457,13 +1465,17 @@ const doGoogleLogin = async () => {
           }
         }
 
-        onOpenUrl(handleUrlsPayload)
+        // The listener registration is asynchronous. Do not open the browser
+        // until it completes: an already signed-in Google account can redirect
+        // back to macOS before an unawaited listener has been installed.
+        const deepLinkListenerReady = onOpenUrl(handleUrlsPayload)
           .then((unlisten) => {
             if (settled) unlisten()
             else cleanupCallbacks.push(unlisten)
           })
           .catch((err) => {
-            console.warn('[Google Auth] onOpenUrl registration warning:', err)
+            console.error('[Google Auth] Unable to register the deep-link listener:', err)
+            fail(new Error('Unable to receive the Google sign-in callback.'))
           })
 
         // Poll getCurrent periodically while waiting for login
@@ -1493,8 +1505,15 @@ const doGoogleLogin = async () => {
             console.warn('[Google Auth] single-instance listener warning:', err)
           })
 
-        console.log('[Google Auth] Opening authUrl in default browser...')
-        open(authUrl).catch(fail)
+        void deepLinkListenerReady.then(async () => {
+          if (settled) return
+          console.log('[Google Auth] Opening authUrl in default browser...')
+          try {
+            await open(authUrl)
+          } catch (error) {
+            fail(error)
+          }
+        })
       })
 
       console.log('[Google Auth] Exchanging authorization code for token...')
@@ -1528,7 +1547,14 @@ const doGoogleLogin = async () => {
       const user = result.user
       console.log('[Google Auth] Firebase sign-in successful:', user.email)
       authStore.setUser({ uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, joinedAt: user.metadata.creationTime ?? null })
-      await ensureUserDocument(user)
+      try {
+        await ensureUserDocument(user)
+      } catch (error) {
+        // Authentication is complete at this point. A blocked Firestore write
+        // (for example App Check in a packaged WebView) must not strand the
+        // user on the sign-in screen.
+        console.warn('[Google Auth] Profile synchronization failed:', error)
+      }
     } else {
       const result = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
       const user = result.user
