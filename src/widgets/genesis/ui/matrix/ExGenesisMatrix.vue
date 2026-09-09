@@ -37,7 +37,8 @@
          @click="canvas.handleBackgroundClick"
          @contextmenu.prevent="handleBoardContextMenu"
          @mousemove="canvas.handleCanvasMouseMove($event, zoneTools.drawStart, zoneTools.drawCurrent)"
-         @mouseup="canvas.handleCanvasMouseUp(zoneTools)">
+         @mouseup="canvas.handleCanvasMouseUp(zoneTools)"
+         @wheel="canvas.handleWheel">
       
       <!-- REIFICATION LAYER (Transformed) -->
       <div class="absolute inset-0 origin-top-left pointer-events-none" :style="state.contentTransform.value">
@@ -121,7 +122,7 @@
                        :strategy-versions="state.strategyVersions.value"
                        :strategy-versions-locked="!hasStrategyVersionsAccess"
                        :git-panel-open="isGitPanelOpen"
-                       @reset-view="canvas.resetView" @update-scale="(s) => state.viewState.value.scale = s"
+                       @reset-view="canvas.resetView" @update-scale="canvas.updateScale"
                        @strategy-version-create="handleCreateStrategyVersion"
                        @strategy-version-update="handleUpdateStrategyVersion"
                        @strategy-version-clear="clearStrategyVersionChanges"

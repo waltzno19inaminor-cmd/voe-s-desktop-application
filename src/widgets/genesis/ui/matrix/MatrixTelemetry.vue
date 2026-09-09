@@ -188,6 +188,7 @@ import ExGenesisHudFlyout from '../common/ExGenesisHudFlyout.vue'
 import ExMatrixGitPanel from './ExMatrixGitPanel.vue'
 import ExMatrixVersionReview from './ExMatrixVersionReview.vue'
 import type { MatrixStrategyVersion } from '../../model/matrix/useMatrixState'
+import { MATRIX_SCALE_PERCENTAGES } from '../../model/matrix/useMatrixCanvas'
 
 const props = defineProps<{
   viewState: { scale: number }
@@ -218,7 +219,7 @@ const isToolsMenuOpen = ref(false)
 const isManualOpen = ref(false)
 const isVersionReviewOpen = ref(false)
 const activeManualSection = ref(0)
-const matrixScaleOptions = [25, 50, 75, 100, 150, 200]
+const matrixScaleOptions = MATRIX_SCALE_PERCENTAGES
 
 const strategyVersions = computed(() => props.strategyVersions || [])
 

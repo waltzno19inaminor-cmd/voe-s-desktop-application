@@ -2,6 +2,22 @@ import { ref, computed } from 'vue'
 import type { useMatrixState, Point, Node, Connection } from './useMatrixState'
 import { useMatrixChangeTree } from './useMatrixChangeTree'
 
+export const MATRIX_SCALE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2] as const
+export const MATRIX_SCALE_PERCENTAGES = [25, 50, 75, 100, 150, 200] as const
+
+export const MATRIX_MIN_SCALE: number = MATRIX_SCALE_OPTIONS[0]
+export const MATRIX_MAX_SCALE: number = MATRIX_SCALE_OPTIONS[MATRIX_SCALE_OPTIONS.length - 1] ?? 2
+
+export function getNextMatrixScale(currentScale: number, isZoomIn: boolean): number {
+  if (isZoomIn) {
+    const next = MATRIX_SCALE_OPTIONS.find(s => s > currentScale + 0.001)
+    return next ?? MATRIX_MAX_SCALE
+  } else {
+    const prev = [...MATRIX_SCALE_OPTIONS].reverse().find(s => s < currentScale - 0.001)
+    return prev ?? MATRIX_MIN_SCALE
+  }
+}
+
 export function isTextEditingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
   return Boolean(target.closest('input, textarea, select, option, [contenteditable="true"], [data-text-editable="true"], .matrix-text-rich, .matrix-table-input'))
@@ -118,6 +134,65 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
 
     state.viewState.value.panX = 0
     state.viewState.value.panY = 0
+  }
+
+  const applyScaleAroundPoint = (newScale: number, clientX?: number, clientY?: number) => {
+    const oldScale = state.viewState.value.scale
+    if (Math.abs(newScale - oldScale) < 0.001) return
+
+    if (canvasWrapper.value) {
+      const rect = canvasWrapper.value.getBoundingClientRect()
+      const cursorX = clientX !== undefined ? clientX - rect.left : rect.width / 2
+      const cursorY = clientY !== undefined ? clientY - rect.top : rect.height / 2
+
+      const worldX = (cursorX - state.viewState.value.panX) / oldScale
+      const worldY = (cursorY - state.viewState.value.panY) / oldScale
+
+      state.viewState.value.panX = cursorX - worldX * newScale
+      state.viewState.value.panY = cursorY - worldY * newScale
+    }
+
+    state.viewState.value.scale = newScale
+    state.saveMatrixData()
+  }
+
+  const updateScale = (newScale: number) => {
+    applyScaleAroundPoint(newScale)
+  }
+
+  let lastWheelTime = 0
+  const WHEEL_COOLDOWN_MS = 140
+
+  const handleWheel = (e: WheelEvent) => {
+    if (Math.abs(e.deltaY) < 1) return
+    if (state.viewState.value.isPanning) return
+    if (state.activeDrawingNodeId.value) return
+
+    const target = e.target as HTMLElement | null
+    if (target) {
+      if (isTextEditingTarget(target)) return
+      if (target.closest('.custom-scrollbar, .matrix-telemetry, .command-panel, .command-category-scroll, .context-menu-container, .theme-tooltip-panel, .tools-menu-panel, .tools-menu-overlay')) {
+        return
+      }
+    }
+
+    e.preventDefault()
+
+    const now = performance.now()
+    if (now - lastWheelTime < WHEEL_COOLDOWN_MS) {
+      return
+    }
+
+    const isZoomIn = e.deltaY < 0
+    const currentScale = state.viewState.value.scale
+    const targetScale = getNextMatrixScale(currentScale, isZoomIn)
+
+    if (Math.abs(targetScale - currentScale) < 0.001) {
+      return
+    }
+
+    lastWheelTime = now
+    applyScaleAroundPoint(targetScale, e.clientX, e.clientY)
   }
 
   const focusRoot = () => {
@@ -471,6 +546,9 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     startWireDrag,
     handlePickupInput,
     completeWireDrop,
-    handleCanvasMouseUp
+    handleCanvasMouseUp,
+    applyScaleAroundPoint,
+    updateScale,
+    handleWheel
   }
 }
