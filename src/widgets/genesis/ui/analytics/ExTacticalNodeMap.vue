@@ -176,11 +176,25 @@ const contentTransform = computed(() => ({
   transformOrigin: '0 0'
 }))
 
-const systemScenarioNames = ['TAKE_PROFIT', 'STOP_LOSS', 'FULL_LIQUIDATION']
+const systemScenarioNames = new Set([
+  'TAKE_PROFIT',
+  'STOP_LOSS',
+  'FULL_LIQUIDATION',
+  'ТЕЙК_ПРОФИТ',
+  'СТОП_ЛОСС',
+  'ПОЛНАЯ_ЛИКВИДАЦИЯ'
+])
 const normalizeSystemScenarioName = (value: unknown) => String(value || '')
   .toUpperCase()
-  .replace(/[^A-Z0-9]+/g, '_')
+  .replace(/[^A-ZА-ЯЁ0-9]+/g, '_')
   .replace(/^_+|_+$/g, '')
+
+const isSystemScenario = (scenario: any) => [
+  getNodeName(scenario, ''),
+  scenario?.id,
+  scenario?.info?.id,
+  scenario?.info?.name
+].some(value => systemScenarioNames.has(normalizeSystemScenarioName(value)))
 
 const toMetricNumber = (value: unknown, fallback: number) => {
   const number = Number(value)
@@ -255,12 +269,9 @@ const buildScenarioNodes = (type: 'entry' | 'exit', initialOffset: number = 0) =
   let laneTop = 80 + initialOffset
 
   return scenarios.map((scenario: any, scenarioIndex: number) => {
-    const filteredConditions = (Array.isArray(scenario.conditions) ? scenario.conditions : [])
-      .filter((condition: any) => {
-        const scenarioName = normalizeSystemScenarioName(getNodeName(scenario, ''))
-        const conditionName = normalizeSystemScenarioName(getNodeName(condition, ''))
-        return !(systemScenarioNames.includes(scenarioName) && conditionName === scenarioName)
-      })
+    const filteredConditions = isSystemScenario(scenario)
+      ? []
+      : (Array.isArray(scenario.conditions) ? scenario.conditions : [])
 
     const laneHeight = Math.max(240, filteredConditions.length * 96 + 96)
     const hubX = type === 'entry' ? 120 : 1600
