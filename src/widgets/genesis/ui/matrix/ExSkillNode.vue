@@ -30,7 +30,7 @@
           </div>
 
           <!-- Normal Node View -->
-          <div v-else class="relative w-full h-full border-[2px] flex flex-col items-center justify-center transition-all duration-500"
+          <div v-else class="relative isolate w-full h-full border-[2px] flex flex-col items-center justify-center transition-all duration-500"
                :class="[
                  node.type === 'placeholder' ? 'border-dashed border-[1px] opacity-80' : '',
                  isRiskPanel ? '' : (
@@ -42,17 +42,16 @@
                @dblclick.stop="$emit('doubleclick')">
 
              <!-- Separate Background Layer -->
-             <div class="absolute inset-0 pointer-events-none -z-10 transition-colors duration-500"
+             <div class="absolute inset-0 z-0 pointer-events-none"
                   :class="[
                     (node.type === 'step' || node.type === 'scaling-entry') ? 'rounded-full bg-nier-text-light dark:bg-nier-text-dark' : 'bg-nier-white/10 dark:bg-nier-black/10',
                     '',
                     node.type === 'image' ? '!bg-transparent' : '',
                     isRiskPanel ? '!bg-transparent' : '',
-                    node.params?.direction === 'LONG' ? '!bg-green-500/50' : '',
-                    node.params?.direction === 'SHORT' ? '!bg-red-500/50' : '',
                     node.type === 'risk-element' ? '!bg-red-500/5' : '',
                     node.type === 'instrument' ? '!bg-transparent' : ''
-                  ]"></div>
+                  ]"
+                  :style="directionBackgroundStyle"></div>
 
            <!-- Selection Brackets -->
             <div v-if="isSelected && !isRiskPanel" class="absolute -inset-4 pointer-events-none">
@@ -823,6 +822,14 @@ const displayColor = computed(() => {
 
   // For system nodes, return null so they use theme-based CSS classes (text-theme-text, etc.)
   return null
+})
+
+// Keep the directional fill on one composited layer. Inline color avoids the
+// fractional-pixel repaint artifacts seen on the 25% board scale.
+const directionBackgroundStyle = computed(() => {
+  if (props.node.params?.direction === 'LONG') return { backgroundColor: 'rgb(34 197 94 / 0.5)' }
+  if (props.node.params?.direction === 'SHORT') return { backgroundColor: 'rgb(239 68 68 / 0.5)' }
+  return {}
 })
 
 function colorWithAlpha(color: string, alpha: number) {
