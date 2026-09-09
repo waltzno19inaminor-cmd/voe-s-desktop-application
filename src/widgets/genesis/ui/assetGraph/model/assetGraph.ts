@@ -20,6 +20,7 @@ export interface AssetNode extends NodeObject {
   revealVelocity: number
   phase: number
   loss: boolean
+  tradeId?: string
   hoverDetails?: { direction: 'LONG' | 'SHORT' | '—'; size: string; dates: string }
 }
 
@@ -78,7 +79,7 @@ const getTradeDirection = (trade: Record<string, any>): 'LONG' | 'SHORT' | '—'
 }
 
 export function buildAssetGraph(trades: Record<string, any>[], initialDeposit: number): AssetGraphData {
-  const groups = new Map<string, { id: string; percent: number; hoverDetails: AssetNode['hoverDetails'] }[]>()
+  const groups = new Map<string, { id: string; tradeId: string; percent: number; hoverDetails: AssetNode['hoverDetails'] }[]>()
   trades.forEach((trade, index) => {
     if (!isClosedTradeForMetrics(trade) || !hasFiniteTradePnl(trade)) return
     const percent = getTradeReturnPct(trade, trade.capitalBeforeTrade ?? initialDeposit, initialDeposit)
@@ -87,6 +88,7 @@ export function buildAssetGraph(trades: Record<string, any>[], initialDeposit: n
     if (!groups.has(asset)) groups.set(asset, [])
     groups.get(asset)!.push({
       id: `${trade.id ?? index}:${index}`,
+      tradeId: String(trade.id ?? index),
       percent,
       hoverDetails: {
         direction: getTradeDirection(trade),
@@ -132,7 +134,7 @@ export function buildAssetGraph(trades: Record<string, any>[], initialDeposit: n
         radius: extreme ? 25 : 12 + Math.sqrt(Math.abs(strength)) * 10,
         fill: child.percent < 0 ? blend([104, 66, 66], [245, 48, 66], strength) : blend([125, 125, 125], [255, 255, 255], strength),
         text: child.percent < 0 ? '#ffffff' : '#171717', homeX: cx, homeY: cy, x: cx, y: cy,
-        parentId, offsetX: offset.x, offsetY: offset.y, reveal: 0, revealVelocity: 0, phase: index * 2.399 + assetIndex, loss: child.percent < 0, hoverDetails: child.hoverDetails,
+        parentId, offsetX: offset.x, offsetY: offset.y, reveal: 0, revealVelocity: 0, phase: index * 2.399 + assetIndex, loss: child.percent < 0, tradeId: child.tradeId, hoverDetails: child.hoverDetails,
       })
       links.push({ source: parentId, target: id })
     })

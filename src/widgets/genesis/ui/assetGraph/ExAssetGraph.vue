@@ -8,5 +8,6 @@
 import AssetGraphCanvas from './AssetGraphCanvas.vue'
 import { useAssetGraph } from './model/useAssetGraph'
 const props = defineProps<{ trades: Record<string, any>[]; initialDeposit: number; locale: string; isDark?: boolean }>()
-const { surface } = useAssetGraph(props)
+const emit = defineEmits<{ 'trade-click': [payload: { tradeId: string; event?: MouseEvent }] }>()
+const { surface } = useAssetGraph(props, { onTradeClick: payload => emit('trade-click', payload) })
 </script>

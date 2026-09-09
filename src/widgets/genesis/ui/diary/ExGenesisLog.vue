@@ -82,6 +82,7 @@
         :trades="currentTrades"
         :initial-deposit="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
         :locale="locale"
+        @trade-click="handleArchiveTradeClick"
       />
 
       <!-- STRATEGY TREE LAYER -->
@@ -689,17 +690,18 @@
     >
       <ExGenesisHudPanel>
         <button
+          v-if="!showTimeTreeTradeDetails"
           type="button"
           class="group relative flex h-10 w-10 items-center justify-center border border-transparent text-white/70 transition-all hover:border-white/20 hover:bg-white/5 hover:text-white"
           :class="viewType === 'assetGraph' ? 'border-white/30 bg-white/10 text-white' : ''"
-          :aria-label="locale === 'ru' ? 'Граф активов' : 'Asset graph'"
+          :aria-label="locale === 'ru' ? 'График' : 'Chart'"
           :aria-pressed="viewType === 'assetGraph'"
           @click="activateBottomView(viewType === 'assetGraph' ? 'timeTree' : 'assetGraph')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-5 w-5" aria-hidden="true">
             <circle cx="12" cy="12" r="4" /><circle cx="4" cy="5" r="2" /><circle cx="20" cy="6" r="2" /><circle cx="7" cy="21" r="2" /><path d="m6 7 3 3m6-1 3-2m-8 9-2 3" />
           </svg>
-          <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono uppercase text-black opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">{{ locale === 'ru' ? 'Граф активов' : 'Asset graph' }}</span>
+          <span class="pointer-events-none absolute bottom-full mb-2 whitespace-nowrap bg-white px-3 py-1.5 text-[9px] font-mono uppercase text-black opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">{{ locale === 'ru' ? 'График' : 'Chart' }}</span>
         </button>
         <button
           v-if="showTimeTreeTradeDetails"
@@ -715,6 +717,7 @@
         </button>
 
         <button
+          v-if="!showTimeTreeTradeDetails"
           type="button"
           class="group relative flex h-10 w-10 items-center justify-center border transition-all"
           :class="viewType === 'timeTree' && !showTimeTreeTradeDetails ? 'border-white/30 bg-white/10 text-white' : 'border-transparent text-white/60 hover:border-white/20 hover:bg-white/5 hover:text-white'"
@@ -1432,7 +1435,7 @@ const downloadCardPng = async () => {
   }
 }
 
-const viewType = ref<'cube' | 'timeTree' | 'distribution' | 'tree' | 'assetGraph'>('timeTree')
+const viewType = ref<'cube' | 'timeTree' | 'distribution' | 'tree' | 'assetGraph'>('assetGraph')
 const hasOpenedGenesisTree = ref(false)
 const genesisTreeRef = ref<any>(null)
 const isGenesisTreePresetPanelOpen = ref(false)

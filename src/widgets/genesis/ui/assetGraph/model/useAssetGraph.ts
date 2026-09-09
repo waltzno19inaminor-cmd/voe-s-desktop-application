@@ -11,7 +11,11 @@ export interface AssetGraphProps {
   isDark?: boolean
 }
 
-export function useAssetGraph(props: AssetGraphProps) {
+export interface AssetGraphCallbacks {
+  onTradeClick?: (payload: { tradeId: string; event?: MouseEvent }) => void
+}
+
+export function useAssetGraph(props: AssetGraphProps, callbacks: AssetGraphCallbacks = {}) {
   const surface = ref<{ element: HTMLDivElement | null } | null>(null)
   const data = computed(() => buildAssetGraph(props.trades, props.initialDeposit))
   let graph: ForceGraph<AssetNode> | undefined
@@ -119,12 +123,16 @@ export function useAssetGraph(props: AssetGraphProps) {
             node.fy = undefined
           })
         })
-        .onNodeClick(node => {
+        .onNodeClick((node, event) => {
           if (nodeWasDragged) {
             nodeWasDragged = false
             return
           }
           if (!graph) return
+          if (node.kind === 'trade' && node.tradeId) {
+            callbacks.onTradeClick?.({ tradeId: node.tradeId, event })
+            return
+          }
           const parent = node.parentId ? graph.graphData().nodes.find(candidate => candidate.id === node.parentId) : node
           if (!parent) return
           const duration = motion.reducedMotion ? 0 : 900
