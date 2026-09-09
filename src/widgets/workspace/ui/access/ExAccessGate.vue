@@ -249,8 +249,8 @@
                 <span v-if="isSubmitting" class="access-gate__button-spinner" aria-hidden="true"></span>
                 <span>{{ isSubmitting ? (isRussian ? 'АКТИВАЦИЯ...' : 'ACTIVATING...') : (isRussian ? 'АКТИВИРОВАТЬ' : 'ACTIVATE') }}</span>
               </button>
-              <button type="button" class="access-gate__patreon" @click="openPatreon">
-                {{ isRussian ? 'КУПИТЬ КЛЮЧ НА PATREON ↗' : 'BUY KEY ON PATREON ↗' }}
+              <button type="button" class="access-gate__patreon" @click="helpView = 'purchase'">
+                {{ isRussian ? 'НЕТ КЛЮЧА?' : 'NO KEY?' }}
               </button>
             </div>
           </form>
