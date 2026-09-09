@@ -24,12 +24,12 @@
     <div class="absolute top-12 left-12 z-50 pointer-events-auto flex items-center space-x-8">
       <button v-if="hasRun" @click="$emit('close')" class="group flex items-center space-x-4 opacity-40 hover:opacity-100 transition-all duration-500">
         <div class="w-2 h-2 border border-black dark:border-white rotate-45 group-hover:bg-black dark:group-hover:bg-white transition-colors"></div>
-        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">EXIT</div>
+        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">{{ simText('EXIT', 'ВЫХОД') }}</div>
       </button>
 
       <button v-if="hasRun && !showParams" @click="showParams = true" class="group flex items-center space-x-4 opacity-40 hover:opacity-100 transition-all duration-500">
         <div class="w-2 h-2 nier-bg-inverted opacity-50 group-hover:opacity-100 transition-opacity"></div>
-        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">PARAMETERS</div>
+        <div class="text-[10px] font-mono tracking-[0.4em] uppercase nier-text-primary">{{ simText('PARAMETERS', 'ПАРАМЕТРЫ') }}</div>
       </button>
     </div>
 
@@ -43,38 +43,38 @@
           
           <div class="flex flex-col space-y-8 relative z-10 p-4">
             <div class="flex flex-col">
-              <span class="text-[8px] font-mono tracking-[0.5em] opacity-40 uppercase">Probabilistic_Projection_Module</span>
-              <h2 class="text-xl font-mono tracking-widest uppercase font-black mt-2 nier-text-primary">EQUITY_SIMULATOR</h2>
+              <span class="text-[8px] font-mono tracking-[0.5em] opacity-40 uppercase">{{ simText('PROBABILISTIC PROJECTION MODULE', 'МОДУЛЬ ВЕРОЯТНОСТНОГО ПРОГНОЗИРОВАНИЯ') }}</span>
+              <h2 class="text-xl font-mono tracking-widest uppercase font-black mt-2 nier-text-primary">{{ simText('EQUITY SIMULATOR', 'СИМУЛЯТОР КАПИТАЛА') }}</h2>
             </div>
 
             <div class="flex flex-col space-y-5">
               
               <!-- LOCKED METRICS -->
               <div class="grid grid-cols-2 gap-4 border-b nier-border-primary pb-5">
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Initial Equity [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('INITIAL EQUITY [LOCKED]', 'НАЧАЛЬНЫЙ КАПИТАЛ [ЗАБЛОКИРОВАНО]') }}</label>
                   <input type="number" readonly v-model.number="params.initialEquity" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Win Prob. (%) [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('WIN PROBABILITY (%) [LOCKED]', 'ВЕРОЯТНОСТЬ ПОБЕДЫ (%) [ЗАБЛОКИРОВАНО]') }}</label>
                   <input type="number" readonly v-model.number="params.winRate" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Reward/Risk [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('REWARD/RISK [LOCKED]', 'ПРИБЫЛЬ/РИСК [ЗАБЛОКИРОВАНО]') }}</label>
                   <input type="number" step="0.1" readonly v-model.number="params.rewardRisk" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Risk/Trade (%) [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('RISK PER TRADE (%) [LOCKED]', 'РИСК НА СДЕЛКУ (%) [ЗАБЛОКИРОВАНО]') }}</label>
                   <input type="number" step="0.1" readonly v-model.number="params.riskPerTrade" class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm focus:outline-none font-bold opacity-60 cursor-not-allowed no-spin-arrows nier-text-primary" />
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Simulation Model [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('SIMULATION MODEL [LOCKED]', 'МОДЕЛЬ СИМУЛЯЦИИ [ЗАБЛОКИРОВАНО]') }}</label>
                   <div class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed nier-text-primary">
                     {{ simulationModelLabel }}
                   </div>
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-40">Regime Periods [LOCKED]</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-40">{{ simText('REGIME PERIODS [LOCKED]', 'ПЕРИОДЫ РЕЖИМОВ [ЗАБЛОКИРОВАНО]') }}</label>
                   <div class="bg-black/5 dark:bg-white/5 border nier-border-primary px-3 py-2 text-sm font-bold opacity-60 cursor-not-allowed nier-text-primary">
                     {{ simulationRegimeLabel }}
                   </div>
@@ -83,12 +83,12 @@
 
               <!-- EDITABLE METRICS -->
               <div class="grid grid-cols-2 gap-4">
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Steps (Trades)</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">{{ simText('STEPS (TRADES)', 'ШАГИ (СДЕЛКИ)') }}</label>
                   <input type="number" v-model.number="params.numTrades" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows nier-text-primary" />
                 </div>
-                <div class="flex flex-col space-y-1 group">
-                  <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">Paths (Simulations)</label>
+                <div class="flex flex-col justify-end space-y-1 group">
+                  <label class="text-[8px] uppercase tracking-widest opacity-70 group-hover:opacity-100 transition-opacity">{{ simText('PATHS (SIMULATIONS)', 'ТРАЕКТОРИИ (СИМУЛЯЦИИ)') }}</label>
                   <input type="number" v-model.number="params.numLines" class="bg-black/5 dark:bg-white/5 border border-black/20 dark:border-white/20 px-3 py-2 text-sm focus:outline-none focus:border-black dark:focus:border-white font-bold transition-all no-spin-arrows nier-text-primary" />
                 </div>
               </div>
@@ -98,11 +98,11 @@
             <div class="flex flex-col space-y-3 pt-2">
               <button @click="runSimulation" 
                       class="w-full py-4 nier-bg-inverted nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase font-black hover:opacity-90 transition-all shadow-[0_10px_20px_rgba(0,0,0,0.2)]">
-                INITIATE_PROJECTION
+                {{ simText('INITIATE PROJECTION', 'ЗАПУСТИТЬ ПРОЕКЦИЮ') }}
               </button>
               <button @click="hasRun ? showParams = false : $emit('close')" 
                       class="w-full py-3 border border-black/20 dark:border-white/20 nier-text-primary font-mono text-[10px] tracking-[0.5em] uppercase hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-                CANCEL
+                {{ simText('CANCEL', 'ОТМЕНА') }}
               </button>
             </div>
           </div>
@@ -121,43 +121,43 @@
         <div class="flex flex-col space-y-4 max-w-sm pointer-events-auto">
           
           <div class="border-b border-black/20 dark:border-white/20 pb-3 mb-4">
-            <span class="text-[10px] uppercase tracking-[0.4em] opacity-50 font-bold">SIMULATION_RESULTS</span>
+            <span class="text-[10px] uppercase tracking-[0.4em] opacity-50 font-bold">{{ simText('SIMULATION RESULTS', 'РЕЗУЛЬТАТЫ СИМУЛЯЦИИ') }}</span>
           </div>
 
           <div class="grid grid-cols-2 gap-4">
              <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">KELLY CRITERION</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('KELLY CRITERION', 'КРИТЕРИЙ КЕЛЛИ') }}</span>
               <span class="text-sm font-bold">{{ metrics.kelly.toFixed(2) }}%</span>
             </div>
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">EXPECTATION (EV)</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('EXPECTATION (EV)', 'МАТЕМАТИЧЕСКОЕ ОЖИДАНИЕ (EV)') }}</span>
               <span class="text-sm font-bold">{{ metrics.expectation.toFixed(3) }}R</span>
             </div>
             
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">MEDIAN_PERFORMANCE</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('MEDIAN PERFORMANCE', 'МЕДИАННАЯ ДОХОДНОСТЬ') }}</span>
               <span class="text-sm font-bold" :class="metrics.medianPerformance > 0 ? 'text-green-500' : 'text-red-500'">{{ metrics.medianPerformance > 0 ? '+' : '' }}{{ metrics.medianPerformance.toFixed(1) }}%</span>
             </div>
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">AVG_MAX_DRAWDOWN</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('AVG MAX DRAWDOWN', 'СРЕДНЯЯ МАКС. ПРОСАДКА') }}</span>
               <span class="text-sm font-bold text-red-500">-{{ metrics.avgMaxDrawdown.toFixed(1) }}%</span>
             </div>
             
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">WORST_MAX_DRAWDOWN</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('WORST MAX DRAWDOWN', 'ХУДШАЯ МАКС. ПРОСАДКА') }}</span>
               <span class="text-sm font-bold text-red-600">-{{ metrics.biggestMaxDrawdown.toFixed(1) }}%</span>
             </div>
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">RoMaD</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('RoMaD', 'ДОХОДНОСТЬ / МАКС. ПРОСАДКА (RoMaD)') }}</span>
               <span class="text-sm font-bold">{{ metrics.romad.toFixed(2) }}</span>
             </div>
 
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">MAX_CONS_WINNERS</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('MAX CONSECUTIVE WINNERS', 'МАКС. СЕРИЯ ПРИБЫЛЬНЫХ') }}</span>
               <span class="text-sm font-bold text-green-500">{{ metrics.maxConsecutiveWinner }}</span>
             </div>
             <div class="flex flex-col">
-              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">MAX_CONS_LOSERS</span>
+              <span class="text-[8px] uppercase tracking-widest opacity-40 mb-0.5">{{ simText('MAX CONSECUTIVE LOSERS', 'МАКС. СЕРИЯ УБЫТОЧНЫХ') }}</span>
               <span class="text-sm font-bold text-red-500">{{ metrics.maxConsecutiveLoser }}</span>
             </div>
           </div>
@@ -168,9 +168,9 @@
 
     <Transition name="protocol-slide">
        <div v-if="!showParams && hasRun" class="absolute top-12 right-12 z-40 flex flex-col space-y-2 pointer-events-none text-[9px] uppercase tracking-widest text-right bg-white/80 dark:bg-black/80 backdrop-blur-sm p-3 border nier-border-primary shadow-sm">
-          <div class="flex items-center justify-end space-x-2"><span>Best Scenario</span><div class="w-3 h-0.5 bg-green-500"></div></div>
-          <div class="flex items-center justify-end space-x-2"><span>Worst Scenario</span><div class="w-3 h-0.5 bg-red-500"></div></div>
-          <div class="flex items-center justify-end space-x-2 opacity-30"><span>Simulated Paths</span><div class="w-3 h-0.5 bg-current"></div></div>
+          <div class="flex items-center justify-end space-x-2"><span>{{ simText('BEST SCENARIO', 'ЛУЧШИЙ СЦЕНАРИЙ') }}</span><div class="w-3 h-0.5 bg-green-500"></div></div>
+          <div class="flex items-center justify-end space-x-2"><span>{{ simText('WORST SCENARIO', 'ХУДШИЙ СЦЕНАРИЙ') }}</span><div class="w-3 h-0.5 bg-red-500"></div></div>
+          <div class="flex items-center justify-end space-x-2 opacity-30"><span>{{ simText('SIMULATED PATHS', 'ТРАЕКТОРИИ СИМУЛЯЦИИ') }}</span><div class="w-3 h-0.5 bg-current"></div></div>
        </div>
     </Transition>
 
@@ -184,8 +184,12 @@ import DesignVignette from '~/widgets/style/ui/DesignVignette.vue';
 import ExPanel from '~/shared/ui/ExPanel.vue';
 import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue';
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl';
+import { useI18n } from '~/shared/i18n/useI18n';
 
 const themeStore = useThemeStore();
+const { locale } = useI18n();
+const isRu = computed(() => locale.value === 'ru');
+const simText = (en: string, ru: string) => isRu.value ? ru : en;
 
 const props = defineProps<{
   initialEquity: number;
@@ -304,12 +308,16 @@ const buildRegimeModel = (normalized = getNormalizedParams()): SimulationRegime[
 }
 
 const regimeModel = computed(() => buildRegimeModel());
-const simulationModelLabel = computed(() => regimeModel.value.length >= 2 ? 'REGIME_BASED' : 'STATIC_WINRATE');
+const simulationModelLabel = computed(() => regimeModel.value.length >= 2
+  ? simText('REGIME BASED', 'НА ОСНОВЕ РЕЖИМОВ')
+  : simText('STATIC WIN RATE', 'ФИКСИРОВАННАЯ ВЕРОЯТНОСТЬ ПОБЕДЫ'));
 const simulationRegimeLabel = computed(() => {
   const regimes = regimeModel.value;
-  if (regimes.length < 2) return 'NOT_ENOUGH_HISTORY';
+  if (regimes.length < 2) return simText('NOT ENOUGH HISTORY', 'НЕДОСТАТОЧНО ИСТОРИИ');
   const totalSamples = regimes.reduce((sum, regime) => sum + regime.sampleSize, 0);
-  return `${regimes.length} PERIODS / ${totalSamples} TRADES`;
+  return isRu.value
+    ? `${regimes.length} ПЕРИОДОВ / ${totalSamples} СДЕЛОК`
+    : `${regimes.length} PERIODS / ${totalSamples} TRADES`;
 });
 
 const metrics = reactive({
@@ -697,7 +705,7 @@ function update() {
         const finalVal = bestSim[bestSim.length - 1] as number;
         ctx.fillStyle = 'rgba(34, 197, 94, 1)';
         ctx.font = `bold ${10 * dpr}px monospace`;
-        ctx.fillText(`BEST: $${finalVal.toFixed(2)}`, lastT.x + 10, lastT.y + 3);
+        ctx.fillText(`${simText('BEST', 'ЛУЧШАЯ')}: $${finalVal.toFixed(2)}`, lastT.x + 10, lastT.y + 3);
       }
     }
 
@@ -720,7 +728,7 @@ function update() {
         const finalVal = worstSim[worstSim.length - 1] as number;
         ctx.fillStyle = 'rgba(239, 68, 68, 1)';
         ctx.font = `bold ${10 * dpr}px monospace`;
-        ctx.fillText(`WORST: $${finalVal.toFixed(2)}`, lastT.x + 10, lastT.y + 3);
+        ctx.fillText(`${simText('WORST', 'ХУДШАЯ')}: $${finalVal.toFixed(2)}`, lastT.x + 10, lastT.y + 3);
       }
     }
   }

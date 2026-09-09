@@ -231,12 +231,12 @@
           
           <div class="p-12 flex flex-col space-y-8 relative z-10 nier-text-primary">
             <div class="flex flex-col">
-              <span class="text-[8px] font-mono tracking-[0.5em] opacity-40 uppercase">Capital_Injection_Module</span>
-              <h2 class="text-xl font-mono tracking-widest uppercase font-black mt-2 nier-text-primary">SET_DEPOSIT</h2>
+              <h2 class="text-xl font-mono tracking-widest uppercase font-black nier-text-primary">
+                {{ isRu ? 'УСТАНОВИТЬ ДЕПОЗИТ' : 'SET DEPOSIT' }}
+              </h2>
             </div>
 
             <div class="flex flex-col space-y-2">
-              <span class="text-[7px] font-mono opacity-30 uppercase tracking-[0.3em]">Initial_Liquidity_Amount</span>
               <div class="flex items-center border-b border-black/20 dark:border-white/20 pb-2 group/input">
                 <span class="text-lg font-mono nier-text-primary mr-4">$</span>
                 <input v-model.number="depositInput" 
@@ -254,7 +254,7 @@
               </button>
               <button @click="showInitialDepositModal = false" 
                       class="w-full py-3 border nier-border-primary nier-text-primary font-mono text-[8px] tracking-[0.4em] uppercase opacity-40 hover:opacity-100 transition-all">
-                ABORT_SEQUENCE
+                {{ isRu ? 'ОТМЕНА' : 'CANCEL' }}
               </button>
             </div>
           </div>
