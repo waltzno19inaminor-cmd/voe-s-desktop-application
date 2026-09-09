@@ -25,7 +25,7 @@ const reportDate = (() => {
 </script>
 
 <template>
-  <section id="report-cover" class="relative flex min-h-[calc(100vh-2rem)] flex-col justify-between overflow-hidden bg-black px-[clamp(1.5rem,7vw,8rem)] py-10 text-white sm:py-14">
+  <section id="report-cover" class="relative flex min-h-[calc(100vh-2rem)] flex-col justify-between overflow-hidden bg-transparent px-[clamp(1.5rem,7vw,8rem)] py-10 text-white sm:py-14">
     <div class="text-[9px] uppercase tracking-[0.18em] text-white/40">J.L. JÖRMUNGANDR</div>
 
     <div class="relative mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center py-20">

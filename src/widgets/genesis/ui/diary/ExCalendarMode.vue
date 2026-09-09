@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { toRefs } from 'vue'
 import { useExCalendar } from '../../model/useExCalendar'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 
 const props = defineProps<{
   trades: any[]
@@ -36,8 +37,12 @@ const {
 <template>
   <!-- CALENDAR OVERLAY -->
   <Transition name="fade">
-    <div class="genesis-calendar-surface absolute inset-0 z-[100] bg-theme-bg pointer-events-auto flex flex-col font-mono nier-text-primary">
-      <div class="relative flex flex-col items-center h-full pt-24 pb-8 px-12 w-full max-w-4xl mx-auto">
+    <div class="genesis-calendar-surface absolute inset-0 z-[100] bg-theme-bg pointer-events-auto flex flex-col overflow-hidden font-mono nier-text-primary">
+      <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-theme-bg" aria-hidden="true">
+        <ExThemeBackground />
+      </div>
+
+      <div class="relative z-10 flex flex-col items-center h-full pt-24 pb-8 px-12 w-full max-w-4xl mx-auto">
         <!-- CALENDAR HEADER -->
         <div class="flex-shrink-0 flex items-center justify-center w-full mb-6 border-b nier-border-primary pb-6">
           <h2 class="text-3xl font-black tracking-[0.2em] uppercase">{{ currentCalendarMonthName }}</h2>

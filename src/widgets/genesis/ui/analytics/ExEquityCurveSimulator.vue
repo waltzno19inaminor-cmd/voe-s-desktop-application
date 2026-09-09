@@ -649,6 +649,7 @@ function update() {
     }
 
     // 2. Draw Simulation Paths
+    const hasImageBackground = themeStore.settings.isImageBg && Boolean(themeStore.settings.bgImage);
     const baseColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     ctx.lineWidth = 1 * dpr;
     ctx.strokeStyle = baseColor;
@@ -663,7 +664,18 @@ function update() {
         if (j === 0) ctx.moveTo(t.x, t.y);
         else ctx.lineTo(t.x, t.y);
       }
-      ctx.stroke();
+      if (hasImageBackground) {
+        // A dark outline and a light core keep every simulated path readable
+        // over both bright and dark areas of a custom background image.
+        ctx.lineWidth = 2.5 * dpr;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.42)';
+        ctx.stroke();
+        ctx.lineWidth = 1 * dpr;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.58)';
+        ctx.stroke();
+      } else {
+        ctx.stroke();
+      }
     }
 
     // Draw Best Line
