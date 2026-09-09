@@ -442,6 +442,7 @@ const reviewNodeTypeMap: Record<string, { en: string; ru: string }> = {
   risk: { en: 'risk', ru: 'риск' },
   instrument: { en: 'instrument', ru: 'инструмент' },
   emotion: { en: 'emotion', ru: 'эмоция' },
+  'emotion-state': { en: 'emotion', ru: 'эмоция' },
   'scaling-entry': { en: 'scaling entry', ru: 'масштабирование входа' }
 }
 

@@ -23,6 +23,7 @@ const MATRIX_GIT_NODE_EVENT_TYPES = new Set([
   'risk',
   'risk-management',
   'emotion',
+  'emotion-state',
   'instrument',
   'pyramiding',
   'averaging',
@@ -888,10 +889,14 @@ export function useMatrixState() {
     }
     if (node.type === 'condition' || node.type === 'indicator' || node.type === 'pattern' || node.type === 'smc') {
       return 'INDICATORS'
-    } else if (node.type === 'emotion') {
+    } else if (node.type === 'emotion' || node.type === 'emotion-state') {
+      if (node.params?.emotionType) {
+        const et = String(node.params.emotionType).toUpperCase()
+        if (et === 'POSITIVE' || et === 'NEUTRAL' || et === 'NEGATIVE') {
+          activeEmotionTab.value = et as 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE'
+        }
+      }
       return 'EMOTIONS'
-    } else if (node.type === 'emotion-state') {
-      return null
     } else if (node.type === 'pyramiding' || node.type === 'averaging' || node.type === 'scaling-entry') {
       return 'SCALING'
     } else if (node.type === 'risk') {

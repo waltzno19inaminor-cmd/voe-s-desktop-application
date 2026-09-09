@@ -166,7 +166,7 @@
                   </button>
                </div>
                
-                <div class="flex space-x-3 overflow-x-auto pt-6 pb-8 w-full justify-start px-12 no-scrollbar scroll-smooth">
+                <div class="flex space-x-3 overflow-x-auto pt-6 pb-8 w-full justify-center px-6 no-scrollbar scroll-smooth">
                   <ExNTtooltip v-for="emotion in GENESIS_EMOTION_LIBRARY.filter((e: any) => e.type === state.activeEmotionTab.value.toLowerCase())" :key="emotion.label">
                     <template #trigger>
                       <button @click="state.setPendingNode({ label: emotion.label, type: 'emotion-state', params: { emotionType: emotion.type, description: emotion.description } })"
@@ -682,6 +682,10 @@ const handleLogicNodeClick = (type: { type: string }) => {
   if (type.type === 'risk' && props.state.currentPageHasRisk?.()) {
     return
   }
+  if (type.type === 'emotion') {
+    props.state.activeMenuCategory.value = 'EMOTIONS'
+    return
+  }
   props.state.setPendingNode(type)
 }
 
@@ -807,15 +811,22 @@ function shouldShowCommandCategory(category: MenuCategory) {
     return false
   }
 
+  if (category === 'EMOTIONS' && props.state.activeMenuCategory.value !== 'EMOTIONS') {
+    return false
+  }
+
   if (rawSelected?.type === 'placeholder') {
     if (category === 'SYSTEM') return false;
     if (category === 'INDICATORS') return true;
+    if (category === 'EMOTIONS') return true;
     if (category === 'LABELS') return true;
   }
 
   const selected = props.state.effectiveSelectedNode.value
   return (
     (category !== 'INDICATORS' && category !== 'EMOTIONS' && category !== 'SCALING') ||
+    (props.state.activeMenuCategory.value === 'INDICATORS' && category === 'INDICATORS') ||
+    (props.state.activeMenuCategory.value === 'EMOTIONS' && category === 'EMOTIONS') ||
     (!!selected && ['condition', 'indicator', 'pattern', 'smc'].includes(selected.type || '') && category === 'INDICATORS') ||
     (!!selected && (selected.type === 'emotion' || selected.type === 'emotion-state') && category === 'EMOTIONS') ||
     (!!selected && (selected.type === 'pyramiding' || selected.type === 'averaging') && category === 'SCALING')

@@ -320,7 +320,7 @@ export function useMatrixChangeTree(activePageId?: Ref<string | null>) {
     const validTypes = [
       'strategy', 'condition', 'scenario', 'indicator', 
       'pattern', 'smc', 'data', 'methods', 'risk', 
-      'risk-management', 'emotion', 'instrument',
+      'risk-management', 'emotion', 'emotion-state', 'instrument',
       'pyramiding', 'averaging', 'domain'
     ]
     if (!validTypes.includes(node.type)) return
