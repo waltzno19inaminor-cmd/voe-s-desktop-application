@@ -106,7 +106,7 @@
                    :class="block.accentClass"></div>
               <div class="absolute left-1 top-1 h-1.5 w-1.5 border-l border-t transition-colors duration-500"
                    :class="isNodeHighlighted(emotion) ? 'border-black' : 'nier-border-primary group-hover/node:border-black dark:group-hover/node:border-white'"></div>
-              {{ isHeatmapActive ? heatmapMetricLabel(emotion) : (emotion.shortName || emotion.label.slice(0, 3)) }}
+              {{ isHeatmapActive ? heatmapMetricLabel(emotion) : shortTreeNodeName(emotion.label, 'EMO') }}
             </div>
           </template>
           <div class="flex max-w-[280px] flex-col gap-2.5">
@@ -157,7 +157,7 @@
                     :class="isHeatmapActive
                       ? [heatmapMetricSizeClass(node), 'tracking-tight', isNodeHighlighted(node) ? 'text-black' : heatmapMetricColorClass(node)]
                       : ['text-[12px] tracking-tighter', isNodeHighlighted(node) ? 'text-black' : 'text-black/40 dark:text-white/40 group-hover/node:text-black dark:group-hover/node:text-white']">
-                {{ isHeatmapActive ? heatmapMetricLabel(node) : (node.name || '').slice(0, 3) }}
+                {{ isHeatmapActive ? heatmapMetricLabel(node) : shortTreeNodeName(node.name, 'STR') }}
               </span>
             </div>
           </template>
@@ -203,7 +203,7 @@
                     :class="isHeatmapActive
                       ? [heatmapMetricSizeClass(sc), 'tracking-tight', isNodeHighlighted(sc) ? 'text-black' : heatmapMetricColorClass(sc)]
                       : ['text-[10px] tracking-[0.16em]', isNodeHighlighted(sc) ? 'text-black' : 'text-black/45 dark:text-white/45 group-hover/node:text-black dark:group-hover/node:text-white']">
-                {{ isHeatmapActive ? heatmapMetricLabel(sc) : (sc.shortName || sc.displayName || sc.label || sc.name || 'SCN') }}
+                {{ isHeatmapActive ? heatmapMetricLabel(sc) : shortTreeNodeName(sc.displayName || sc.label || sc.name, 'SCN') }}
               </span>
             </div>
           </template>
@@ -253,7 +253,7 @@
                       :class="isHeatmapActive
                         ? [heatmapMetricSizeClass(content), 'tracking-tight', isNodeHighlighted(content) ? 'text-black' : heatmapMetricColorClass(content)]
                         : ['text-[10px] tracking-[0.16em]', isNodeHighlighted(content) ? 'text-black' : 'text-black/45 dark:text-white/45 group-hover/node:text-black dark:group-hover/node:text-white']">
-                  {{ isHeatmapActive ? heatmapMetricLabel(content) : (content.shortName || content.displayName || content.label || content.name || 'CNT') }}
+                  {{ isHeatmapActive ? heatmapMetricLabel(content) : shortTreeNodeName(content.displayName || content.label || content.name, 'CNT') }}
                 </span>
               </div>
             </template>
@@ -411,6 +411,11 @@ const panLayerStyle = computed(() => ({
 }))
 
 const isHeatmapActive = computed(() => heatmapMode.value !== 'none')
+
+const shortTreeNodeName = (value: unknown, fallback: string) => {
+  const name = String(value || fallback).trim()
+  return Array.from(name).slice(0, 3).join('')
+}
 
 const normalizePresetSearch = (value: string) => value.toLocaleLowerCase().trim()
 
