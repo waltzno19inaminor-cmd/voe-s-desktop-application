@@ -671,7 +671,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
           <div class="h-full min-h-0 w-full flex flex-col overflow-hidden">
             <div class="shrink-0 px-10 pt-10">
               <div class="w-full px-6 sm:px-10 md:px-12 xl:px-16 2xl:px-20">
-                <div class="z-20 w-full shrink-0 border-b border-white/10 bg-black/60 pb-3 pt-1 backdrop-blur-md">
+                <div class="z-20 w-full shrink-0 border-b border-white/10 bg-transparent pb-3 pt-1 backdrop-blur-md">
                   <div class="flex w-full items-center justify-between gap-4">
                     <div class="flex items-center gap-2">
                     <button

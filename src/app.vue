@@ -282,6 +282,7 @@ html.dark body {
   .genesis-trades-surface,
   .genesis-tree-surface,
   .genesis-distribution-surface,
+  .genesis-report-surface,
   .genesis-calendar-surface,
   .genesis-tactical-map-surface,
   .matrix-boot-overlay,
@@ -303,6 +304,13 @@ html.dark body {
 
 .has-theme-image-background .matrix-boot-ethereal {
   display: none;
+}
+
+/* ExTacticalNodeMap has a scoped !important fallback background. This more
+   specific rule exposes the theme image when the map is used as an overlay. */
+.has-theme-image-background .genesis-tactical-map-surface.ethereal-void {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .nier-text-primary {

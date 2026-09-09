@@ -87,7 +87,7 @@ onMounted(() => {
 <template>
   <div class="absolute inset-0 z-30 overflow-hidden bg-transparent">
     <div class="h-full w-full pl-[4vw] pr-4 xl:pl-[7vw] xl:pr-6">
-      <div class="mt-[4vh] flex h-[calc(100%_-_4vh)] min-h-0 w-full gap-6 bg-black xl:gap-10">
+      <div class="genesis-report-surface mt-[4vh] flex h-[calc(100%_-_4vh)] min-h-0 w-full gap-6 bg-black xl:gap-10">
         <ExStrategyReportSideNavigation
           :selected-section-id="selectedSectionId"
           :locked-section-ids="lockedSectionIds"

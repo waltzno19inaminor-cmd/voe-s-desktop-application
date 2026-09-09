@@ -1,6 +1,8 @@
 <template>
-  <div class="fixed inset-0 z-[5000] bg-white dark:bg-[#050505] nier-text-primary font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
+  <div class="equity-simulator fixed inset-0 z-[5000] bg-white dark:bg-[#050505] nier-text-primary font-mono selection:bg-black selection:text-white dark:selection:bg-white dark:selection:text-black overflow-hidden"
        :class="hasRun ? 'nier-bg-panel' : ''">
+
+    <ExThemeBackground />
     
     <!-- ETHEREAL VIGNETTE (From main app) -->
     <DesignVignette v-if="!showParams" :is-dark="themeStore.settings.isDark" class="z-20 pointer-events-none" />
@@ -180,6 +182,7 @@ import { computed, ref, reactive, onMounted, onUnmounted } from 'vue';
 import { useThemeStore } from '~/features/store/useTheme';
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue';
 import ExPanel from '~/shared/ui/ExPanel.vue';
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue';
 import { getTradeCashPnl } from '~/widgets/genesis/model/tradePnl';
 
 const themeStore = useThemeStore();
