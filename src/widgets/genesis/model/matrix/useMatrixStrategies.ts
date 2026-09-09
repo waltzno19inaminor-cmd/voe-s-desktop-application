@@ -11,6 +11,10 @@ export function isStrategyNode(node: any) {
   return node?.type === 'strategy' || node?.type === 'system'
 }
 
+export function isRiskNode(node: any) {
+  return node?.type === 'risk' || node?.type === 'risk_management'
+}
+
 export function getMatrixStrategyName(node: any) {
   return String(
     node?.params?.customName ||

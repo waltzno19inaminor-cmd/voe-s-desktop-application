@@ -519,14 +519,6 @@
             </div>
           </div>
 
-          <!-- RISK TOOLS -->
-          <div v-if="state.activeMenuCategory.value === 'RISK' && !state.isScenarioContext.value" class="flex items-center justify-center pointer-events-auto px-4 w-full">
-            <div class="flex items-center gap-3 border border-red-500/20 bg-red-500/[0.03] px-5 py-3">
-              <div class="w-2 h-2 rotate-45 bg-red-500/80 shadow-[0_0_12px_rgba(239,68,68,0.7)]"></div>
-              <span class="text-[9px] font-mono uppercase tracking-[0.32em] font-black text-nier-text-light dark:text-nier-text-dark">{{ t('matrix.riskManagementPanel') }}</span>
-            </div>
-          </div>
-
           <!-- DATA TOOLS (Instrument Search) -->
           <div v-if="state.activeMenuCategory.value === 'DATA' && !state.isScenarioContext.value" class="flex flex-col items-center pointer-events-auto max-w-lg w-full">
             <!-- Search Results -->
@@ -687,6 +679,9 @@ const handleLogicNodeClick = (type: { type: string }) => {
     emit('paid-feature-click')
     return
   }
+  if (type.type === 'risk' && props.state.currentPageHasRisk?.()) {
+    return
+  }
   props.state.setPendingNode(type)
 }
 
@@ -751,7 +746,7 @@ const executePurge = () => {
 }
 
 // Category lists
-const defaultCommandCategories: MenuCategory[] = ['LOGIC', 'METHODS', 'DATA', 'DOMAINS', 'INDICATORS', 'EMOTIONS', 'STEPS', 'SCALING', 'RISK', 'LABELS', 'SYSTEM']
+const defaultCommandCategories: MenuCategory[] = ['LOGIC', 'METHODS', 'DATA', 'DOMAINS', 'INDICATORS', 'EMOTIONS', 'STEPS', 'SCALING', 'LABELS', 'SYSTEM']
 const scenarioCommandCategories: MenuCategory[] = ['SCENARIO_DOCS', 'SCENARIO_VISUALS', 'SCENARIO_AUDIO', 'TEXT_FORMAT', 'LABELS']
 const commandCategoryLabels: Partial<Record<MenuCategory, string>> = {
   SCENARIO_DOCS: 'DOCS',
@@ -774,7 +769,6 @@ const commandSectionDescriptionKeys: Partial<Record<MenuCategory, string>> = {
   DOMAINS: 'matrix.descriptionDomains',
   METHODS: 'matrix.descriptionMethods',
   SCALING: 'matrix.descriptionScaling',
-  RISK: 'matrix.descriptionRisk',
   DATA: 'matrix.descriptionData',
   SYSTEM: 'matrix.descriptionSystem'
 }
@@ -821,11 +815,10 @@ function shouldShowCommandCategory(category: MenuCategory) {
 
   const selected = props.state.effectiveSelectedNode.value
   return (
-    (category !== 'INDICATORS' && category !== 'EMOTIONS' && category !== 'SCALING' && category !== 'RISK') ||
+    (category !== 'INDICATORS' && category !== 'EMOTIONS' && category !== 'SCALING') ||
     (!!selected && ['condition', 'indicator', 'pattern', 'smc'].includes(selected.type || '') && category === 'INDICATORS') ||
     (!!selected && (selected.type === 'emotion' || selected.type === 'emotion-state') && category === 'EMOTIONS') ||
-    (!!selected && (selected.type === 'pyramiding' || selected.type === 'averaging') && category === 'SCALING') ||
-    (!!selected && selected.type === 'risk' && category === 'RISK')
+    (!!selected && (selected.type === 'pyramiding' || selected.type === 'averaging') && category === 'SCALING')
   )
 }
 
@@ -964,11 +957,15 @@ const skillTypes = computed(() => {
   return base
 })
 
-const visibleSkillTypes = computed(() => skillTypes.value.filter(type => !(
-  type.type === 'strategy'
-  && props.state.currentPageHasStrategy()
-  && props.multipleBoardsLocked
-)))
+const visibleSkillTypes = computed(() => skillTypes.value.filter(type => {
+  if (type.type === 'strategy' && props.state.currentPageHasStrategy() && props.multipleBoardsLocked) {
+    return false
+  }
+  if (type.type === 'risk' && props.state.currentPageHasRisk?.()) {
+    return false
+  }
+  return true
+}))
 </script>
 
 <style scoped>

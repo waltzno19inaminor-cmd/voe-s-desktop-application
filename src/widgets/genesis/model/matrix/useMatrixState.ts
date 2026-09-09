@@ -1,7 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { saveToDisk, loadFromDisk } from '@/shared/diskStorage'
 import { useAppBootStore } from '~/features/store/useAppBoot'
-import { getMatrixStrategyName, isStrategyNode } from './useMatrixStrategies'
+import { getMatrixStrategyName, isStrategyNode, isRiskNode } from './useMatrixStrategies'
 import { useMatrixChangeTree, type MatrixChangeEvent } from './useMatrixChangeTree'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 
@@ -354,6 +354,10 @@ function getStrategyCount(nodes: Node[]) {
   return nodes.filter(isStrategyNode).length
 }
 
+function getRiskCount(nodes: Node[]) {
+  return nodes.filter(isRiskNode).length
+}
+
 function clonePlainValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value))
 }
@@ -652,6 +656,10 @@ export function useMatrixState() {
     return getStrategyCount(rootNodes.value) > 0
   }
 
+  function currentPageHasRisk() {
+    return getRiskCount(rootNodes.value) > 0
+  }
+
   const handleNodeMoved = () => {
     forceUpdate()
     saveMatrixData()
@@ -887,7 +895,7 @@ export function useMatrixState() {
     } else if (node.type === 'pyramiding' || node.type === 'averaging' || node.type === 'scaling-entry') {
       return 'SCALING'
     } else if (node.type === 'risk') {
-      return 'RISK'
+      return null
     }
     return 'LOGIC'
   }
@@ -896,6 +904,10 @@ export function useMatrixState() {
     const config = typeof typeOrConfig === 'string' 
       ? { type: typeOrConfig, label: typeOrConfig.toUpperCase(), params: {} }
       : typeOrConfig;
+
+    if (isRiskNode(config) && currentPageHasRisk()) {
+      return
+    }
 
     if (isStrategyNode(config)) {
       if (activeContextId.value) return
@@ -959,6 +971,12 @@ export function useMatrixState() {
     const nextConfig = typeof config === 'string' 
       ? { type: config, label: config.toUpperCase(), params: {} }
       : config;
+
+    if (isRiskNode(nextConfig) && currentPageHasRisk()) {
+      pendingNodeConfig.value = null
+      return
+    }
+
     if (isStrategyNode(nextConfig) && currentPageHasStrategy()) {
       if (!canAccess('matrix.multipleBoards')) {
         void authorizeCapability('matrix.multipleBoards')
@@ -971,6 +989,11 @@ export function useMatrixState() {
       const container = createActiveContainerAccess()
       const selectedNode = container.getNodes().find(node => node.id === lastSelectedId.value)
       if (selectedNode && selectedNode.type === 'placeholder') {
+        if (isRiskNode(nextConfig) && currentPageHasRisk()) {
+          pendingNodeConfig.value = null
+          return
+        }
+
         const beforeNode = cloneMatrixValue(selectedNode)
         const logicConnection = container.getConnections().find(conn => {
           const label = (conn.label || '').toLowerCase()
@@ -2270,6 +2293,7 @@ export function useMatrixState() {
     addMatrixPage,
     removeMatrixPage,
     currentPageHasStrategy,
+    currentPageHasRisk,
     selectNode,
     getMenuCategoryForNode,
     addNode,
