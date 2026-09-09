@@ -19,15 +19,16 @@ export function useAssetGraph(props: AssetGraphProps) {
   let disposed = false
   let overviewScale = 1
   let cleanup = () => {}
-  const motion: NetworkMotion = { detail: 0, time: 0, pointer: null, focused: null, reducedMotion: false }
-  const renderer = createNetworkRenderer(motion, () => props.isDark !== false)
+  let nodeWasDragged = false
+  const motion: NetworkMotion = { detail: 0, time: 0, offset: { x: 0, y: 0 }, focused: null, reducedMotion: false }
+  const renderer = createNetworkRenderer(motion, () => props.isDark !== false, () => props.locale)
   let bounds = { left: -Infinity, top: -Infinity, right: Infinity, bottom: Infinity }
   const reset = () => {
     if (!graph) return
     overviewScale = Math.min(1.5, Math.max(0.01, (Math.min(graph.width(), graph.height()) - 130) / (data.value.extent * 1.35)))
     graph.minZoom(overviewScale * 0.4).maxZoom(Math.max(8, overviewScale * 8))
     const duration = motion.reducedMotion ? 0 : 700
-    graph.centerAt(0, 0, duration).zoom(overviewScale, duration)
+    graph.centerAt(motion.offset.x, motion.offset.y, duration).zoom(overviewScale, duration)
   }
   const update = () => {
     if (!graph) return
@@ -36,7 +37,14 @@ export function useAssetGraph(props: AssetGraphProps) {
     const nodes = data.value.nodes.map(node => {
       const old = previous.get(node.id)
       const parent = node.parentId ? parents.get(node.parentId) : undefined
-      return { ...node, x: old?.x ?? (parent ?? node).homeX * 0.56, y: old?.y ?? (parent ?? node).homeY * 0.56, vx: old?.vx ?? 0, vy: old?.vy ?? 0, reveal: old?.reveal ?? 0 }
+      return {
+        ...node,
+        x: old?.x ?? (parent ? parent.homeX * 0.56 + node.offsetX : node.homeX * 0.56),
+        y: old?.y ?? (parent ? parent.homeY * 0.56 + node.offsetY : node.homeY * 0.56),
+        vx: old?.vx ?? 0,
+        vy: old?.vy ?? 0,
+        reveal: 1,
+      }
     })
     renderer.update(nodes)
     graph.graphData({ nodes, links: [] })
@@ -52,6 +60,12 @@ export function useAssetGraph(props: AssetGraphProps) {
       const collision = forceCollide().strength(0.85).iterations(2)
       const network = createNetworkForce(motion)
       let simulationNodes: AssetNode[] = []
+      const pointerOverNode = (event: MouseEvent) => {
+        if (!graph) return false
+        const rect = element.getBoundingClientRect()
+        const point = graph.screen2GraphCoords(event.clientX - rect.left, event.clientY - rect.top)
+        return graph.graphData().nodes.some(node => Math.hypot(node.x - point.x, node.y - point.y) <= visibleRadius(node))
+      }
       const collide = () => {
         const visible = simulationNodes.filter(node => node.kind === 'asset' || node.reveal > 0.5)
         collision.initialize(visible)
@@ -61,11 +75,12 @@ export function useAssetGraph(props: AssetGraphProps) {
       collide.initialize = (nodes: AssetNode[]) => { simulationNodes = nodes }
       graph = new ForceGraph<AssetNode>(element)
         .backgroundColor('rgba(0,0,0,0)')
-        .enableNodeDrag(false)
+        .enableNodeDrag(true)
+        .enablePanInteraction(event => !pointerOverNode(event))
         .enablePointerInteraction(true)
         .nodeLabel('')
         .nodeVal(node => (visibleRadius(node) / 4) ** 2)
-        .nodeVisibility(node => node.kind === 'asset' || node.reveal > 0.02)
+        .nodeVisibility(() => true)
         .nodePointerAreaPaint((node, color, ctx) => {
           const radius = visibleRadius(node)
           if (radius < 1) return
@@ -84,15 +99,44 @@ export function useAssetGraph(props: AssetGraphProps) {
         .d3AlphaDecay(0)
         .cooldownTime(Infinity)
         .cooldownTicks(motion.reducedMotion ? 150 : Infinity)
-        .onNodeHover(node => { motion.focused = node?.parentId ?? node?.id ?? null })
+        .onNodeHover(node => { motion.focused = node?.id ?? null })
+        .onNodeDrag((node, translate) => {
+          if (!graph) return
+          nodeWasDragged = true
+          motion.offset.x += translate.x
+          motion.offset.y += translate.y
+          for (const candidate of graph.graphData().nodes) {
+            if (candidate === node) continue
+            candidate.x += translate.x
+            candidate.y += translate.y
+            candidate.fx = candidate.x
+            candidate.fy = candidate.y
+          }
+        })
+        .onNodeDragEnd(() => {
+          graph?.graphData().nodes.forEach(node => {
+            node.fx = undefined
+            node.fy = undefined
+          })
+        })
         .onNodeClick(node => {
+          if (nodeWasDragged) {
+            nodeWasDragged = false
+            return
+          }
           if (!graph) return
           const parent = node.parentId ? graph.graphData().nodes.find(candidate => candidate.id === node.parentId) : node
           if (!parent) return
           const duration = motion.reducedMotion ? 0 : 900
           graph.centerAt(parent.homeX, parent.homeY, duration).zoom(Math.max(overviewScale * 2.2, 1.7), duration)
         })
-        .onBackgroundClick(reset)
+        .onBackgroundClick(() => {
+          if (nodeWasDragged) {
+            nodeWasDragged = false
+            return
+          }
+          reset()
+        })
         .onZoom(({ k }) => {
           motion.detail = Math.max(0, Math.min(1, (k / overviewScale - 1.15) / 0.8))
           if (motion.reducedMotion) graph?.d3ReheatSimulation()
@@ -117,12 +161,7 @@ export function useAssetGraph(props: AssetGraphProps) {
       }
       observer = new ResizeObserver(resize)
       observer.observe(element)
-      const pointerMove = (event: PointerEvent) => {
-        if (event.pointerType === 'touch') return
-        const rect = element.getBoundingClientRect()
-        motion.pointer = graph?.screen2GraphCoords(event.clientX - rect.left, event.clientY - rect.top) ?? null
-      }
-      const pointerLeave = () => { motion.pointer = null; motion.focused = null }
+      const pointerLeave = () => { motion.focused = null }
       const visibilityChange = () => {
         if (document.hidden) graph?.pauseAnimation()
         else graph?.resumeAnimation()
@@ -131,12 +170,10 @@ export function useAssetGraph(props: AssetGraphProps) {
         motion.reducedMotion = reduced.matches
         graph?.cooldownTicks(reduced.matches ? 150 : Infinity).d3ReheatSimulation()
       }
-      element.addEventListener('pointermove', pointerMove, { passive: true })
       element.addEventListener('pointerleave', pointerLeave)
       document.addEventListener('visibilitychange', visibilityChange)
       reduced.addEventListener('change', preferenceChange)
       cleanup = () => {
-        element.removeEventListener('pointermove', pointerMove)
         element.removeEventListener('pointerleave', pointerLeave)
         document.removeEventListener('visibilitychange', visibilityChange)
         reduced.removeEventListener('change', preferenceChange)

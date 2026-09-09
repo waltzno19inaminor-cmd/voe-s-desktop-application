@@ -2,7 +2,7 @@ import type { AssetNode } from './assetGraph'
 import { parentConnections, visibleRadius, type NetworkMotion } from './assetPhysics'
 
 // Cache the light/material once per colour, not once per node per frame.
-export function createNetworkRenderer(motion: NetworkMotion, isDark: () => boolean) {
+export function createNetworkRenderer(motion: NetworkMotion, isDark: () => boolean, locale: () => string = () => 'en') {
   const materials = new Map<string, HTMLCanvasElement>()
   let nodesById = new Map<string, AssetNode>()
   let connections: { source: AssetNode; target: AssetNode; parent: boolean; phase: number }[] = []
@@ -19,12 +19,6 @@ export function createNetworkRenderer(motion: NetworkMotion, isDark: () => boole
     ctx.beginPath()
     ctx.arc(96, 96, 64, 0, Math.PI * 2)
     ctx.fillStyle = fill
-    ctx.fill()
-    const light = ctx.createRadialGradient(74, 68, 0, 100, 102, 88)
-    light.addColorStop(0, 'rgba(255,255,255,0.20)')
-    light.addColorStop(0.48, 'rgba(255,255,255,0)')
-    light.addColorStop(1, 'rgba(0,0,0,0.36)')
-    ctx.fillStyle = light
     ctx.fill()
     materials.set(fill, canvas)
     return canvas
@@ -55,14 +49,15 @@ export function createNetworkRenderer(motion: NetworkMotion, isDark: () => boole
       const ey = target.y - dy / length * endRadius
       const active = motion.focused === source.id || motion.focused === target.id
       const color = target.loss ? '210,57,63' : ink
-      ctx.strokeStyle = `rgba(${color},${active ? 0.48 : link.parent ? 0.17 : 0.12})`
+      const dimmed = motion.focused !== null && !active
+      ctx.strokeStyle = `rgba(${color},${dimmed ? 0.035 : active ? 0.48 : link.parent ? 0.17 : 0.12})`
       ctx.lineWidth = (active ? 0.85 : 0.55) / scale
       ctx.beginPath()
       ctx.moveTo(sx, sy)
       ctx.lineTo(ex, ey)
       ctx.stroke()
       // Sparse travelling signals make the network legible without visual noise.
-      if (motion.reducedMotion || (!link.parent && !active)) continue
+      if (motion.reducedMotion || dimmed || (!link.parent && !active)) continue
       const progress = (motion.time * 0.00012 + link.phase) % 1
       const tail = Math.max(0, progress - 0.055)
       ctx.strokeStyle = `rgba(${color},0.7)`
@@ -77,14 +72,42 @@ export function createNetworkRenderer(motion: NetworkMotion, isDark: () => boole
   const paintNode = (node: AssetNode, ctx: CanvasRenderingContext2D, scale: number) => {
     const radius = visibleRadius(node)
     if (radius * scale < 0.8) return
-    ctx.drawImage(material(node.fill), node.x - radius * 1.5, node.y - radius * 1.5, radius * 3, radius * 3)
-    if (node.kind === 'trade' && (node.reveal < 0.85 || radius * scale < 11)) return
+    const focused = motion.focused === node.id
     ctx.save()
-    ctx.fillStyle = node.text
-    ctx.font = `${node.kind === 'asset' ? 500 : 400} ${node.kind === 'asset' ? 13 : 10}px "Outfit", "Helvetica Neue", sans-serif`
-    ctx.textAlign = 'center'
+    if (motion.focused !== null && !focused) ctx.globalAlpha = 0.16
+    ctx.drawImage(material(node.fill), node.x - radius * 1.5, node.y - radius * 1.5, radius * 3, radius * 3)
+    if (node.kind !== 'trade' || (node.reveal >= 0.85 && radius * scale >= 11)) {
+      ctx.fillStyle = node.text
+      ctx.font = `${node.kind === 'asset' ? 500 : 400} ${node.kind === 'asset' ? 13 : 10}px "Outfit", "Helvetica Neue", sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(node.label, node.x, node.y + 0.5, radius * 1.65)
+    }
+    ctx.restore()
+    if (focused && node.hoverDetails) paintHoverDetails(node, radius, ctx)
+  }
+  const paintHoverDetails = (node: AssetNode, radius: number, ctx: CanvasRenderingContext2D) => {
+    const direction = node.hoverDetails!.direction === '—'
+      ? '—'
+      : locale().toLowerCase().startsWith('ru')
+        ? (node.hoverDetails!.direction === 'LONG' ? 'ЛОНГ' : 'ШОРТ')
+        : node.hoverDetails!.direction
+    const size = node.hoverDetails!.size === '—'
+      ? '—'
+      : `${node.hoverDetails!.size} ${locale().toLowerCase().startsWith('ru') ? 'лотов' : 'lots'}`
+    const line = `${direction}  ·  ${size}  ·  ${node.hoverDetails!.dates}`
+    ctx.save()
+    ctx.font = '600 10px "Outfit", "Helvetica Neue", sans-serif'
+    const width = ctx.measureText(line).width + 16
+    const height = 28
+    const x = node.x + radius + 12
+    const y = node.y - height / 2
+    ctx.fillStyle = isDark() ? 'rgba(12,12,12,0.88)' : 'rgba(255,255,255,0.92)'
+    ctx.fillRect(x, y, width, height)
+    ctx.fillStyle = isDark() ? '#f5f5f5' : '#171717'
+    ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.fillText(node.label, node.x, node.y + 0.5, radius * 1.65)
+    ctx.fillText(line, x + 8, y + height / 2)
     ctx.restore()
   }
   return { update, paintLinks, paintNode }

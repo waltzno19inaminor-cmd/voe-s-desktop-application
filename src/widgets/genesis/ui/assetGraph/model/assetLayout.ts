@@ -15,12 +15,14 @@ function createLayoutRandom(keys: string[]) {
 }
 
 /** Random offsets stay stable during zooming and differ between assets. */
-export function layoutTradeNodes(asset: string, count: number) {
+export function layoutTradeNodes(asset: string, count: number, parentRadius = 42) {
   const random = createLayoutRandom([asset])
   const positions: { x: number; y: number }[] = []
   const cells = new Map<string, { x: number; y: number }[]>()
   const spacing = 60 // Two maximum child radii (25) and a 10px gap.
-  const innerRadius = 42 + 25 + 12
+  // Keep every expanded trade clear of its parent, whose radius varies with
+  // the number of trades for that asset.
+  const innerRadius = parentRadius + 25 + 12
   let extent = 130
   for (let index = 0; index < count; index++) {
     const outerRadius = Math.sqrt(innerRadius ** 2 + (index + 1) * 40 ** 2)

@@ -3,12 +3,12 @@ import type { AssetNode } from './assetGraph'
 export interface NetworkMotion {
   detail: number
   time: number
-  pointer: { x: number; y: number } | null
+  offset: { x: number; y: number }
   focused: string | null
   reducedMotion: boolean
 }
 
-export const visibleRadius = (node: AssetNode) => node.radius * (node.kind === 'asset' ? 1 : Math.max(0, Math.min(1, node.reveal)))
+export const visibleRadius = (node: AssetNode) => node.radius
 
 export function parentConnections(nodes: AssetNode[]) {
   const parents = nodes.filter(node => node.kind === 'asset')
@@ -27,7 +27,7 @@ export function parentConnections(nodes: AssetNode[]) {
   return pairs
 }
 
-/** D3 force: damped springs, coherent drift, and a local cursor force. */
+/** D3 force: damped springs and coherent drift. */
 export function createNetworkForce(motion: NetworkMotion) {
   let nodes: AssetNode[] = []
   let parents = new Map<string, AssetNode>()
@@ -35,18 +35,17 @@ export function createNetworkForce(motion: NetworkMotion) {
   const force = () => {
     for (const node of nodes) {
       if (node.kind !== 'asset') continue
-      const target = motion.detail
-      node.revealVelocity = (node.revealVelocity + (target - node.reveal) * 0.09) * 0.72
-      node.reveal = motion.reducedMotion ? target : node.reveal + node.revealVelocity
+      node.revealVelocity = 0
+      node.reveal = 1
     }
     for (const node of nodes) {
       const parent = node.parentId ? parents.get(node.parentId) : undefined
       if (parent) node.reveal = parent.reveal
-      const expansion = Math.max(0, Math.min(1.05, node.reveal))
+      const expansion = 1
       const drift = motion.reducedMotion ? 0 : Math.sin(motion.time * 0.00035 + node.phase) * 7
       const driftY = motion.reducedMotion ? 0 : Math.cos(motion.time * 0.00028 + node.phase) * 7
-      const targetX = parent ? parent.x + node.offsetX * expansion : node.homeX * (0.56 + expansion * 0.44)
-      const targetY = parent ? parent.y + node.offsetY * expansion : node.homeY * (0.56 + expansion * 0.44)
+      const targetX = parent ? parent.x + node.offsetX * expansion : node.homeX * (0.56 + expansion * 0.44) + motion.offset.x
+      const targetY = parent ? parent.y + node.offsetY * expansion : node.homeY * (0.56 + expansion * 0.44) + motion.offset.y
       if (parent && expansion < 0.015) {
         node.x = parent.x
         node.y = parent.y
@@ -57,17 +56,6 @@ export function createNetworkForce(motion: NetworkMotion) {
       const spring = parent ? 0.042 : 0.018
       node.vx = (node.vx ?? 0) + (targetX + drift - node.x) * spring
       node.vy = (node.vy ?? 0) + (targetY + driftY - node.y) * spring
-      if (motion.pointer && !motion.reducedMotion) {
-        const dx = node.x - motion.pointer.x
-        const dy = node.y - motion.pointer.y
-        const distance = Math.hypot(dx, dy)
-        const reach = node.radius + 105
-        if (distance > 1 && distance < reach) {
-          const pressure = (1 - distance / reach) ** 2 * (parent ? 1.7 : 0.55)
-          node.vx += dx / distance * pressure
-          node.vy += dy / distance * pressure
-        }
-      }
     }
     // Neighbour springs carry local displacement through the parent network.
     for (const { source, target } of connections) {
