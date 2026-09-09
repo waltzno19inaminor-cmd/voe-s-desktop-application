@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import type { useMatrixState, Point, Node, Connection } from './useMatrixState'
 import { useMatrixChangeTree } from './useMatrixChangeTree'
 
@@ -7,16 +7,6 @@ export const MATRIX_SCALE_PERCENTAGES = [25, 50, 75, 100, 150, 200] as const
 
 export const MATRIX_MIN_SCALE: number = MATRIX_SCALE_OPTIONS[0]
 export const MATRIX_MAX_SCALE: number = MATRIX_SCALE_OPTIONS[MATRIX_SCALE_OPTIONS.length - 1] ?? 2
-
-export function getNextMatrixScale(currentScale: number, isZoomIn: boolean): number {
-  if (isZoomIn) {
-    const next = MATRIX_SCALE_OPTIONS.find(s => s > currentScale + 0.001)
-    return next ?? MATRIX_MAX_SCALE
-  } else {
-    const prev = [...MATRIX_SCALE_OPTIONS].reverse().find(s => s < currentScale - 0.001)
-    return prev ?? MATRIX_MIN_SCALE
-  }
-}
 
 export function isTextEditingTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) return false
@@ -58,6 +48,7 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
         (e.target as HTMLElement).closest('.pointer-events-auto:not(.absolute.inset-0)')) return
 
     e.preventDefault()
+    cancelZoom()
     window.getSelection()?.removeAllRanges()
 
     if (isZoneToolActive) {
@@ -122,6 +113,7 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   }
 
   const resetView = () => {
+    cancelZoom()
     const rootNode = state.nodes.value.find(n => n.isRoot) || state.nodes.value[0]
     if (rootNode && canvasWrapper.value) {
       const rect = canvasWrapper.value.getBoundingClientRect()
@@ -137,8 +129,10 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   }
 
   const applyScaleAroundPoint = (newScale: number, clientX?: number, clientY?: number) => {
+    if (!Number.isFinite(newScale) || state.isScenarioContext.value) return
+    newScale = Math.max(MATRIX_MIN_SCALE, Math.min(MATRIX_MAX_SCALE, newScale))
     const oldScale = state.viewState.value.scale
-    if (Math.abs(newScale - oldScale) < 0.001) return
+    if (newScale === oldScale) return
 
     if (canvasWrapper.value) {
       const rect = canvasWrapper.value.getBoundingClientRect()
@@ -157,14 +151,44 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
   }
 
   const updateScale = (newScale: number) => {
+    cancelZoom()
     applyScaleAroundPoint(newScale)
   }
 
-  let lastWheelTime = 0
-  const WHEEL_COOLDOWN_MS = 140
+  let zoomFrame: number | null = null
+  let zoomTarget = state.viewState.value.scale
+  let zoomAnchor = { x: 0, y: 0 }
+  let lastZoomFrame = 0
+
+  function cancelZoom() {
+    if (zoomFrame !== null) cancelAnimationFrame(zoomFrame)
+    zoomFrame = null
+    lastZoomFrame = 0
+    zoomTarget = state.viewState.value.scale
+  }
+
+  function animateZoom(time: number) {
+    const elapsed = lastZoomFrame ? Math.min(time - lastZoomFrame, 64) : 16
+    lastZoomFrame = time
+    const current = state.viewState.value.scale
+    const next = current + (zoomTarget - current) * (1 - Math.exp(-elapsed / 45))
+    const finished = Math.abs(zoomTarget - next) < 0.00001
+    applyScaleAroundPoint(finished ? zoomTarget : next, zoomAnchor.x, zoomAnchor.y)
+    if (finished) {
+      zoomFrame = null
+      lastZoomFrame = 0
+    } else {
+      zoomFrame = requestAnimationFrame(animateZoom)
+    }
+  }
+
+  watch([state.activePageId, () => state.navigationStack.value.join('/'),
+    () => state.viewState.value.isPanning, state.activeDrawingNodeId], cancelZoom, { flush: 'sync' })
+  onBeforeUnmount(cancelZoom)
 
   const handleWheel = (e: WheelEvent) => {
-    if (Math.abs(e.deltaY) < 1) return
+    if (!Number.isFinite(e.deltaY) || e.deltaY === 0) return
+    if (state.isScenarioContext.value) return
     if (state.viewState.value.isPanning) return
     if (state.activeDrawingNodeId.value) return
 
@@ -178,24 +202,17 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
 
     e.preventDefault()
 
-    const now = performance.now()
-    if (now - lastWheelTime < WHEEL_COOLDOWN_MS) {
-      return
-    }
-
-    const isZoomIn = e.deltaY < 0
-    const currentScale = state.viewState.value.scale
-    const targetScale = getNextMatrixScale(currentScale, isZoomIn)
-
-    if (Math.abs(targetScale - currentScale) < 0.001) {
-      return
-    }
-
-    lastWheelTime = now
-    applyScaleAroundPoint(targetScale, e.clientX, e.clientY)
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? (canvasWrapper.value?.clientHeight || 800) : 1
+    const delta = Math.max(-240, Math.min(240, e.deltaY * unit))
+    const base = zoomFrame === null ? state.viewState.value.scale : zoomTarget
+    zoomTarget = Math.max(MATRIX_MIN_SCALE, Math.min(MATRIX_MAX_SCALE,
+      base * Math.exp(-delta * (e.ctrlKey ? 0.008 : 0.0015))))
+    zoomAnchor = { x: e.clientX, y: e.clientY }
+    if (zoomFrame === null) zoomFrame = requestAnimationFrame(animateZoom)
   }
 
   const focusRoot = () => {
+    cancelZoom()
     const rootNode = state.nodes.value.find(n => n.isRoot) || state.nodes.value[0]
     if (rootNode && canvasWrapper.value) {
       const rect = canvasWrapper.value.getBoundingClientRect()
@@ -549,6 +566,7 @@ export function useMatrixCanvas(state: ReturnType<typeof useMatrixState>) {
     handleCanvasMouseUp,
     applyScaleAroundPoint,
     updateScale,
+    cancelZoom,
     handleWheel
   }
 }

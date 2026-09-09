@@ -33,6 +33,7 @@
     <div class="flex-grow relative overflow-hidden" 
          :class="state.pendingNodeConfig.value ? 'cursor-crosshair' : (state.viewState.value.isPanning ? 'cursor-grabbing' : 'cursor-move')"
          :ref="(el) => { canvas.canvasWrapper.value = el as HTMLElement }"
+         @mousedown.capture="canvas.cancelZoom()"
          @mousedown="canvas.startPan($event, zoneTools.isZoneToolActive.value, zoneTools.drawStart, zoneTools.drawCurrent)"
          @click="canvas.handleBackgroundClick"
          @contextmenu.prevent="handleBoardContextMenu"
@@ -461,6 +462,7 @@ const strategyIndicators = computed(() => {
 const focusNode = (id: string) => {
   const node = state.nodes.value.find(n => n.id === id)
   if (node && canvas.canvasWrapper.value) {
+    canvas.cancelZoom()
     const rect = canvas.canvasWrapper.value.getBoundingClientRect()
     state.viewState.value.scale = 1
     state.viewState.value.panX = (rect.width / 2) - node.x
