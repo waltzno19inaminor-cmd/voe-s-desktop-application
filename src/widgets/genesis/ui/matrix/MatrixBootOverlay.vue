@@ -1,8 +1,9 @@
 <template>
   <Transition name="fade">
-    <div v-if="isInitializing" class="absolute inset-0 z-[1000] bg-theme-bg flex flex-col items-center justify-center space-y-8 pointer-events-auto transition-colors duration-1000">
+    <div v-if="isInitializing" class="matrix-boot-overlay absolute inset-0 z-[1000] bg-theme-bg flex flex-col items-center justify-center space-y-8 overflow-hidden pointer-events-auto transition-colors duration-1000">
+       <ExThemeBackground />
        <!-- Ethereal Background -->
-       <EtherealBackground :is-dark="!!isDark" :is-assembled="false" :show-bloom="false" />
+       <EtherealBackground class="matrix-boot-ethereal" :is-dark="!!isDark" :is-assembled="false" :show-bloom="false" />
 
        <div class="flex flex-col items-center space-y-3 relative z-10">
           <div class="w-16 h-px bg-theme-text opacity-20"></div>
@@ -24,6 +25,7 @@
 
 <script setup lang="ts">
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 
 const { t } = useI18n()

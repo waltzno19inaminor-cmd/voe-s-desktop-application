@@ -40,11 +40,12 @@
 
       <div
         v-if="isCubeGraphLoading"
-        class="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center"
+        class="pointer-events-none absolute inset-0 z-[120] flex items-center justify-center overflow-hidden"
         role="status"
         aria-live="polite"
       >
-        <div class="flex flex-col items-center gap-3 font-mono text-[9px] uppercase tracking-[0.28em] nier-text-primary">
+        <ExThemeBackground />
+        <div class="relative z-10 flex flex-col items-center gap-3 font-mono text-[9px] uppercase tracking-[0.28em] nier-text-primary">
           <span class="h-8 w-8 animate-spin rounded-full border-2 border-current border-t-transparent opacity-80"></span>
           <span class="opacity-55">{{ locale === 'ru' ? 'ЗАГРУЗКА УЗЛОВ' : 'LOADING NODES' }}</span>
         </div>
@@ -89,7 +90,7 @@
       <div
         v-if="hasOpenedGenesisTree && hasGenesisTreeAccess"
         v-show="viewType === 'tree'"
-        class="absolute inset-0 z-40 overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto"
+        class="genesis-tree-surface absolute inset-0 z-40 overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
         <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
@@ -108,7 +109,7 @@
       <!-- PNL DISTRIBUTION LAYER -->
       <div
         v-show="viewType === 'distribution'"
-        class="absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
+        class="genesis-distribution-surface absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
         <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
@@ -1246,6 +1247,7 @@ import { getIconForAsset } from '~/shared/api/asset.service'
 import ExTacticalNodeMap from '~/widgets/genesis/ui/analytics/ExTacticalNodeMap.vue'
 import ExTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTradeEntry.vue'
 import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 import ExTradeEntryBottomBar from '~/widgets/genesis/ui/trade-entry/ExTradeEntryBottomBar.vue'
 import ExGenesisHudPanel from '../common/ExGenesisHudPanel.vue'
 import ExTradeEntryVersionButton from '~/widgets/genesis/ui/trade-entry/ExTradeEntryVersionButton.vue'

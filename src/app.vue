@@ -1,6 +1,7 @@
 <template>
   <div
     class="app-shell relative h-full min-h-full bg-center bg-cover transition-colors duration-500"
+    :class="{ 'has-theme-image-background': showCustomBackground }"
     :style="{ backgroundColor: 'var(--theme-bg)' }"
   >
     <EtherealBackground
@@ -9,18 +10,7 @@
       :show-bloom="false"
     />
 
-    <!-- Ambient Background Layer -->
-    <div 
-      v-if="themeStore.settings.isImageBg && themeStore.settings.bgImage"
-      class="fixed inset-0 pointer-events-none transition-all duration-[800ms] ease-in-out bg-center bg-cover"
-      :style="{ 
-        backgroundImage: `url('${themeStore.settings.bgImage}')`, 
-        filter: `blur(${themeStore.settings.bgImageBlur}px) brightness(${themeStore.settings.bgImageBrightness / 100})`,
-        opacity: themeStore.settings.bgImageOpacity / 100,
-        transform: `scale(${themeStore.settings.bgImageZoom / 100})`,
-        zIndex: 0
-      }"
-    ></div>
+    <ExThemeBackground :visible="showCustomBackground" fixed />
 
     <div class="relative z-10 h-full min-h-0 box-border flex flex-col transition-all duration-300" :class="isFullscreen || route.meta.hideChrome ? '' : 'pt-10'">
       <CustomTitleBar v-if="!route.meta.hideChrome" />
@@ -48,6 +38,7 @@ import { isSettingsOpen } from '~/widgets/settings/model/useSettings'
 import CustomTitleBar from '~/widgets/titlebar/ui/CustomTitleBar.vue'
 import { useBoardStore } from '~/features/store/useBoard'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -55,6 +46,12 @@ const themeStore = useThemeStore()
 const boardStore = useBoardStore()
 const isDark = computed(() => themeStore.settings.isDark)
 const isFullscreen = useState('isFullscreen', () => false)
+const customBackgroundContext = useState('customBackgroundContext', () => 'none')
+const showCustomBackground = computed(() => (
+  customBackgroundContext.value !== 'none' &&
+  themeStore.settings.isImageBg &&
+  Boolean(themeStore.settings.bgImage)
+))
 
 // Initialize theme
 themeStore.init()
@@ -277,6 +274,36 @@ html.dark body {
 .border-theme-border { border-color: var(--theme-border); }
 .border-theme-text { border-color: var(--theme-text); }
 .bg-theme-accent { background-color: var(--theme-accent); }
+
+/* Full-screen Genesis views should expose the selected image without changing
+   the opacity or design of their cards, controls and data visualizations. */
+.has-theme-image-background :where(
+  .trade-entry-shell,
+  .genesis-trades-surface,
+  .genesis-tree-surface,
+  .genesis-distribution-surface,
+  .genesis-calendar-surface,
+  .genesis-tactical-map-surface,
+  .matrix-boot-overlay,
+  .equity-boot-overlay
+) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.has-theme-image-background :where(
+  .genesis-trades-surface,
+  .genesis-tree-surface,
+  .genesis-distribution-surface,
+  .genesis-tactical-map-surface
+) {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.has-theme-image-background .matrix-boot-ethereal {
+  display: none;
+}
 
 .nier-text-primary {
   color: var(--theme-text);

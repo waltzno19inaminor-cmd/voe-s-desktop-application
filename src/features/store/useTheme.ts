@@ -17,6 +17,7 @@ export interface ThemeSettings {
   bgImageBlur: number
   bgImageOpacity: number
   bgImageBrightness: number
+  bgImageDarkness: number
   bgImageZoom: number
   isImageBg: boolean
 }
@@ -37,6 +38,7 @@ const DEFAULT_THEME: ThemeSettings = {
   bgImageBlur: 0,
   bgImageOpacity: 50,
   bgImageBrightness: 100,
+  bgImageDarkness: 30,
   bgImageZoom: 100,
   isImageBg: false
 }

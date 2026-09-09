@@ -545,7 +545,7 @@ const calculatedStabilityIndex = computed(() => {
 
 <template>
   <div v-if="isOpen" ref="mapRoot"
-       class="ethereal-void bg-theme-bg overflow-hidden flex flex-col select-none"
+       class="genesis-tactical-map-surface ethereal-void bg-theme-bg overflow-hidden flex flex-col select-none"
        :class="embedded ? 'absolute inset-0 z-10' : 'fixed inset-0 z-[10000]'"
        @mousedown="startPan">
 

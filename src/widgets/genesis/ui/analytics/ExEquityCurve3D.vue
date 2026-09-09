@@ -3,20 +3,21 @@
     
     <!-- BOOT OVERLAY -->
     <Transition name="fade">
-      <div v-if="isInitializing && !isTradeEntryOpen" class="absolute inset-0 z-[1000] nier-bg-panel flex flex-col items-center justify-center space-y-8 pointer-events-auto transition-colors duration-500">
-         <div class="flex flex-col items-center space-y-3">
+      <div v-if="isInitializing && !isTradeEntryOpen" class="equity-boot-overlay absolute inset-0 z-[1000] nier-bg-panel flex flex-col items-center justify-center space-y-8 overflow-hidden pointer-events-auto transition-colors duration-500">
+         <ExThemeBackground />
+         <div class="relative z-10 flex flex-col items-center space-y-3">
             <div class="w-16 h-px nier-bg-inverted opacity-20"></div>
             <span class="text-[10px] font-mono tracking-[0.8em] uppercase font-black animate-pulse nier-text-primary">Establishing_Neural_Link</span>
             <div class="w-16 h-px nier-bg-inverted opacity-20"></div>
          </div>
 
-         <div class="w-64 h-px bg-black/10 dark:bg-white/10 relative overflow-hidden">
+         <div class="relative z-10 w-64 h-px bg-black/10 dark:bg-white/10 overflow-hidden">
             <div class="absolute inset-y-0 left-0 nier-bg-inverted transition-all duration-300" :style="{ width: `${bootProgress}%` }"></div>
             <!-- Glitch element -->
             <div class="absolute h-full w-4 bg-theme-text/40 blur-sm animate-scan"></div>
          </div>
 
-         <div class="flex flex-col items-center space-y-1 opacity-40 nier-text-primary">
+         <div class="relative z-10 flex flex-col items-center space-y-1 opacity-40 nier-text-primary">
             <span class="text-[7px] font-mono tracking-widest uppercase">System_Code: 0x44_REIFY</span>
             <span class="text-[7px] font-mono tracking-widest uppercase">Matrix_Stability: {{ Math.min(100, Math.round(bootProgress)) }}%</span>
          </div>
@@ -1025,6 +1026,7 @@ import ExBrokerConnectPanel from '~/widgets/broker-connect/ui/ExBrokerConnectPan
 import ExCalendarMode from '../diary/ExCalendarMode.vue'
 import ExEquityCurveMetricsPanel from './ExEquityCurveMetricsPanel.vue'
 import ExTimeTreeTradeEntry from '~/widgets/genesis/ui/trade-entry/ExTimeTreeTradeEntry.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 import { useEquityCurveMetricsPanel } from '../../model/useEquityCurveMetricsPanel'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useI18n } from '~/shared/i18n/useI18n'

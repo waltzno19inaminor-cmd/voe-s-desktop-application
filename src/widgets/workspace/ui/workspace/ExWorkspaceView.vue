@@ -76,8 +76,9 @@
 
          <!-- Genesis Module -->
           <div v-else-if="isAssembled && activeTab === 'genesis'" key="genesis" class="w-full h-full min-h-0 relative overflow-hidden">
+             <ExThemeBackground />
              <div
-               class="w-full min-h-0 transition-[height] duration-500 ease-[var(--nier-ease)]"
+               class="relative z-10 w-full min-h-0 transition-[height] duration-500 ease-[var(--nier-ease)]"
                :style="{ height: isGenesisBottomBarHidden ? '100%' : `calc(100% - ${genesisBottomBarHeight}px)` }"
              >
              <Transition name="page-reify" mode="out-in">
@@ -111,12 +112,13 @@
              </div>
 
              <nav
-               class="genesis-bottom-bar absolute bottom-0 left-0 z-[7000] flex w-full items-center justify-center border-t border-theme-border bg-theme-bg/90 px-4 backdrop-blur-md transition-transform duration-500 ease-[var(--nier-ease)]"
+               class="genesis-bottom-bar absolute bottom-0 left-0 z-[7000] flex w-full items-center justify-center overflow-hidden border-t border-theme-border bg-theme-bg/90 px-4 backdrop-blur-md transition-transform duration-500 ease-[var(--nier-ease)]"
                :class="isGenesisBottomBarHidden ? 'translate-y-full' : 'translate-y-0'"
                :style="{ height: `${genesisBottomBarHeight}px` }"
                aria-label="Genesis pages"
              >
-               <div class="absolute left-4 flex h-full items-center">
+               <ExThemeBackground />
+               <div class="absolute left-4 z-10 flex h-full items-center">
                  <div class="genesis-bottom-tool">
                    <button
                      type="button"
@@ -143,7 +145,7 @@
                  </div>
                </div>
 
-               <div class="flex h-full items-center justify-center gap-2">
+               <div class="relative z-10 flex h-full items-center justify-center gap-2">
                  <div
                    v-for="item in genesisModeItems"
                    :key="item.id"
@@ -210,7 +212,7 @@
                  </div>
                </div>
 
-               <div class="absolute right-4 flex h-full items-center gap-2">
+               <div class="absolute right-4 z-10 flex h-full items-center gap-2">
                  <div class="genesis-bottom-tool">
                    <div class="genesis-bottom-language-switch" role="group" :aria-label="genesisBottomTooltip('language')">
                      <button
@@ -280,7 +282,7 @@
 </template>
 
 <script setup>
-import { ref, watch, computed, onUnmounted } from 'vue'
+import { ref, watch, computed, onUnmounted, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { signOut } from 'firebase/auth'
 import ExDashboard from '~/widgets/dashboard/ui/main/ExDashboard.vue'
@@ -297,6 +299,7 @@ import ExGenesisLog from '~/widgets/genesis/ui/diary/ExGenesisLog.vue'
 import ExActivityMonitor from '~/widgets/dashboard/ui/activity/ExActivityMonitor.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import ExActivationSuccessOverlay from '~/widgets/workspace/ui/access/ExActivationSuccessOverlay.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 
 import { useThemeStore } from '~/features/store/useTheme'
 import { useWorkspaceStore } from '~/widgets/workspace/model/useWorkspace'
@@ -395,6 +398,7 @@ useDomI18n(workspaceRoot, 'genesis.dom', { includeBody: true })
 const authenticatedUserId = computed(() => authStore.user?.uid || '')
 const hasAccessGranted = computed(() => Boolean(authenticatedUserId.value) && accessState.value === 'granted')
 const showInitialization = computed(() => !hasInitialized.value)
+const customBackgroundContext = useState('customBackgroundContext', () => 'none')
 const isInitializationVisible = useState('isInitializationVisible', () => false)
 const isAccessGateVisible = useState('isAccessGateVisible', () => false)
 const isAccessGradflowReady = useState('isAccessGradflowReady', () => false)
@@ -417,6 +421,17 @@ const sharedGradflowConfig = {
   noise: 0.08
 }
 const canEnterWorkspace = computed(() => hasInitialized.value && hasAccessGranted.value)
+watchEffect(() => {
+  if (showInitialization.value || showAccessGate.value || !canEnterWorkspace.value) {
+    customBackgroundContext.value = 'none'
+  } else if (activeTab.value === 'genesis') {
+    customBackgroundContext.value = 'genesis'
+  } else if (!activeTab.value) {
+    customBackgroundContext.value = 'dashboard'
+  } else {
+    customBackgroundContext.value = 'none'
+  }
+})
 const visibleAccessState = computed(() => {
   if (!authStore.authReady || !authenticatedUserId.value) return 'checking'
   return accessState.value
@@ -813,6 +828,7 @@ const handleAccessSignOut = async () => {
 }
 
 onUnmounted(() => {
+  customBackgroundContext.value = 'none'
   if (accessGateAnimationTimer) clearTimeout(accessGateAnimationTimer)
   isInitializationVisible.value = false
   isAccessGateVisible.value = false

@@ -197,6 +197,113 @@
 
 
 
+              <section v-else-if="activeTab === 'themes'" class="max-w-3xl space-y-7">
+                <input
+                  ref="themeImageInput"
+                  type="file"
+                  class="hidden"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  @change="handleThemeImageInput"
+                />
+
+                <div class="grid gap-7 md:grid-cols-[260px_1fr]">
+                  <div class="space-y-4">
+                    <div class="relative aspect-[4/3] overflow-hidden border nier-border-primary bg-black/[0.04] dark:bg-white/[0.04]">
+                      <img
+                        v-if="themeStore.settings.bgImage"
+                        :src="themeStore.settings.bgImage"
+                        alt=""
+                        class="h-full w-full object-cover"
+                        :style="themePreviewStyle"
+                      />
+                      <div v-else class="absolute inset-0 flex items-center justify-center">
+                        <span class="text-[9px] font-mono uppercase tracking-[0.28em] opacity-35">
+                          {{ locale === 'ru' ? 'Изображение не выбрано' : 'No image selected' }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="w-full border border-black/15 bg-black px-5 py-3 text-[9px] font-mono font-black uppercase tracking-[0.3em] text-white transition-opacity hover:opacity-85 dark:border-white/15 dark:bg-white dark:text-black"
+                      @click="themeImageInput?.click()"
+                    >
+                      {{ locale === 'ru' ? 'Выбрать изображение' : 'Choose image' }}
+                    </button>
+                    <button
+                      v-if="themeStore.settings.bgImage"
+                      type="button"
+                      class="w-full border border-red-500/25 bg-red-500/5 px-5 py-3 text-[9px] font-mono font-black uppercase tracking-[0.3em] text-red-700 transition-colors hover:bg-red-500/10 dark:text-red-300"
+                      @click="removeThemeImage"
+                    >
+                      {{ locale === 'ru' ? 'Удалить изображение' : 'Remove image' }}
+                    </button>
+                  </div>
+
+                  <div class="space-y-7">
+                    <div class="flex items-center justify-between border nier-border-primary bg-black/[0.025] p-5 dark:bg-white/[0.025]">
+                      <div>
+                        <div class="text-[9px] font-mono font-black uppercase tracking-[0.3em]">
+                          {{ locale === 'ru' ? 'Фоновая тема' : 'Background theme' }}
+                        </div>
+                        <p class="mt-2 text-[11px] leading-5 opacity-55">
+                          {{ locale === 'ru' ? 'Применяется к Dashboard и страницам Genesis.' : 'Applied to Dashboard and Genesis pages.' }}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        class="relative h-6 w-11 border nier-border-primary transition-colors"
+                        :class="themeStore.settings.isImageBg ? 'bg-black dark:bg-white' : 'bg-black/5 dark:bg-white/5'"
+                        :aria-pressed="themeStore.settings.isImageBg"
+                        @click="toggleThemeImage"
+                      >
+                        <span
+                          class="absolute top-1 h-4 w-4 transition-[left,background-color]"
+                          :class="themeStore.settings.isImageBg ? 'left-6 bg-white dark:bg-black' : 'left-1 bg-black/40 dark:bg-white/40'"
+                        ></span>
+                      </button>
+                    </div>
+
+                    <label class="block space-y-3">
+                      <span class="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.28em] opacity-60">
+                        <span>{{ locale === 'ru' ? 'Размытие' : 'Blur' }}</span>
+                        <span>{{ themeStore.settings.bgImageBlur }} px</span>
+                      </span>
+                      <input
+                        v-model.number="themeStore.settings.bgImageBlur"
+                        type="range"
+                        min="0"
+                        max="60"
+                        step="1"
+                        class="theme-range w-full"
+                        @change="saveThemeSettings"
+                      />
+                    </label>
+
+                    <label class="block space-y-3">
+                      <span class="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.28em] opacity-60">
+                        <span>{{ locale === 'ru' ? 'Затемнение' : 'Darkening' }}</span>
+                        <span>{{ themeStore.settings.bgImageDarkness }}%</span>
+                      </span>
+                      <input
+                        v-model.number="themeStore.settings.bgImageDarkness"
+                        type="range"
+                        min="0"
+                        max="90"
+                        step="1"
+                        class="theme-range w-full"
+                        @change="saveThemeSettings"
+                      />
+                    </label>
+
+                    <p v-if="themeImageMessage" class="border px-4 py-3 text-[9px] font-mono uppercase tracking-[0.2em]"
+                      :class="themeImageError ? 'border-red-500/30 text-red-600 dark:text-red-300' : 'nier-border-primary opacity-60'">
+                      {{ themeImageMessage }}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
               <section v-else-if="activeTab === 'license'" class="max-w-3xl space-y-7">
                 <div class="max-w-2xl border nier-border-primary bg-black/[0.025] p-6 dark:bg-white/[0.025]">
                   <div class="flex items-start justify-between gap-6">
@@ -427,10 +534,18 @@ const selectStatus = async (statusName: string) => {
   isStatusDropdownOpen.value = false
 }
 
-type ProfileOverlayTab = 'profile' | 'license' | 'patch'
+type ProfileOverlayTab = 'profile' | 'themes' | 'license' | 'patch'
 type PatchInstallState = 'idle' | 'ready' | 'installing' | 'clearing' | 'success' | 'cleared' | 'error'
 
 const activeTab = ref<ProfileOverlayTab>('profile')
+const themeImageInput = ref<HTMLInputElement | null>(null)
+const themeImageMessage = ref('')
+const themeImageError = ref(false)
+const MAX_THEME_IMAGE_BYTES = 15 * 1024 * 1024
+const themePreviewStyle = computed(() => ({
+  filter: `blur(${Math.min(12, themeStore.settings.bgImageBlur / 5)}px) brightness(${1 - themeStore.settings.bgImageDarkness / 100})`,
+  transform: `scale(${1 + Math.min(12, themeStore.settings.bgImageBlur / 5) / 80})`
+}))
 const licenseActivated = ref(false)
 const licensePlan = ref<AccessPlan>('none')
 const licenseExpiresAt = ref<number | null>(null)
@@ -500,6 +615,16 @@ const loadLicenseState = () => {
 }
 
 const activeTabMeta = computed(() => {
+  if (activeTab.value === 'themes') {
+    return {
+      eyebrow: locale.value === 'ru' ? 'Интерфейс' : 'Interface',
+      title: locale.value === 'ru' ? 'Темы' : 'Themes',
+      description: locale.value === 'ru'
+        ? 'Установите общее фоновое изображение и настройте его отображение.'
+        : 'Choose a shared background image and adjust its presentation.'
+    }
+  }
+
   if (activeTab.value === 'license') {
     return {
       eyebrow: locale.value === 'ru' ? 'Доступ' : 'Access',
@@ -532,6 +657,7 @@ const activeTabMeta = computed(() => {
 const profileTabs = computed(() => {
   const tabs: Array<{ key: ProfileOverlayTab; label: string; note: string }> = [
     { key: 'profile', label: locale.value === 'ru' ? 'Профиль' : 'Profile', note: locale.value === 'ru' ? 'Основа' : 'Core' },
+    { key: 'themes', label: locale.value === 'ru' ? 'Темы' : 'Themes', note: locale.value === 'ru' ? 'Фон' : 'Visual' },
     { key: 'license', label: locale.value === 'ru' ? 'Лицензия' : 'License', note: locale.value === 'ru' ? 'Доступ' : 'Access' }
   ]
 
@@ -541,6 +667,60 @@ const profileTabs = computed(() => {
 
   return tabs
 })
+
+function toggleThemeImage() {
+  themeImageMessage.value = ''
+  if (!themeStore.settings.bgImage) {
+    themeImageInput.value?.click()
+    return
+  }
+  themeStore.setTheme({
+    isImageBg: !themeStore.settings.isImageBg,
+    themeName: 'Custom'
+  })
+}
+
+function handleThemeImageInput(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  themeImageError.value = false
+  if (!file.type.startsWith('image/')) {
+    themeImageError.value = true
+    themeImageMessage.value = locale.value === 'ru' ? 'Выбранный файл не является изображением.' : 'The selected file is not an image.'
+    return
+  }
+  if (file.size > MAX_THEME_IMAGE_BYTES) {
+    themeImageError.value = true
+    themeImageMessage.value = locale.value === 'ru' ? 'Размер изображения не должен превышать 15 МБ.' : 'The image must not exceed 15 MB.'
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    if (typeof reader.result !== 'string') return
+    themeStore.setTheme({ bgImage: reader.result, isImageBg: true, themeName: 'Custom' })
+    themeImageMessage.value = locale.value === 'ru' ? 'Фоновое изображение сохранено.' : 'Background image saved.'
+  }
+  reader.onerror = () => {
+    themeImageError.value = true
+    themeImageMessage.value = locale.value === 'ru' ? 'Не удалось прочитать изображение.' : 'Unable to read the image.'
+  }
+  reader.readAsDataURL(file)
+}
+
+function removeThemeImage() {
+  themeStore.setTheme({ bgImage: '', isImageBg: false, themeName: 'Custom' })
+  themeImageError.value = false
+  themeImageMessage.value = locale.value === 'ru' ? 'Фоновое изображение удалено.' : 'Background image removed.'
+}
+
+function saveThemeSettings() {
+  themeStore.settings.themeName = 'Custom'
+  void themeStore.save()
+}
 
 const patchFileInput = ref<HTMLInputElement | null>(null)
 const selectedPatchFile = ref<File | null>(null)
@@ -773,6 +953,14 @@ onBeforeUnmount(() => {
   border-top-color: rgba(0, 0, 0, 0.88);
   border-radius: 999px;
   animation: status-loader-spin 620ms linear infinite;
+}
+
+.theme-range {
+  height: 2px;
+  cursor: pointer;
+  appearance: none;
+  background: rgb(var(--theme-text-rgb) / 0.16);
+  accent-color: var(--theme-text);
 }
 
 :global(.dark) .status-input-loader__ring {

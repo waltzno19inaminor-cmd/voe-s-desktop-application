@@ -11,6 +11,7 @@ import ExPatternForecastPanel from '../analytics/ExPatternForecastPanel.vue'
 import { useStrategyTradesStore } from '~/features/store/useStrategyTrades'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 import {
   getTradeDurationMs,
   getTradePnl,
@@ -572,11 +573,15 @@ const tradeEntryThemeStyle = computed(() => props.isDark
 
 <template>
   <div
-    class="trade-entry-shell flex h-full w-full flex-col items-center overflow-hidden transition-colors duration-500 nier-text-primary"
+    class="trade-entry-shell trade-details-shell flex h-full w-full flex-col items-center overflow-hidden transition-colors duration-500 nier-text-primary"
     :class="[ 'bg-theme-bg', props.isDark ? 'dark is-dark theme-dark' : 'theme-light' ]"
     :style="tradeEntryThemeStyle"
   >
-    <div class="w-full flex justify-center">
+    <div class="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-theme-bg" aria-hidden="true">
+      <ExThemeBackground />
+    </div>
+
+    <div class="relative z-10 w-full flex justify-center">
       <div class="w-full min-w-0 max-w-none pt-8 pb-12">
         <div class="flex flex-col space-y-12">
           <div class="contents">
@@ -739,7 +744,7 @@ const tradeEntryThemeStyle = computed(() => props.isDark
           <div class="h-full min-h-0 w-full flex flex-col overflow-hidden">
             <div class="shrink-0 px-10 pt-10">
               <div class="w-full px-6 sm:px-10 md:px-12 xl:px-16 2xl:px-20">
-                <div class="z-20 w-full shrink-0 border-b border-white/10 bg-black/60 pb-3 pt-1 backdrop-blur-md">
+                <div class="z-20 w-full shrink-0 border-b border-white/10 bg-transparent pb-3 pt-1 backdrop-blur-md">
                   <div class="flex w-full items-center justify-between gap-4">
                     <div class="flex min-w-0 flex-1 items-center justify-start gap-2">
                 <button

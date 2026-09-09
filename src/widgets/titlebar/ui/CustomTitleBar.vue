@@ -3,7 +3,7 @@
     v-if="isTauri"
     v-show="!isFullscreen"
     @mousedown="startDrag"
-    :class="{ 'is-initialization-visible': isInitializationVisible, 'is-access-gate-visible': isAccessGateVisible, 'is-access-gradflow-ready': isAccessGradflowReady }"
+    :class="{ 'is-initialization-visible': isInitializationVisible, 'is-access-gate-visible': isAccessGateVisible, 'is-access-gradflow-ready': isAccessGradflowReady, 'has-custom-background': hasCustomBackground }"
     class="titlebar-panel h-10 select-none flex justify-end items-center fixed top-0 left-0 right-0 z-[100001] transition-colors"
   >
     <div class="titlebar-surface" aria-hidden="true"></div>
@@ -34,7 +34,8 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useThemeStore } from '~/features/store/useTheme'
 
 const appWindow = ref(null)
 const isFullscreen = useState('isFullscreen', () => false)
@@ -42,6 +43,13 @@ const isInitializationVisible = useState('isInitializationVisible', () => false)
 const isAccessGateVisible = useState('isAccessGateVisible', () => false)
 const isAccessGradflowReady = useState('isAccessGradflowReady', () => false)
 const isTauri = ref(false)
+const themeStore = useThemeStore()
+const customBackgroundContext = useState('customBackgroundContext', () => 'none')
+const hasCustomBackground = computed(() => (
+  customBackgroundContext.value !== 'none' &&
+  themeStore.settings.isImageBg &&
+  Boolean(themeStore.settings.bgImage)
+))
 let unlistenResize = null
 let wasMaximizedBeforeFullscreen = false
 let fullscreenTransition = false
@@ -174,6 +182,10 @@ const close = async () => {
 
 .titlebar-panel.is-initialization-visible .titlebar-surface {
   background: #050505;
+}
+
+.titlebar-panel.has-custom-background .titlebar-surface {
+  background: transparent;
 }
 
 .titlebar-panel.is-access-gate-visible .titlebar-surface {

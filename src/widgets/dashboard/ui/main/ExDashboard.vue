@@ -70,10 +70,13 @@
       </div>
     </div>
 
-    <div class="absolute inset-x-0 top-0 z-[190] h-[84px] bg-black" aria-hidden="true"></div>
+    <div class="absolute inset-x-0 top-0 z-[190] h-[84px] overflow-hidden bg-black" aria-hidden="true">
+      <ExThemeBackground :visible="showDashboardThemeBackground" />
+    </div>
 
-    <header class="dashboard-top-bar absolute left-6 right-6 top-0 z-[200] flex h-[84px] items-center justify-between bg-black px-4 backdrop-blur-md lg:left-10 lg:right-10 lg:px-5">
-      <div class="flex items-center gap-4">
+    <header class="dashboard-top-bar absolute left-6 right-6 top-0 z-[200] flex h-[84px] items-center justify-between overflow-hidden bg-black px-4 backdrop-blur-md lg:left-10 lg:right-10 lg:px-5">
+      <ExThemeBackground :visible="showDashboardThemeBackground" />
+      <div class="relative z-10 flex items-center gap-4">
         <div class="flex items-center gap-2">
           <ExTag class="shrink-0">v{{ appVersion.toUpperCase() }}</ExTag>
           <button
@@ -90,7 +93,7 @@
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-4 sm:gap-8">
+      <div class="relative z-10 flex shrink-0 items-center gap-4 sm:gap-8">
         <!-- Language Selector -->
         <div class="flex items-center gap-3 border-r border-theme-border pr-4 sm:gap-4 sm:pr-6">
           <button 
@@ -301,10 +304,11 @@
 
     <!-- 3. Bottom Navigation Bar -->
     <nav
-      class="dashboard-bottom-nav absolute bottom-0 left-0 z-[200] flex w-full items-center justify-center bg-black px-6 py-[22px] backdrop-blur-md lg:px-10"
+      class="dashboard-bottom-nav absolute bottom-0 left-0 z-[200] flex w-full items-center justify-center overflow-hidden bg-black px-6 py-[22px] backdrop-blur-md lg:px-10"
       aria-label="Tactical dashboard pages"
     >
-      <div class="flex w-[min(920px,calc(100vw-48px))] items-center justify-center gap-2">
+      <ExThemeBackground :visible="showDashboardThemeBackground" />
+      <div class="relative z-10 flex w-[min(920px,calc(100vw-48px))] items-center justify-center gap-2">
         <ExButton
           v-for="module in dashboardModules"
           :key="module.id"
@@ -331,7 +335,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watchEffect } from 'vue'
 import { getAuth, signOut } from 'firebase/auth'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '~/shared/firebase.client'
@@ -354,6 +358,7 @@ import ExTournamentView from '~/widgets/tournament/ui/ExTournamentView.vue'
 import { initTournamentListener, terminateTournamentListeners } from '~/widgets/tournament/model/useTournament'
 import GradflowBackground from '~/widgets/style/ui/GradflowBackground.vue'
 import ExDashboardFeedback from '~/widgets/dashboard/ui/feedback/ExDashboardFeedback.vue'
+import ExThemeBackground from '~/shared/ui/ExThemeBackground.vue'
 
 const props = withDefaults(defineProps<{
   isMusicMuted?: boolean
@@ -373,6 +378,7 @@ const payloadVersion = ref<string | null>(null)
 const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.0.88'))
 const userMenuOpen = ref(false)
 const activeDashboardPanel = ref<string | null>(null)
+const customBackgroundContext = useState('customBackgroundContext', () => 'none')
 const isFeedbackOpen = ref(false)
 
 const openFeedback = () => {
@@ -423,6 +429,12 @@ const isDashboardFullBleedPanel = computed(() => (
   activeDashboardPanel.value === 'tournament' ||
   isDashboardForumLeaving.value
 ))
+const showDashboardThemeBackground = computed(() => (
+  activeDashboardPanel.value !== 'forum' && !isDashboardForumLeaving.value
+))
+watchEffect(() => {
+  customBackgroundContext.value = showDashboardThemeBackground.value ? 'dashboard' : 'none'
+})
 
 const toggleMenu = () => {
   if (!userMenuOpen.value && identityRef.value) {
