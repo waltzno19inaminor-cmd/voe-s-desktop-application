@@ -1017,32 +1017,38 @@
     <Teleport to="body">
        <Transition name="fade-blur">
           <div v-if="showShareCardModal" 
-               class="fixed inset-0 z-[10020] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md p-8"
+               class="fixed inset-x-0 bottom-0 z-[100000] flex flex-col items-center justify-center overflow-hidden bg-black/60 p-3 backdrop-blur-md sm:p-6 lg:p-8"
+               :class="isFullscreen ? 'top-0' : 'top-10'"
                @click.self="showShareCardModal = false">
-             <div class="absolute inset-0 bg-black border border-white/5 pointer-events-none">
+             <div class="absolute inset-0 bg-black pointer-events-none">
                 <div class="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-white/20"></div>
                 <div class="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-white/20"></div>
              </div>
-             <div class="flex flex-col items-center max-w-[1240px] w-full relative z-10">
-                <div class="share-card-capture-wrapper shadow-[0_0_80px_rgba(0,0,0,0.8)] relative">
-                   <div class="absolute -inset-1 bg-gradient-to-tr from-white/10 to-transparent blur-md opacity-30 pointer-events-none"></div>
-                   <ExTradeShareCardPreview
-                     :efficiency="tradeEfficiency"
-                     :protocol="shareCardProtocol"
-                     :duration="tradeDuration"
-                     :entry-price="tradeEntryPrice"
-                     :exit-price="tradeExitPrice"
-                     :emotional-state="tradeEmotionalState"
-                     :net-result="tradeNetResult"
-                     :username="authStore.user?.displayName || authStore.user?.email || 'Operator_0x4F'"
-                     :account-type="authStore.user?.type || 'common'"
-                     :asset="selectedTrade?.asset || 'UNKNOWN'"
-                   />
+             <div class="relative z-10 flex w-full max-w-[1240px] flex-col items-center">
+                <div class="relative shrink-0" :style="shareCardPreviewDimensions">
+                   <div
+                     class="share-card-capture-wrapper absolute left-0 top-0 h-[675px] w-[1200px] shadow-[0_0_80px_rgba(0,0,0,0.8)]"
+                     :style="shareCardPreviewTransform"
+                   >
+                     <div class="absolute -inset-1 bg-gradient-to-tr from-white/10 to-transparent blur-md opacity-30 pointer-events-none"></div>
+                     <ExTradeShareCardPreview
+                       :efficiency="tradeEfficiency"
+                       :protocol="shareCardProtocol"
+                       :duration="tradeDuration"
+                       :entry-price="tradeEntryPrice"
+                       :exit-price="tradeExitPrice"
+                       :emotional-state="tradeEmotionalState"
+                       :net-result="tradeNetResult"
+                       :username="authStore.user?.displayName || authStore.user?.email || 'Operator_0x4F'"
+                       :account-type="authStore.user?.type || 'common'"
+                       :asset="selectedTrade?.asset || 'UNKNOWN'"
+                     />
+                   </div>
                 </div>
-                <div class="mt-8 flex items-center space-x-6">
+                <div class="mt-4 flex flex-wrap items-center justify-center gap-3 sm:mt-8 sm:gap-6">
                    <ExButton 
                      variant="solid" 
-                     class="!px-10 !py-3 font-black tracking-widest text-xs relative overflow-hidden" 
+                     class="relative overflow-hidden !px-4 !py-3 text-[10px] font-black tracking-widest sm:!px-10 sm:text-xs"
                      :disabled="isGeneratingPng"
                      @click="downloadCardPng"
                    >
@@ -1051,7 +1057,7 @@
                    </ExButton>
                    <ExButton 
                      variant="ghost" 
-                     class="!px-10 !py-3 tracking-widest text-xs" 
+                     class="!px-4 !py-3 text-[10px] tracking-widest sm:!px-10 sm:text-xs"
                      @click="showShareCardModal = false"
                    >
                       {{ locale === 'ru' ? 'ЗАКРЫТЬ' : 'CLOSE' }}
@@ -1355,7 +1361,32 @@ const scopeTradesToSelectedVersion = <T,>(trades: T[]) => {
 }
 
 const showShareCardModal = ref(false)
+const isFullscreen = useState<boolean>('isFullscreen', () => false)
 const isGeneratingPng = ref(false)
+const shareCardViewport = ref({ width: 1280, height: 800 })
+const shareCardPreviewScale = computed(() => {
+  const titleBarHeight = isFullscreen.value ? 0 : 40
+  const horizontalPadding = shareCardViewport.value.width < 640 ? 24 : 64
+  const controlsAndSpacingHeight = shareCardViewport.value.height < 700 ? 100 : 140
+  const availableWidth = Math.max(1, shareCardViewport.value.width - horizontalPadding)
+  const availableHeight = Math.max(1, shareCardViewport.value.height - titleBarHeight - controlsAndSpacingHeight)
+
+  return Math.min(1, availableWidth / 1200, availableHeight / 675)
+})
+const shareCardPreviewDimensions = computed(() => ({
+  width: `${1200 * shareCardPreviewScale.value}px`,
+  height: `${675 * shareCardPreviewScale.value}px`
+}))
+const shareCardPreviewTransform = computed(() => ({
+  transform: `scale(${shareCardPreviewScale.value})`,
+  transformOrigin: 'top left'
+}))
+const updateShareCardViewport = () => {
+  shareCardViewport.value = {
+    width: window.innerWidth,
+    height: window.innerHeight
+  }
+}
 const showCapitalForecast = ref(false)
 const showCapitalForecastIntro = ref(false)
 const patternForecastLoading = ref(false)
@@ -4172,10 +4203,12 @@ const handleDistributionWheel = (e: WheelEvent) => {
 
 onMounted(async () => {
   isLogComponentMounted = true
+  updateShareCardViewport()
   window.addEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.addEventListener('keydown', handleGlobalKeydown)
   window.addEventListener('pointerdown', handleTradeContextMenuPointerDown)
   window.addEventListener('resize', handleCanvasResize)
+  window.addEventListener('resize', updateShareCardViewport)
   isMatrixLoading.value = true
   await Promise.all([
     ensureMatrixDataRestored(),
@@ -4192,6 +4225,7 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('pointerdown', handleTradeContextMenuPointerDown)
   window.removeEventListener('resize', handleCanvasResize)
+  window.removeEventListener('resize', updateShareCardViewport)
   if (cubeSearchTimeout) {
     clearTimeout(cubeSearchTimeout)
     cubeSearchTimeout = null
