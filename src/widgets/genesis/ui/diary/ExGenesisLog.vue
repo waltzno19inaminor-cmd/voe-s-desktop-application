@@ -1037,11 +1037,10 @@
                        :duration="tradeDuration"
                        :entry-price="tradeEntryPrice"
                        :exit-price="tradeExitPrice"
-                       :emotional-state="tradeEmotionalState"
                        :net-result="tradeNetResult"
-                       :username="authStore.user?.displayName || authStore.user?.email || 'Operator_0x4F'"
-                       :account-type="authStore.user?.type || 'common'"
+                       :username="authStore.user?.displayName || authStore.user?.email || 'Trader'"
                        :asset="selectedTrade?.asset || 'UNKNOWN'"
+                       :locale="locale"
                      />
                    </div>
                 </div>
@@ -1408,24 +1407,6 @@ const tradeEntryPrice = computed(() => {
 const tradeExitPrice = computed(() => {
   if (!selectedTrade.value || selectedTrade.value.exit === undefined) return '$0.00'
   return `$${Number(selectedTrade.value.exit).toLocaleString(numberLocale.value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-})
-
-const tradeEmotionalState = computed(() => {
-  if (!selectedTrade.value) return '60%'
-  const emotions = selectedTrade.value.emotions || []
-  if (emotions.length === 0) {
-    return '60%'
-  }
-  
-  let score = 60 // Baseline stability
-  emotions.forEach((e: any) => {
-    const key = (typeof e === 'string' ? e : (e.name || '')).toUpperCase()
-    const weight = GENESIS_EMOTION_WEIGHTS[key] || 0
-    score += weight
-  })
-  
-  const val = Math.min(Math.max(Math.round(score), 0), 100)
-  return `${val}%`
 })
 
 const tradeNetResult = computed(() => {

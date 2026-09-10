@@ -11,7 +11,9 @@
       <!-- Top-Left Header with App Identity -->
       <div class="absolute top-[5%] left-[5%] flex flex-col" style="font-family: 'Cormorant Garamond', serif;">
         <h1 class="text-2xl tracking-[0.4em] uppercase font-light text-white leading-normal">J.L.Jörmungandr</h1>
-        <p class="text-[8px] font-mono tracking-[0.5em] uppercase text-white/30 mt-2">Universal_Analytical_Platform</p>
+        <p class="text-[8px] font-mono tracking-[0.5em] uppercase text-white/30 mt-2">
+          {{ locale === 'ru' ? 'Торговый дневник' : 'Trading Diary' }}
+        </p>
       </div>
 
       <!-- Primary Metric: Center Aligned -->
@@ -26,7 +28,9 @@
         
         <div class="w-full text-center mt-6 flex flex-col items-center">
           <span class="text-[14px] font-mono uppercase tracking-wider text-white opacity-40 block w-full text-center">
-            The trade is better than {{ efficiency }}% of the trades
+            {{ locale === 'ru'
+              ? `Сделка лучше, чем ${efficiency}% сделок`
+              : `The trade is better than ${efficiency}% of the trades` }}
           </span>
           <div class="h-px w-24 bg-white/20 mt-4 mx-auto"></div>
         </div>
@@ -42,15 +46,12 @@
         <div class="w-full">
           <span class="text-[10px] font-mono font-black uppercase tracking-widest text-white">{{ username }}</span>
         </div>
-        <div class="w-full">
-          <span class="text-[8px] font-mono uppercase tracking-[0.3em] opacity-40 text-white">{{ accountType }}_Operator</span>
-        </div>
       </div>
 
       <!-- Bottom Telemetry Grid -->
       <div class="absolute top-[71%] left-[5%] right-[5%]">
         <div class="h-px w-full bg-white/10 mb-10"></div>
-        <div class="grid grid-cols-6 gap-8">
+        <div class="grid grid-cols-5 gap-8">
           <div v-for="metric in metrics" :key="metric.label" class="flex flex-col space-y-3">
             <span class="text-[9px] font-mono font-black uppercase tracking-widest text-white/30">{{ metric.label }}</span>
             <span :class="['text-[20px] font-mono font-black uppercase truncate', metric.colorClass || 'text-white']">{{ metric.value }}</span>
@@ -74,11 +75,10 @@ interface Props {
   duration?: string
   entryPrice?: string | number
   exitPrice?: string | number
-  emotionalState?: string
   netResult?: string
   username?: string
-  accountType?: string
   asset?: string
+  locale?: 'en' | 'ru'
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,34 +88,10 @@ const props = withDefaults(defineProps<Props>(), {
   duration: '56.5 Hours',
   entryPrice: '$150.00',
   exitPrice: '$162.50',
-  emotionalState: 'Optimal',
   netResult: '+$1,250.00',
-  username: 'Operator_0x4F',
-  accountType: 'common',
-  asset: 'BTC/USD'
-})
-
-const parsedEmotionalScore = computed(() => {
-  if (props.emotionalState === undefined || props.emotionalState === null) return null
-  const cleaned = String(props.emotionalState).replace('%', '').trim()
-  const num = parseInt(cleaned, 10)
-  return isNaN(num) ? null : num
-})
-
-const emotionalColorClass = computed(() => {
-  const s = parsedEmotionalScore.value
-  if (s === null) return 'text-white'
-  if (s > 80) return 'text-emerald-400'
-  if (s > 60) return 'text-green-300'
-  if (s > 40) return 'text-yellow-200'
-  if (s > 20) return 'text-orange-400'
-  return 'text-red-500'
-})
-
-const displayEmotionalState = computed(() => {
-  const s = parsedEmotionalScore.value
-  if (s === null) return props.emotionalState
-  return String(s)
+  username: 'Trader',
+  asset: 'BTC/USD',
+  locale: 'en'
 })
 
 const netResultColorClass = computed(() => {
@@ -130,11 +106,10 @@ const netResultColorClass = computed(() => {
 })
 
 const metrics = computed(() => [
-  { label: 'Protocol', value: props.protocol },
-  { label: 'Duration', value: props.duration },
-  { label: 'Entry_Price', value: props.entryPrice },
-  { label: 'Exit_Price', value: props.exitPrice },
-  { label: 'Emotional_State', value: displayEmotionalState.value, colorClass: emotionalColorClass.value },
-  { label: 'Net_Result', value: props.netResult, colorClass: netResultColorClass.value }
+  { label: props.locale === 'ru' ? 'Протокол' : 'Protocol', value: props.protocol },
+  { label: props.locale === 'ru' ? 'Длительность' : 'Duration', value: props.duration },
+  { label: props.locale === 'ru' ? 'Цена входа' : 'Entry Price', value: props.entryPrice },
+  { label: props.locale === 'ru' ? 'Цена выхода' : 'Exit Price', value: props.exitPrice },
+  { label: props.locale === 'ru' ? 'Итоговый результат' : 'Net Result', value: props.netResult, colorClass: netResultColorClass.value }
 ])
 </script>
