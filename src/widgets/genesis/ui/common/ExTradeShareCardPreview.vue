@@ -38,11 +38,7 @@
 
       <!-- User Registry Info & Secure Code Block: Top-Right -->
       <div class="absolute top-[5%] right-[5%] w-[400px] text-right">
-        <div class="inline-grid grid-cols-4 gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity duration-1000 mb-2">
-          <div v-for="n in 16" :key="n" 
-               class="w-3 h-3" 
-               :class="(n * 7) % 5 > 2 ? 'bg-white' : 'bg-white/5'"></div>
-        </div>
+        <ExWebsiteQrCode class="mb-3 ml-auto h-[76px] w-[76px]" />
         <div class="w-full">
           <span class="text-[10px] font-mono font-black uppercase tracking-widest text-white">{{ username }}</span>
         </div>
@@ -67,6 +63,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import ExWebsiteQrCode from './ExWebsiteQrCode.vue'
 
 interface Props {
   efficiency?: number | string

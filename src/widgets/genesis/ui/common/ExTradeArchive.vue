@@ -55,6 +55,22 @@
           </div>
 
         </div>
+
+        <button
+          type="button"
+          class="group ml-auto flex h-11 items-center gap-3 border border-white/15 px-5 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-white/60 transition-all hover:border-white/50 hover:bg-white hover:text-black"
+          :aria-label="locale === 'ru' ? 'Поделиться результатом стратегии' : 'Share strategy performance'"
+          :title="locale === 'ru' ? 'Поделиться результатом стратегии' : 'Share strategy performance'"
+          @click="emit('share-strategy')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="h-4 w-4" aria-hidden="true">
+            <circle cx="18" cy="5" r="2.5" />
+            <circle cx="6" cy="12" r="2.5" />
+            <circle cx="18" cy="19" r="2.5" />
+            <path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5" />
+          </svg>
+          <span>{{ locale === 'ru' ? 'ПОДЕЛИТЬСЯ' : 'SHARE' }}</span>
+        </button>
       </div>
 
       <!-- TRADES SCROLL CONTAINER -->
@@ -132,6 +148,7 @@ const props = defineProps<{ trades?: any[] }>()
 
 const emit = defineEmits<{
   (event: 'trade-context-menu', payload: { tradeId: string; event: MouseEvent }): void
+  (event: 'share-strategy'): void
 }>()
 
 const { locale } = useI18n()

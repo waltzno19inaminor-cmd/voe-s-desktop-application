@@ -12,6 +12,7 @@
       class="relative z-10"
       :trades="trades"
       @trade-context-menu="forwardTradeContextMenu"
+      @share-strategy="emit('share-strategy')"
     />
   </section>
 </template>
@@ -31,6 +32,7 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (event: 'trade-context-menu', payload: { tradeId: string; event: MouseEvent }): void
+  (event: 'share-strategy'): void
 }>()
 
 const forwardTradeContextMenu = (payload: { tradeId: string; event: MouseEvent }) => {

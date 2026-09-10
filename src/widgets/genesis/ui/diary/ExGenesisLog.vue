@@ -74,6 +74,7 @@
             :show-capital-forecast="showCapitalForecast"
             :is-fullscreen="isTimeTreeFullscreen"
             @trade-context-menu="handleArchiveTradeClick"
+            @share-strategy="openStrategyShareCard"
           />
       </div>
 
@@ -1068,6 +1069,57 @@
     </Teleport>
 
     <Teleport to="body">
+      <Transition name="fade-blur">
+        <div
+          v-if="showStrategyShareCardModal"
+          class="fixed inset-x-0 bottom-0 z-[100000] flex flex-col items-center justify-center overflow-hidden bg-black/60 p-3 backdrop-blur-md sm:p-6 lg:p-8"
+          :class="isFullscreen ? 'top-0' : 'top-10'"
+          @click.self="showStrategyShareCardModal = false"
+        >
+          <div class="absolute inset-0 bg-black pointer-events-none">
+            <div class="absolute -left-1 -top-1 h-4 w-4 border-l-2 border-t-2 border-white/20"></div>
+            <div class="absolute -bottom-1 -right-1 h-4 w-4 border-b-2 border-r-2 border-white/20"></div>
+          </div>
+          <div class="relative z-10 flex w-full max-w-[1240px] flex-col items-center">
+            <div class="relative shrink-0" :style="shareCardPreviewDimensions">
+              <div
+                class="share-card-capture-wrapper absolute left-0 top-0 h-[675px] w-[1200px] shadow-[0_0_80px_rgba(0,0,0,0.8)]"
+                :style="shareCardPreviewTransform"
+              >
+                <div class="absolute -inset-1 bg-gradient-to-tr from-white/10 to-transparent blur-md opacity-30 pointer-events-none"></div>
+                <ExStrategyShareCardPreview
+                  :trades="currentTrades"
+                  :initial-capital="tradeStore.getInitialDeposit(selectedStrategyId) || 1000"
+                  :strategy-name="selectedStrategyLabel"
+                  :username="authStore.user?.displayName || authStore.user?.email || (locale === 'ru' ? 'Трейдер' : 'Trader')"
+                  :locale="locale"
+                />
+              </div>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center justify-center gap-3 sm:mt-8 sm:gap-6">
+              <ExButton
+                variant="solid"
+                class="relative overflow-hidden !px-4 !py-3 text-[10px] font-black tracking-widest sm:!px-10 sm:text-xs"
+                :disabled="isGeneratingStrategyPng"
+                @click="downloadStrategyCardPng"
+              >
+                <span v-if="isGeneratingStrategyPng">{{ locale === 'ru' ? 'РЕНДЕРИНГ...' : 'RENDERING...' }}</span>
+                <span v-else>{{ locale === 'ru' ? 'СКАЧАТЬ PNG' : 'DOWNLOAD PNG' }}</span>
+              </ExButton>
+              <ExButton
+                variant="ghost"
+                class="!px-4 !py-3 text-[10px] tracking-widest sm:!px-10 sm:text-xs"
+                @click="showStrategyShareCardModal = false"
+              >
+                {{ locale === 'ru' ? 'ЗАКРЫТЬ' : 'CLOSE' }}
+              </ExButton>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <Teleport to="body">
       <Transition name="protocol-slide">
       <div v-if="isTemporalOpen" 
            class="fixed inset-0 z-[2000] flex items-center justify-center p-20 bg-black/40 dark:bg-black/80 backdrop-blur-md">
@@ -1264,6 +1316,7 @@ import ExGenesisTree from '~/widgets/genesis/tree/ui/ExGenesisTree.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import { useDomI18n } from '~/shared/i18n/useDomI18n'
 import ExTradeShareCardPreview from '~/widgets/genesis/ui/common/ExTradeShareCardPreview.vue'
+import ExStrategyShareCardPreview from '~/widgets/genesis/ui/common/ExStrategyShareCardPreview.vue'
 import ExPaywallOverlay from '~/widgets/genesis/ui/common/ExPaywallOverlay.vue'
 import { useAccessActivation } from '~/features/access/model/useAccessActivation'
 import type { AccessCapability } from '~/features/access/model/accessEntitlements'
@@ -1360,8 +1413,10 @@ const scopeTradesToSelectedVersion = <T,>(trades: T[]) => {
 }
 
 const showShareCardModal = ref(false)
+const showStrategyShareCardModal = ref(false)
 const isFullscreen = useState<boolean>('isFullscreen', () => false)
 const isGeneratingPng = ref(false)
+const isGeneratingStrategyPng = ref(false)
 const shareCardViewport = ref({ width: 1280, height: 800 })
 const shareCardPreviewScale = computed(() => {
   const titleBarHeight = isFullscreen.value ? 0 : 40
@@ -1446,6 +1501,45 @@ const downloadCardPng = async () => {
     console.error('Error generating card image:', err)
   } finally {
     isGeneratingPng.value = false
+  }
+}
+
+const openStrategyShareCard = () => {
+  showStrategyShareCardModal.value = true
+}
+
+const downloadStrategyCardPng = async () => {
+  const cardElement = document.querySelector('#strategy-share-card-export-target') as HTMLElement
+  if (!cardElement) return
+  isGeneratingStrategyPng.value = true
+
+  try {
+    const htmlToImage = await import('html-to-image')
+    const url = await htmlToImage.toPng(cardElement, {
+      pixelRatio: 2,
+      backgroundColor: '#080808',
+      width: 1200,
+      height: 675,
+      style: {
+        transform: 'scale(1)',
+        transformOrigin: 'top left',
+        width: '1200px',
+        height: '675px'
+      }
+    })
+
+    const safeStrategyName = String(selectedStrategy.value?.name || 'strategy')
+      .trim()
+      .replace(/[^a-zA-Z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'strategy'
+    const link = document.createElement('a')
+    link.download = `strategy-share-${safeStrategyName}.png`
+    link.href = url
+    link.click()
+  } catch (err) {
+    console.error('Error generating strategy card image:', err)
+  } finally {
+    isGeneratingStrategyPng.value = false
   }
 }
 
