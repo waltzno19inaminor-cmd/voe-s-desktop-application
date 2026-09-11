@@ -1,7 +1,5 @@
 <template>
   <div class="diary-3d-hub h-full w-full relative overflow-hidden bg-transparent nier-text-primary" ref="container">
-    
-    
 
     <Transition name="page-reify" mode="out-in">
       <ExTimeTreeTradeEntry
@@ -34,6 +32,7 @@
         :cache-key="tradeForceGraphCacheKey"
         :pnl-min="tradeNodePnlRange.min"
         :pnl-max="tradeNodePnlRange.max"
+        :is-empty="currentTrades.length === 0"
         @node-click="handleForceGraphNodeClick"
         @ready="handleTradeForceGraphReady"
       />
@@ -91,10 +90,9 @@
       <div
         v-if="hasOpenedGenesisTree && hasGenesisTreeAccess"
         v-show="viewType === 'tree'"
-        class="genesis-tree-surface absolute inset-0 z-40 overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto"
+        class="genesis-tree-surface absolute inset-0 z-40 overflow-hidden bg-transparent pointer-events-auto"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
-        <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
         <template v-if="!isMainDiaryStrategy">
           <ExGenesisTree ref="genesisTreeRef" />
         </template>
@@ -110,10 +108,9 @@
       <!-- PNL DISTRIBUTION LAYER -->
       <div
         v-show="viewType === 'distribution'"
-        class="genesis-distribution-surface absolute inset-0 z-40 flex flex-col overflow-hidden theme-surface backdrop-blur-3xl pointer-events-auto transition-all duration-300"
+        class="genesis-distribution-surface absolute inset-0 z-40 flex flex-col overflow-hidden bg-transparent pointer-events-auto transition-all duration-300"
         :class="showCapitalForecast ? 'blur-sm brightness-75 saturate-75 scale-[1.01]' : ''"
       >
-        <div class="absolute inset-0 theme-grid opacity-30 pointer-events-none"></div>
         <div class="relative z-10 flex h-full w-full flex-col py-20 md:py-28">
           <div class="mx-10 mb-10 flex flex-wrap items-end justify-between gap-6 border-b border-black/10 pb-5 dark:border-white/10 md:mx-20">
             <div class="flex flex-col gap-2">

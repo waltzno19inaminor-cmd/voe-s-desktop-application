@@ -18,6 +18,7 @@ export interface AssetGraphCallbacks {
 export function useAssetGraph(props: AssetGraphProps, callbacks: AssetGraphCallbacks = {}) {
   const surface = ref<{ element: HTMLDivElement | null } | null>(null)
   const data = computed(() => buildAssetGraph(props.trades, props.initialDeposit))
+  const hasTrades = computed(() => data.value.tradeCount > 0)
   let graph: ForceGraph<AssetNode> | undefined
   let observer: ResizeObserver | undefined
   let disposed = false
@@ -203,5 +204,5 @@ export function useAssetGraph(props: AssetGraphProps, callbacks: AssetGraphCallb
     graph = undefined
   })
   watch(() => props.isDark, () => graph?.d3ReheatSimulation())
-  return { surface }
+  return { surface, hasTrades }
 }

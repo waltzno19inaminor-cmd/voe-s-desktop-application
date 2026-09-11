@@ -1,16 +1,11 @@
 <template>
   <div class="ex-trade-archive w-full h-full min-h-0 text-white font-mono pt-24 px-6 pb-12 relative flex flex-col">
-    <!-- Grid overlay -->
-    <div class="absolute inset-0 pointer-events-none opacity-20 bg-[#030303]"
-         style="background-image: radial-gradient(circle, rgba(255,255,255,0.2) 1px, transparent 1px); background-size: 24px 24px;"></div>
-
     <div class="relative z-10 max-w-7xl mx-auto min-h-0 flex-1 w-full flex flex-col">
       <!-- HEADER / STRATEGY SELECTOR -->
       <div class="flex flex-col relative w-max mb-12 shrink-0">
         <div class="flex items-center space-x-3 cursor-pointer group/strat" @click="showStrategyMenu = !showStrategyMenu">
-          <div class="w-1.5 h-1.5 bg-white rotate-45 transition-all duration-500" :class="showStrategyMenu ? 'scale-150 rotate-[225deg]' : 'animate-pulse'"></div>
           <span class="text-[10px] tracking-[0.5em] uppercase font-black transition-opacity group-hover/strat:opacity-100" :class="showStrategyMenu ? 'opacity-100' : 'opacity-70'">
-            {{ locale === 'ru' ? 'АРХИВ СДЕЛОК' : 'TRADE ARCHIVE' }} <span v-if="selectedStrategy" class="opacity-50 ml-2">// {{ selectedStrategy.name }}</span>
+            <span v-if="selectedStrategy" class="opacity-50">{{ selectedStrategy.name }}</span>
           </span>
           <div class="w-2 h-2 border-b border-r border-white/40 rotate-45 transition-transform duration-500 ml-2" :class="showStrategyMenu ? '-rotate-[135deg] translate-y-0.5' : ''"></div>
         </div>
@@ -37,7 +32,7 @@
       <!-- SUMMARY ROW -->
       <div class="flex flex-wrap items-end gap-16 border-b border-white/10 pb-8 mb-8 shrink-0 pr-4">
         <div class="flex flex-col">
-          <span class="text-6xl font-bold tracking-tighter leading-none">{{ trades.length }}</span>
+          <span class="trade-count-gradflow text-6xl font-bold tracking-tighter leading-none">{{ trades.length }}</span>
           <span class="text-[8px] tracking-[0.3em] opacity-40 uppercase mt-4">{{ locale === 'ru' ? 'СДЕЛОК ЗАПИСАНО' : 'TRADES RECORDED' }}</span>
         </div>
 
@@ -202,6 +197,36 @@ const handleTradeClick = (event: MouseEvent, trade: any) => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+.trade-count-gradflow {
+  color: #dcdbff;
+  background-image: linear-gradient(
+    110deg,
+    rgb(0 0 0) 0%,
+    rgb(220 219 255) 32%,
+    rgb(195 173 255) 58%,
+    rgb(220 219 255) 78%,
+    rgb(0 0 0) 100%
+  );
+  background-size: 260% 100%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: trade-count-gradflow-shift 5s ease-in-out infinite;
+}
+
+@keyframes trade-count-gradflow-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trade-count-gradflow {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }
 
 .archive-scrollbar::-webkit-scrollbar {
