@@ -80,9 +80,11 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_fs::init())?;
-            // Development must always use Tauri's devUrl. A previously installed
-            // production payload shares the same app identifier and would otherwise
-            // replace the Nuxt dev server with jljpatch:// content.
+            // Finalize a staged Windows payload before WebView2 can lock the old
+            // files. Development still uses Tauri's devUrl after finalization.
+            if let Err(error) = payload_update::activate_pending_payload(app) {
+                log::error!("failed to activate pending payload: {error}");
+            }
             if !cfg!(debug_assertions) {
                 patch::navigate_to_active_resource_patch(app);
                 payload_update::navigate_to_active_payload(app);

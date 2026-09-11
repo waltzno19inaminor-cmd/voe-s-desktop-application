@@ -100,9 +100,13 @@
             :class="{ 'cursor-not-allowed opacity-40': pendingUpdate.isSuitable === false }"
           >
             <span v-if="pendingUpdate.isSuitable === false">{{ locale === 'ru' ? 'Сначала обновите приложение' : 'Update the application first' }}</span>
+            <span v-else-if="updateInstallationError">{{ locale === 'ru' ? 'Повторить установку' : 'Retry installation' }}</span>
             <span v-else>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
           </button>
 
+          <p v-if="updateInstallationError" class="text-center text-[9px] font-mono break-words text-red-700/80">
+            {{ updateInstallationError }}
+          </p>
           <p v-if="pendingUpdate.reason" class="text-center text-[9px] font-mono text-red-700/80">
             {{ pendingUpdate.reason }}
           </p>
@@ -418,7 +422,7 @@ interface AvailableUpdate {
   reason?: string
 }
 
-const baseVersion = String(tauriConfig.version || pkg.version || '1.1.2')
+const baseVersion = String(tauriConfig.version || pkg.version || '1.1.3')
 const installedNativeVersion = ref(baseVersion)
 const activePayloadVersion = ref<string | null>(null)
 const appVersion = computed(() => activePayloadVersion.value || installedNativeVersion.value)
@@ -792,6 +796,7 @@ let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 const pendingUpdate = ref<AvailableUpdate | null>(null)
 const isUpdateInstalled = ref(false)
 const isRelaunching = ref(false)
+const updateInstallationError = ref('')
 
 const forceRelaunchApp = async () => {
   if (isRelaunching.value) return
@@ -1022,7 +1027,7 @@ const performPayloadInstall = async (manifestUrl: string) => {
 
     if (unlistenProgress) unlistenProgress()
 
-    if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
+    if (result.state.active) {
       updateProgress.value = 100
       downloadSpeedText.value = ''
       remainingSizeText.value = ''
@@ -1046,6 +1051,7 @@ const confirmAndInstallUpdate = async () => {
   if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
   const updateToInstall = { ...pendingUpdate.value }
   pendingUpdate.value = null
+  updateInstallationError.value = ''
 
   try {
     setUpdateCopy('ПОДГОТОВКА_К_ОБНОВЛЕНИЮ', 'инициализация процесса установки')
@@ -1060,7 +1066,14 @@ const confirmAndInstallUpdate = async () => {
     }
   } catch (err) {
     console.warn('[Updater] Installation failed:', err)
-    await runArtificialUpdateProgress()
+    pendingUpdate.value = updateToInstall
+    updateInstallationError.value = err instanceof Error
+      ? err.message
+      : (typeof err === 'string' ? err : JSON.stringify(err))
+    setUpdateCopy(
+      'ОШИБКА_УСТАНОВКИ',
+      locale.value === 'ru' ? 'обновление не установлено — повторите попытку' : 'update was not installed — try again'
+    )
   }
 }
 

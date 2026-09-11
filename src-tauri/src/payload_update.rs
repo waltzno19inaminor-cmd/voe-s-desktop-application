@@ -17,7 +17,11 @@ use crate::patch::{
 const PAYLOAD_STATE_FILE: &str = "payload-state.json";
 const PAYLOAD_MANIFEST_FILE: &str = "payload-manifest.json";
 const PAYLOAD_SIGNATURE_FILE: &str = "payload-manifest.minisig";
+const PENDING_STATE_FILE: &str = "pending-payload-state.json";
+const PENDING_MANIFEST_FILE: &str = "pending-payload-manifest.json";
+const PENDING_SIGNATURE_FILE: &str = "pending-payload-manifest.minisig";
 const PAYLOAD_STAGING_PREFIX: &str = "payload-staging";
+const PAYLOAD_BACKUP_DIR: &str = "active-web-backup";
 const MAX_PAYLOAD_FILE_BYTES: u64 = 100 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,6 +66,13 @@ pub struct PayloadInstallResult {
     pub reused_files: usize,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PendingPayloadActivation {
+    state: PayloadState,
+    staging_dir: String,
+}
+
 #[tauri::command]
 pub fn payload_update_get_state(app: AppHandle) -> Result<PayloadState, String> {
     let root = payload_root(&app)?;
@@ -84,12 +95,30 @@ pub fn payload_update_clear(app: AppHandle) -> Result<(), String> {
         root.join(PAYLOAD_STATE_FILE),
         root.join(PAYLOAD_MANIFEST_FILE),
         root.join(PAYLOAD_SIGNATURE_FILE),
+        root.join(PENDING_STATE_FILE),
+        root.join(PENDING_MANIFEST_FILE),
+        root.join(PENDING_SIGNATURE_FILE),
         state_path_from_root(&patches),
         active_manifest_path_from_root(&patches),
         active_signature_path_from_root(&patches),
     ] {
         if path.exists() {
             fs::remove_file(&path).map_err(|err| format!("remove {}: {err}", path.display()))?;
+        }
+    }
+    if patches.exists() {
+        for entry in fs::read_dir(&patches)
+            .map_err(|err| format!("read patches directory: {err}"))?
+        {
+            let entry = entry.map_err(|err| format!("read patches entry: {err}"))?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if entry.path().is_dir()
+                && (name.starts_with(PAYLOAD_STAGING_PREFIX) || name == PAYLOAD_BACKUP_DIR)
+            {
+                safe_remove_dir_all(&entry.path())
+                    .map_err(|err| format!("remove pending payload directory: {err}"))?;
+            }
         }
     }
     Ok(())
@@ -407,19 +436,6 @@ pub struct PayloadProgressEvent {
         verify_payload_tree(&staging, &manifest)?;
     }
 
-    if active_web.exists() {
-        safe_remove_dir_all(&active_web).map_err(|err| format!("remove old active web: {err}"))?;
-    }
-    fs::rename(&staging, &active_web).map_err(|err| format!("activate payload: {err}"))?;
-
-    clear_hotfix_metadata(&patches)?;
-    fs::write(payload_root.join(PAYLOAD_MANIFEST_FILE), &manifest_bytes)
-        .map_err(|err| format!("write payload manifest: {err}"))?;
-    if let Some(sig) = signature_text {
-        fs::write(payload_root.join(PAYLOAD_SIGNATURE_FILE), sig)
-            .map_err(|err| format!("write payload manifest signature: {err}"))?;
-    }
-
     let state = PayloadState {
         version: Some(manifest.version.clone()),
         platform: current_platform(),
@@ -428,17 +444,179 @@ pub struct PayloadProgressEvent {
         manifest_sha256: Some(sha256_bytes_hex(&manifest_bytes)),
         file_count: manifest.files.len(),
     };
-    fs::write(
-        payload_root.join(PAYLOAD_STATE_FILE),
-        serde_json::to_string_pretty(&state).map_err(|err| err.to_string())?,
-    )
-    .map_err(|err| format!("write payload state: {err}"))?;
+
+    // WebView2 may keep files from active-web open on Windows. Replacing that
+    // directory while the application is running then fails with Access Denied.
+    // Stage the verified payload now and switch directories during the clean
+    // startup that follows the updater-requested relaunch.
+    #[cfg(target_os = "windows")]
+    {
+        let staging_dir = staging
+            .file_name()
+            .and_then(|value| value.to_str())
+            .ok_or_else(|| "payload staging directory name is invalid".to_string())?
+            .to_string();
+        fs::write(payload_root.join(PENDING_MANIFEST_FILE), &manifest_bytes)
+            .map_err(|err| format!("write pending payload manifest: {err}"))?;
+        match signature_text.as_deref() {
+            Some(sig) => fs::write(payload_root.join(PENDING_SIGNATURE_FILE), sig)
+                .map_err(|err| format!("write pending payload manifest signature: {err}"))?,
+            None => {
+                let path = payload_root.join(PENDING_SIGNATURE_FILE);
+                if path.exists() {
+                    fs::remove_file(path)
+                        .map_err(|err| format!("remove stale pending signature: {err}"))?;
+                }
+            }
+        }
+        let pending = PendingPayloadActivation {
+            state: state.clone(),
+            staging_dir,
+        };
+        fs::write(
+            payload_root.join(PENDING_STATE_FILE),
+            serde_json::to_string_pretty(&pending).map_err(|err| err.to_string())?,
+        )
+        .map_err(|err| format!("write pending payload state: {err}"))?;
+
+        return Ok(PayloadInstallResult {
+            state,
+            downloaded_files,
+            reused_files,
+        });
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if active_web.exists() {
+            safe_remove_dir_all(&active_web)
+                .map_err(|err| format!("remove old active web: {err}"))?;
+        }
+        fs::rename(&staging, &active_web).map_err(|err| format!("activate payload: {err}"))?;
+        persist_active_payload(
+            &payload_root,
+            &patches,
+            &state,
+            &manifest_bytes,
+            signature_text.as_deref(),
+        )?;
+    }
 
     Ok(PayloadInstallResult {
         state,
         downloaded_files,
         reused_files,
     })
+}
+
+/// Completes a Windows payload switch before the WebView starts serving files.
+/// Keeping this operation at startup avoids WebView2 file locks on active-web.
+pub fn activate_pending_payload<R: Runtime>(app: &tauri::App<R>) -> Result<bool, String> {
+    let handle = app.handle().clone();
+    let payload_root = payload_root(&handle)?;
+    let pending_path = payload_root.join(PENDING_STATE_FILE);
+    if !pending_path.exists() {
+        return Ok(false);
+    }
+
+    let pending: PendingPayloadActivation = serde_json::from_slice(
+        &fs::read(&pending_path).map_err(|err| format!("read pending payload state: {err}"))?,
+    )
+    .map_err(|err| format!("parse pending payload state: {err}"))?;
+    let relative = sanitize_relative_path(&pending.staging_dir)?;
+    if relative.components().count() != 1 {
+        return Err("pending payload staging directory is invalid".to_string());
+    }
+
+    let patches = patches_root(&handle)?;
+    let staging = patches.join(relative);
+    let active_web = active_web_dir_from_root(&patches);
+    let backup = patches.join(PAYLOAD_BACKUP_DIR);
+    if !staging.join("index.html").exists() {
+        return Err("pending payload is incomplete: index.html is missing".to_string());
+    }
+    let manifest_bytes = fs::read(payload_root.join(PENDING_MANIFEST_FILE))
+        .map_err(|err| format!("read pending payload manifest: {err}"))?;
+    let manifest_sha256 = sha256_bytes_hex(&manifest_bytes);
+    if pending.state.manifest_sha256.as_deref() != Some(manifest_sha256.as_str()) {
+        return Err("pending payload manifest hash does not match its state".to_string());
+    }
+    let manifest: PayloadManifest = serde_json::from_slice(&manifest_bytes)
+        .map_err(|err| format!("parse pending payload manifest: {err}"))?;
+    validate_manifest(&manifest, &handle)?;
+    verify_payload_tree(&staging, &manifest)?;
+    let signature_path = payload_root.join(PENDING_SIGNATURE_FILE);
+    let signature = if signature_path.exists() {
+        let signature = fs::read_to_string(&signature_path)
+            .map_err(|err| format!("read pending payload signature: {err}"))?;
+        verify_minisign(&manifest_bytes, &signature)?;
+        Some(signature)
+    } else {
+        None
+    };
+    if backup.exists() {
+        safe_remove_dir_all(&backup).map_err(|err| format!("remove payload backup: {err}"))?;
+    }
+    if active_web.exists() {
+        fs::rename(&active_web, &backup)
+            .map_err(|err| format!("move active payload to backup: {err}"))?;
+    }
+    if let Err(err) = fs::rename(&staging, &active_web) {
+        if backup.exists() {
+            let _ = fs::rename(&backup, &active_web);
+        }
+        return Err(format!("activate pending payload: {err}"));
+    }
+
+    persist_active_payload(
+        &payload_root,
+        &patches,
+        &pending.state,
+        &manifest_bytes,
+        signature.as_deref(),
+    )?;
+
+    if backup.exists() {
+        safe_remove_dir_all(&backup).map_err(|err| format!("remove payload backup: {err}"))?;
+    }
+    for path in [
+        pending_path,
+        payload_root.join(PENDING_MANIFEST_FILE),
+        signature_path,
+    ] {
+        if path.exists() {
+            fs::remove_file(&path)
+                .map_err(|err| format!("remove pending metadata {}: {err}", path.display()))?;
+        }
+    }
+    Ok(true)
+}
+
+fn persist_active_payload(
+    payload_root: &Path,
+    patches: &Path,
+    state: &PayloadState,
+    manifest_bytes: &[u8],
+    signature_text: Option<&str>,
+) -> Result<(), String> {
+    clear_hotfix_metadata(patches)?;
+    fs::write(payload_root.join(PAYLOAD_MANIFEST_FILE), manifest_bytes)
+        .map_err(|err| format!("write payload manifest: {err}"))?;
+    let active_signature = payload_root.join(PAYLOAD_SIGNATURE_FILE);
+    match signature_text {
+        Some(sig) => fs::write(&active_signature, sig)
+            .map_err(|err| format!("write payload manifest signature: {err}"))?,
+        None if active_signature.exists() => fs::remove_file(&active_signature)
+            .map_err(|err| format!("remove stale payload signature: {err}"))?,
+        None => {}
+    }
+    fs::write(
+        payload_root.join(PAYLOAD_STATE_FILE),
+        serde_json::to_string_pretty(&state).map_err(|err| err.to_string())?,
+    )
+    .map_err(|err| format!("write payload state: {err}"))?;
+
+    Ok(())
 }
 
 pub fn navigate_to_active_payload<R: Runtime>(app: &tauri::App<R>) {
