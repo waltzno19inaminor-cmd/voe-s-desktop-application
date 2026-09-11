@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { readdir } from 'node:fs/promises'
 import { dirname, join, relative, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -63,6 +63,13 @@ console.log(`Files: ${files.length}`)
 function createPayloadZip(sourceDir, targetDir, currentFiles) {
   const targetZip = resolve(targetDir, 'payload.zip')
   const patchZip = resolve(targetDir, 'patch.zip')
+  const changedFilesList = join(targetDir, '.changed_files_list.txt')
+
+  // `zip` updates an existing archive in place, retaining files that disappeared
+  // from the new build. Always create release archives from a clean slate.
+  rmSync(targetZip, { force: true })
+  rmSync(patchZip, { force: true })
+  rmSync(changedFilesList, { force: true })
 
   // Persist manifest to .payload-history folder
   const historyDir = resolve(process.cwd(), '.payload-history')
@@ -102,7 +109,14 @@ function createPayloadZip(sourceDir, targetDir, currentFiles) {
   }
 
   try {
-    const res1 = spawnSync('zip', ['-q', '-r', targetZip, '.', '-x', 'payload/*', '-x', './payload/*'], { cwd: sourceDir })
+    const res1 = spawnSync('zip', [
+      '-q', '-r', targetZip, '.',
+      '-x', 'payload/*', '-x', './payload/*',
+      '-x', '.DS_Store', '-x', '*/.DS_Store',
+      '-x', '._*', '-x', '*/._*',
+      '-x', '__MACOSX/*',
+      '-x', 'Thumbs.db', '-x', '*/Thumbs.db',
+    ], { cwd: sourceDir })
     if (res1.error) console.error('Full payload zip error:', res1.error)
   } catch (err) {
     console.error('Full payload zip failed:', err)
@@ -110,10 +124,9 @@ function createPayloadZip(sourceDir, targetDir, currentFiles) {
 
   if (changedFiles.length > 0) {
     const changedPaths = changedFiles.map(f => f.path)
-    const listFilePath = join(targetDir, '.changed_files_list.txt')
-    writeFileSync(listFilePath, changedPaths.join('\n'))
+    writeFileSync(changedFilesList, changedPaths.join('\n'))
     try {
-      const inputBuffer = readFileSync(listFilePath)
+      const inputBuffer = readFileSync(changedFilesList)
       const res2 = spawnSync('zip', ['-q', patchZip, '-@'], { cwd: sourceDir, input: inputBuffer })
       if (res2.error) console.error('Patch zip error:', res2.error)
     } catch (err) {
