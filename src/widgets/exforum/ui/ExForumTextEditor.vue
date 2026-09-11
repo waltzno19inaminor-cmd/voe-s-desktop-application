@@ -95,7 +95,6 @@
               <button
                 type="button"
                 class="absolute top-2 right-2 w-6 h-6 rounded-none bg-black/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
-                :title="locale === 'ru' ? 'Удалить изображение' : 'Remove image'"
                 @click.stop="removeAttachedImage(index)"
               >
                 <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -158,7 +157,6 @@
                 <button
                   type="button"
                   class="w-5 h-5 rounded-none bg-black/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600 shadow-md"
-                  :title="locale === 'ru' ? 'Удалить сделку' : 'Remove trade'"
                   @click.stop="removeAttachedTrade(index)"
                 >
                   <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

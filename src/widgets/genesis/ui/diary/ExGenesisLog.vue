@@ -253,7 +253,6 @@
                   variant="solid"
                   class="!h-[38px] !w-[38px] !shrink-0 !p-0"
                   :aria-label="locale === 'ru' ? 'Поделиться' : 'Share'"
-                  :title="locale === 'ru' ? 'Поделиться' : 'Share'"
                   @click="shareSelectedTimeTreeTrade"
                 >
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -266,7 +265,6 @@
                   variant="solid"
                   class="!h-[38px] !w-[38px] !shrink-0 !p-0"
                   :aria-label="locale === 'ru' ? 'Редактировать' : 'Edit'"
-                  :title="locale === 'ru' ? 'Редактировать' : 'Edit'"
                   @click="editSelectedTimeTreeTrade"
                 >
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -278,7 +276,6 @@
                   variant="solid"
                   class="!h-[38px] !w-[38px] !shrink-0 !border-red-600 !bg-red-600 !p-0 !text-white"
                   :aria-label="locale === 'ru' ? 'Удалить' : 'Delete'"
-                  :title="locale === 'ru' ? 'Удалить' : 'Delete'"
                   @click="removeSelectedTimeTreeTrade"
                 >
                   <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

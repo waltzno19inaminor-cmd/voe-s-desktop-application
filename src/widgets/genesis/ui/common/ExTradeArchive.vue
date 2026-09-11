@@ -55,7 +55,6 @@
           type="button"
           class="group ml-auto flex h-11 items-center gap-3 border border-white/15 px-5 font-mono text-[9px] font-black uppercase tracking-[0.28em] text-white/60 transition-all hover:border-white/50 hover:bg-white hover:text-black"
           :aria-label="locale === 'ru' ? 'Поделиться результатом стратегии' : 'Share strategy performance'"
-          :title="locale === 'ru' ? 'Поделиться результатом стратегии' : 'Share strategy performance'"
           @click="emit('share-strategy')"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" class="h-4 w-4" aria-hidden="true">

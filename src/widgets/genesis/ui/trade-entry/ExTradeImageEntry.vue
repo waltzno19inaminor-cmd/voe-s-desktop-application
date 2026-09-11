@@ -96,7 +96,6 @@ const triggerUpload = () => {
           :disabled="!props.image.url"
           class="grid h-8 w-8 place-items-center border border-white/15 text-white/60 transition-colors hover:bg-white hover:text-black disabled:cursor-default disabled:opacity-20"
           :aria-label="locale === 'ru' ? 'Посмотреть изображение' : 'View image'"
-          :title="locale === 'ru' ? 'Посмотреть' : 'View'"
           @click.stop.prevent="emit('view', props.index)"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -109,7 +108,6 @@ const triggerUpload = () => {
           :disabled="!props.image.url || !props.canEdit || props.isPersisting"
           class="grid h-8 w-8 place-items-center border border-white/15 text-white/60 transition-colors hover:bg-white hover:text-black disabled:cursor-default disabled:opacity-20"
           :aria-label="locale === 'ru' ? 'Заменить изображение' : 'Replace image'"
-          :title="locale === 'ru' ? 'Заменить' : 'Replace'"
           @click="triggerUpload"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -121,7 +119,6 @@ const triggerUpload = () => {
           :disabled="!props.canEdit || props.isPersisting"
           class="grid h-8 w-8 place-items-center border border-white/15 text-white/60 transition-colors hover:bg-red-500 hover:text-white disabled:cursor-default disabled:opacity-20"
           :aria-label="locale === 'ru' ? 'Удалить изображение' : 'Remove image'"
-          :title="locale === 'ru' ? 'Удалить' : 'Remove'"
           @click="emit('remove', props.index)"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">

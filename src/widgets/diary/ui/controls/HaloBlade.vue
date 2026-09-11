@@ -12,7 +12,6 @@
             @click="activeModule = mod.id"
             class="p-3 transition-colors duration-300 relative group"
             :class="activeModule === mod.id ? 'text-emerald-500' : 'text-white/20 hover:text-white/40'"
-            :title="mod.label"
           >
             <!-- Optimized Static Icon -->
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

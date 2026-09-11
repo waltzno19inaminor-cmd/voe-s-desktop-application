@@ -799,11 +799,6 @@ const tradeEntryThemeStyle = computed(() => props.isDark
                         : activeTradeImageIndex !== null
                           ? (locale === 'ru' ? 'Скрыть просмотр изображения' : 'Hide image preview')
                           : (locale === 'ru' ? 'Добавить изображение' : 'Add image')"
-                      :title="activeEntryFormTab === 'notes'
-                        ? (locale === 'ru' ? 'Добавить заметку' : 'Add note')
-                        : activeTradeImageIndex !== null
-                          ? (locale === 'ru' ? 'Скрыть просмотр изображения' : 'Hide image preview')
-                          : (locale === 'ru' ? 'Добавить изображение' : 'Add image')"
                       @click="activeEntryFormTab === 'notes'
                         ? startTradeNoteCreation()
                         : activeTradeImageIndex !== null

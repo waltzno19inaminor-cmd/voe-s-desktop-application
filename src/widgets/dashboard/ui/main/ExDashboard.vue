@@ -209,7 +209,6 @@
             type="button"
             class="dashboard-icon-toggle dashboard-feedback-toggle opacity-90 hover:opacity-100 transition-all duration-300"
             :aria-label="locale === 'ru' ? 'Оставить отзыв' : 'Leave feedback'"
-            :title="locale === 'ru' ? 'Оставить отзыв' : 'Leave feedback'"
             @click="openFeedback"
           >
             <svg
