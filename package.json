@@ -11,6 +11,7 @@
     "hotfix:package": "node scripts/create-hotfix-patch.mjs",
     "payload:manifest": "node scripts/create-payload-manifest.mjs",
     "build:dmg": "node scripts/build-dmg.mjs",
+    "build:windows": "tauri build --bundles nsis --config src-tauri/tauri.installer-only.conf.json",
     "postinstall": "nuxt prepare",
     "tauri": "tauri"
   },

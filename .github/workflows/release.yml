@@ -57,6 +57,10 @@ jobs:
         include:
           - platform: "macos-latest"
             args: "--target universal-apple-darwin --bundles app"
+            package_dmg: true
+          - platform: "windows-latest"
+            args: "--bundles nsis"
+            package_dmg: false
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -76,6 +80,7 @@ jobs:
         run: npm install
 
       - name: verify App Check build configuration
+        shell: bash
         env:
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         run: |
@@ -84,7 +89,7 @@ jobs:
             exit 1
           fi
 
-      - uses: tauri-apps/tauri-action@v0
+      - uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -98,12 +103,16 @@ jobs:
           releaseBody: "Automated ${{ needs.resolve-channel.outputs.channel }} channel release."
           releaseDraft: false
           prerelease: ${{ needs.resolve-channel.outputs.channel == 'release-demo' }}
+          updaterJsonPreferNsis: true
+          retryAttempts: 2
           args: ${{ matrix.args }} ${{ needs.resolve-channel.outputs.tauri_config }}
 
       - name: package DMG with PDF instructions
+        if: matrix.package_dmg
         run: npm run build:dmg
 
       - name: upload custom DMG
+        if: matrix.package_dmg
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
