@@ -8,10 +8,9 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "hotfix:package": "node scripts/create-hotfix-patch.mjs",
-    "payload:manifest": "node scripts/create-payload-manifest.mjs",
+    "version:set": "node scripts/set-version.mjs",
     "build:dmg": "node scripts/build-dmg.mjs",
-    "build:windows": "tauri build --bundles nsis --config src-tauri/tauri.installer-only.conf.json",
+    "build:windows": "tauri build --bundles nsis",
     "postinstall": "nuxt prepare",
     "tauri": "tauri"
   },

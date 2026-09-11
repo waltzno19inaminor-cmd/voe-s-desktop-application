@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "1.1.4"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -48,4 +48,3 @@ minisign-verify = "0.2"
 tempfile = "3"
 walkdir = "2"
 zip = { version = "2", default-features = false, features = ["deflate"] }
-semver = "1"

@@ -52,11 +52,7 @@ pub fn run() {
             patch::patch_get_state,
             patch::patch_verify_active,
             patch::patch_clear_active,
-            patch::patch_install_from_upload,
-            payload_update::payload_update_get_state,
-            payload_update::payload_update_clear,
-            payload_update::payload_update_fetch_manifest,
-            payload_update::payload_update_install_from_feed
+            patch::patch_install_from_upload
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -80,16 +76,12 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_fs::init())?;
-            // Finalize a staged Windows payload before WebView2 can lock the old
-            // files. Development still uses Tauri's devUrl after finalization.
-            if let Err(error) = payload_update::activate_pending_payload(app) {
-                log::error!("failed to activate pending payload: {error}");
+            // Full native releases are the only automatic update mechanism.
+            // Remove any legacy payload layer so it can never mask the bundled
+            // frontend after a native update.
+            if let Err(error) = payload_update::clear_legacy_payload_updates(app.handle()) {
+                log::error!("failed to clear legacy payload update: {error}");
             }
-            if !cfg!(debug_assertions) {
-                patch::navigate_to_active_resource_patch(app);
-                payload_update::navigate_to_active_payload(app);
-            }
-
             Ok(())
         })
         .build(tauri::generate_context!())

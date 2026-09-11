@@ -1,5 +1,9 @@
 name: "publish"
 
+concurrency:
+  group: publish-${{ inputs.channel || github.ref_name }}
+  cancel-in-progress: false
+
 on:
   push:
     tags:
@@ -13,14 +17,6 @@ on:
         options:
           - release
           - release-demo
-      payload_version:
-        description: Payload version (for example 1.0.95); defaults to package.json
-        required: false
-        type: string
-      minimum_native_version:
-        description: Oldest native app allowed to install this payload; defaults to tauri.conf.json
-        required: false
-        type: string
 
 jobs:
   resolve-channel:
@@ -47,8 +43,35 @@ jobs:
             echo "tauri_config=" >> "$GITHUB_OUTPUT"
           fi
 
-  publish-tauri:
+  verify-signing-key:
     needs: resolve-channel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: verify release private key matches installed clients
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          npm install
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          printf 'JLJ updater signing key check' > updater-key-check.txt
+          npx tauri signer sign updater-key-check.txt
+          node -e "process.stdout.write(Buffer.from(require('./src-tauri/tauri.conf.json').plugins.updater.pubkey, 'base64'))" \
+            > updater.pub
+          base64 --decode updater-key-check.txt.sig > updater-key-check.minisig
+          minisign -Vm updater-key-check.txt -p updater.pub -x updater-key-check.minisig
+
+  publish-tauri:
+    needs: [resolve-channel, verify-signing-key]
     permissions:
       contents: write
     strategy:
@@ -79,6 +102,26 @@ jobs:
       - name: install frontend dependencies
         run: npm install
 
+      - name: verify unified application version
+        shell: bash
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs')
+          const packageVersion = require('./package.json').version
+          const tauriConfig = require('./src-tauri/tauri.conf.json')
+          const tauriVersion = tauriConfig.version
+          const cargo = fs.readFileSync('./src-tauri/Cargo.toml', 'utf8')
+          const cargoVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1]
+          if (!packageVersion || packageVersion !== tauriVersion || packageVersion !== cargoVersion) {
+            throw new Error(`Version mismatch: package=${packageVersion}, tauri=${tauriVersion}, cargo=${cargoVersion}`)
+          }
+          const updaterKey = Buffer.from(tauriConfig.plugins.updater.pubkey, 'base64').toString('utf8')
+          if (!updaterKey.includes('minisign public key: 38F98BF6CE29CAB3')) {
+            throw new Error('Updater public key changed: this would strand installed 1.1.0 clients')
+          }
+          console.log(`Building one complete application update: ${packageVersion}`)
+          NODE
+
       - name: verify App Check build configuration
         shell: bash
         env:
@@ -94,7 +137,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          NUXT_PUBLIC_PAYLOAD_MANIFEST_URL: https://github.com/jorudr/JLJ/releases/download/${{ needs.resolve-channel.outputs.channel }}/payload-manifest.json
           VITE_ACCESS_WORKER_URL: https://auth.gandr.site
           VITE_RECAPTCHA_ENTERPRISE_SITE_KEY: ${{ vars.VITE_RECAPTCHA_ENTERPRISE_SITE_KEY }}
         with:
@@ -121,3 +163,56 @@ jobs:
           gh release upload "$RELEASE_CHANNEL" \
             "dist-dmg/J.L.JÖRMUNGANDR_Installer.dmg" \
             --clobber
+
+  verify-update-release:
+    needs: [resolve-channel, publish-tauri]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: verify combined Windows and macOS updater manifest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_CHANNEL: ${{ needs.resolve-channel.outputs.channel }}
+        run: |
+          mkdir -p updater-verification
+          gh release download "$RELEASE_CHANNEL" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern latest.json \
+            --dir updater-verification \
+            --clobber
+          expected_version="$(node -p "require('./package.json').version")"
+          jq -e --arg expected_version "$expected_version" '
+            (.version == $expected_version) and
+            (.platforms["windows-x86_64"].url | type == "string" and length > 0) and
+            (.platforms["windows-x86_64"].signature | type == "string" and length > 0) and
+            ([.platforms | to_entries[] | select(.key | startswith("darwin-"))] | length > 0) and
+            ([.platforms | to_entries[] | select(.key | startswith("darwin-")) | select(.value.url | type == "string" and length > 0)] | length > 0) and
+            ([.platforms | to_entries[] | select(.key | startswith("darwin-")) | select(.value.signature | type == "string" and length > 0)] | length > 0)
+          ' updater-verification/latest.json
+
+      - name: verify published updater signatures with application key
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign
+          node -e "process.stdout.write(Buffer.from(require('./src-tauri/tauri.conf.json').plugins.updater.pubkey, 'base64'))" \
+            > updater-verification/updater.pub
+
+          verify_platform() {
+            platform="$1"
+            url="$(jq -r --arg platform "$platform" '.platforms[$platform].url' updater-verification/latest.json)"
+            signature="$(jq -r --arg platform "$platform" '.platforms[$platform].signature' updater-verification/latest.json)"
+            curl --fail --location "$url" --output "updater-verification/$platform.update"
+            printf '%s' "$signature" | base64 --decode > "updater-verification/$platform.minisig"
+            minisign -Vm "updater-verification/$platform.update" \
+              -p updater-verification/updater.pub \
+              -x "updater-verification/$platform.minisig"
+          }
+
+          verify_platform "windows-x86_64"
+          macos_platform="$(jq -r '.platforms | keys[] | select(startswith("darwin-"))' updater-verification/latest.json | head -n 1)"
+          verify_platform "$macos_platform"

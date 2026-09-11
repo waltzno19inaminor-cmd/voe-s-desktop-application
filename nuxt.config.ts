@@ -3,11 +3,6 @@ export default defineNuxtConfig({
   telemetry: false,
   srcDir: 'src/',
   ssr: false,
-  runtimeConfig: {
-    public: {
-      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || 'https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json',
-    },
-  },
   devServer: {
     host: '0.0.0.0',
     port: 3000,

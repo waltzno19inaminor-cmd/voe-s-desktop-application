@@ -373,8 +373,7 @@ const { t, locale, setLocale } = useI18n()
 const authStore = useAuthStore()
 const themeStore = useThemeStore()
 const isFullscreen = useState('isFullscreen', () => false)
-const payloadVersion = ref<string | null>(null)
-const appVersion = computed(() => payloadVersion.value || String(tauriConfig.version || pkg.version || '1.1.4'))
+const appVersion = ref(String(tauriConfig.version || pkg.version || '0.0.0'))
 const userMenuOpen = ref(false)
 const activeDashboardPanel = ref<string | null>(null)
 const customBackgroundContext = useState('customBackgroundContext', () => 'none')
@@ -393,11 +392,8 @@ const closeFeedback = () => {
 
 onMounted(async () => {
   try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    const state = await invoke<any>('payload_update_get_state').catch(() => null)
-    if (state?.active && state?.version) {
-      payloadVersion.value = state.version
-    }
+    const { getVersion } = await import('@tauri-apps/api/app')
+    appVersion.value = await getVersion()
   } catch {}
 })
 

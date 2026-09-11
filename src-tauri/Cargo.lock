@@ -99,7 +99,7 @@ checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
 name = "app"
-version = "0.1.0"
+version = "1.1.4"
 dependencies = [
  "base64 0.22.1",
  "bsdiff",
@@ -110,7 +110,6 @@ dependencies = [
  "mime_guess",
  "minisign-verify",
  "reqwest 0.12.28",
- "semver",
  "serde",
  "serde_json",
  "sha2",
