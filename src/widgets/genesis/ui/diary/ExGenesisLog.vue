@@ -40,7 +40,6 @@
         :cache-key="tradeForceGraphCacheKey"
         :pnl-min="tradeNodePnlRange.min"
         :pnl-max="tradeNodePnlRange.max"
-        :is-empty="currentTrades.length === 0"
         @node-click="handleForceGraphNodeClick"
         @ready="handleTradeForceGraphReady"
       />
@@ -82,6 +81,7 @@
             :is-fullscreen="isTimeTreeFullscreen"
             @trade-context-menu="handleArchiveTradeClick"
             @share-strategy="openStrategyShareCard"
+            @add-trade="requestNewTradeFromEquity"
           />
       </div>
 
@@ -169,7 +169,7 @@
             </div>
           </div>
 
-          <div v-else class="flex flex-1 items-center justify-center">
+          <div v-else-if="currentTrades.length > 0" class="flex flex-1 items-center justify-center">
             <div class="border border-dashed border-black/20 px-8 py-6 text-center font-mono text-[10px] uppercase tracking-[0.35em] opacity-40 dark:border-white/20">
               {{ locale === 'ru' ? 'Нет сделок для графика' : 'No trades for chart' }}
             </div>
@@ -178,6 +178,13 @@
       </div>
 
     </div>
+
+    <ExGenesisEmptyTrades
+      v-if="currentTrades.length === 0 && ['cube', 'assetGraph', 'distribution'].includes(viewType) && !isTradeEntryOpen && !showNodeMap"
+      :locale="locale"
+      :title="emptyTradesViewTitle"
+      @add-trade="requestNewTradeFromEquity"
+    />
 
       <!-- TRADE NODE CONTEXT MENU -->
       <Teleport to="body">
@@ -1314,6 +1321,7 @@ import ExTradeEntryVersionButton from '~/widgets/genesis/ui/trade-entry/ExTradeE
 import ExTradeForceGraph from '~/widgets/genesis/ui/analytics/ExTradeForceGraph.vue'
 import ExAssetGraph from '~/widgets/genesis/ui/assetGraph/ExAssetGraph.vue'
 import ExTrades from '~/widgets/genesis/ui/common/ExTrades.vue'
+import ExGenesisEmptyTrades from '~/widgets/genesis/ui/common/ExGenesisEmptyTrades.vue'
 import ExVerticalTradeList from '~/widgets/genesis/ui/diary/ExVerticalTradeList.vue'
 import ExGenesisTree from '~/widgets/genesis/tree/ui/ExGenesisTree.vue'
 import { useI18n } from '~/shared/i18n/useI18n'
@@ -1350,7 +1358,7 @@ import {
   getSelectedStrategyVersionSnapshot
 } from '~/shared/utils/strategyVersionScope'
 
-const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openTrade'])
+const emit = defineEmits(['exit', 'nodeMapState', 'hudState', 'openNote', 'openTrade', 'createTrade'])
 
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore?.settings?.isDark ?? false)
@@ -1550,6 +1558,23 @@ const downloadStrategyCardPng = async () => {
 }
 
 const viewType = ref<'cube' | 'timeTree' | 'distribution' | 'tree' | 'assetGraph'>('assetGraph')
+const emptyTradesViewTitle = computed(() => {
+  if (viewType.value === 'cube') {
+    return locale.value === 'ru'
+      ? 'Тепловая карта покажет, какие активы приносят вам прибыль и убытки.'
+      : 'The heatmap will show which assets drive your profits and losses.'
+  }
+
+  if (viewType.value === 'distribution') {
+    return locale.value === 'ru'
+      ? 'Распределение поможет увидеть диапазон и баланс результатов ваших сделок.'
+      : 'The distribution will reveal the range and balance of your trade results.'
+  }
+
+  return locale.value === 'ru'
+    ? 'График покажет связи между активами и результатами ваших сделок.'
+    : 'The graph will show how your assets connect to your trade results.'
+})
 const hasOpenedGenesisTree = ref(false)
 const genesisTreeRef = ref<any>(null)
 const isGenesisTreePresetPanelOpen = ref(false)
@@ -1680,6 +1705,10 @@ const canOpenCapitalForecast = computed(() => {
 
 const openNodeMap = () => {
   showNodeMap.value = true
+}
+
+const requestNewTradeFromEquity = () => {
+  emit('createTrade')
 }
 
 const handleOpenNote = (payload: { tradeId: string; noteId: string }) => {

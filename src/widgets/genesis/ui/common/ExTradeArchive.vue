@@ -69,12 +69,21 @@
 
       <!-- TRADES SCROLL CONTAINER -->
       <div 
-        class="min-h-0 flex-1 w-full overflow-y-auto overscroll-contain archive-scrollbar pr-4 pb-12"
+        class="relative min-h-0 flex-1 w-full overflow-y-auto overscroll-contain archive-scrollbar pr-4 pb-12"
         :class="{ 'is-scrolling': isScrolling }"
         @scroll="handleScroll"
       >
+        <ExGenesisEmptyTrades
+          v-if="trades.length === 0"
+          :locale="locale"
+          :title="locale === 'ru'
+            ? 'Здесь хранится история ваших сделок — она помогает отслеживать решения и результат стратегии.'
+            : 'Your trade history lives here, helping you track decisions and strategy performance.'"
+          @add-trade="emit('add-trade')"
+        />
+
         <!-- TRADES LIST GROUPED BY MONTH -->
-      <div class="flex flex-col space-y-12 pb-32">
+      <div v-else class="flex flex-col space-y-12 pb-32">
         <div v-for="group in groupedTrades" :key="group.month" class="flex flex-col">
           
           <!-- Month Header -->
@@ -131,6 +140,7 @@
 import { ref } from 'vue'
 import { useI18n } from '~/shared/i18n/useI18n'
 import ExPanel from '~/shared/ui/ExPanel.vue'
+import ExGenesisEmptyTrades from './ExGenesisEmptyTrades.vue'
 import { useTradeArchive } from '~/widgets/genesis/model/useTradeArchive'
 import { useGenesisTrades, useGenesisMatrixData } from '~/entities/genesis'
 
@@ -143,6 +153,7 @@ const props = defineProps<{ trades?: any[] }>()
 const emit = defineEmits<{
   (event: 'trade-context-menu', payload: { tradeId: string; event: MouseEvent }): void
   (event: 'share-strategy'): void
+  (event: 'add-trade'): void
 }>()
 
 const { locale } = useI18n()

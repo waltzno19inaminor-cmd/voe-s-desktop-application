@@ -72,10 +72,6 @@
       </g>
     </svg>
 
-    <div v-if="isEmpty || layout.blocks.length === 0" class="asset-heatmap__empty-state" role="status">
-      {{ locale === 'ru' ? 'АКТИВЫ ОТСУТСТВУЮТ' : 'NO ASSETS' }}
-    </div>
-
     <div v-if="layout.blocks.length" class="asset-heatmap__tooltip-layer">
       <div
         v-for="block in layout.blocks"
@@ -118,7 +114,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getTradePnl } from '~/widgets/genesis/model/metrics'
 import { aggregateTradesByAsset, getAssetHeatmapColor } from '~/widgets/genesis/model/metrics'
-import { useI18n } from '~/shared/i18n/useI18n'
 
 type Trade = Record<string, any>
 
@@ -158,7 +153,6 @@ const props = withDefaults(defineProps<{
   pnlMin?: number
   pnlMax?: number
   strokeWidth?: number
-  isEmpty?: boolean
 }>(), {
   trades: undefined,
   nodes: () => [],
@@ -167,8 +161,7 @@ const props = withDefaults(defineProps<{
   cacheKey: '',
   pnlMin: 0,
   pnlMax: 0,
-  strokeWidth: 0.8,
-  isEmpty: false
+  strokeWidth: 0.8
 })
 
 const emit = defineEmits<{
@@ -178,7 +171,6 @@ const emit = defineEmits<{
 }>()
 
 const inputTrades = computed(() => props.trades ?? props.nodes ?? [])
-const { locale } = useI18n()
 const safeStrokeWidth = computed(() => Math.max(0.1, Number(props.strokeWidth) || 0.8))
 const heatmapRoot = ref<HTMLDivElement | null>(null)
 const containerAspectRatio = ref(1000 / 640)
@@ -440,25 +432,6 @@ watch(layout, emitReady)
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.asset-heatmap__empty-state {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  color: currentColor;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.32em;
-  text-align: center;
-  text-transform: uppercase;
-  opacity: 0.42;
-  pointer-events: none;
 }
 
 .asset-heatmap__tooltip-layer {

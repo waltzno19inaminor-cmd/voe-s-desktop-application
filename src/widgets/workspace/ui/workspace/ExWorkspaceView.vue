@@ -94,7 +94,12 @@
 
                 <!-- Log -->
                 <div v-else-if="currentGenesisMode === 'log'" key="log" class="w-full h-full">
-                   <ExGenesisLog @exit="goToHub" @nodeMapState="isNodeMapActive = $event" @hudState="isHudActive = $event" />
+                   <ExGenesisLog
+                     @exit="goToHub"
+                     @nodeMapState="isNodeMapActive = $event"
+                     @hudState="isHudActive = $event"
+                     @createTrade="openNewTradeFromGenesisLog"
+                   />
                 </div>
              </Transition>
              </div>
@@ -718,6 +723,18 @@ const switchGenesisMode = (modeId) => {
       ...route.query,
       tab: 'genesis',
       mode
+    }
+  })
+}
+
+const openNewTradeFromGenesisLog = () => {
+  router.push({
+    path: `${genesisBasePath}/diary`,
+    query: {
+      ...route.query,
+      tab: 'genesis',
+      mode: 'diary',
+      entry: 'true'
     }
   })
 }

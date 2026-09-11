@@ -4434,7 +4434,8 @@ const updateNetworkState = () => {
 
 onMounted(() => {
   isComponentMounted = true
-  if (route.query.entry !== undefined) {
+  const shouldOpenTradeEntry = route.query.entry === 'true'
+  if (route.query.entry !== undefined && !shouldOpenTradeEntry) {
     router.replace({
       query: {
         ...route.query,
@@ -4443,7 +4444,7 @@ onMounted(() => {
     })
   }
 
-  isTradeEntryOpen.value = false
+  isTradeEntryOpen.value = shouldOpenTradeEntry
   isTradeEntryCloseModeActive.value = true
   activeTradeEntryPanel.value = null
 
