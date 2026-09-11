@@ -1,6 +1,14 @@
 <template>
   <div class="diary-3d-hub h-full w-full relative overflow-hidden bg-transparent nier-text-primary" ref="container">
 
+    <ExErrorAlert
+      :visible="showForecastTradesWarning"
+      :title="locale === 'ru' ? 'Недостаточно данных' : 'Insufficient Data'"
+      :message="locale === 'ru'
+        ? `Для прогноза необходимо минимум ${FORECAST_MIN_TRADES} сделок. В этой стратегии ${forecastEligibleTradeCount}.`
+        : `At least ${FORECAST_MIN_TRADES} trades are required for a forecast. This strategy has ${forecastEligibleTradeCount}.`"
+    />
+
     <Transition name="page-reify" mode="out-in">
       <ExTimeTreeTradeEntry
         v-if="showTimeTreeTradeDetails"
@@ -1290,6 +1298,7 @@ import { useThemeStore } from '~/features/store/useTheme'
 import ExPanel from '~/shared/ui/ExPanel.vue'
 import ExGothicCorners from '~/shared/ui/ExGothicCorners.vue'
 import ExButton from '~/shared/ui/ExButton.vue'
+import ExErrorAlert from '~/shared/ui/ExErrorAlert.vue'
 import { calculateTacticalHistory } from '~/shared/utils/tacticalHistory'
 import { tradeMatchesProtocol } from '~/shared/utils/scenarioConditionScope'
 import ExTradeAnalysisPanel from '~/widgets/genesis/ui/analytics/ExTradeAnalysisPanel.vue'
@@ -1438,6 +1447,9 @@ const updateShareCardViewport = () => {
 const showCapitalForecast = ref(false)
 const showCapitalForecastIntro = ref(false)
 const patternForecastLoading = ref(false)
+const FORECAST_MIN_TRADES = 20
+const showForecastTradesWarning = ref(false)
+let forecastTradesWarningTimer: ReturnType<typeof setTimeout> | null = null
 
 const tradeEfficiency = computed(() => {
   return mappedTradeForAnalysis.value?.percentileRank ?? 0
@@ -1728,6 +1740,23 @@ const currentTrades = computed(() => {
 const closedCurrentTrades = computed(() => {
   return currentTrades.value.filter(isClosedDiaryTrade)
 })
+
+const forecastEligibleTradeCount = computed(() => (
+  closedCurrentTrades.value.filter(hasFiniteTradePnl).length
+))
+
+const hasEnoughTradesForForecast = computed(() => (
+  forecastEligibleTradeCount.value >= FORECAST_MIN_TRADES
+))
+
+const showInsufficientForecastTrades = () => {
+  if (forecastTradesWarningTimer) clearTimeout(forecastTradesWarningTimer)
+  showForecastTradesWarning.value = true
+  forecastTradesWarningTimer = setTimeout(() => {
+    showForecastTradesWarning.value = false
+    forecastTradesWarningTimer = null
+  }, 5000)
+}
 
 const currentTradesForList = computed(() => {
   return scopeTradesToSelectedVersion(tradeStore.getAllTradesForStrategy(selectedStrategyId.value))
@@ -2489,13 +2518,18 @@ const exitTreeView = () => {
 }
 
 const toggleCapitalForecast = () => {
-  if (!canOpenCapitalForecast.value) {
-    openFeaturePaywall('diary.capitalForecast')
+  if (showCapitalForecast.value) {
+    showCapitalForecast.value = false
     return
   }
 
-  if (showCapitalForecast.value) {
-    showCapitalForecast.value = false
+  if (!hasEnoughTradesForForecast.value) {
+    showInsufficientForecastTrades()
+    return
+  }
+
+  if (!canOpenCapitalForecast.value) {
+    openFeaturePaywall('diary.capitalForecast')
     return
   }
 
@@ -2503,6 +2537,11 @@ const toggleCapitalForecast = () => {
 }
 
 const openCapitalForecastFromMenu = () => {
+  if (!hasEnoughTradesForForecast.value) {
+    showInsufficientForecastTrades()
+    return
+  }
+
   closeNavigationOverlays()
   viewType.value = 'timeTree'
   toggleCapitalForecast()
@@ -2516,6 +2555,12 @@ const openComplianceFromMenu = () => {
 }
 
 const acceptCapitalForecastIntro = async () => {
+  if (!hasEnoughTradesForForecast.value) {
+    showCapitalForecastIntro.value = false
+    showInsufficientForecastTrades()
+    return
+  }
+
   if (!canOpenCapitalForecast.value) {
     const authorized = await authorizeCapability('diary.capitalForecast')
     if (!authorized) {
@@ -4290,6 +4335,7 @@ onMounted(async () => {
 })
 onUnmounted(() => { 
   isLogComponentMounted = false
+  if (forecastTradesWarningTimer) clearTimeout(forecastTradesWarningTimer)
   window.removeEventListener('keydown', handleTimeTreeFullscreenKeydown, true)
   window.removeEventListener('keydown', handleGlobalKeydown)
   window.removeEventListener('pointerdown', handleTradeContextMenuPointerDown)
