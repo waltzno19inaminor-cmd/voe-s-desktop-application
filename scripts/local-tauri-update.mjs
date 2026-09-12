@@ -13,14 +13,14 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 const command = process.argv[2] || 'help'
 const releaseRepository = process.env.UPDATE_REPOSITORY || 'jorudr/JLJ'
 const releaseTag = process.env.UPDATE_CHANNEL || 'release'
-const expectedUpdaterKeyId = '38F98BF6CE29CAB3'
+const expectedUpdaterKeyId = '3E4432970578851F'
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
 
 process.chdir(root)
@@ -48,10 +48,10 @@ switch (command) {
     console.log(`Configuration verified: ${version}; updater key ${expectedUpdaterKeyId}`)
     break
   case 'build-mac':
-    buildMac()
+    await buildMac()
     break
   case 'build-windows':
-    buildWindows()
+    await buildWindows()
     break
   case 'upload-mac':
     uploadPlatform('macos')
@@ -98,20 +98,20 @@ function verifyProjectConfiguration() {
   return versions[0]
 }
 
-function buildMac() {
+async function buildMac() {
   requireHost('darwin', 'macOS')
   requireSigningEnvironment()
   const buildStartedAt = Date.now()
-  run(npx, ['tauri', 'build', '--target', 'universal-apple-darwin', '--bundles', 'app'])
+  await runTauriBuild(['tauri', 'build', '--target', 'universal-apple-darwin', '--bundles', 'app'])
   stageArtifact('macos', buildStartedAt)
 }
 
-function buildWindows() {
+async function buildWindows() {
   requireHost('win32', 'Windows')
   if (process.arch !== 'x64') fail(`Windows updater target must be x64; current architecture is ${process.arch}`)
   requireSigningEnvironment()
   const buildStartedAt = Date.now()
-  run(npx, ['tauri', 'build', '--bundles', 'nsis'])
+  await runTauriBuild(['tauri', 'build', '--bundles', 'nsis'])
   stageArtifact('windows', buildStartedAt)
 }
 
@@ -307,6 +307,17 @@ function validateSignature(signature, source) {
   if (!decoded.includes('untrusted comment:') || !decoded.includes('trusted comment:')) {
     fail(`Updater signature has an unexpected format: ${source}`)
   }
+  const lines = decoded.trim().split('\n')
+  if (lines.length >= 2) {
+    const sigBytes = Buffer.from(lines[1].trim(), 'base64')
+    if (sigBytes.length >= 10) {
+      const keyId = sigBytes.subarray(2, 10)
+      const keyIdHex = Buffer.from(keyId).reverse().toString('hex').toUpperCase()
+      if (keyIdHex !== expectedUpdaterKeyId) {
+        fail(`Signature in ${source} was generated with key ${keyIdHex}, but expected ${expectedUpdaterKeyId}`)
+      }
+    }
+  }
 }
 
 function decodeBase64(value, label) {
@@ -341,6 +352,31 @@ function run(executable, args) {
   const result = spawnSync(executable, args, { cwd: root, env: process.env, stdio: 'inherit' })
   if (result.error) fail(`${executable} failed to start: ${result.error.message}`)
   if (result.status !== 0) fail(`${executable} exited with code ${result.status}`)
+}
+
+function runTauriBuild(args) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(npx, args, { cwd: root, env: process.env, stdio: ['inherit', 'pipe', 'pipe'] })
+    let outputTail = ''
+    let keyMismatch = false
+
+    const forward = (destination) => (chunk) => {
+      destination.write(chunk)
+      outputTail = `${outputTail}${chunk.toString()}`.slice(-4_000)
+      if (outputTail.toLowerCase().includes('does not match the public key from')) keyMismatch = true
+    }
+
+    child.stdout.on('data', forward(process.stdout))
+    child.stderr.on('data', forward(process.stderr))
+    child.on('error', (error) => fail(`${npx} failed to start: ${error.message}`))
+    child.on('close', (code) => {
+      if (code !== 0) fail(`${npx} exited with code ${code}`)
+      if (keyMismatch) {
+        fail(`The private updater key does not match configured key ${expectedUpdaterKeyId}; artifacts were not staged`)
+      }
+      resolvePromise()
+    })
+  })
 }
 
 function capture(executable, args) {

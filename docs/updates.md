@@ -43,7 +43,7 @@ $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD="YOUR_KEY_PASSWORD"
 If you use a file path instead, place the matching public key next to it as
 `private-key-file.pub`; the release tool will verify its key ID before building.
 
-Installed `1.1.0` clients trust updater key `38F98BF6CE29CAB3`. The local tools
+Installed `1.1.0` clients trust updater key `3E4432970578851F`. The local tools
 reject a different configured public key.
 
 ## Publish an update
