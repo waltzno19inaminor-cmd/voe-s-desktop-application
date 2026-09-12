@@ -9,9 +9,8 @@ mod binance;
 mod bybit;
 mod ibkr;
 mod kraken;
+mod legacy_update_cleanup;
 mod metatrader5;
-pub mod patch;
-pub mod payload_update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,7 +28,6 @@ pub fn run() {
     }));
 
     let builder = builder.plugin(tauri_plugin_deep_link::init());
-    let builder = patch::register_patch_protocol(builder);
 
     let app = builder
         .manage(audio_recorder::NativeAudioRecorder::default())
@@ -48,11 +46,7 @@ pub fn run() {
             ibkr::ibkr_fetch_xml,
             kraken::kraken_signed_request,
             kraken::kraken_futures_signed_request,
-            metatrader5::mt5_request,
-            patch::patch_get_state,
-            patch::patch_verify_active,
-            patch::patch_clear_active,
-            patch::patch_install_from_upload
+            metatrader5::mt5_request
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -76,11 +70,10 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_fs::init())?;
-            // Full native releases are the only automatic update mechanism.
-            // Remove any legacy payload layer so it can never mask the bundled
-            // frontend after a native update.
-            if let Err(error) = payload_update::clear_legacy_payload_updates(app.handle()) {
-                log::error!("failed to clear legacy payload update: {error}");
+            // Signed Tauri releases are the only update mechanism. Remove old
+            // partial-update data so it cannot mask the bundled frontend.
+            if let Err(error) = legacy_update_cleanup::clear(app.handle()) {
+                log::error!("failed to clear legacy update data: {error}");
             }
             Ok(())
         })

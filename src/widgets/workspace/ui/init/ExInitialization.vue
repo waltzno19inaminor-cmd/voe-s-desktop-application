@@ -88,6 +88,9 @@
           <p class="text-[8px] font-mono lowercase italic text-black/60 text-center">
             {{ locale === 'ru' ? 'обновление успешно установлено. нажмите для перезапуска' : 'update successfully installed. click to restart' }}
           </p>
+          <p v-if="updateInstallationError" class="text-center text-[9px] font-mono break-words text-red-700/80">
+            {{ updateInstallationError }}
+          </p>
         </div>
 
         <!-- ── UPDATE CONFIRMATION CARD (when update is found) ── -->
@@ -766,21 +769,15 @@ const forceRelaunchApp = async () => {
     await relaunch()
   } catch (err) {
     console.warn('[Updater] Relaunch plugin call failed:', err)
+    isRelaunching.value = false
+    updateInstallationError.value = err instanceof Error
+      ? err.message
+      : (typeof err === 'string' ? err : JSON.stringify(err))
+    setUpdateCopy(
+      'ОШИБКА_ПЕРЕЗАПУСКА',
+      locale.value === 'ru' ? 'не удалось перезапустить приложение — повторите попытку' : 'could not restart the application — try again'
+    )
   }
-
-  // Fallback 1: reload location after 400ms if process relaunch didn't exit app
-  setTimeout(() => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  }, 400)
-
-  // Fallback 2: hard redirect after 800ms
-  setTimeout(() => {
-    if (typeof window !== 'undefined') {
-      window.location.href = window.location.href
-    }
-  }, 800)
 }
 
 const clearUpdateProgressTimer = () => {
@@ -865,7 +862,6 @@ const performNativeInstall = async (update: any) => {
       }
     }
   })
-  await update.close()
 
   clearUpdateProgressTimer()
   updateProgress.value = 100

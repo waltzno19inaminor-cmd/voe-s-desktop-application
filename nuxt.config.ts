@@ -91,7 +91,6 @@ export default defineNuxtConfig({
     '**/src-tauri/**',
     '**/.output/**',
     '**/.nuxt/**',
-    '**/.hotfix-work/**',
     '**/.secrets/**',
     '**/dist/**',
     // Static assets do not participate in Nuxt's module graph. Watching the
@@ -112,7 +111,6 @@ export default defineNuxtConfig({
           '**/src-tauri/**',
           '**/.output/**',
           '**/.nuxt/**',
-          '**/.hotfix-work/**',
           '**/.secrets/**',
           '**/dist/**',
           '**/public/**',
