@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+
 const command = process.argv[2] || 'help'
 const releaseRepository = process.env.UPDATE_REPOSITORY || 'jorudr/JLJ'
 const releaseTag = process.env.UPDATE_CHANNEL || 'release'
@@ -41,6 +42,9 @@ const artifacts = {
 
 switch (command) {
   case 'verify':
+    if (process.env.TAURI_SIGNING_PRIVATE_KEY || process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD) {
+      requireSigningEnvironment()
+    }
     console.log(`Configuration verified: ${version}; updater key ${expectedUpdaterKeyId}`)
     break
   case 'build-mac':
@@ -246,16 +250,31 @@ function requireSigningEnvironment() {
   const password = String(process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '')
   if (!key) fail('TAURI_SIGNING_PRIVATE_KEY is not set')
   if (!password) fail('TAURI_SIGNING_PRIVATE_KEY_PASSWORD is not set')
-  if (!existsSync(key)) {
-    fail('TAURI_SIGNING_PRIVATE_KEY must be a path to the local private key file')
-  }
-  if (!existsSync(`${key}.pub`)) {
-    fail(`Public key file is missing: ${key}.pub`)
+
+  if (existsSync(key)) {
+    if (!existsSync(`${key}.pub`)) {
+      fail(`Public key file is missing: ${key}.pub`)
+    }
+
+    verifyUpdaterPublicKey(readFileSync(`${key}.pub`, 'utf8').trim(), `${key}.pub`)
+    return
   }
 
-  const localPublicKey = decodeBase64(readFileSync(`${key}.pub`, 'utf8').trim(), `${key}.pub`)
-  if (!localPublicKey.includes(`minisign public key: ${expectedUpdaterKeyId}`)) {
-    fail(`Signing key ${key} does not match installed clients (${expectedUpdaterKeyId})`)
+  // Tauri accepts the private key contents directly, including its base64
+  // representation. The Tauri signer performs the authoritative validation.
+  const optionalPublicKey = String(process.env.TAURI_SIGNING_PUBLIC_KEY || '').trim()
+  if (optionalPublicKey) {
+    const publicKeyValue = existsSync(optionalPublicKey)
+      ? readFileSync(optionalPublicKey, 'utf8').trim()
+      : optionalPublicKey
+    verifyUpdaterPublicKey(publicKeyValue, 'TAURI_SIGNING_PUBLIC_KEY')
+  }
+}
+
+function verifyUpdaterPublicKey(value, source) {
+  const decoded = tryDecodeBase64(value) || value
+  if (!decoded.includes(`minisign public key: ${expectedUpdaterKeyId}`)) {
+    fail(`${source} does not match installed clients (${expectedUpdaterKeyId})`)
   }
 }
 
@@ -300,6 +319,16 @@ function decodeBase64(value, label) {
   }
 }
 
+function tryDecodeBase64(value) {
+  try {
+    const normalized = String(value).trim()
+    if (!normalized || !/^[A-Za-z0-9+/]+={0,2}$/.test(normalized) || normalized.length % 4 !== 0) return ''
+    return Buffer.from(normalized, 'base64').toString('utf8')
+  } catch {
+    return ''
+  }
+}
+
 function assetUrl(fileName) {
   return `https://github.com/${releaseRepository}/releases/download/${releaseTag}/${encodeURIComponent(fileName)}`
 }
@@ -336,7 +365,7 @@ Local signed Tauri update commands:
   npm run update:upload:windows
   npm run update:publish
 
-Build commands require TAURI_SIGNING_PRIVATE_KEY and
+Build commands require TAURI_SIGNING_PRIVATE_KEY (a key value or file path) and
 TAURI_SIGNING_PRIVATE_KEY_PASSWORD. Upload and publish commands require an
 authenticated GitHub CLI (gh auth login) or GH_TOKEN.
 `)
