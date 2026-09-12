@@ -19,7 +19,7 @@ updateJson('src-tauri/tauri.conf.json', (data) => {
 })
 
 replaceVersionInToml('src-tauri/Cargo.toml', /(\[package\][\s\S]*?^version\s*=\s*)"[^"]+"/m)
-replaceVersionInToml('src-tauri/Cargo.lock', /(\[\[package\]\]\s*\nname\s*=\s*"app"\s*\nversion\s*=\s*)"[^"]+"/m)
+replaceVersionInToml('src-tauri/Cargo.lock', /(\[\[package\]\]\s*\r?\nname\s*=\s*"app"\s*\r?\nversion\s*=\s*)"[^"]+"/m)
 
 console.log(`Unified application version set to ${version}`)
 

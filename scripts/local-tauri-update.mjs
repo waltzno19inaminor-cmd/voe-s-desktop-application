@@ -73,7 +73,7 @@ function verifyProjectConfiguration() {
   const cargoToml = readFileSync('src-tauri/Cargo.toml', 'utf8')
   const cargoLock = readFileSync('src-tauri/Cargo.lock', 'utf8')
   const cargoVersion = cargoToml.match(/^version\s*=\s*"([^"]+)"/m)?.[1]
-  const lockVersion = cargoLock.match(/name = "app"\nversion = "([^"]+)"/)?.[1]
+  const lockVersion = cargoLock.match(/name\s*=\s*"app"\s*\r?\n\s*version\s*=\s*"([^"]+)"/)?.[1]
   const versions = [packageJson.version, tauriConfig.version, cargoVersion, lockVersion]
 
   if (!versions[0] || versions.some((value) => value !== versions[0])) {
