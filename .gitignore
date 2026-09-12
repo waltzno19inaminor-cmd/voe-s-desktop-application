@@ -39,10 +39,8 @@ dist/
 __pycache__/
 *.pyc
 
-# Signing keys and hotfix build scratch
+# Signing keys
 *.key
 *.minisig
-.hotfix-work/
-dist/hotfix/
 target/
 **/target/

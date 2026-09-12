@@ -88,6 +88,9 @@
           <p class="text-[8px] font-mono lowercase italic text-black/60 text-center">
             {{ locale === 'ru' ? 'обновление успешно установлено. нажмите для перезапуска' : 'update successfully installed. click to restart' }}
           </p>
+          <p v-if="updateInstallationError" class="text-center text-[9px] font-mono break-words text-red-700/80">
+            {{ updateInstallationError }}
+          </p>
         </div>
 
         <!-- ── UPDATE CONFIRMATION CARD (when update is found) ── -->
@@ -100,9 +103,13 @@
             :class="{ 'cursor-not-allowed opacity-40': pendingUpdate.isSuitable === false }"
           >
             <span v-if="pendingUpdate.isSuitable === false">{{ locale === 'ru' ? 'Сначала обновите приложение' : 'Update the application first' }}</span>
+            <span v-else-if="updateInstallationError">{{ locale === 'ru' ? 'Повторить установку' : 'Retry installation' }}</span>
             <span v-else>{{ locale === 'ru' ? 'Установить обновление' : 'Install Update' }}</span>
           </button>
 
+          <p v-if="updateInstallationError" class="text-center text-[9px] font-mono break-words text-red-700/80">
+            {{ updateInstallationError }}
+          </p>
           <p v-if="pendingUpdate.reason" class="text-center text-[9px] font-mono text-red-700/80">
             {{ pendingUpdate.reason }}
           </p>
@@ -375,7 +382,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
-import { useRuntimeConfig } from '#imports'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
 import pkg from '../../../../../package.json'
@@ -398,59 +404,18 @@ import { auth as firebaseAuth, db, getFirebaseAppCheckToken } from '~/shared/fir
 import { useThemeStore } from '~/features/store/useTheme'
 import DesignVignette from '~/widgets/style/ui/DesignVignette.vue'
 
-type PayloadInstallResult = {
-  downloadedFiles: number
-  reusedFiles: number
-  state: {
-    version?: string | null
-    active: boolean
-  }
-}
-
 interface AvailableUpdate {
-  type: 'native' | 'payload'
+  type: 'native'
   version: string
   notes?: string
   nativeUpdateObj?: any
-  manifestUrl?: string
-  minimumNativeVersion?: string
   isSuitable?: boolean
   reason?: string
 }
 
-const baseVersion = String(tauriConfig.version || pkg.version || '1.1.2')
+const baseVersion = String(tauriConfig.version || pkg.version || '0.0.0')
 const installedNativeVersion = ref(baseVersion)
-const activePayloadVersion = ref<string | null>(null)
-const appVersion = computed(() => activePayloadVersion.value || installedNativeVersion.value)
-
-const isVersionNewer = (remoteVer: string, currentVer: string): boolean => {
-  const normalize = (value: string) => ((value || '').replace(/^[vV]/, '').trim().split('+')[0]) || ''
-  const [remoteCore = '', remotePrerelease = ''] = normalize(remoteVer).split('-', 2)
-  const [currentCore = '', currentPrerelease = ''] = normalize(currentVer).split('-', 2)
-  const remoteParts = remoteCore.split('.').map(part => Number.parseInt(part, 10) || 0)
-  const currentParts = currentCore.split('.').map(part => Number.parseInt(part, 10) || 0)
-  const length = Math.max(remoteParts.length, currentParts.length)
-
-  for (let index = 0; index < length; index += 1) {
-    const remote = remoteParts[index] || 0
-    const current = currentParts[index] || 0
-    if (remote > current) return true
-    if (remote < current) return false
-  }
-
-  if (!remotePrerelease && currentPrerelease) return true
-  if (remotePrerelease && !currentPrerelease) return false
-  return remotePrerelease.localeCompare(currentPrerelease, undefined, { numeric: true }) > 0
-}
-
-const currentPlatformFamily = (): 'macos' | 'windows' | 'linux' | null => {
-  if (typeof navigator === 'undefined') return null
-  const platform = `${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase()
-  if (platform.includes('mac')) return 'macos'
-  if (platform.includes('win')) return 'windows'
-  if (platform.includes('linux')) return 'linux'
-  return null
-}
+const appVersion = computed(() => installedNativeVersion.value)
 
 const emit = defineEmits(['initiate'])
 const { locale, setLocale } = useI18n()
@@ -792,6 +757,7 @@ let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 const pendingUpdate = ref<AvailableUpdate | null>(null)
 const isUpdateInstalled = ref(false)
 const isRelaunching = ref(false)
+const updateInstallationError = ref('')
 
 const forceRelaunchApp = async () => {
   if (isRelaunching.value) return
@@ -803,21 +769,15 @@ const forceRelaunchApp = async () => {
     await relaunch()
   } catch (err) {
     console.warn('[Updater] Relaunch plugin call failed:', err)
+    isRelaunching.value = false
+    updateInstallationError.value = err instanceof Error
+      ? err.message
+      : (typeof err === 'string' ? err : JSON.stringify(err))
+    setUpdateCopy(
+      'ОШИБКА_ПЕРЕЗАПУСКА',
+      locale.value === 'ru' ? 'не удалось перезапустить приложение — повторите попытку' : 'could not restart the application — try again'
+    )
   }
-
-  // Fallback 1: reload location after 400ms if process relaunch didn't exit app
-  setTimeout(() => {
-    if (typeof window !== 'undefined') {
-      window.location.reload()
-    }
-  }, 400)
-
-  // Fallback 2: hard redirect after 800ms
-  setTimeout(() => {
-    if (typeof window !== 'undefined') {
-      window.location.href = window.location.href
-    }
-  }, 800)
 }
 
 const clearUpdateProgressTimer = () => {
@@ -884,69 +844,6 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
   }
 }
 
-const checkPayloadUpdate = async (manifestUrl: string): Promise<AvailableUpdate | null> => {
-  try {
-    const { invoke } = await import('@tauri-apps/api/core')
-    let manifest: any = null
-
-    try {
-      manifest = await invoke('payload_update_fetch_manifest', { manifestUrl })
-    } catch (invokeErr) {
-      const res = await fetch(manifestUrl)
-      if (!res.ok) return null
-      manifest = await res.json()
-    }
-
-    if (!manifest || !manifest.version) return null
-
-    const localState = await invoke<{ version?: string | null; active: boolean }>('payload_update_get_state').catch(() => null)
-
-    if (localState?.active && localState?.version) {
-      activePayloadVersion.value = localState.version
-    }
-    const activeVersion = activePayloadVersion.value || installedNativeVersion.value
-
-    let isSuitable = true
-    let reason = ''
-
-    if (manifest.appIdentifier && manifest.appIdentifier !== tauriConfig.identifier) {
-      isSuitable = false
-      reason = locale.value === 'ru'
-        ? `Идентификатор приложения (${manifest.appIdentifier}) не совпадает с установленным (${tauriConfig.identifier})`
-        : `App identifier (${manifest.appIdentifier}) does not match installed (${tauriConfig.identifier})`
-    } else if (manifest.platform && manifest.platform !== 'any' && currentPlatformFamily() && !String(manifest.platform).startsWith(currentPlatformFamily()!)) {
-      isSuitable = false
-      reason = locale.value === 'ru'
-        ? `Версия релиза предназначена для платформы ${manifest.platform}`
-        : `Release version is built for platform ${manifest.platform}`
-    }
-
-    const minimumNativeVersion = String(manifest.minimumNativeVersion || '').trim()
-    if (isSuitable && minimumNativeVersion && isVersionNewer(minimumNativeVersion, installedNativeVersion.value)) {
-      isSuitable = false
-      reason = locale.value === 'ru'
-        ? `Payload требует приложение ${minimumNativeVersion} или новее. Сейчас установлено ${installedNativeVersion.value}`
-        : `Payload requires application ${minimumNativeVersion} or newer. ${installedNativeVersion.value} is installed`
-    }
-
-    if (isVersionNewer(manifest.version, activeVersion) || !isSuitable) {
-      return {
-        type: 'payload',
-        version: manifest.version,
-        notes: locale.value === 'ru' ? 'Обновление веб-интерфейса и аналитики' : 'UI payload & analytics update',
-        manifestUrl,
-        minimumNativeVersion: minimumNativeVersion || undefined,
-        isSuitable,
-        reason
-      }
-    }
-    return null
-  } catch (err) {
-    console.warn('[PayloadUpdater] Check failed:', err)
-    return null
-  }
-}
-
 const performNativeInstall = async (update: any) => {
   setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', `загрузка версии ${update.version}`)
   updateProgress.value = 18
@@ -965,7 +862,6 @@ const performNativeInstall = async (update: any) => {
       }
     }
   })
-  await update.close()
 
   clearUpdateProgressTimer()
   updateProgress.value = 100
@@ -981,86 +877,31 @@ const performNativeInstall = async (update: any) => {
 const downloadSpeedText = ref('')
 const remainingSizeText = ref('')
 
-const performPayloadInstall = async (manifestUrl: string) => {
-  setUpdateCopy('ПОДГОТОВКА_К_ЗАГРУЗКЕ', 'инициализация потока скачивания')
-  updateProgress.value = 5
-
-  const { invoke } = await import('@tauri-apps/api/core')
-  const { listen } = await import('@tauri-apps/api/event')
-
-  let unlistenProgress: (() => void) | null = null
-
-  try {
-    unlistenProgress = await listen<any>('payload-download-progress', (event) => {
-      const data = event.payload
-      if (!data) return
-
-      if (data.stage === 'downloading') {
-        const speedMB = (data.speedBytesPerSec / (1024 * 1024)).toFixed(1)
-        const remainingMB = (data.remainingBytes / (1024 * 1024)).toFixed(1)
-        const downloadedMB = (data.downloadedBytes / (1024 * 1024)).toFixed(1)
-        const totalMB = (data.totalBytes / (1024 * 1024)).toFixed(1)
-
-        downloadSpeedText.value = locale.value === 'ru' ? `СКОРОСТЬ: ${speedMB} МБ/с` : `SPEED: ${speedMB} MB/s`
-        remainingSizeText.value = locale.value === 'ru'
-          ? `ОСТАЛОСЬ: ${remainingMB} МБ (${downloadedMB}/${totalMB} МБ)`
-          : `REMAINING: ${remainingMB} MB (${downloadedMB}/${totalMB} MB)`
-
-        updateProgress.value = Math.min(90, Math.max(5, Math.round(data.percentage)))
-        setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', locale.value === 'ru' ? 'скачивание пакета ресурсов' : 'downloading update payload')
-      } else if (data.stage === 'extracting' || data.stage === 'verifying') {
-        downloadSpeedText.value = ''
-        remainingSizeText.value = ''
-        updateProgress.value = 95
-        setUpdateCopy('РАСПАКОВКА_И_ПРОВЕРКА', locale.value === 'ru' ? 'установка и проверка целостности файлов' : 'unpacking and verifying files')
-      }
-    })
-
-    const result = await invoke<PayloadInstallResult>('payload_update_install_from_feed', {
-      manifestUrl,
-    })
-
-    if (unlistenProgress) unlistenProgress()
-
-    if ((result.downloadedFiles > 0 || result.reusedFiles > 0) && result.state.active) {
-      updateProgress.value = 100
-      downloadSpeedText.value = ''
-      remainingSizeText.value = ''
-      isUpdateInstalled.value = true
-      setUpdateCopy('ОБНОВЛЕНИЕ_ГОТОВО', locale.value === 'ru' ? 'обновление установлено. требуется перезапуск' : 'update installed. restart required')
-      setTimeout(() => {
-        void forceRelaunchApp()
-      }, 450)
-      return
-    }
-  } catch (err) {
-    if (unlistenProgress) unlistenProgress()
-    downloadSpeedText.value = ''
-    remainingSizeText.value = ''
-    console.warn('[Updater] Installation failed:', err)
-    throw err
-  }
-}
-
 const confirmAndInstallUpdate = async () => {
   if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
   const updateToInstall = { ...pendingUpdate.value }
   pendingUpdate.value = null
+  updateInstallationError.value = ''
 
   try {
     setUpdateCopy('ПОДГОТОВКА_К_ОБНОВЛЕНИЮ', 'инициализация процесса установки')
     updateProgress.value = 10
 
-    if (updateToInstall.type === 'native' && updateToInstall.nativeUpdateObj) {
+    if (updateToInstall.nativeUpdateObj) {
       await performNativeInstall(updateToInstall.nativeUpdateObj)
-    } else if (updateToInstall.type === 'payload' && updateToInstall.manifestUrl) {
-      await performPayloadInstall(updateToInstall.manifestUrl || 'https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json')
     } else {
-      await runArtificialUpdateProgress()
+      throw new Error(locale.value === 'ru' ? 'Файл полного обновления недоступен.' : 'Full update package is unavailable.')
     }
   } catch (err) {
     console.warn('[Updater] Installation failed:', err)
-    await runArtificialUpdateProgress()
+    pendingUpdate.value = updateToInstall
+    updateInstallationError.value = err instanceof Error
+      ? err.message
+      : (typeof err === 'string' ? err : JSON.stringify(err))
+    setUpdateCopy(
+      'ОШИБКА_УСТАНОВКИ',
+      locale.value === 'ru' ? 'обновление не установлено — повторите попытку' : 'update was not installed — try again'
+    )
   }
 }
 
@@ -1071,8 +912,6 @@ const skipUpdate = () => {
 
 const startUpdateCheck = async () => {
   phase.value = 'update'
-  const config = useRuntimeConfig()
-  const manifestUrl = String(config.public.payloadManifestUrl || '').trim()
   const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI_INTERNALS__
 
   if (!isTauri) {
@@ -1087,23 +926,12 @@ const startUpdateCheck = async () => {
     setUpdateCopy('ПРОВЕРКА_ОБНОВЛЕНИЙ', 'проверка доступных обновлений')
     updateProgress.value = 8
 
-    // 1. Check Native Update
     const nativeUpdate = await checkNativeUpdate()
     if (nativeUpdate) {
       pendingUpdate.value = nativeUpdate
       return
     }
 
-    // 2. Check Payload Update
-    if (manifestUrl) {
-      const payloadUpdate = await checkPayloadUpdate(manifestUrl)
-      if (payloadUpdate) {
-        pendingUpdate.value = payloadUpdate
-        return
-      }
-    }
-
-    // If no real update found
     await runArtificialUpdateProgress()
   } catch (error) {
     console.warn('[updater] initialization update check failed', error)

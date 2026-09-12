@@ -9,9 +9,8 @@ mod binance;
 mod bybit;
 mod ibkr;
 mod kraken;
+mod legacy_update_cleanup;
 mod metatrader5;
-pub mod patch;
-pub mod payload_update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -29,7 +28,6 @@ pub fn run() {
     }));
 
     let builder = builder.plugin(tauri_plugin_deep_link::init());
-    let builder = patch::register_patch_protocol(builder);
 
     let app = builder
         .manage(audio_recorder::NativeAudioRecorder::default())
@@ -48,15 +46,7 @@ pub fn run() {
             ibkr::ibkr_fetch_xml,
             kraken::kraken_signed_request,
             kraken::kraken_futures_signed_request,
-            metatrader5::mt5_request,
-            patch::patch_get_state,
-            patch::patch_verify_active,
-            patch::patch_clear_active,
-            patch::patch_install_from_upload,
-            payload_update::payload_update_get_state,
-            payload_update::payload_update_clear,
-            payload_update::payload_update_fetch_manifest,
-            payload_update::payload_update_install_from_feed
+            metatrader5::mt5_request
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -80,14 +70,11 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_dialog::init())?;
             app.handle().plugin(tauri_plugin_process::init())?;
             app.handle().plugin(tauri_plugin_fs::init())?;
-            // Development must always use Tauri's devUrl. A previously installed
-            // production payload shares the same app identifier and would otherwise
-            // replace the Nuxt dev server with jljpatch:// content.
-            if !cfg!(debug_assertions) {
-                patch::navigate_to_active_resource_patch(app);
-                payload_update::navigate_to_active_payload(app);
+            // Signed Tauri releases are the only update mechanism. Remove old
+            // partial-update data so it cannot mask the bundled frontend.
+            if let Err(error) = legacy_update_cleanup::clear(app.handle()) {
+                log::error!("failed to clear legacy update data: {error}");
             }
-
             Ok(())
         })
         .build(tauri::generate_context!())

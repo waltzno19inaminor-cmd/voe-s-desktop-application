@@ -344,105 +344,6 @@
                 </div>
               </section>
 
-              <section v-else class="max-w-3xl space-y-7">
-                <input
-                  ref="patchFileInput"
-                  type="file"
-                  class="hidden"
-                  accept=".jljpatch,application/octet-stream"
-                  @change="handlePatchFileInput"
-                />
-
-                <div
-                  class="relative overflow-hidden border nier-border-primary bg-black/[0.025] dark:bg-white/[0.025] p-6 transition-colors duration-300"
-                  :class="isPatchDragActive ? 'border-black dark:border-white bg-black/[0.06] dark:bg-white/[0.08]' : ''"
-                  @dragenter.prevent="isPatchDragActive = true"
-                  @dragover.prevent="isPatchDragActive = true"
-                  @dragleave.prevent="isPatchDragActive = false"
-                  @drop.prevent="handlePatchDrop"
-                >
-                  <div class="absolute left-0 top-0 h-full w-1 bg-black/80 dark:bg-white/80 opacity-70"></div>
-                  <div class="absolute right-4 top-4 text-[8px] font-mono uppercase tracking-[0.35em] text-black/20 dark:text-white/20">
-                    JLJPATCH
-                  </div>
-
-                  <div class="grid gap-6 md:grid-cols-[1fr_180px] md:items-end">
-                    <div class="space-y-4">
-                      <div class="space-y-2">
-                        <span class="block text-[9px] font-mono uppercase tracking-[0.35em] opacity-35">
-                          {{ locale === 'ru' ? 'Локальный файл патча' : 'Local patch file' }}
-                        </span>
-                        <h3 class="text-xl font-serif tracking-[0.08em] nier-text-primary">
-                          {{ selectedPatchFile ? selectedPatchFile.name : (locale === 'ru' ? 'Перетащите .jljpatch сюда' : 'Drop .jljpatch here') }}
-                        </h3>
-                        <p class="text-[12px] leading-6 text-black/55 dark:text-white/55">
-                          {{ selectedPatchFile ? patchFileSummary : (locale === 'ru' ? 'Или выберите файл вручную через кастомную кнопку ниже. Нативный input скрыт.' : 'Or choose a file manually through the custom control below. The native input stays hidden.') }}
-                        </p>
-                      </div>
-
-                      <div class="flex flex-wrap items-center gap-3">
-                        <button
-                          type="button"
-                          class="border border-black/15 dark:border-white/15 bg-black text-white dark:bg-white dark:text-[#0a0a0a] px-5 py-3 text-[9px] font-mono uppercase tracking-[0.32em] font-black transition-colors duration-300 hover:bg-black/85 dark:hover:bg-white/85"
-                          @click="openPatchPicker"
-                        >
-                          {{ locale === 'ru' ? 'Выбрать патч' : 'Choose patch' }}
-                        </button>
-                        <button
-                          type="button"
-                          class="border nier-border-primary px-5 py-3 text-[9px] font-mono uppercase tracking-[0.32em] font-black transition-colors duration-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-35"
-                          :disabled="!selectedPatchFile || patchInstallState === 'installing' || patchInstallState === 'clearing'"
-                          @click="installSelectedPatch"
-                        >
-                          {{ patchInstallState === 'installing' ? (locale === 'ru' ? 'Загрузка' : 'Uploading') : (locale === 'ru' ? 'Установить' : 'Install') }}
-                        </button>
-                        <button
-                          type="button"
-                          class="border border-red-500/25 bg-red-500/5 px-5 py-3 text-[9px] font-mono uppercase tracking-[0.32em] font-black text-red-700 transition-colors duration-300 hover:bg-red-500/10 dark:text-red-300 disabled:cursor-not-allowed disabled:opacity-35"
-                          :disabled="patchInstallState === 'installing' || patchInstallState === 'clearing'"
-                          @click="clearActivePatch"
-                        >
-                          {{ patchInstallState === 'clearing' ? (locale === 'ru' ? 'Очистка' : 'Clearing') : (locale === 'ru' ? 'Удалить активный' : 'Clear active') }}
-                        </button>
-                        <button
-                          v-if="selectedPatchFile"
-                          type="button"
-                          class="text-[9px] font-mono uppercase tracking-[0.28em] opacity-45 transition-opacity hover:opacity-90"
-                          :disabled="patchInstallState === 'installing' || patchInstallState === 'clearing'"
-                          @click="resetPatchUpload"
-                        >
-                          {{ locale === 'ru' ? 'Сбросить' : 'Reset' }}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="border nier-border-primary bg-white/35 dark:bg-black/20 p-4">
-                      <div class="text-[8px] font-mono uppercase tracking-[0.35em] opacity-35">
-                        {{ locale === 'ru' ? 'Статус' : 'Status' }}
-                      </div>
-                      <div class="mt-3 text-[12px] font-mono uppercase tracking-[0.22em] nier-text-primary break-words">
-                        {{ patchStatusLabel }}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div v-if="patchInstallState === 'installing'" class="mt-6 h-1 overflow-hidden bg-black/10 dark:bg-white/10">
-                    <div class="h-full w-1/2 bg-black dark:bg-white patch-upload-scan"></div>
-                  </div>
-                </div>
-
-                <div
-                  v-if="patchInstallMessage"
-                  class="border px-5 py-4 text-[10px] font-mono uppercase tracking-[0.2em] leading-6"
-                  :class="patchInstallState === 'success'
-                    ? 'border-emerald-500/35 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                    : patchInstallState === 'error'
-                      ? 'border-red-500/35 bg-red-500/10 text-red-700 dark:text-red-300'
-                      : 'nier-border-primary nier-text-primary bg-black/[0.02] dark:bg-white/[0.02]'"
-                >
-                  {{ patchInstallMessage }}
-                </div>
-              </section>
             </main>
           </div>
         </ExPanel>
@@ -454,7 +355,6 @@
 <script setup lang="ts">
 import { computed, ref, onBeforeUnmount, watch } from 'vue'
 import { doc, onSnapshot } from 'firebase/firestore'
-import { invoke } from '@tauri-apps/api/core'
 import { useAuthStore } from '~/entities/user/auth.store'
 import { useProfile } from '~/widgets/profile/model/useProfile'
 import ExPanel from '~/shared/ui/ExPanel.vue'
@@ -466,7 +366,6 @@ import { isAccessPlan, type AccessPlan } from '~/features/access/model/accessEnt
 const themeStore = useThemeStore()
 const isDark = computed(() => themeStore.settings.isDark)
 const SHOW_ACCOUNT_TYPE = false
-const SHOW_PATCH_TAB = false
 
 const props = defineProps<{
   open: boolean
@@ -534,8 +433,7 @@ const selectStatus = async (statusName: string) => {
   isStatusDropdownOpen.value = false
 }
 
-type ProfileOverlayTab = 'profile' | 'themes' | 'license' | 'patch'
-type PatchInstallState = 'idle' | 'ready' | 'installing' | 'clearing' | 'success' | 'cleared' | 'error'
+type ProfileOverlayTab = 'profile' | 'themes' | 'license'
 
 const activeTab = ref<ProfileOverlayTab>('profile')
 const themeImageInput = ref<HTMLInputElement | null>(null)
@@ -635,16 +533,6 @@ const activeTabMeta = computed(() => {
     }
   }
 
-  if (activeTab.value === 'patch') {
-    return {
-      eyebrow: locale.value === 'ru' ? 'Патчи' : 'Patches',
-      title: locale.value === 'ru' ? 'Локальная установка' : 'Local install',
-      description: locale.value === 'ru'
-        ? 'Загрузите скачанный .jljpatch, дождитесь проверки и получите явный статус установки.'
-        : 'Upload a downloaded .jljpatch, wait for validation, and get an explicit install status.'
-    }
-  }
-
   return {
     eyebrow: locale.value === 'ru' ? 'Аккаунт' : 'Account',
     title: locale.value === 'ru' ? 'Личные данные' : 'Personal details',
@@ -660,10 +548,6 @@ const profileTabs = computed(() => {
     { key: 'themes', label: locale.value === 'ru' ? 'Темы' : 'Themes', note: locale.value === 'ru' ? 'Фон' : 'Visual' },
     { key: 'license', label: locale.value === 'ru' ? 'Лицензия' : 'License', note: locale.value === 'ru' ? 'Доступ' : 'Access' }
   ]
-
-  if (SHOW_PATCH_TAB) {
-    tabs.push({ key: 'patch', label: locale.value === 'ru' ? 'Патч' : 'Patch', note: locale.value === 'ru' ? 'Hotfix' : 'Hotfix' })
-  }
 
   return tabs
 })
@@ -722,163 +606,6 @@ function saveThemeSettings() {
   void themeStore.save()
 }
 
-const patchFileInput = ref<HTMLInputElement | null>(null)
-const selectedPatchFile = ref<File | null>(null)
-const isPatchDragActive = ref(false)
-const patchInstallState = ref<PatchInstallState>('idle')
-const patchInstallMessage = ref('')
-const MAX_PATCH_FILE_BYTES = 50 * 1024 * 1024
-
-const patchFileSummary = computed(() => {
-  if (!selectedPatchFile.value) return ''
-  return `${formatPatchFileSize(selectedPatchFile.value.size)} · ${selectedPatchFile.value.type || 'application/jljpatch'}`
-})
-
-const patchStatusLabel = computed(() => {
-  if (patchInstallState.value === 'installing') return locale.value === 'ru' ? 'Загрузка патча' : 'Uploading patch'
-  if (patchInstallState.value === 'clearing') return locale.value === 'ru' ? 'Очистка патча' : 'Clearing patch'
-  if (patchInstallState.value === 'success') return locale.value === 'ru' ? 'Установлен' : 'Installed'
-  if (patchInstallState.value === 'cleared') return locale.value === 'ru' ? 'Удалён' : 'Cleared'
-  if (patchInstallState.value === 'error') return locale.value === 'ru' ? 'Ошибка' : 'Failed'
-  if (selectedPatchFile.value) return locale.value === 'ru' ? 'Готов к установке' : 'Ready to install'
-  return locale.value === 'ru' ? 'Ожидание файла' : 'Waiting for file'
-})
-
-function openPatchPicker() {
-  patchFileInput.value?.click()
-}
-
-function handlePatchFileInput(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) selectPatchFile(file)
-  input.value = ''
-}
-
-function handlePatchDrop(event: DragEvent) {
-  isPatchDragActive.value = false
-  const file = event.dataTransfer?.files?.[0]
-  if (file) selectPatchFile(file)
-}
-
-function selectPatchFile(file: File) {
-  selectedPatchFile.value = file
-  patchInstallMessage.value = ''
-
-  if (!isValidPatchFile(file)) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? 'Неверный формат файла. Разрешены только .jljpatch.'
-      : 'Invalid file format. Only .jljpatch files are allowed.'
-    return
-  }
-
-  if (!isPatchFileSizeAllowed(file)) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? `Файл патча слишком большой. Максимум ${formatPatchFileSize(MAX_PATCH_FILE_BYTES)}.`
-      : `Patch file is too large. Maximum is ${formatPatchFileSize(MAX_PATCH_FILE_BYTES)}.`
-    return
-  }
-
-  patchInstallState.value = 'ready'
-}
-
-function resetPatchUpload() {
-  selectedPatchFile.value = null
-  patchInstallState.value = 'idle'
-  patchInstallMessage.value = ''
-  isPatchDragActive.value = false
-}
-
-async function installSelectedPatch() {
-  const file = selectedPatchFile.value
-  if (!file) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru' ? 'Сначала выберите файл патча.' : 'Choose a patch file first.'
-    return
-  }
-
-  if (!isValidPatchFile(file)) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru' ? 'Можно установить только .jljpatch файл.' : 'Only .jljpatch files can be installed.'
-    return
-  }
-
-  if (!isPatchFileSizeAllowed(file)) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? `Файл патча слишком большой. Максимум ${formatPatchFileSize(MAX_PATCH_FILE_BYTES)}.`
-      : `Patch file is too large. Maximum is ${formatPatchFileSize(MAX_PATCH_FILE_BYTES)}.`
-    return
-  }
-
-  patchInstallState.value = 'installing'
-  patchInstallMessage.value = locale.value === 'ru' ? 'Чтение и передача патча...' : 'Reading and uploading patch...'
-
-  try {
-    const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
-    const result = await invoke<{ patchId?: string; patchLevel?: string } | string>('patch_install_from_upload', {
-      fileName: file.name,
-      bytes
-    })
-    const resultLabel = typeof result === 'string' ? result : (result.patchLevel || result.patchId || file.name)
-    patchInstallState.value = 'success'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? `Патч успешно установлен: ${resultLabel}. Перезапустите приложение для применения.`
-      : `Patch installed successfully: ${resultLabel}. Restart the app to apply it.`
-  } catch (err) {
-    patchInstallState.value = 'error'
-    const rawMessage = String(err || '')
-    const backendMissing = rawMessage.includes('patch_install_from_upload') || rawMessage.toLowerCase().includes('command')
-    patchInstallMessage.value = backendMissing
-      ? (locale.value === 'ru'
-        ? 'UI готов, но backend-команда установки патча ещё не подключена.'
-        : 'The UI is ready, but the patch install backend command is not connected yet.')
-      : (locale.value === 'ru'
-        ? `Не удалось установить патч: ${rawMessage}`
-        : `Failed to install patch: ${rawMessage}`)
-  }
-}
-
-async function clearActivePatch() {
-  const confirmed = window.confirm(locale.value === 'ru'
-    ? 'Удалить активный патч? После этого нужно перезапустить приложение.'
-    : 'Clear the active patch? You will need to restart the app after this.')
-  if (!confirmed) return
-
-  patchInstallState.value = 'clearing'
-  patchInstallMessage.value = locale.value === 'ru' ? 'Удаление активного патча...' : 'Clearing active patch...'
-
-  try {
-    await invoke('patch_clear_active')
-    selectedPatchFile.value = null
-    patchInstallState.value = 'cleared'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? 'Активный патч удалён. Перезапустите приложение, чтобы вернуться к основной версии.'
-      : 'Active patch cleared. Restart the app to return to the base version.'
-  } catch (err) {
-    patchInstallState.value = 'error'
-    patchInstallMessage.value = locale.value === 'ru'
-      ? `Не удалось удалить активный патч: ${String(err || '')}`
-      : `Failed to clear active patch: ${String(err || '')}`
-  }
-}
-
-function isValidPatchFile(file: File) {
-  return file.name.toLowerCase().endsWith('.jljpatch')
-}
-
-function isPatchFileSizeAllowed(file: File) {
-  return file.size <= MAX_PATCH_FILE_BYTES
-}
-
-function formatPatchFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
 
 
 
@@ -920,10 +647,6 @@ onBeforeUnmount(() => {
 .profile-overlay-enter-from,
 .profile-overlay-leave-to {
   opacity: 0;
-}
-
-.patch-upload-scan {
-  animation: patch-upload-scan 1.05s ease-in-out infinite;
 }
 
 .status-dropdown-enter-active,
@@ -974,17 +697,4 @@ onBeforeUnmount(() => {
   }
 }
 
-@keyframes patch-upload-scan {
-  0% {
-    transform: translateX(-120%);
-    opacity: 0.25;
-  }
-  45% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(240%);
-    opacity: 0.35;
-  }
-}
 </style>

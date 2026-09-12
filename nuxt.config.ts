@@ -3,11 +3,6 @@ export default defineNuxtConfig({
   telemetry: false,
   srcDir: 'src/',
   ssr: false,
-  runtimeConfig: {
-    public: {
-      payloadManifestUrl: process.env.NUXT_PUBLIC_PAYLOAD_MANIFEST_URL || 'https://github.com/jorudr/JLJ/releases/download/release/payload-manifest.json',
-    },
-  },
   devServer: {
     host: '0.0.0.0',
     port: 3000,
@@ -96,7 +91,6 @@ export default defineNuxtConfig({
     '**/src-tauri/**',
     '**/.output/**',
     '**/.nuxt/**',
-    '**/.hotfix-work/**',
     '**/.secrets/**',
     '**/dist/**',
     // Static assets do not participate in Nuxt's module graph. Watching the
@@ -117,7 +111,6 @@ export default defineNuxtConfig({
           '**/src-tauri/**',
           '**/.output/**',
           '**/.nuxt/**',
-          '**/.hotfix-work/**',
           '**/.secrets/**',
           '**/dist/**',
           '**/public/**',

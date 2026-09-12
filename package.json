@@ -1,6 +1,6 @@
 {
   "name": "jlj",
-  "version": "1.1.2",
+  "version": "1.1.5",
   "type": "module",
   "private": true,
   "scripts": {
@@ -8,10 +8,15 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "hotfix:package": "node scripts/create-hotfix-patch.mjs",
-    "payload:manifest": "node scripts/create-payload-manifest.mjs",
+    "version:set": "node scripts/set-version.mjs",
+    "update:verify": "node scripts/local-tauri-update.mjs verify",
+    "update:build:mac": "node scripts/local-tauri-update.mjs build-mac",
+    "update:upload:mac": "node scripts/local-tauri-update.mjs upload-mac",
+    "update:build:windows": "node scripts/local-tauri-update.mjs build-windows",
+    "update:upload:windows": "node scripts/local-tauri-update.mjs upload-windows",
+    "update:publish": "node scripts/local-tauri-update.mjs publish",
     "build:dmg": "node scripts/build-dmg.mjs",
-    "build:windows": "tauri build --bundles nsis --config src-tauri/tauri.installer-only.conf.json",
+    "build:windows": "node scripts/local-tauri-update.mjs build-windows",
     "postinstall": "nuxt prepare",
     "tauri": "tauri"
   },
