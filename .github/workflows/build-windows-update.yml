@@ -1,0 +1,82 @@
+name: Build & Release Windows Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_manifest:
+        description: 'Publish latest.json manifest after upload (requires macOS asset already uploaded)'
+        type: boolean
+        default: false
+      target_repository:
+        description: 'Target GitHub repository (owner/repo)'
+        type: string
+        default: 'jorudr/JLJ'
+      release_tag:
+        description: 'Release tag / channel'
+        type: string
+        default: 'release'
+  push:
+    branches:
+      - release
+      - main
+    paths:
+      - '.github/workflows/build-windows-update.yml'
+      - 'src/**'
+      - 'src-tauri/**'
+      - 'package.json'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Verify Update Configuration
+        env:
+          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
+          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run update:verify
+
+      - name: Build Windows Updater Bundle
+        env:
+          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
+          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run update:build:windows
+
+      - name: Upload Windows Artifact to Release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
+          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
+        run: npm run update:upload:windows
+
+      - name: Publish Update Manifest (latest.json)
+        if: ${{ inputs.publish_manifest }}
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
+          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
+          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
+        run: npm run update:publish

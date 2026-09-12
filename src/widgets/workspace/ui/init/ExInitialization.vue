@@ -830,11 +830,17 @@ const runArtificialUpdateProgress = async () => {
   finishUpdatePhase()
 }
 
+let activeNativeUpdate: Update | null = null
+
 const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     const update = await check()
-    if (!update || !update.version) return null
+    if (!update || !update.version) {
+      activeNativeUpdate = null
+      return null
+    }
+    activeNativeUpdate = update
     return {
       type: 'native',
       version: update.version,
@@ -844,6 +850,7 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
     }
   } catch (err: any) {
     console.info('[NativeUpdater] No compatible native update binary found:', err)
+    activeNativeUpdate = null
     return null
   }
 }
@@ -884,6 +891,7 @@ const remainingSizeText = ref('')
 const confirmAndInstallUpdate = async () => {
   if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
   const updateToInstall = pendingUpdate.value
+  const rawUpdate = activeNativeUpdate || updateToInstall.nativeUpdateObj || null
   pendingUpdate.value = null
   updateInstallationError.value = ''
 
@@ -891,8 +899,8 @@ const confirmAndInstallUpdate = async () => {
     setUpdateCopy('ПОДГОТОВКА_К_ОБНОВЛЕНИЮ', 'инициализация процесса установки')
     updateProgress.value = 10
 
-    if (updateToInstall.nativeUpdateObj) {
-      await performNativeInstall(updateToInstall.nativeUpdateObj)
+    if (rawUpdate) {
+      await performNativeInstall(rawUpdate)
     } else {
       throw new Error(locale.value === 'ru' ? 'Файл полного обновления недоступен.' : 'Full update package is unavailable.')
     }
@@ -910,6 +918,7 @@ const confirmAndInstallUpdate = async () => {
 }
 
 const skipUpdate = () => {
+  activeNativeUpdate = null
   pendingUpdate.value = null
   finishUpdatePhase()
 }

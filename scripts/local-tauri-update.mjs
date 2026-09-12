@@ -73,7 +73,7 @@ function verifyProjectConfiguration() {
   const cargoToml = readFileSync('src-tauri/Cargo.toml', 'utf8')
   const cargoLock = readFileSync('src-tauri/Cargo.lock', 'utf8')
   const cargoVersion = cargoToml.match(/^version\s*=\s*"([^"]+)"/m)?.[1]
-  const lockVersion = cargoLock.match(/name = "app"\nversion = "([^"]+)"/)?.[1]
+  const lockVersion = cargoLock.match(/name\s*=\s*"app"\s*\r?\n\s*version\s*=\s*"([^"]+)"/)?.[1]
   const versions = [packageJson.version, tauriConfig.version, cargoVersion, lockVersion]
 
   if (!versions[0] || versions.some((value) => value !== versions[0])) {
@@ -348,8 +348,12 @@ function readJson(path) {
   return JSON.parse(readFileSync(join(root, path), 'utf8'))
 }
 
+function shouldRunInShell(executable) {
+  return process.platform === 'win32' && (executable.endsWith('.cmd') || executable.endsWith('.bat'))
+}
+
 function run(executable, args) {
-  const result = spawnSync(executable, args, { cwd: root, env: process.env, stdio: 'inherit' })
+  const result = spawnSync(executable, args, { cwd: root, env: process.env, stdio: 'inherit', shell: shouldRunInShell(executable) })
   if (result.error) fail(`${executable} failed to start: ${result.error.message}`)
   if (result.status !== 0) fail(`${executable} exited with code ${result.status}`)
 }
@@ -380,7 +384,7 @@ function runTauriBuild(args) {
 }
 
 function capture(executable, args) {
-  const result = spawnSync(executable, args, { cwd: root, env: process.env, encoding: 'utf8', stdio: 'pipe' })
+  const result = spawnSync(executable, args, { cwd: root, env: process.env, encoding: 'utf8', stdio: 'pipe', shell: shouldRunInShell(executable) })
   if (result.error) fail(`${executable} failed to start: ${result.error.message}`)
   if (result.status !== 0) fail(result.stderr?.trim() || `${executable} exited with code ${result.status}`)
   return result.stdout
