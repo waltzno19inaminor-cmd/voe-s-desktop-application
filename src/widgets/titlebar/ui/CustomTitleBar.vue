@@ -34,10 +34,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, markRaw } from 'vue'
 import { useThemeStore } from '~/features/store/useTheme'
 
-const appWindow = ref(null)
+const appWindow = shallowRef(null)
 const isFullscreen = useState('isFullscreen', () => false)
 const isInitializationVisible = useState('isInitializationVisible', () => false)
 const isAccessGateVisible = useState('isAccessGateVisible', () => false)
@@ -93,7 +93,7 @@ onMounted(async () => {
 
   try {
     const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    appWindow.value = getCurrentWindow()
+    appWindow.value = markRaw(getCurrentWindow())
     isTauri.value = true
     isFullscreen.value = await appWindow.value.isFullscreen()
     

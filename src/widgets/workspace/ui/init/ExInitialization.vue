@@ -381,7 +381,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch, markRaw, toRaw } from 'vue'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
 import pkg from '../../../../../package.json'
@@ -826,25 +826,33 @@ const runArtificialUpdateProgress = async () => {
   finishUpdatePhase()
 }
 
+let activeNativeUpdate: any = null
+
 const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
   try {
     const { check } = await import('@tauri-apps/plugin-updater')
     const update = await check()
-    if (!update || !update.version) return null
+    if (!update || !update.version) {
+      activeNativeUpdate = null
+      return null
+    }
+    activeNativeUpdate = update
     return {
       type: 'native',
       version: update.version,
       notes: update.body,
-      nativeUpdateObj: update,
+      nativeUpdateObj: markRaw(update),
       isSuitable: true
     }
   } catch (err: any) {
     console.info('[NativeUpdater] No compatible native update binary found:', err)
+    activeNativeUpdate = null
     return null
   }
 }
 
-const performNativeInstall = async (update: any) => {
+const performNativeInstall = async (updateObj: any) => {
+  const update = toRaw(updateObj)
   setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', `загрузка версии ${update.version}`)
   updateProgress.value = 18
   let downloadedBytes = 0
@@ -880,6 +888,7 @@ const remainingSizeText = ref('')
 const confirmAndInstallUpdate = async () => {
   if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
   const updateToInstall = { ...pendingUpdate.value }
+  const rawUpdate = activeNativeUpdate || (updateToInstall.nativeUpdateObj ? toRaw(updateToInstall.nativeUpdateObj) : null)
   pendingUpdate.value = null
   updateInstallationError.value = ''
 
@@ -887,8 +896,8 @@ const confirmAndInstallUpdate = async () => {
     setUpdateCopy('ПОДГОТОВКА_К_ОБНОВЛЕНИЮ', 'инициализация процесса установки')
     updateProgress.value = 10
 
-    if (updateToInstall.nativeUpdateObj) {
-      await performNativeInstall(updateToInstall.nativeUpdateObj)
+    if (rawUpdate) {
+      await performNativeInstall(rawUpdate)
     } else {
       throw new Error(locale.value === 'ru' ? 'Файл полного обновления недоступен.' : 'Full update package is unavailable.')
     }
@@ -906,6 +915,7 @@ const confirmAndInstallUpdate = async () => {
 }
 
 const skipUpdate = () => {
+  activeNativeUpdate = null
   pendingUpdate.value = null
   finishUpdatePhase()
 }
