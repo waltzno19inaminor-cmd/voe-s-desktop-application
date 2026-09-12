@@ -1,26 +1,86 @@
-name: Build & Release Windows Update
+name: Build macOS and Windows update release
 
 on:
   workflow_dispatch:
     inputs:
-      publish_manifest:
-        description: 'Publish latest.json manifest after upload (requires macOS asset already uploaded)'
-        type: boolean
-        default: false
-      target_repository:
-        description: 'Target GitHub repository (owner/repo)'
-        type: string
-        default: 'jorudr/JLJ'
       release_tag:
-        description: 'Release tag / channel'
+        description: Release tag in this repository
+        required: true
         type: string
-        default: 'release'
+        default: desktop-v1.1.7
 
 permissions:
   contents: write
 
+concurrency:
+  group: desktop-update-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  APP_VERSION: 1.1.7
+  UPDATE_REPOSITORY: jorudr/JLJ
+  UPDATE_CHANNEL: release
+
 jobs:
+  build-macos:
+    name: Build signed macOS updater
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify updater configuration
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm run update:verify
+
+      - name: Build universal macOS updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npx tauri build --target universal-apple-darwin --bundles app
+
+      - name: Stage macOS release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file="$(find src-tauri/target/universal-apple-darwin/release/bundle/macos -maxdepth 1 -type f -name '*.app.tar.gz' -print -quit)"
+          if [ -z "$source_file" ] || [ ! -s "$source_file" ] || [ ! -s "$source_file.sig" ]; then
+            echo "Signed macOS updater was not created" >&2
+            exit 1
+          fi
+          mkdir -p release-assets
+          cp "$source_file" "release-assets/JLJ_${APP_VERSION}_universal.app.tar.gz"
+          cp "$source_file.sig" "release-assets/JLJ_${APP_VERSION}_universal.app.tar.gz.sig"
+
+      - name: Upload macOS files for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-updater-${{ env.APP_VERSION }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            release-assets/JLJ_${{ env.APP_VERSION }}_universal.app.tar.gz
+            release-assets/JLJ_${{ env.APP_VERSION }}_universal.app.tar.gz.sig
+
   build-windows:
+    name: Build signed Windows updater
     runs-on: windows-latest
 
     steps:
@@ -31,43 +91,114 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: npm
 
-      - name: Setup Rust toolchain
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Verify Update Configuration
+      - name: Verify updater configuration
         env:
-          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
-          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run update:verify
 
-      - name: Build Windows Updater Bundle
+      - name: Build Windows NSIS updater
         env:
-          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
-          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm run update:build:windows
+        run: npx tauri build --bundles nsis
 
-      - name: Upload Windows Artifact to Release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
-          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
-          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
-        run: npm run update:upload:windows
+      - name: Stage Windows release files
+        shell: pwsh
+        run: |
+          $sourceFile = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $sourceFile -or -not (Test-Path "$($sourceFile.FullName).sig")) {
+            throw "Signed Windows updater was not created"
+          }
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          Copy-Item $sourceFile.FullName "release-assets/JLJ_${env:APP_VERSION}_windows-x86_64-setup.exe"
+          Copy-Item "$($sourceFile.FullName).sig" "release-assets/JLJ_${env:APP_VERSION}_windows-x86_64-setup.exe.sig"
 
-      - name: Publish Update Manifest (latest.json)
-        if: ${{ inputs.publish_manifest }}
+      - name: Upload Windows files for release job
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-updater-${{ env.APP_VERSION }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            release-assets/JLJ_${{ env.APP_VERSION }}_windows-x86_64-setup.exe
+            release-assets/JLJ_${{ env.APP_VERSION }}_windows-x86_64-setup.exe.sig
+
+  publish-release:
+    name: Create latest.json and repository release
+    needs:
+      - build-macos
+      - build-windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download both signed updater builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-updater-${{ env.APP_VERSION }}'
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create latest.json
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.RELEASE_GH_TOKEN || secrets.GITHUB_TOKEN }}
-          UPDATE_REPOSITORY: ${{ inputs.target_repository || 'jorudr/JLJ' }}
-          UPDATE_CHANNEL: ${{ inputs.release_tag || 'release' }}
-        run: npm run update:publish
+          PRODUCTION_REPOSITORY: jorudr/JLJ
+          PRODUCTION_RELEASE_TAG: release
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs'
+
+          const version = process.env.APP_VERSION
+          const directory = 'release-assets'
+          const macFile = `JLJ_${version}_universal.app.tar.gz`
+          const windowsFile = `JLJ_${version}_windows-x86_64-setup.exe`
+          const signature = (file) => readFileSync(`${directory}/${file}.sig`, 'utf8').trim()
+          const downloadUrl = (file) =>
+            `https://github.com/${process.env.PRODUCTION_REPOSITORY}/releases/download/${process.env.PRODUCTION_RELEASE_TAG}/${encodeURIComponent(file)}`
+
+          const manifest = {
+            version,
+            notes: `Full application update ${version}`,
+            pub_date: new Date().toISOString(),
+            platforms: {
+              'windows-x86_64': { signature: signature(windowsFile), url: downloadUrl(windowsFile) },
+              'darwin-x86_64': { signature: signature(macFile), url: downloadUrl(macFile) },
+              'darwin-aarch64': { signature: signature(macFile), url: downloadUrl(macFile) }
+            }
+          }
+
+          writeFileSync(`${directory}/latest.json`, `${JSON.stringify(manifest, null, 2)}\n`)
+          NODE
+
+      - name: Create release in this repository and upload all files
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
+              --title "JLJ ${APP_VERSION} desktop updater artifacts" \
+              --notes "Signed macOS and Windows updater files plus latest.json. Download these files and move them to the JLJ production release manually."
+          fi
+          gh release upload "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            "release-assets/JLJ_${APP_VERSION}_universal.app.tar.gz" \
+            "release-assets/JLJ_${APP_VERSION}_universal.app.tar.gz.sig" \
+            "release-assets/JLJ_${APP_VERSION}_windows-x86_64-setup.exe" \
+            "release-assets/JLJ_${APP_VERSION}_windows-x86_64-setup.exe.sig" \
+            release-assets/latest.json
