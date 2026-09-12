@@ -234,6 +234,7 @@ function ensureRelease() {
     cwd: root,
     encoding: 'utf8',
     stdio: 'pipe',
+    shell: process.platform === 'win32',
   })
   if (view.status === 0) return
 
@@ -279,7 +280,7 @@ function verifyUpdaterPublicKey(value, source) {
 }
 
 function requireGitHubCli() {
-  const result = spawnSync('gh', ['auth', 'status'], { cwd: root, encoding: 'utf8', stdio: 'pipe' })
+  const result = spawnSync('gh', ['auth', 'status'], { cwd: root, encoding: 'utf8', stdio: 'pipe', shell: process.platform === 'win32' })
   if (result.status !== 0) {
     fail('GitHub CLI is not authenticated. Run gh auth login or set GH_TOKEN.')
   }
@@ -338,13 +339,13 @@ function readJson(path) {
 }
 
 function run(executable, args) {
-  const result = spawnSync(executable, args, { cwd: root, env: process.env, stdio: 'inherit' })
+  const result = spawnSync(executable, args, { cwd: root, env: process.env, stdio: 'inherit', shell: process.platform === 'win32' })
   if (result.error) fail(`${executable} failed to start: ${result.error.message}`)
   if (result.status !== 0) fail(`${executable} exited with code ${result.status}`)
 }
 
 function capture(executable, args) {
-  const result = spawnSync(executable, args, { cwd: root, env: process.env, encoding: 'utf8', stdio: 'pipe' })
+  const result = spawnSync(executable, args, { cwd: root, env: process.env, encoding: 'utf8', stdio: 'pipe', shell: process.platform === 'win32' })
   if (result.error) fail(`${executable} failed to start: ${result.error.message}`)
   if (result.status !== 0) fail(result.stderr?.trim() || `${executable} exited with code ${result.status}`)
   return result.stdout
