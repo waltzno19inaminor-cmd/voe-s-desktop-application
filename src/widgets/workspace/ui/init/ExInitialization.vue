@@ -381,7 +381,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, shallowRef, markRaw, onMounted, onBeforeUnmount, computed, watch } from 'vue'
+import type { Update } from '@tauri-apps/plugin-updater'
 import EtherealBackground from '~/widgets/style/ui/EtherealBackground.vue'
 import tauriConfig from '../../../../../src-tauri/tauri.conf.json'
 import pkg from '../../../../../package.json'
@@ -408,7 +409,7 @@ interface AvailableUpdate {
   type: 'native'
   version: string
   notes?: string
-  nativeUpdateObj?: any
+  nativeUpdateObj?: Update
   isSuitable?: boolean
   reason?: string
 }
@@ -754,7 +755,10 @@ const updateTitle = ref('ПРОВЕРКА_ОБНОВЛЕНИЙ')
 const updateLog = ref('проверка доступных обновлений')
 let updateProgressTimer: ReturnType<typeof setInterval> | null = null
 
-const pendingUpdate = ref<AvailableUpdate | null>(null)
+// Tauri resources use private fields tied to the original class instance.
+// A deep Vue proxy changes `this` and makes methods such as
+// downloadAndInstall() fail with "Cannot read private member...".
+const pendingUpdate = shallowRef<AvailableUpdate | null>(null)
 const isUpdateInstalled = ref(false)
 const isRelaunching = ref(false)
 const updateInstallationError = ref('')
@@ -835,7 +839,7 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
       type: 'native',
       version: update.version,
       notes: update.body,
-      nativeUpdateObj: update,
+      nativeUpdateObj: markRaw(update),
       isSuitable: true
     }
   } catch (err: any) {
@@ -844,7 +848,7 @@ const checkNativeUpdate = async (): Promise<AvailableUpdate | null> => {
   }
 }
 
-const performNativeInstall = async (update: any) => {
+const performNativeInstall = async (update: Update) => {
   setUpdateCopy('ЗАГРУЗКА_ОБНОВЛЕНИЯ', `загрузка версии ${update.version}`)
   updateProgress.value = 18
   let downloadedBytes = 0
@@ -879,7 +883,7 @@ const remainingSizeText = ref('')
 
 const confirmAndInstallUpdate = async () => {
   if (!pendingUpdate.value || pendingUpdate.value.isSuitable === false) return
-  const updateToInstall = { ...pendingUpdate.value }
+  const updateToInstall = pendingUpdate.value
   pendingUpdate.value = null
   updateInstallationError.value = ''
 
