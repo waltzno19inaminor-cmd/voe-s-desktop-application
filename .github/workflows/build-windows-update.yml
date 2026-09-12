@@ -15,15 +15,6 @@ on:
         description: 'Release tag / channel'
         type: string
         default: 'release'
-  push:
-    branches:
-      - release
-      - main
-    paths:
-      - '.github/workflows/build-windows-update.yml'
-      - 'src/**'
-      - 'src-tauri/**'
-      - 'package.json'
 
 permissions:
   contents: write
