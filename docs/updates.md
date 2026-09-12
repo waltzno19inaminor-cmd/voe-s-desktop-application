@@ -19,23 +19,29 @@ in `jorudr/JLJ`:
 gh auth login
 ```
 
-Copy the same updater private key and its adjacent `.pub` file securely to both
-computers. Never add either key or the password to Git. Before building, set:
+Use the same updater private key securely on both computers. The private key
+environment variable accepts either the key value itself or a path to its file.
+Never add the key or password to a source file or Git.
+
+When using the key value directly, set:
 
 macOS:
 
 ```sh
 rustup target add aarch64-apple-darwin x86_64-apple-darwin
-export TAURI_SIGNING_PRIVATE_KEY="$PWD/.secrets/tauri/jlj-signing-private.txt"
+export TAURI_SIGNING_PRIVATE_KEY='YOUR_PRIVATE_KEY_VALUE'
 export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="YOUR_KEY_PASSWORD"
 ```
 
 Windows PowerShell:
 
 ```powershell
-$env:TAURI_SIGNING_PRIVATE_KEY="C:\secure\jlj-signing-private.txt"
+$env:TAURI_SIGNING_PRIVATE_KEY="YOUR_PRIVATE_KEY_VALUE"
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD="YOUR_KEY_PASSWORD"
 ```
+
+If you use a file path instead, place the matching public key next to it as
+`private-key-file.pub`; the release tool will verify its key ID before building.
 
 Installed `1.1.0` clients trust updater key `38F98BF6CE29CAB3`. The local tools
 reject a different configured public key.
